@@ -1,0 +1,57 @@
+{
+  "push": [
+    {
+      "name": "source",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm run check --profile first-party",
+        "pnpm run typecheck"
+      ]
+    },
+    {
+      "name": "commerce",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm exec node --test --test-concurrency=1 tests/api/commerce.test.mjs tests/api/data.test.mjs"
+      ]
+    },
+    {
+      "name": "movein",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm exec node --test --test-concurrency=1 tests/api/imports.test.mjs"
+      ]
+    },
+    {
+      "name": "runtime",
+      "browser": true,
+      "hosted": true,
+      "commands": [
+        "pnpm run build",
+        "pnpm run test:runtime",
+        "rer build --site"
+      ]
+    }
+  ],
+  "nightly": [
+    {
+      "name": "browser",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "pnpm run test:browser"
+      ]
+    },
+    {
+      "name": "readme-clone",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "pnpm run test:clone"
+      ]
+    }
+  ]
+}

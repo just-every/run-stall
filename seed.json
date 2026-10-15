@@ -1,0 +1,118 @@
+{
+  "id": "stall",
+  "name": "Stall",
+  "version": "0.1.0",
+  "maturity": "first-release-candidate",
+  "category": "commerce",
+  "spine": {
+    "id": "foundation",
+    "record": "Paid order, reservation, shipment and refund history"
+  },
+  "description": "An owned online shop with Stripe Checkout, Pier stock, recorded shipping/refund approvals and reversible Shopify listing move-in.",
+  "capabilities": [
+    {
+      "id": "http-dispatch",
+      "clauses": [
+        "HTTP-001"
+      ]
+    }
+  ],
+  "nonGoals": [
+    "Tax engine",
+    "Shipping-rate network",
+    "Marketplace",
+    "Point of sale",
+    "App ecosystem"
+  ],
+  "externals": [
+    {
+      "id": "cloudflare",
+      "required": true,
+      "why": "Worker hosting",
+      "data": [
+        "HTTP requests"
+      ],
+      "adapters": []
+    },
+    {
+      "id": "pier",
+      "required": true,
+      "why": "Stock catalogue, reservations and shipping dispatch",
+      "data": [
+        "SKU quantities",
+        "Opaque order references"
+      ],
+      "adapters": [
+        "src/stall/pier.ts"
+      ]
+    },
+    {
+      "id": "stripe",
+      "required": true,
+      "why": "Hosted Checkout and refunds in the shop owner account",
+      "data": [
+        "Customer email and shipping details",
+        "Order totals",
+        "Opaque order references"
+      ],
+      "adapters": [
+        "src/stall/stripe.ts"
+      ]
+    }
+  ],
+  "env": [],
+  "deploy": {
+    "healthPath": "/health",
+    "publicPaths": [
+      "/",
+      "/health",
+      "/signin",
+      "/shop",
+      "/order",
+      "/api/stall/catalogue",
+      "/api/stall/checkout",
+      "/api/stall/webhook"
+    ],
+    "notes": "Native owner sessions guard /app; unknown paths return real 404s; development and demo mail is suppressed."
+  },
+  "extensionPoints": {
+    "contributions": [],
+    "policies": [],
+    "events": [],
+    "slots": [],
+    "adapters": []
+  },
+  "limits": {
+    "status": "unmeasured"
+  },
+  "accessibility": {
+    "level": "WCAG 2.2 AA",
+    "status": "target; unaudited"
+  },
+  "operatingCost": {
+    "status": "unmeasured"
+  },
+  "composition": {
+    "base": "base",
+    "family": "commerce",
+    "edition": "stall",
+    "modules": [
+      "delivery-producer",
+      "job-queue",
+      "release",
+      "deploy-kit",
+      "container",
+      "demo-host",
+      "demo",
+      "integrations",
+      "mail",
+      "ai",
+      "portability",
+      "d1-transport",
+      "erasure",
+      "dependencies",
+      "operator-auth",
+      "owner-claim"
+    ]
+  }
+}

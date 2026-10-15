@@ -1,0 +1,68 @@
+import { runtimeBindings,type Bindings } from '../auth.server'
+import { audit,commit,current,digest,live } from './access'
+import { fail,Problem,requirePerson,requireSupplier,text } from './model'
+import { catalogue,pierConfigured } from './pier'
+import { products,orders } from './store'
+import { productCommand } from './products'
+import { shipmentCommand } from './fulfilment'
+import { refundCommand } from './refunds'
+import { reconcileOrder } from './orders'
+import { checkout } from './checkout'
+import { webhook } from './payments'
+import { rawBody } from './stripe'
+import { eraseCustomer } from './erasure'
+const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}})
+async function body(request:Request):Promise<any> { try { const value=JSON.parse(await rawBody(request,100000));if(!value||typeof value!=='object'||Array.isArray(value)) fail('INPUT','A JSON object is required.',400);return value }catch(e) { if(e instanceof Problem) throw e;return fail('INPUT','Invalid JSON request.',400) } }
+export async function stallResponse(request:Request,original:Bindings):Promise<Response|null> {
+ const path=new URL(request.url).pathname
+ if(!path.startsWith('/api/stall/')) return null
+ try {
+  const env=runtimeBindings(original)
+  if(path==='/api/stall/webhook'&&request.method==='POST') return json(await webhook(request,env))
+  if(path==='/api/stall/catalogue'&&request.method==='GET') return json(await catalogue(env))
+  if(path==='/api/stall/checkout'&&request.method==='POST') {
+   if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own checkout page.',403)
+   return json(await checkout(env,await body(request)))
+  }
+  const actor=await current(request,env)
+  requireSupplier(actor)
+  if(!['GET','HEAD'].includes(request.method)&&request.headers.get('origin')!==env.AUTH_ORIGIN&&(!actor.agent||request.headers.has('origin'))) fail('ORIGIN','Use this installation’s own page to change records.',403)
+  if(path==='/api/stall/state'&&request.method==='GET') {
+   const [selected,history,logs]=await Promise.all([products(env.DB),orders(env.DB),env.DB.prepare('SELECT * FROM st_audit ORDER BY rowid DESC LIMIT 200').all()])
+   return json({actor,products:selected,orders:history,audit:logs.results,connections:{pier:pierConfigured(env),stripe:Boolean(env.STRIPE_SECRET_KEY),webhook:Boolean(env.STRIPE_WEBHOOK_SECRET)}})
+  }
+  if(path==='/api/stall/agent-token'&&request.method==='POST') {
+   requirePerson(actor)
+   if(actor.role!=='owner') fail('FORBIDDEN','Only the human owner may grant personal agent access.',403)
+   const token=Array.from(crypto.getRandomValues(new Uint8Array(32)),n=>n.toString(16).padStart(2,'0')).join(''),id=crypto.randomUUID(),expiresAt=Date.now()+7*86400000
+   await commit(env.DB,actor,[env.DB.prepare('INSERT INTO st_agent_tokens VALUES(?,?,?,?,?)').bind(id,await digest(token),actor.id,actor.version,expiresAt),audit(env.DB,actor,id,'agent.granted')])
+   return json({id,token,expiresAt})
+  }
+  if(path==='/api/stall/agent-token'&&request.method==='GET') return json({grants:(await env.DB.prepare('SELECT id,actor_id AS actorId,expires_at AS expiresAt FROM st_agent_tokens WHERE actor_id=? ORDER BY expires_at DESC').bind(actor.id).all()).results})
+  if(path==='/api/stall/agent-token/revoke'&&request.method==='POST') {
+   requirePerson(actor)
+   if(actor.role!=='owner') fail('FORBIDDEN','Only the human owner may revoke personal agent access.',403)
+   const p=await body(request)
+   const statement=p.grantId?env.DB.prepare('DELETE FROM st_agent_tokens WHERE actor_id=? AND id=?').bind(actor.id,text(p.grantId,'Grant ID')):env.DB.prepare('DELETE FROM st_agent_tokens WHERE actor_id=?').bind(actor.id)
+   await commit(env.DB,actor,[statement,audit(env.DB,actor,actor.id,'agent.revoked')]);return json({revoked:true})
+  }
+  if(path==='/api/stall/commands'&&request.method==='POST') {
+   const p=await body(request),type=p.type,payload=p.payload
+   if(typeof type!=='string'||!payload||typeof payload!=='object'||Array.isArray(payload)) fail('INPUT','A command has a type and payload.',400)
+   if(actor.agent&&!['product.prepare','shipment.prepare','refund.prepare'].includes(type)) fail('PERSON_REQUIRED','Agents prepare drafts; a person must review and approve.',403)
+   await live(env,actor)
+   let result:unknown
+   if(['product.prepare','product.approve'].includes(type)) result=await productCommand(env,actor,type,payload)
+   else if(['shipment.prepare','shipment.approve'].includes(type)) result=await shipmentCommand(env,actor,type,payload)
+   else if(['refund.prepare','refund.approve'].includes(type)) result=await refundCommand(env,actor,type,payload)
+   else if(type==='order.reconcile') result=await reconcileOrder(env,actor,payload)
+   else if(type==='customer.erase') result=await eraseCustomer(env,actor,payload)
+   else fail('COMMAND','Unknown shop command.',404)
+   return json({result})
+  }
+  return json({error:{code:'NOT_FOUND',message:'Unknown shop endpoint.'}},404)
+ } catch(error:any) {
+  if(error instanceof Problem) return json({error:{code:error.code,message:error.message}},error.status)
+  return json({error:{code:'CONFLICT',message:'The record or permissions changed. Refresh and reconcile the same operation before continuing.'}},path==='/api/stall/webhook'?503:409)
+ }
+}

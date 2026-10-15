@@ -1,0 +1,8 @@
+import type { ReactNode } from 'react'
+import { HydrationUnit } from '../../base/hydration/unit'
+export function Notice({ children, error = false }: { children: ReactNode; error?: boolean }) { return <div className={`st-notice ${error ? 'st-error' : ''}`} role={error ? 'alert' : 'status'}>{children}</div> }
+export function Section({ children, id, title }: { children: ReactNode; id?: string; title: string }) { return <HydrationUnit><section className="st-panel st-stack" id={id}><h2>{title}</h2>{children}</section></HydrationUnit> }
+export function Empty({ children }: { children: ReactNode }) { return <div className="st-empty">{children}</div> }
+export function JsonDetail({ value, label }: { value: unknown; label: string }) { return <details><summary>{label}</summary><pre>{JSON.stringify(value, null, 2)}</pre></details> }
+export function Chrome({ desk = false }: { desk?: boolean }) { return <HydrationUnit><header className="st-header"><a className="st-brand" href={desk ? '/app' : '/shop'}><img src="/brand/mark.svg" width="30" height="30" alt="" />Stall</a><nav aria-label="Main navigation"><a href="/shop" aria-current={!desk ? 'page' : undefined}>Shop</a><a href="/app" aria-current={desk ? 'page' : undefined}>Shop desk</a>{desk && <a href="/auth/settings/identity">Account</a>}</nav></header></HydrationUnit> }
+export function ProviderLinks() { return <p className="st-small">Connect your stock provider and payments before taking orders. <a href="https://github.com/just-every/run-stall/blob/main/docs/CONNECTIONS.md" target="_blank" rel="noreferrer">Pier and Stripe connection guide</a> · <a href="https://docs.stripe.com/checkout/quickstart" target="_blank" rel="noreferrer">Stripe setup guide</a></p> }

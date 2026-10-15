@@ -1,0 +1,79 @@
+# Stall
+
+An owned online shop for an Australian maker or retailer whose stock already lives in [Pier](https://github.com/just-every/run-pier). Publish products, take payment through your own Stripe Checkout, reserve stock in Pier, ship and make a partial refund with a recorded approval at each step. MIT licensed. [First-release scope](ACCEPTANCE.md).
+
+**The run site is local for now.** Run `rer dev`, then open `http://127.0.0.1:<port>/run`, using the run-site port RER prints in `RER_SITE`. This can differ from the app's `RER_READY` port. https://run-stall.com goes live once its domain is registered. A domain purchase does not block running or deploying your own shop.
+
+## From clone to app
+
+Install Git and Node 22 or newer, then:
+
+```sh
+npx -y @runeditrun/rer cli install
+export PATH="$HOME/.local/bin:$PATH"
+git clone https://github.com/just-every/run-stall.git
+cd run-stall
+rer dev
+```
+
+RER installs the pinned dependencies and Node 22.20.0, builds and migrates local D1, prepares the local owner, and starts the app. Allow several minutes on the first run. Open the private `RER_OPEN` link in the terminal, then select **Finish setup**. Keep that link private. Open `/app` on the `RER_READY` origin for the shop desk, and `/shop` for the customer storefront. Repeat `rer dev` after an interruption; it resumes. Stop with `rer dev --stop` or Ctrl-C. Use `rer dev --port 8899` if another checkout occupies your saved app port.
+
+To claim the install with your own mailbox, use `rer install`, `rer setup --owner-email you@example.com`, then `rer dev`. Development mail is suppressed. Use the private `RER_OPEN` owner entry locally; ordinary invitations require a hosted installation with configured mail. The owner may invite administrators or members through Base's `/auth/invite` API (see [commands](docs/COMMANDS.md)); only owners/admins manage shop records, and members cannot use the desk APIs.
+
+A fresh installation contains no invented stock, products, orders or payment provider. The desk shows which connections are missing. Your local app works without a domain or paid provider account; a purchase needs the real connections below. Tests exercise the whole purchase flow with fakes only at external network edges.
+
+## First shop journey
+
+1. [Connect Pier and Stripe](docs/CONNECTIONS.md). In Pier, have two stocked, sellable SKUs and one customer representing the online shop. Pier remains the stock authority; Stall never copies inventory balances.
+2. In **Move in**, paste or upload your [Shopify product CSV](docs/MOVE-IN.md). Use the [documented-shape synthetic fixture](fixtures/shopify-products.csv) to understand the columns; its SKUs must exist in your Pier installation before publication. Preview, inspect the rows and fingerprint, then explicitly apply. Imported listings stay unpublished. Open the import journal to inspect or undo untouched work.
+3. In **Products**, prepare the name, description and price in cents, then review and approve the exact revision. A price change creates another draft; an existing published listing keeps its approved price until the new draft is approved. Publication validates the Pier SKU.
+4. Open `/shop` as a customer, choose quantities of two in-stock products, enter an email and review the AUD total. **Continue to Stripe Checkout** opens Stripe's hosted payment page. A return URL alone never marks an order paid: the signed webhook must confirm the exact session, amount and currency.
+5. Back in **Orders**, reconcile the paid order. It records a Pier reservation, or a visible shortfall if stock changed while the customer paid. Resolve a shortfall in Pier and reconcile again. Prepare shipping with a tracking/reference, inspect it, then approve. Shipping dispatches Pier's reserved lines once.
+6. Prepare a refund for one line, inspect the amount and reason, then approve that revision. Reconcile pending provider results. A refund changes money, not stock; a physical return and restock stay in Pier. The history records approvers and provider references. [Commands and recovery](docs/COMMANDS.md).
+
+## Agent preparation and data
+
+The owner grants a short-lived preparation credential in **Data**, copies it once into their agent's secret store and can revoke it there. [The agent API](docs/COMMANDS.md) prepares product, shipment and refund drafts. It cannot approve, erase, restore, grant access or spend. Approvals require a current native human session and the exact reviewed revision.
+
+In **Data**, export a private archive or restore one into an empty installation. CLI backups also work; stop the app first:
+
+```sh
+rer dev --stop
+rer export --output exports/stall.rer
+```
+
+Restore into a fresh clone of the same revision, before entering shop data:
+
+```sh
+rer install
+rer import --input /private/path/stall.rer --yes
+rer setup --owner-email original-owner@example.com
+rer dev
+```
+
+Products, orders, recorded approvals, stock/payment references and import custody travel. The destination keeps its own owner identity. Authentication records, sessions, sign-in links, agent credentials, private configuration and local mail do not travel. Re-enter the original provider configuration and sign in again. Never restore a financial archive into a second live shop against the same providers: use one active installation.
+
+**Erase customer details** removes the mailbox, shipping address and checkout fingerprint from matching orders and preserves anonymous commercial history. Orders must be shipped and pending refunds resolved first. Stripe, Pier and previously downloaded archives are separate custody. Protect or retire old backups yourself. When restoring an older backup, pass a trusted post-erasure archive as the journal: `rer import --input OLD.rer --journal LATER.rer --yes`. A destination or later journal that knows the erasure refuses the older archive; an offline old copy cannot discover later erasures. Damaged archives and nonempty destinations are refused. `rer reset --yes` destroys local state and settings, so export first if needed.
+
+## Deploy your shop
+
+Use your own **RunEditRun Cloudflare account** for this seed's deployment. A workers.dev origin is sufficient; purchasing run-stall.com is not required. The stable project, Worker and D1 declarations are in `deploy.json` and `wrangler.jsonc`. Supply a Workers/D1-scoped `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `OWNER_EMAIL`, a random `SESSION_SECRET`, a random `SETUP_TOKEN`, and `MAIL_API_KEY` from a secret manager. Set `MAIL_FROM` in `deploy.json` to your verified Resend sender. Supply the Pier and Stripe variables in [Connections](docs/CONNECTIONS.md) too. Keep values out of commands, Git and logs. Commit the intended configuration; deploy refuses dirty tracked files.
+
+```sh
+rer deploy --dry-run
+rer deploy
+```
+
+Dry run validates and builds with zero provider requests. Real deploy provisions its Worker/D1, applies migrations, uploads the declared secrets, checks deployment health and claims the configured owner. Open the returned origin. Use email sign-in or `rer signin` from the checkout for the recorded hosted owner, then finish setup. Register that origin's `/api/stall/webhook` in Stripe and test in Stripe test mode before accepting live orders. Real provider delivery and account configuration are separate from the local/CI proof. `rer deploy --site` is unnecessary until the public run-site domain is registered.
+
+## Development and verification
+
+Package mode pins `@runeditrun/rer` **0.2.22**. This seed starts from the committed Base foundation `ada9f574d8a7247edc3a1180b593ad182b1fbb37`. [Source reuse](docs/SOURCES.md), [operations contract](SEED-COMMAND-CONTRACT.md), [agent guide](AGENTS.md).
+
+```sh
+rer check --profile first-party
+pnpm test:api
+rer verify
+```
+
+Verify shards auth/data/money, move-in, source/type checking, and the emitted Worker plus hosted assets/hydration in parallel on GitHub. Build and deploy never run tests. Browser/installer journeys run on release tags and nightly. The lane runs the separate stranger check after this round.

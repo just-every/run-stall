@@ -1,0 +1,3 @@
+import { createFileRoute } from '@tanstack/react-router'
+import { Chrome, Section } from '../stall/ui/primitives'
+export const Route = createFileRoute('/order')({ head: () => ({ meta: [{ title: 'Order · Stall' }], links: [{ rel: 'stylesheet', href: '/stall.css' }] }), component: () => <div className="st-shell"><Chrome /><main><Section title="Thanks for visiting the checkout"><p>Returning from Stripe does not confirm payment. The shop will verify the payment with Stripe before preparing your order.</p><p>If payment was cancelled, you can return to the shop and try again.</p><a href="/shop">Return to the shop</a></Section></main></div> })
