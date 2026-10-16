@@ -95,7 +95,7 @@ try {
   await card.getByText('Published',{exact:true}).waitFor()
  }
  await page.getByRole('link',{name:'Products',exact:true}).click()
- assert.equal(await page.getByRole('link',{name:'Products',exact:true}).getAttribute('aria-current'),'true')
+ await page.locator('.st-tabs a[href="#products"][aria-current="true"]').waitFor()
  await capture('products','#products')
  await capture('products-published','#products')
  await page.goto(origin+'/shop')
