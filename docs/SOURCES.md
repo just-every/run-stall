@@ -1,6 +1,6 @@
 # Source and boundaries
 
-Stall was generated and assembled from the committed `runeditrun/base` foundation at `ada9f574d8a7247edc3a1180b593ad182b1fbb37`, then converted with Base's package-mode exporter. The exact published CLI pin is `@runeditrun/rer` 0.2.22. The copied runtime, auth, mail, import-kit and D1 transport remain MIT source. `composition.lock.json` records foundation origins.
+Stall was generated and assembled from the committed `runeditrun/base` foundation at `ada9f574d8a7247edc3a1180b593ad182b1fbb37`, then converted with Base's package-mode exporter. The exact published CLI pin is `@runeditrun/rer` 0.2.34. The copied runtime, auth, mail, import-kit and D1 transport remain MIT source. `composition.lock.json` records foundation origins.
 
 Copied and adapted sources, never edited in place:
 

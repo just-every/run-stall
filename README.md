@@ -57,7 +57,7 @@ Products, orders, recorded approvals, stock/payment references and import custod
 
 ## Deploy your shop
 
-Use your own **RunEditRun Cloudflare account** for this seed's deployment. A workers.dev origin is sufficient; purchasing run-stall.com is not required. The stable project, Worker and D1 declarations are in `deploy.json` and `wrangler.jsonc`. Supply a Workers/D1-scoped `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `OWNER_EMAIL`, a random `SESSION_SECRET`, a random `SETUP_TOKEN`, and `MAIL_API_KEY` from a secret manager. Set `MAIL_FROM` in `deploy.json` to your verified Resend sender. Supply the Pier and Stripe variables in [Connections](docs/CONNECTIONS.md) too. Keep values out of commands, Git and logs. Commit the intended configuration; deploy refuses dirty tracked files.
+Use your own **RunEditRun Cloudflare account** for this seed's deployment. A workers.dev origin is sufficient; purchasing run-stall.com is not required. The stable project, Worker and D1 declarations are in `deploy.json` and `wrangler.jsonc`. Supply a Workers/D1-scoped `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `OWNER_EMAIL`, a random `SESSION_SECRET`, a random `SETUP_TOKEN`, and `MAIL_API_KEY` from a secret manager. Set `MAIL_FROM` in `deploy.json` to your verified Resend sender. The Pier and Stripe variables in [Connections](docs/CONNECTIONS.md) are optional: without them the shop deploys and its Connections section shows Setup required; add them later with `rer deploy --set-secret NAME`. Keep values out of commands, Git and logs. Commit the intended configuration; deploy refuses dirty tracked files.
 
 ```sh
 rer deploy --dry-run
@@ -68,7 +68,7 @@ Dry run validates and builds with zero provider requests. Real deploy provisions
 
 ## Development and verification
 
-Package mode pins `@runeditrun/rer` **0.2.22**. This seed starts from the committed Base foundation `ada9f574d8a7247edc3a1180b593ad182b1fbb37`. [Source reuse](docs/SOURCES.md), [operations contract](SEED-COMMAND-CONTRACT.md), [agent guide](AGENTS.md).
+Package mode pins `@runeditrun/rer` **0.2.34**. This seed starts from the committed Base foundation `ada9f574d8a7247edc3a1180b593ad182b1fbb37`. [Source reuse](docs/SOURCES.md), [operations contract](SEED-COMMAND-CONTRACT.md), [agent guide](AGENTS.md).
 
 ```sh
 rer check --profile first-party
