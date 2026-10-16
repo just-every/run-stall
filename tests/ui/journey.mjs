@@ -37,10 +37,11 @@ try {
  async function capture(name,selector) {
   for(const width of [1440,390]) {
    await page.setViewportSize({width,height:1000})
-   if(selector)await (typeof selector==='string'?page.locator(selector):selector).scrollIntoViewIfNeeded()
+   if(selector)await (typeof selector==='string'?page.locator(selector):selector).evaluate(element=>window.scrollTo(0,element.getBoundingClientRect().top+scrollY-20))
    else await page.evaluate(()=>window.scrollTo(0,0))
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`page overflows at ${width}: ${name}`)
    await page.screenshot({path:resolve(evidence,`${name}-${width}.png`)})
+   if(['order','products','settings','move-in-preview','empty','home','shop-review','checkout-return'].includes(name))await page.screenshot({path:resolve(evidence,`${name}-full-${width}.png`),fullPage:true})
   }
   await page.setViewportSize({width:1440,height:1000})
  }
@@ -117,6 +118,7 @@ try {
  await page.goto(origin+'/order?checkout=success')
  await capture('checkout-return')
  await page.goto(origin+'/app')
+ await page.locator('#orders .st-order-summary').first().waitFor()
  await capture('home')
  await page.locator('#orders .st-order-summary').first().click()
  await page.getByLabel('Shipping reference').fill('AU-TRACK-1001')
