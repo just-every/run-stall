@@ -1,25 +1,24 @@
-/* This edition's declared theme. The installer, sign-in, confirmation, /setup
-   read these --rer-* tokens; the app serves this file and its fonts.
-   Buttons keep the colour chosen at setup (src/branding.json primaryColor)
-   because no --rer-accent is declared here; declare --rer-accent and
-   --rer-accent-text together to fix them instead. */
-@font-face {
-  font-family: Outfit;
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url('/fonts/outfit/outfit-latin-wght-normal.woff2') format('woff2');
+@import url('/fonts/fonts.css');
+:root{
+ --rer-font-body:"Familjen Grotesk",Arial,sans-serif;--rer-font-heading:var(--rer-font-body);
+ --rer-page:#FBF8F3;--st-paper:var(--rer-page);--rer-surface:#FFFFFF;--rer-text:#1A1A19;--st-ink:var(--rer-text);
+ --rer-muted:#5F5B55;--rer-border:#D9D4CB;--st-rule:#E6E1D8;--rer-focus:var(--rer-text);--rer-link:var(--rer-text);
+ --rer-accent:var(--rer-text);--st-accent:var(--rer-accent);--rer-accent-text:var(--rer-surface);--st-accent-text:var(--rer-accent-text);
+ --st-peri:#4D6FE8;--st-peri-pale:#DCE3FC;--st-peri-ink:#2E45A8;--st-kraft:#CFA67A;--st-kraft-deep:#A9814F;--st-twine:#B88E5E;
+ --st-danger:#8A2727;--rer-radius:16px;--rer-button-radius:999px;--rer-logo:url('/brand/mark.svg');
+ --st-shadow:0 1px 2px rgb(26 26 25 / .04),0 8px 24px -12px rgb(26 26 25 / .10);
 }
-:root {
-  --rer-font-body: Outfit, Arial, sans-serif;
-  --rer-font-heading: Outfit, Arial, sans-serif;
-  --rer-page: #f4f6f5;
-  --rer-surface: #ffffff;
-  --rer-text: #1b2724;
-  --rer-muted: #4a5a55;
-  --rer-border: #6b7c76;
-  --rer-focus: #1b2724;
-  --rer-link: #1f5f52;
-  --rer-radius: 12px;
-  --rer-logo: url('/brand/mark.svg');
-}
+/* The theme owns the frame; Base supplies its accessible form and session. */
+html.rer-themed body{display:grid;place-items:center;padding:144px 16px 80px;background:var(--rer-page);font-family:var(--rer-font-body)}
+html.rer-themed main{position:relative;width:100%;max-width:590px;margin:0 auto;padding:64px 46px;border:1px solid #ECE8E0;border-radius:16px;background:var(--rer-surface);box-shadow:var(--st-shadow);overflow:visible}
+html.rer-themed main::before{content:"";position:absolute;width:44px;height:190px;bottom:calc(100% - 24px);left:calc(50% - 22px);background:url('/brand/hanging.svg') center bottom/44px 190px no-repeat;pointer-events:none}
+html.rer-themed .brand,html.rer-themed .rer-brand{justify-content:center;margin:0 0 44px;font-size:32px;font-weight:600;color:var(--rer-text)}
+html.rer-themed .brand::before,html.rer-themed .rer-brand::before{width:38px;height:38px}
+html.rer-themed h1{text-align:center;font-size:44px;line-height:1.08;font-weight:600;letter-spacing:-.025em;margin:0 0 32px;color:var(--rer-text)}
+html.rer-themed button,html.rer-themed .action{border-radius:999px;min-height:48px;font-weight:500;background:var(--rer-accent);color:var(--rer-accent-text)}
+html.rer-themed input:not([type=checkbox]):not([type=hidden]){min-height:48px;border:1px solid var(--rer-border);border-radius:10px;background:var(--rer-surface);color:var(--rer-text)}
+html.rer-themed label{font-size:15px;font-weight:500;color:var(--rer-text)}
+html.rer-themed p,html.rer-themed dt{color:var(--rer-muted)}
+html.rer-themed a{color:var(--rer-link);text-underline-offset:3px}
+html.rer-themed :focus-visible{outline:3px solid var(--rer-focus);outline-offset:3px}
+@media(max-width:600px){html.rer-themed body{padding:120px 16px 48px}html.rer-themed main{padding:48px 24px 32px}html.rer-themed h1{font-size:32px;margin-bottom:28px}html.rer-themed .brand,html.rer-themed .rer-brand{font-size:28px;margin-bottom:32px}}

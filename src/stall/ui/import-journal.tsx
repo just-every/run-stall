@@ -1,5 +1,6 @@
 import type { ImportJob, RetainedOriginal } from '../../modules/import-kit/src/types'
-import { Empty, JsonDetail } from './primitives'
+import { humanLabel, shortId } from './presentation'
+import { Badge, Empty, JsonDetail } from './primitives'
 
 export interface Journal { job: ImportJob; originals: RetainedOriginal[]; undoReport: unknown }
 
@@ -9,9 +10,9 @@ export function ImportJournal({ jobs, journal, busy, onOpen, onUndo, onResume }:
   return <div className="st-stack">
     <h2>Import journal</h2>
     {jobs.length === 0 ? <Empty><h3>No imports recorded</h3>Applied imports will appear here with their progress and undo history.</Empty> :
-      <div className="st-table-wrap"><table><caption className="st-sr-only">Product import jobs</caption><thead><tr><th scope="col">Job</th><th scope="col">Status</th><th scope="col">Progress</th><th scope="col">Journal</th></tr></thead><tbody>{jobs.map(job => <tr key={job.id}><th scope="row">{job.id}<small>{job.namespace}</small></th><td>{job.state}</td><td>{job.checkpoint} / {job.total}</td><td><button className="st-secondary" onClick={() => onOpen(job.id)} disabled={busy}>View</button></td></tr>)}</tbody></table></div>}
+      <div className="st-table-wrap"><table><caption className="st-sr-only">Product import jobs</caption><thead><tr><th scope="col">Job</th><th scope="col">Status</th><th scope="col">Progress</th><th scope="col">Journal</th></tr></thead><tbody>{jobs.map(job => <tr key={job.id}><th scope="row">{`Import ${shortId(job.id)}`}<small>{job.namespace}</small></th><td>{humanLabel(job.state)}</td><td>{job.checkpoint} / {job.total}</td><td><button className="st-secondary" onClick={() => onOpen(job.id)} disabled={busy}>View</button></td></tr>)}</tbody></table></div>}
     {journal && <div className="st-panel st-stack">
-      <div className="st-heading-row"><h3>Job {journal.job.id}</h3><span className="st-badge">{journal.job.state}</span></div>
+      <div className="st-heading-row"><h3>Import {shortId(journal.job.id)}</h3><Badge value={journal.job.state} /></div>
       <p>{journal.job.checkpoint} / {journal.job.total} records processed · {journal.job.namespace}</p>
       {journal.job.error && <p role="alert">{journal.job.error}</p>}
       <JsonDetail value={journal.job} label="Job journal" />

@@ -1,3 +1,4 @@
+import { humanLabel, shortId } from './presentation'
 import { useEffect, useRef, useState } from 'react'
 import type { Diagnostic, ImportJob, ImportPlan } from '../../modules/import-kit/src/types'
 import { request, errorMessage } from './api'
@@ -34,14 +35,14 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
     if (!preview) return
     const job = await request<ImportJob>('/api/stall/imports/apply', { ...input, fingerprint: preview.fingerprint })
     setApplied(job)
-    setNotice(job.state === 'completed' ? 'Import completed. Products are staged for review.' : `Import is ${job.state}: ${job.checkpoint} / ${job.total}. Use Resume apply to continue the next batch.`)
+    setNotice(job.state === 'completed' ? 'Import completed. Products are staged for review.' : `Import is ${humanLabel(job.state)}: ${job.checkpoint} / ${job.total}. Use Resume apply to continue the next batch.`)
     await list(); await reload()
   }
   async function undo(id: string) {
     await request(`/api/stall/imports/${encodeURIComponent(id)}/undo`, {})
     const next = await request<Journal>(`/api/stall/imports/${encodeURIComponent(id)}`)
     setJournal(next); setUndoId('')
-    setNotice(next.job.state === 'undone' ? 'Undo finished. Review the journal for preserved records.' : `Undo is ${next.job.state}. Resume it from the journal if work remains.`)
+    setNotice(next.job.state === 'undone' ? 'Undo finished. Review the journal for preserved records.' : `Undo is ${humanLabel(next.job.state)}. Resume it from the journal if work remains.`)
     await list(); await reload()
   }
   async function resumeJournal() {
@@ -52,7 +53,7 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
     const source = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
     const job = await request<ImportJob>('/api/stall/imports/apply', { csv: source, namespace: journal.job.namespace.replace(/:[a-f0-9]{64}$/, ''), fingerprint: journal.job.fingerprint })
     setJournal(await request<Journal>(`/api/stall/imports/${encodeURIComponent(job.id)}`))
-    setNotice(job.state === 'completed' ? 'Import completed.' : `Import is ${job.state}: ${job.checkpoint} / ${job.total}. Resume again to continue.`)
+    setNotice(job.state === 'completed' ? 'Import completed.' : `Import is ${humanLabel(job.state)}: ${job.checkpoint} / ${job.total}. Resume again to continue.`)
     await list(); await reload()
   }
   const resume = applied && !['completed', 'undone', 'rolled_back', 'undoing'].includes(applied.state)
@@ -70,7 +71,7 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
       <label>CSV source<textarea value={csv} rows={9} spellCheck={false} disabled={busy} onChange={event => { changed(); setCsv(event.target.value) }} /></label>
       <label>Source namespace (optional)<input value={namespace} disabled={busy} onChange={event => { changed(); setNamespace(event.target.value) }} placeholder="shopify-products" /><small>Keep the same namespace when resuming this source.</small></label>
       <div className="st-actions"><button disabled={busy || !csv.trim()} onClick={() => void act(dryRun)}>Run dry run</button></div>
-      {resume && <Notice>Keep this exact CSV and reviewed fingerprint to resume job {applied.id}. Changing the source requires a new dry run.</Notice>}
+      {resume && <Notice>Keep this exact CSV and reviewed fingerprint to resume job {shortId(applied.id)}. Changing the source requires a new dry run.</Notice>}
     </div>
     <div className="st-panel st-stack"><h2><span className="st-step-number">2.</span> Review & apply</h2>
       {!preview && <p>Run a dry run to review the product changes before applying them.</p>}

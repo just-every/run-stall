@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import type { Product, ProductValue, Run } from './types'
 import { money } from './api'
-import { Empty, Section } from './primitives'
+import { Badge, Empty, Section } from './primitives'
+import { businessTime, usePerson } from './presentation'
 const blank: ProductValue = { sku: '', name: '', description: '', unitCents: 0, active: true }
 export function Products({ products, busy, run, canApprove }: { products: Product[]; busy: boolean; run: Run; canApprove: boolean }) {
+  const person = usePerson()
   const [editing, setEditing] = useState<Product | null>(null), [value, setValue] = useState<ProductValue>(blank), [price, setPrice] = useState('')
   const cents = Math.round(Number(price) * 100)
   const validPrice = /^\d+(\.\d{1,2})?$/.test(price) && Number.isSafeInteger(cents) && cents > 0
@@ -15,8 +17,8 @@ export function Products({ products, busy, run, canApprove }: { products: Produc
   return <Section id="products" title="Products & publication">
     <p>Prepare a product revision, review its exact price and availability, then approve that revision to publish it in the shop.</p>
     {!products.length && <Empty><h3>Bring your products into Stall</h3><p><a href="#move-in">Import a Shopify product CSV</a>, or prepare a product below. <a href="#connections">Connect Pier and Stripe</a> before taking orders.</p></Empty>}
-    <div className="st-product-grid">{products.map(product => <div className="st-product st-stack" key={product.id}><div className="st-row"><h3>{product.value.name}</h3><span className="st-badge">{product.value.approval ? product.value.active ? 'Published' : 'Inactive' : 'Staged'}</span></div><small>{product.id} · revision {product.revision}</small><p>{product.value.description}</p><strong>{money(product.value.unitCents)}</strong>
-      {product.value.approval && <p className="st-small">Published by {product.value.approval.by} · {product.value.approval.at} · revision {product.value.approval.revision}</p>}
+    <div className="st-product-grid">{products.map(product => <div className="st-product st-stack" key={product.id}><div className="st-row"><h3>{product.value.name}</h3><Badge value={product.value.approval ? product.value.active ? 'Published' : 'Inactive' : 'Staged'} /></div><small>{product.id} · revision {product.revision}</small><p>{product.value.description}</p><strong>{money(product.value.unitCents)}</strong>
+      {product.value.approval && <p className="st-small">Published by {person(product.value.approval.by)} · {businessTime(product.value.approval.at)} · revision {product.value.approval.revision}</p>}
       {product.value.draft && <div className="st-review st-stack"><h4>Revision {product.revision} for approval</h4><p>{product.value.draft.name}</p><p>{product.value.draft.description}</p><strong>{money(product.value.draft.unitCents)} · {product.value.draft.active ? 'Active' : 'Inactive'}</strong><p className="st-small">Approving publishes these exact details.</p>{canApprove && <button disabled={busy} onClick={() => void run('product.approve', { sku: product.id, revision: product.revision })}>Approve & publish revision {product.revision}</button>}</div>}
       <button className="st-secondary" disabled={busy} onClick={() => { setEditing(product); setValue(product.value.draft ?? product.value); setPrice(((product.value.draft ?? product.value).unitCents / 100).toFixed(2)); document.getElementById('product-editor')?.scrollIntoView({ behavior: 'smooth' }) }}>Edit product</button>
     </div>)}</div>

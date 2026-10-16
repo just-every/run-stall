@@ -1,0 +1,7 @@
+import metadata from '../../package.json'
+const escape = (text: string) => text.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!))
+export const siteHeader = `<header class="site-header"><a class="site-brand" href="/" aria-label="Stall home"><img src="/brand/mark.svg" width="28" height="28" alt="">Stall</a><nav aria-label="Main navigation"><a href="/docs">Docs</a><a href="${metadata.repository}">Source</a></nav></header>`
+export const siteFooter = `<footer class="site-footer"><span>Stall · MIT licensed</span><nav aria-label="Footer"><a href="/docs">Docs</a><a href="${metadata.repository}">Source</a></nav></footer>`
+export function siteDocument(title: string, body: string, description = 'Customers pay through your own Stripe, Pier reserves the stock, and you ship from one desk. Free and open source.') {
+ return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(title)}</title><meta name="description" content="${escape(description)}"><link rel="icon" href="/brand/mark.svg" type="image/svg+xml"><link rel="preload" href="/fonts/familjen-grotesk/familjen-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="/rer-theme.css"><link rel="stylesheet" href="/landing.css"><link rel="stylesheet" href="/docs.css"></head><body class="site"><a class="site-skip" href="#main">Skip to content</a>${siteHeader}${body}${siteFooter}</body></html>`
+}

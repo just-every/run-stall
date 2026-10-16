@@ -12,6 +12,7 @@ export const Route = createRootRoute({
   component: () => <html lang="en"><head>
     {fontLinks.map(link => <link key={link.href} {...link} />)}
     <link rel="stylesheet" href="/rer-theme.css" />
+    <link rel="icon" href="/brand/mark.svg" type="image/svg+xml" />
     <HeadContent />
     <script dangerouslySetInnerHTML={{ __html: introGuardScript }} />
     <style>{introCss}</style>

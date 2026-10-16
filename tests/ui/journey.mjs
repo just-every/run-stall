@@ -34,13 +34,6 @@ try {
   const response=await h.request(url.pathname+url.search,{method:req.method(),...(req.postData()?{body:JSON.parse(req.postData())}:{} )})
   await route.fulfill({status:response.status,headers:{'content-type':response.headers.get('content-type')??'application/json',...(response.headers.get('content-disposition')?{'content-disposition':response.headers.get('content-disposition')}:{})},body:Buffer.from(await response.arrayBuffer())})
  })
- await page.goto(open)
- await page.waitForURL(url=>url.pathname==='/setup'||url.pathname==='/app')
- if(new URL(page.url()).pathname==='/setup') {
-  await page.getByRole('checkbox').check()
-  await page.getByRole('button',{name:'Finish setup',exact:true}).click()
- }
- await page.getByRole('heading',{name:'Your shop, in view.'}).waitFor()
  async function capture(name,selector) {
   for(const width of [1440,390]) {
    await page.setViewportSize({width,height:1000})
@@ -51,7 +44,35 @@ try {
   }
   await page.setViewportSize({width:1440,height:1000})
  }
+ // Follow the run site's public links, including Markdown-derived docs.
+ const pending=['/'], visited=new Set()
+ while(pending.length) {
+  const path=pending.shift();if(visited.has(path))continue;visited.add(path)
+  const response=await fetch(site+path);assert.equal(response.status,200,`run site ${path}`)
+  const html=await response.text()
+  for(const match of html.matchAll(/href="(\/[^"#?]*)(?:[?#][^"]*)?"/g)) {
+   if(!visited.has(match[1])) {
+    if(/\.[a-z0-9]+$/i.test(match[1]))assert.equal((await fetch(site+match[1])).status,200,match[1])
+    else pending.push(match[1])
+   }
+  }
+ }
+ await page.goto(site);await capture('landing')
+ for(const width of [1440,390]) {await page.setViewportSize({width,height:1000});await page.screenshot({path:resolve(evidence,`landing-full-${width}.png`),fullPage:true})}
+ await page.goto(site+'/run');await capture('run')
+ await page.goto(site+'/docs');await capture('docs')
+ await page.goto(origin);await capture('lobby')
+ await page.goto(origin+'/signin');await capture('signin')
+ await page.goto(open)
+ await page.waitForURL(url=>url.pathname==='/setup'||url.pathname==='/app')
+ if(new URL(page.url()).pathname==='/setup') {
+  await capture('setup')
+  await page.getByRole('checkbox').check()
+  await page.getByRole('button',{name:'Finish setup',exact:true}).click()
+ }
+ await page.getByRole('heading',{name:'Your shop, in view.'}).waitFor()
  await page.getByText('Bring your products into Stall',{exact:true}).waitFor()
+ await capture('empty')
  await capture('desk-empty','#products')
  const csv=await readFile(new URL('../../fixtures/shopify-products.csv',import.meta.url),'utf8')
  await page.getByLabel('CSV source',{exact:true}).fill(csv)
@@ -73,6 +94,9 @@ try {
   await card.getByRole('button',{name:/Approve & publish revision/}).click()
   await card.getByText('Published',{exact:true}).waitFor()
  }
+ await page.getByRole('link',{name:'Products',exact:true}).click()
+ assert.equal(await page.getByRole('link',{name:'Products',exact:true}).getAttribute('aria-current'),'true')
+ await capture('products','#products')
  await capture('products-published','#products')
  await page.goto(origin+'/shop')
  await page.getByLabel('Quantity for Stoneware mug').fill('1')
@@ -92,9 +116,12 @@ try {
  await page.goto(origin+'/order?checkout=success')
  await capture('checkout-return')
  await page.goto(origin+'/app')
+ await capture('home')
+ await page.locator('#orders .st-order-summary').first().click()
  await page.getByLabel('Shipping reference').fill('AU-TRACK-1001')
  await page.getByRole('button',{name:'Prepare shipping for approval',exact:true}).click()
  await page.getByRole('button',{name:/Approve shipping · revision/}).waitFor()
+ await capture('order','#orders')
  await capture('shipment-approval',page.getByRole('button',{name:/Approve shipping · revision/}))
  await page.getByRole('button',{name:/Approve shipping · revision/}).click()
  await page.getByText('Shipping has been confirmed by Pier.',{exact:true}).waitFor()
@@ -104,7 +131,7 @@ try {
  await page.getByRole('button',{name:/Approve \$24.50 refund/}).waitFor()
  await capture('refund-approval',page.getByRole('button',{name:/Approve \$24.50 refund/}))
  await page.getByRole('button',{name:/Approve \$24.50 refund/}).click()
- await page.getByText('succeeded',{exact:true}).waitFor()
+ await page.getByText('Succeeded',{exact:true}).waitFor()
  await capture('order-reconciled','#orders')
  await capture('activity','#history')
  await page.getByRole('button',{name:'Create agent credential',exact:true}).click()
@@ -112,6 +139,7 @@ try {
  await page.getByRole('button',{name:'Hide credential',exact:true}).click()
  await page.getByRole('button',{name:'Revoke agent credentials',exact:true}).click()
  await page.getByText('Agent credentials revoked.',{exact:true}).waitFor()
+ await capture('settings','#portability')
  await capture('data','#portability')
  await page.getByRole('button',{name:'Prepare export download',exact:true}).click()
  await page.locator('#portability [role=status]').waitFor()
@@ -148,6 +176,7 @@ try {
  assert.equal(state.orders[0].refunds[0].status,'succeeded')
  assert.equal(edge.refunds.size,1)
  assert.deepEqual(errors,[])
+ console.log(`Run site linked pages: ${[...visited].join(', ')}`)
  console.log('Browser journey passed: move-in, product approvals, customer checkout, shipping, refund, backup/restore, credentials and erasure at 1440 and 390.')
 } finally {
  await browser?.close();await restored?.close();if(h!==restored)await h?.close();if(original&&original!==h&&original!==restored)await original.close();await pier?.close()

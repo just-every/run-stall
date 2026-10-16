@@ -6,6 +6,48 @@ fingerprint, retained source bytes, resumable journal and strict undo. It never
 imports inventory, customers, cards, orders, images, options, tax settings or
 fulfilment settings, and never writes to Pier.
 
+## Move in from the Shop desk
+
+Start with two products while keeping your existing shop open. The importer takes
+listing metadata only; it does not migrate your Shopify shop as a whole.
+
+1. Keep your original Shopify export. Prepare a private copy containing only the
+   six columns documented below, with one row per unique handle and SKU. Use AUD
+   prices and the same SKUs as Pier. Remove extra columns and variant or image
+   continuation rows; a full Shopify export may not match this supported subset.
+2. Sign in as an owner or administrator and open **Shop desk → Move in**. Under
+   **1. Add your CSV**, choose the file or paste it into **CSV source**. Leave
+   **Source namespace (optional)** blank for `shopify-products`, or use a stable
+   label containing letters, digits, dot, underscore, colon or dash. Keep the same
+   namespace when resuming this source.
+3. Select **Run dry run**. Under **2. Review & apply**, read the counts and every
+   diagnostic, then expand **Review planned product changes**. Check names,
+   descriptions, SKUs and exact prices. A dry run does not change products.
+4. Resolve errors in the CSV and run another dry run. Review the warning that all
+   products remain unpublished. The **Reviewed fingerprint** binds this source
+   and the destination state you inspected; changed input needs a new review.
+5. Select **Apply reviewed import**. If the job needs another batch, select
+   **Resume apply** until complete. Existing staged product details may be
+   replaced by the reviewed changes.
+6. Open **Products**, select **Edit product** for each staged listing, check its
+   details and select **Available for publication**. Prepare a revision, then
+   separately approve it. The [products guide](PRODUCTS.md) covers publication;
+   matching SKUs must exist and be active in Pier.
+
+If you leave before completion, return to **Move in → History**, select
+**Refresh journal**, then **View** the job. **Resume apply from retained source**
+uses its saved CSV and reviewed fingerprint. Inspect any reported conflict before
+starting another import.
+
+To undo, view the job and inspect **Job journal**, **Source custody** and **Undo
+report**. Select **Review undo**, then **Undo import** in the confirmation dialog.
+Use **Resume undo** if more work remains. Undo can remove a newly imported product
+or restore its previous draft only while it remains untouched by later edits,
+publication or orders. Inspect the final report for preserved records. Undo keeps
+the journal and retained source; it is not customer erasure.
+
+## Prepare the supported CSV
+
 Shopify documents product CSVs, their columns, decimal prices and legacy-column
 compatibility in [Using CSV files to import and export products](https://help.shopify.com/en/manual/products/import-export/using-csv).
 The legacy headers used here are also listed in Shopify's
@@ -40,7 +82,7 @@ blank required cells are rejected. Resolve variants in your source copy rather
 than allowing this kit to guess a combination. Currency conversion is not
 performed; check the installation currency before review.
 
-## Review, apply and publish
+## API reference: review, apply and publish
 
 1. A signed-in owner or admin, or their current Stall agent credential, submits
    `{csv, namespace?}` to `POST /api/stall/imports/preview`. Namespace defaults to

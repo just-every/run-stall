@@ -2,7 +2,9 @@
 
 An owned online shop for an Australian maker or retailer whose stock already lives in [Pier](https://github.com/just-every/run-pier). Publish products, take payment through your own Stripe Checkout, reserve stock in Pier, ship and make a partial refund with a recorded approval at each step. MIT licensed. [First-release scope](ACCEPTANCE.md).
 
-**The run site is local for now.** Run `rer dev`, then open `http://127.0.0.1:<port>/run`, using the run-site port RER prints in `RER_SITE`. This can differ from the app's `RER_READY` port. https://run-stall.com goes live once its domain is registered. A domain purchase does not block running or deploying your own shop.
+[Read the owner guides](docs/README.md): [getting started](docs/GETTING-STARTED.md), [products](docs/PRODUCTS.md), [orders, shipping and refunds](docs/ORDERS.md), [Shopify move-in](docs/MOVE-IN.md), and [backup and restore](docs/BACKUP-RESTORE.md).
+
+**The run site is local for now.** Run `rer dev`, then open `http://127.0.0.1:<port>/run`, using the run-site port RER prints in `RER_SITE`. This can differ from the app's `RER_READY` port. `run-stall.com` is not registered yet. A domain purchase does not block running or deploying your own shop.
 
 ## From clone to app
 
@@ -26,16 +28,16 @@ A fresh installation contains no invented stock, products, orders or payment pro
 
 1. [Connect Pier and Stripe](docs/CONNECTIONS.md). In Pier, have two stocked, sellable SKUs and one customer representing the online shop. Pier remains the stock authority; Stall never copies inventory balances.
 2. In **Move in**, paste or upload your [Shopify product CSV](docs/MOVE-IN.md). Use the [documented-shape synthetic fixture](fixtures/shopify-products.csv) to understand the columns; its SKUs must exist in your Pier installation before publication. Preview, inspect the rows and fingerprint, then explicitly apply. Imported listings stay unpublished. Open the import journal to inspect or undo untouched work.
-3. In **Products**, prepare the name, description and price in cents, then review and approve the exact revision. A price change creates another draft; an existing published listing keeps its approved price until the new draft is approved. Publication validates the Pier SKU.
-4. Open `/shop` as a customer, choose quantities of two in-stock products, enter an email and review the AUD total. **Continue to Stripe Checkout** opens Stripe's hosted payment page. A return URL alone never marks an order paid: the signed webhook must confirm the exact session, amount and currency.
+3. In **Products**, [prepare the name, description and price](docs/PRODUCTS.md) in dollars and cents, then review and approve the exact revision. For an imported product, select **Edit product**, enable **Available for publication** and prepare a revision first. A price change creates another draft; an existing published listing keeps its approved price until the new draft is approved. Publication validates the Pier SKU.
+4. Open `/shop` as a customer, choose quantities of two in-stock products, enter an email and select **Review order**. Check the AUD total, then select **Pay … with Stripe** to open Stripe's hosted payment page. A return URL alone never marks an order paid: the signed webhook must confirm the exact session, amount and currency.
 5. Back in **Orders**, reconcile the paid order. It records a Pier reservation, or a visible shortfall if stock changed while the customer paid. Resolve a shortfall in Pier and reconcile again. Prepare shipping with a tracking/reference, inspect it, then approve. Shipping dispatches Pier's reserved lines once.
-6. Prepare a refund for one line, inspect the amount and reason, then approve that revision. Reconcile pending provider results. A refund changes money, not stock; a physical return and restock stay in Pier. The history records approvers and provider references. [Commands and recovery](docs/COMMANDS.md).
+6. After shipping is confirmed, prepare a partial refund for one line, inspect the amount and reason, then approve that revision. Reconcile pending provider results. A refund changes money, not stock; a physical return and restock stay in Pier. The history records approvers and provider references. [Orders, shipping and refunds](docs/ORDERS.md) · [Commands and recovery](docs/COMMANDS.md).
 
 ## Agent preparation and data
 
-The owner grants a short-lived preparation credential in **Data**, copies it once into their agent's secret store and can revoke it there. [The agent API](docs/COMMANDS.md) prepares product, shipment and refund drafts. It cannot approve, erase, restore, grant access or spend. Approvals require a current native human session and the exact reviewed revision.
+The owner grants a short-lived preparation credential in **Your data**, copies it once into their agent's secret store and can revoke it there. [The agent API](docs/COMMANDS.md) prepares product, shipment and refund drafts. It cannot approve, export, erase, restore, grant access or spend. Approvals require a current native human session and the exact reviewed revision.
 
-In **Data**, export a private archive or restore one into an empty installation. CLI backups also work; stop the app first:
+In **Your data**, export a private archive or restore one into an empty installation. The [backup and restore guide](docs/BACKUP-RESTORE.md) covers the desk controls, archive contents and customer erasure. CLI backups also work; stop the app first:
 
 ```sh
 rer dev --stop
@@ -47,7 +49,7 @@ Restore into a fresh clone of the same revision, before entering shop data:
 ```sh
 rer install
 rer import --input /private/path/stall.rer --yes
-rer setup --owner-email original-owner@example.com
+rer setup
 rer dev
 ```
 
