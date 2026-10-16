@@ -14,7 +14,7 @@
       "browser": false,
       "hosted": false,
       "commands": [
-        "pnpm exec node --test --test-concurrency=1 tests/api/commerce.test.mjs tests/api/data.test.mjs"
+        "pnpm exec node --test --test-concurrency=1 tests/api/commerce.test.mjs tests/api/data.test.mjs tests/api/dev-invitations.test.mjs"
       ]
     },
     {

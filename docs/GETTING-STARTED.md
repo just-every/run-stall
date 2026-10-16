@@ -49,3 +49,11 @@ Before relying on the installation, [save a private backup](BACKUP-RESTORE.md). 
 Stall displays shop activity and approvals in Australia/Perth time, including
 the time zone beside each time. Set `businessTimeZone` in
 `src/stall/ui/presentation.tsx` to the IANA time zone for your business.
+
+## Invited people in local development
+
+After the owner invites someone, the local sign-in page lists their name beside
+the owner's entry. Choose **Continue as** for that person. This accepts the
+current invitation and opens their real account with its assigned role. The
+same private development entry is required; canceled invitations stay closed.
+No outbox link or email delivery is needed in development or demo mode.

@@ -15,7 +15,7 @@ export function ShopDesk() {
   const lock = useRef(false)
   const [tab, setTab] = useState('orders')
   useEffect(() => { const update = () => setTab(location.hash.slice(1) || 'orders'); update(); addEventListener('hashchange', update); return () => removeEventListener('hashchange', update) }, [])
-  useEffect(() => { const active = document.querySelector<HTMLElement>('.st-tabs [aria-current="true"]'); const nav = active?.parentElement; if (active && nav) { const left = active.offsetLeft - nav.offsetLeft; if (left < nav.scrollLeft || left + active.offsetWidth > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = left } }, [tab])
+  useEffect(() => { const active = document.querySelector<HTMLElement>('.st-tabs [aria-current="true"]'); const nav = active?.parentElement; if (active && nav) { const left = active.offsetLeft - nav.offsetLeft; if (left < nav.scrollLeft || left + active.offsetWidth > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = left } }, [tab, state?.actor.role])
   async function reload() { setState(await request<State>('/api/stall/state')) }
   useEffect(() => { void reload().catch(error => setError(errorMessage(error))).finally(() => setLoading(false)) }, [])
   async function run(type: string, payload: unknown) {

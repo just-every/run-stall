@@ -6,7 +6,7 @@ import { mkdtemp,readFile,readdir,rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve,join } from 'node:path';
 import assert from 'node:assert/strict';
-export async function installation({bindings={},outboundService,source=resolve('.'),entry,base='/api/stall'}={}) {
+export async function installation({bindings={},outboundService,source=resolve('.'),entry,base='/api/stall',origin:requestedOrigin}={}) {
  const root=source;
  const directory=await mkdtemp(join(tmpdir(),'stall-api-'));
  const bundled=await build({entryPoints:[entry??join(root,'tests/api/worker.ts')],nodePaths:[resolve('node_modules')],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*'],loader:{'.css':'text','.svg':'text'}});
@@ -22,7 +22,7 @@ export async function installation({bindings={},outboundService,source=resolve('
   const response=await fetch(request.url,{method:request.method,headers,...(['GET','HEAD'].includes(request.method)?{}:{body:await request.arrayBuffer()})});
   return new Response(await response.arrayBuffer(),{status:response.status,headers:Object.fromEntries(response.headers)});
  };
- const origin='https://stall-'+randomUUID()+'.test';
+ const origin=requestedOrigin??('https://stall-'+randomUUID()+'.test');
  const options=port=>({...convertV4MiniflareOptions({host:'127.0.0.1',port,upstream:origin,modules:true,script:bundled.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],bindings:{AUTH_LOCAL:'false',AUTH_ORIGIN:origin,OWNER_EMAIL:'owner@example.test',SESSION_SECRET:secret,SETUP_TOKEN:setup,MAIL_PROVIDER:'resend',MAIL_API_KEY:'test-network-edge',MAIL_FROM:'auth@example.test',RER_DEV_KEY:key,...bindings},outboundService:async request=>{if(new URL(request.url).hostname==='api.resend.com')return mailEdge(request);return outboundService?outboundService(request):mailEdge(request)}}),resourcePersistencePath:directory});
  
  const mf=new Miniflare(options(0));
