@@ -132,7 +132,7 @@ try {
  await page.getByRole('button',{name:/Approve \$24.50 refund/}).waitFor()
  await capture('refund-approval',page.getByRole('button',{name:/Approve \$24.50 refund/}))
  await page.getByRole('button',{name:/Approve \$24.50 refund/}).click()
- await page.getByText('Succeeded',{exact:true}).waitFor()
+ await page.locator('#orders .st-badge').filter({hasText:/^Succeeded$/}).waitFor()
  await capture('order-reconciled','#orders')
  await capture('activity','#history')
  await page.getByRole('button',{name:'Create agent credential',exact:true}).click()
