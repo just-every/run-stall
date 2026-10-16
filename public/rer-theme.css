@@ -22,3 +22,6 @@ html.rer-themed p,html.rer-themed dt{color:var(--rer-muted)}
 html.rer-themed a{color:var(--rer-link);text-underline-offset:3px}
 html.rer-themed :focus-visible{outline:3px solid var(--rer-focus);outline-offset:3px}
 @media(max-width:600px){html.rer-themed body{padding:120px 16px 48px}html.rer-themed main{padding:48px 24px 32px}html.rer-themed h1{font-size:32px;margin-bottom:28px}html.rer-themed .brand,html.rer-themed .rer-brand{font-size:28px;margin-bottom:32px}}
+html.rer-themed dl{grid-template-columns:1fr;gap:0;margin-bottom:24px}
+html.rer-themed dt{padding:12px 20px 0;background:#F6F3EE;border-radius:10px 10px 0 0;font-size:14px}
+html.rer-themed dd{padding:0 20px 12px;background:#F6F3EE;border-radius:0 0 10px 10px;margin:0 0 16px}
