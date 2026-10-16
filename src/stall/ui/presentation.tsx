@@ -4,7 +4,7 @@ export const businessTimeZone = 'Australia/Perth'
 export const People = createContext<Record<string, string>>({})
 export const shortId = (id: string) => id.replaceAll('-', '').slice(0, 4).toUpperCase()
 export function humanLabel(value: string) {
-  const words = value.replaceAll(/[._-]/g, ' ')
+  const words = value.replace(/([a-z])([A-Z])/g, '$1 $2').replaceAll(/[._-]/g, ' ').toLowerCase()
   return words ? words[0].toUpperCase() + words.slice(1) : 'Not recorded'
 }
 export function businessTime(value: string | number) {

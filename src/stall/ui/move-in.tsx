@@ -76,8 +76,8 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
     <div className="st-panel st-stack"><h2><span className="st-step-number">2.</span> Review & apply</h2>
       {!preview && <p>Run a dry run to review the product changes before applying them.</p>}
       {preview && <>
-      <dl className="st-counts">{Object.entries(preview.counts).filter(([, value]) => typeof value === 'number').map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{String(value)}</dd></div>)}</dl>
-      {preview.diagnostics.length ? <ul className="st-diagnostics">{preview.diagnostics.map((diagnostic, index) => <li key={index}><strong>{diagnostic.severity}: {diagnostic.code}</strong><p>{diagnostic.message}</p>{diagnostic.location?.row && <small>CSV row {diagnostic.location.row}</small>}</li>)}</ul> : <p>No diagnostics reported.</p>}
+      <dl className="st-counts">{Object.entries(preview.counts).filter(([, value]) => typeof value === 'number').map(([key, value]) => <div key={key}><dt>{humanLabel(key)}</dt><dd>{String(value)}</dd></div>)}</dl>
+      {preview.diagnostics.length ? <ul className="st-diagnostics">{preview.diagnostics.map((diagnostic, index) => <li key={index}><strong>{humanLabel(diagnostic.severity)}: {humanLabel(diagnostic.code)}</strong><p>{diagnostic.message}</p>{diagnostic.location?.row && <small>CSV row {diagnostic.location.row}</small>}</li>)}</ul> : <p>No diagnostics reported.</p>}
       <label>Reviewed fingerprint<input readOnly value={preview.fingerprint} className="st-mono" /></label>
       <RecordDetail value={preview.plan.entries.map(entry => ({ sourceId: entry.source.sourceId, effects: entry.effects, unmapped: entry.unmapped, rejection: entry.rejection }))} label="Review planned product changes" />
       <p>Applying writes these product changes. Existing staged product details may be updated. Each request processes a bounded batch; resume until complete.</p>
@@ -86,6 +86,6 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
     </div>
     <div className="st-heading-row"><h2>History</h2><button className="st-secondary" disabled={busy} onClick={() => void act(list)}>Refresh journal</button></div>
     <ImportJournal jobs={jobs} journal={journal} busy={busy} onOpen={id => void act(async () => setJournal(await request<Journal>(`/api/stall/imports/${encodeURIComponent(id)}`)))} onUndo={id => setUndoId(id)} onResume={() => void act(resumeJournal)} />
-    {undoId && <Dialog title="Undo this import?" busy={busy} onClose={() => setUndoId('')}><p>Restore the before-images for job {undoId}. Later changes and orders can prevent reversal. Review the journal afterwards.</p><div className="st-actions"><button autoFocus className="st-secondary" disabled={busy} onClick={() => setUndoId('')}>Cancel</button><button className="st-danger" disabled={busy} onClick={() => { const id = undoId; setUndoId(''); void act(() => undo(id)) }}>Undo import</button></div></Dialog>}
+    {undoId && <Dialog title="Undo this import?" busy={busy} onClose={() => setUndoId('')}><p>Restore the before-images for job {shortId(undoId)}. Later changes and orders can prevent reversal. Review the journal afterwards.</p><div className="st-actions"><button autoFocus className="st-secondary" disabled={busy} onClick={() => setUndoId('')}>Cancel</button><button className="st-danger" disabled={busy} onClick={() => { const id = undoId; setUndoId(''); void act(() => undo(id)) }}>Undo import</button></div></Dialog>}
   </Section>
 }

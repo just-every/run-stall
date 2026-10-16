@@ -11,7 +11,7 @@ function RecordedValue({ value, field = '' }: { value: unknown; field?: string }
   if (Array.isArray(value)) return value.length ? <ol>{value.map((item, i) => <li key={i}><RecordedValue value={item} /></li>)}</ol> : <>None</>
   if (typeof value === 'object') return <dl className="st-definition">{Object.entries(value).map(([key, item]) => <div key={key}><dt>{humanLabel(key.replace(/([a-z])([A-Z])/g, '$1 $2'))}</dt><dd><RecordedValue value={item} field={key} /></dd></div>)}</dl>
   const text = String(value)
-  return <>{['by', 'preparedBy', 'actor'].includes(field) ? person(text) : /^\d{4}-\d{2}-\d{2}T/.test(text) ? businessTime(text) : /^[a-f0-9-]{36}$/i.test(text) ? `Record ${shortId(text)}` : field === 'status' || field === 'state' ? humanLabel(text) : text}</>
+  return <>{['by', 'preparedBy', 'actor'].includes(field) ? person(text) : /^\d{4}-\d{2}-\d{2}T/.test(text) ? businessTime(text) : /^[a-f0-9-]{36}$/i.test(text) ? `Record ${shortId(text)}` : ['status', 'state', 'code', 'action', 'severity'].includes(field) ? humanLabel(text) : text}</>
 }
 export function RecordDetail({ value, label }: { value: unknown; label: string }) { return <details><summary>{label}</summary><RecordedValue value={value} /></details> }
 export function Badge({ children, value }: { children?: ReactNode; value: string }) { return <span className={`st-badge ${['Setup required','shortfall','failed'].includes(value) ? 'st-badge-outline' : ''} ${value === 'failed' ? 'st-badge-danger' : ''}`}>{children ?? humanLabel(value)}</span> }
