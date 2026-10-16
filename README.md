@@ -8,15 +8,13 @@ An owned online shop for an Australian maker or retailer whose stock already liv
 
 ## From clone to app
 
-Install Git and Node 22 or newer, then:
+Install Git and Node 22 or newer, then run one line. It installs RER, clones Stall and starts it:
 
 ```sh
-npx -y @runeditrun/rer cli install
-export PATH="$HOME/.local/bin:$PATH"
-git clone https://github.com/just-every/run-stall.git
-cd run-stall
-rer dev
+npx -y @runeditrun/rer dev just-every/run-stall
 ```
+
+To start it again later, run `cd run-stall && rer dev`.
 
 RER installs the pinned dependencies and Node 22.20.0, builds and migrates local D1, prepares the local owner, and starts the app. Allow several minutes on the first run. Open the private `RER_OPEN` link in the terminal, then select **Finish setup**. Keep that link private. Open `/app` on the `RER_READY` origin for the shop desk, and `/shop` for the customer storefront. Repeat `rer dev` after an interruption; it resumes. Stop with `rer dev --stop` or Ctrl-C. Use `rer dev --port 8899` if another checkout occupies your saved app port.
 
@@ -59,7 +57,7 @@ Products, orders, recorded approvals, stock/payment references and import custod
 
 ## Deploy your shop
 
-Use your own **RunEditRun Cloudflare account** for this seed's deployment. A workers.dev origin is sufficient; purchasing run-stall.com is not required. The stable project, Worker and D1 declarations are in `deploy.json` and `wrangler.jsonc`. Supply a Workers/D1-scoped `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `OWNER_EMAIL`, a random `SESSION_SECRET`, a random `SETUP_TOKEN`, and `MAIL_API_KEY` from a secret manager. Set `MAIL_FROM` in `deploy.json` to your verified Resend sender. Supply the Pier and Stripe variables in [Connections](docs/CONNECTIONS.md) too. Keep values out of commands, Git and logs. Commit the intended configuration; deploy refuses dirty tracked files.
+Use your own **RunEditRun Cloudflare account** for this seed's deployment. A workers.dev origin is sufficient; purchasing run-stall.com is not required. The stable project, Worker and D1 declarations are in `deploy.json` and `wrangler.jsonc`. Supply a Workers/D1-scoped `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `OWNER_EMAIL`, a random `SESSION_SECRET`, a random `SETUP_TOKEN`, and `MAIL_API_KEY` from a secret manager. Set `MAIL_FROM` in `deploy.json` to your verified Resend sender. The Pier and Stripe variables in [Connections](docs/CONNECTIONS.md) are optional: without them the shop deploys and its Connections section shows Setup required; add them later with `rer deploy --set-secret NAME`. Keep values out of commands, Git and logs. Commit the intended configuration; deploy refuses dirty tracked files.
 
 ```sh
 rer deploy --dry-run
@@ -70,7 +68,7 @@ Dry run validates and builds with zero provider requests. Real deploy provisions
 
 ## Development and verification
 
-Package mode pins `@runeditrun/rer` **0.2.22**. This seed starts from the committed Base foundation `ada9f574d8a7247edc3a1180b593ad182b1fbb37`. [Source reuse](docs/SOURCES.md), [operations contract](SEED-COMMAND-CONTRACT.md), [agent guide](AGENTS.md).
+Package mode pins `@runeditrun/rer` **0.2.34**. This seed starts from the committed Base foundation `ada9f574d8a7247edc3a1180b593ad182b1fbb37`. [Source reuse](docs/SOURCES.md), [operations contract](SEED-COMMAND-CONTRACT.md), [agent guide](AGENTS.md).
 
 ```sh
 rer check --profile first-party
