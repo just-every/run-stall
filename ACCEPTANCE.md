@@ -14,7 +14,7 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: `src/stall/ui/shop.tsx`; `src/stall/ui/primitives.tsx`. A fixed branded storefront exists; the theme library, switching, duplication, export/re-import, visual building, storefront password, domain management, revision controls and a measured performance run are absent.
 
-- **STORE-002 — Navigation, collections and product discovery.** **missing** — Publish a varied catalogue, navigate collections, search and combine filters on desktop and phone. Change publication and stock, refresh the public results, and verify matching counts, saved URLs and a useful no-results state.
+- **STORE-002 — Navigation, collections and product discovery.** **missing** — Publish a varied catalogue, navigate collections, search and combine filters on desktop and phone. Change publication and stock, refresh the public results, and verify matching counts, saved URLs and a useful no-results state. Add a synonym and a pinned product for a query and verify both change results; search a term with no results and find it in the search report.
 
   Current evidence: no implementation found.
 
@@ -32,15 +32,15 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
 ## Catalogue and stock
 
-- **CATALOG-001 — Products, variants and media.** **partial** — Create a product with size/color variants, multiple images, cost, weight, tax category, HS code, country of origin and a size-chart custom field; publish an approved revision and verify the custom field renders on the product page. Buy one variant, change its current price and archive another; verify gallery/selection and immutable order snapshots through public product and order views.
+- **CATALOG-001 — Products, variants and media.** **partial** — Create a product with size/color variants, multiple images, cost, weight, tax category, HS code, country of origin and a size-chart custom field; publish an approved revision and verify the custom field renders on the product page. Buy one variant, change its current price and archive another; verify gallery/selection and immutable order snapshots through public product and order views. Add an engraving field (20 characters, +$5) and an artwork upload to a product, refuse over-length text and a disallowed file type, buy with valid personalization and verify it with the add-on price on the cart, order, packing slip and confirmation email.
 
-  Current evidence: `src/stall/products.ts`; `src/stall/model.ts`; `tests/api/commerce.test.mjs`. SKU/name/description/exact-cent price and reviewed publication exist; variants, media, attributes, custom fields, cost, shipping and customs fields do not.
+  Current evidence: `src/stall/products.ts`; `src/stall/model.ts`; `tests/api/commerce.test.mjs`. SKU/name/description/exact-cent price and reviewed publication exist; variants, media, attributes, custom fields, personalization, cost, shipping and customs fields do not.
 
 - **CATALOG-002 — Bulk catalogue operations and portable files.** **partial** — Upload a mixed valid/invalid catalogue file, inspect a read-only preview, apply the reviewed rows, resume an interrupted batch, export them and undo untouched changes. Edit/purchase an imported SKU first and verify undo reports the protected row rather than overwriting it. Bulk-edit on-hand quantities in the grid and by an inventory CSV, once with store-managed stock and once with Pier connected, and verify each change appears once in the stock authority's history with a matching reference.
 
   Current evidence: `src/stall/imports/service.ts`; `src/stall/imports/targets.ts`; `tests/api/imports.test.mjs`. Reviewed, journaled, reversible six-column Shopify product CSV import exists; broad schemas, bulk editing, quantity and inventory-CSV updates and product CSV export are absent.
 
-- **STOCK-001 — Live availability through Pier or another stock system.** **partial** — Connect Pier, publish variants across two locations, make an external stock change and verify public availability. Adjust a variant's on-hand quantity from the product editor, the bulk editor and an inventory CSV and verify each adjustment lands once in Pier with matching references. Repeat both via the documented alternate adapter; test backorder refusal/allowed lead time, stale stock and duplicate reservation events with matching stock-provider references.
+- **STOCK-001 — Live availability through Pier or another stock system.** **partial** — Connect Pier, publish variants across two locations, make an external stock change and verify public availability. Adjust a variant's on-hand quantity from the product editor, the bulk editor and an inventory CSV and verify each adjustment lands once in Pier with matching references. Repeat both via the documented alternate adapter; test backorder refusal/allowed lead time, stale stock and duplicate reservation events with matching stock-provider references. Set a safety stock of 2 on a variant with 5 on hand and verify the storefront sells exactly 3 before showing it sold out.
 
   Current evidence: `src/stall/pier.ts`; `src/stall/payments.ts`; `tests/api/commerce.test.mjs`. Pier bin availability and paid-order reservations exist; selling still requires Pier (checkout binds every order to the Pier origin/customer). Configurable location/backorder policy, Stall-originated quantity adjustments and alternate adapters are absent.
 
@@ -54,11 +54,11 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
 ## Cart, payment and commercial totals
 
-- **CART-001 — Persistent cart and guest or account checkout.** **partial** — Build a multi-variant cart, reload and sign in, choose a US address and delivery method, add an order note and gift message, apply a discount/gift card and review exact totals. Change price or availability concurrently and verify a fresh review; repeat as a guest, as a different account and with a Canadian address. Verify the note and gift message on the order and packing slip and a gift receipt without prices.
+- **CART-001 — Persistent cart and guest or account checkout.** **partial** — Build a multi-variant cart, reload and sign in, choose a US address and delivery method, add an order note and gift message, apply a discount/gift card and review exact totals. Change price or availability concurrently and verify a fresh review; repeat as a guest, as a different account and with a Canadian address. Verify the note and gift message on the order and packing slip and a gift receipt without prices. Add a required "How did you hear about us?" choice field, verify checkout refuses to continue without it, and find the answer on the order, in the order export and in a report grouped by answer.
 
-  Current evidence: `src/stall/ui/shop.tsx`; `src/stall/checkout.ts`; `src/stall/stripe.ts`; `tests/api/commerce.test.mjs`. A transient basket, reviewed product total and email guest handoff exist; persistence/accounts/native address and delivery steps are absent, and hosted addresses are AU-only.
+  Current evidence: `src/stall/ui/shop.tsx`; `src/stall/checkout.ts`; `src/stall/stripe.ts`; `tests/api/commerce.test.mjs`. A transient basket, reviewed product total and email guest handoff exist; persistence/accounts/native address and delivery steps, personalization and merchant checkout fields are absent, and hosted addresses are AU-only.
 
-- **PAY-001 — US dollar cards, wallets, PayPal, pay-later and manual payments.** **partial** — Complete USD purchases with a card, Apple Pay, Google Pay, Link and PayPal through their supported test/eligible-device doors; inspect provider IDs, amount/currency, failure/cancel paths and a same-method refund. Complete a test-mode Klarna, Affirm, Afterpay and PayPal Pay Later purchase and refund each; verify every pay-later option is withheld, with an explanation, below and above its eligibility range. Place bank-transfer and pay-at-pickup orders and verify they stay unpaid and unfulfillable until staff record payment. A live provider/device acceptance run is required before claiming production wallet readiness.
+- **PAY-001 — US dollar cards, wallets, PayPal, pay-later and manual payments.** **partial** — Complete USD purchases with a card, Apple Pay, Google Pay, Link and PayPal through their supported test/eligible-device doors; inspect provider IDs, amount/currency, failure/cancel paths and a same-method refund. Complete a test-mode Klarna, Affirm, Afterpay and PayPal Pay Later purchase and refund each; verify every pay-later option is withheld, with an explanation, below and above its eligibility range. Verify provider pay-later messaging appears on the product and cart pages with installments computed from the current price, updates when the cart changes, and disappears outside eligibility. Place bank-transfer and pay-at-pickup orders and verify they stay unpaid and unfulfillable until staff record payment. A live provider/device acceptance run is required before claiming production wallet readiness.
 
   Current evidence: `src/stall/stripe.ts`; `src/stall/refunds.ts`; `tests/api/commerce.test.mjs`. Stripe card Checkout/refunds exist in AUD; named wallets, PayPal, pay-later, manual methods and USD/US acceptance are unimplemented or untested.
 
@@ -100,9 +100,21 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: `src/stall/fulfilment.ts`; `src/stall/pier.ts`; `tests/api/commerce.test.mjs`. One approved whole-order Pier shipment/reference exists; splits, carrier tracking and delivery messaging are absent.
 
-- **ORDER-001 — Complete retail order desk.** **partial** — Create a manual order and a storefront order, assign staff and notes, filter an overdue partial shipment, and open its full history. Change a catalogue price/customer address and verify historical commercial snapshots and original provider references remain.
+- **SHIP-004 — Shipping profiles for specific products.** **missing** — Configure a general profile ($6 flat), an oversized profile ($25 flat, UPS Ground only), a free-shipping stickers profile and a furniture profile allowing only local pickup and local delivery. Quote a cart with one general and one oversized item to a US ZIP and verify a single UPS Ground option at exactly $31.00; add a sticker and verify the charge is unchanged; add a furniture item and verify shipped services disappear, pickup and local delivery remain and the cause is named. Send the oversized item to a ZIP its profile does not serve and verify refusal before payment naming that line. Bulk-reassign the oversized products to the general profile through the CATALOG-002 grid and an inventory CSV, verify the open quote is invalidated and the new quote changes, and verify an earlier paid order still shows its original profile revision and charge.
 
-  Current evidence: `src/stall/model.ts`; `src/stall/orders.ts`; `src/stall/ui/orders.tsx`; `src/stall/ui/presentation.tsx`. Payment/reservation/shipment/refund records and a one-page desk exist; broader search, notes, manual orders and US time-zone behavior are absent; current times use Australia/Perth.
+  Current evidence: no implementation found. Target journey not implemented: products carry no shipping profile, weight or rate data.
+
+- **SHIP-005 — Bulk label purchase and batch fulfilment.** **missing** — Select a mixed batch of paid orders: valid domestic orders, one already fulfilled, one pickup-only, one with an undeliverable address and one international order whose product lacks an HS code. Verify each excluded order is skipped with its reason, review per-order services and total spend in the provider test account, change one order's service, and approve the batch once. Lose one provider purchase response and verify reconciliation leaves exactly one label per order and one provider charge each. Download one combined label PDF and one packing-slip PDF and verify their order and count; verify every labelled order is fulfilled with tracking, its stock dispatched once, and each shopper received exactly one shipment notice. Bulk-mark three further orders fulfilled from a tracking CSV and verify the same outcomes.
+
+  Current evidence: `src/stall/fulfilment.ts`. No implementation found: fulfilment prepares and approves one whole-order Pier shipment at a time; batch selection, labels and combined documents are absent.
+
+- **SHIP-006 — Merchant shipping apps and 3PLs as fulfilment connections.** **missing** — Connect a ShipStation test account as the fulfilment connection. Place paid orders and verify each appears in ShipStation exactly once with its service and notes; buy a label there and verify tracking writes back, the Stall order is fulfilled and the shopper gets one shipment notice. Edit an unshipped order's address and cancel another, and verify both propagate; try to cancel a shipped order and verify refusal. Replay the shipment callback and verify no second fulfilment or notice, and verify routed orders are absent from Stall's label batch. Repeat the order-to-shipment journey with a ShipBob or ShipMonk sandbox, including stock read through the 3PL.
+
+  Current evidence: no implementation found. Target journey not implemented: no ShipStation or 3PL order export or tracking write-back exists.
+
+- **ORDER-001 — Complete retail order desk.** **partial** — Create a manual order, an order paid from a draft invoice (ORDER-005) and a storefront order, assign staff and notes, filter an overdue partial shipment, and open its full history. Change a catalogue price/customer address and verify historical commercial snapshots and original provider references remain.
+
+  Current evidence: `src/stall/model.ts`; `src/stall/orders.ts`; `src/stall/ui/orders.tsx`; `src/stall/ui/presentation.tsx`. Payment/reservation/shipment/refund records and a one-page desk exist; broader search, notes, manual orders and US time-zone behavior are absent (draft invoices are ORDER-005); current times use Australia/Perth.
 
 - **ORDER-002 — Exact shipment approval and one dispatch.** **partial** — Prepare a shipment through the desk/command route, reject a stale revision, lose the approved dispatch response, reconcile and repeat approval. Inspect one Pier shipment, released reservation and matching stock ledger quantities. Repeat with the alternate stock connector, and with no stock system fulfil manually with a typed USPS tracking number; verify one fulfilment, the shopper's tracking notice and decremented store-managed stock.
 
@@ -116,6 +128,10 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: `src/stall/store.ts`; `src/stall/fulfilment.ts`; `src/stall/refunds.ts`. Revision checks exist for current drafts/effects; general edits, cancellation and claims are absent.
 
+- **ORDER-005 — Draft orders, custom lines and payable invoices.** **missing** — Create a draft with a catalogue variant, a custom engraved line at a custom USD price, a 10% order discount and a rated shipping charge, and verify provider-backed tax. Send the invoice, open the delivered email's link as the customer, change to a different-state address and verify recalculated tax before paying with a test card. Verify exactly one paid order carrying the draft reference and the custom line. On a second draft send the invoice, edit a line, and verify the old link refuses payment until the new invoice is paid; open the paid first link again and verify a second payment is refused, and replay the payment webhook to verify no second order.
+
+  Current evidence: `src/stall/checkout.ts`. No implementation found: orders start only from storefront checkout; staff drafts, custom lines and invoice links are absent.
+
 - **RETURN-001 — Customer self-service returns, cancellations and exchanges.** **missing** — As guest and account customers request a cancellation, partial return and size exchange; test expired/final-sale items and another customer's link. Verify staff notification, an explained decision, exchange reservation and customer-visible progress without duplicate requests.
 
   Current evidence: no implementation found.
@@ -126,7 +142,7 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
 ## Customers, follow-up and channels
 
-- **CUSTOMER-001 — Customer directory, accounts and order history.** **partial** — Import two similar customer records, resolve a duplicate, place guest/account orders and link only after verified email ownership. Sign in as each customer, recover access and attempt foreign order/address/return reads and writes through direct APIs.
+- **CUSTOMER-001 — Customer directory, accounts and order history.** **partial** — Import two similar customer records, resolve a duplicate, place guest/account orders and link only after verified email ownership. Sign in as each customer, recover access and attempt foreign order/address/return reads and writes through direct APIs. Tag customers, build a segment by tag, total spent, order count and state, and verify membership updates after a new order and a refund; verify each customer's lifetime value and order count equal the sum of their orders net of refunds.
 
   Current evidence: `src/stall/model.ts`; `src/stall/store.ts`; `tests/api/data.test.mjs`. Orders retain buyer contact/address and commercial history; customer profiles, shopper authentication and self-service history are absent.
 
@@ -134,7 +150,7 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: `src/stall/erasure.ts`; `src/stall/portability-policy.mjs`; `tests/api/data.test.mjs`. Owner-directed contact erasure and later-journal fencing exist; consent/preferences, the storefront privacy banner, account requests and marketing propagation are absent.
 
-- **MAIL-001 — Transactional confirmations and delivery evidence.** **missing** — Buy, split-ship, deliver, return and refund an order through public doors; inspect the corresponding provider messages, safe order links and the PDF receipt, and confirm the default staff new-order email. With SMS consent verify shipment and delivery texts and STOP. Request a back-in-stock notice on a sold-out variant, restock it and verify exactly one message. Repeat callbacks, inject a bounce and lose a send response; verify deduplication, visible uncertainty and staff follow-up without falsely claiming inbox receipt.
+- **MAIL-001 — Transactional confirmations and delivery evidence.** **missing** — Buy, split-ship, deliver, return and refund an order through public doors; inspect the corresponding provider messages, safe order links and the PDF receipt, and confirm the default staff new-order email. With SMS consent verify shipment and delivery texts and STOP. Edit the order-confirmation template's logo, color and copy, preview it, send a test, and verify the next delivered confirmation matches. Add a sender domain, publish its DNS records and verify DKIM and SPF pass in the delivered message's headers; verify an unverified domain cannot be selected. Request a back-in-stock notice on a sold-out variant, restock it and verify exactly one message. Repeat callbacks, inject a bounce and lose a send response; verify deduplication, visible uncertainty and staff follow-up without falsely claiming inbox receipt.
 
   Current evidence: no implementation found. Shared sign-in mail infrastructure does not implement order/customer transactional notifications.
 
@@ -146,7 +162,7 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: no implementation found.
 
-- **CHANNEL-001 — Google Shopping, Meta/Instagram and TikTok Shop.** **missing** — Connect each named channel, publish a variant, inspect a rejection and correct it, then change price/stock. In each supported order sandbox import an order and duplicate event, ship/refund it and verify remote status, one reservation and channel-attributed analytics; test revoked channel access.
+- **CHANNEL-001 — Google Shopping, Meta/Instagram, TikTok Shop and Pinterest.** **missing** — Connect each named channel, publish a variant, inspect a rejection and correct it, then change price/stock. In each supported order sandbox import an order and duplicate event, ship/refund it and verify remote status, one reservation and channel-attributed analytics; test revoked channel access.
 
   Current evidence: no implementation found.
 
@@ -158,13 +174,17 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: no implementation found.
 
-- **REVIEWS-001 — Verified reviews, upsells and cross-sells.** **missing** — Fulfil an order, send a permitted review request via the configured Yotpo/native door, moderate a reported review and show purchase provenance. Add a recommended bundle to cart, exhaust one component and verify the offer updates without overselling.
+- **CHANNEL-004 — Embeddable Buy Button and checkout links.** **missing** — Generate a Buy Button and a collection widget, embed them on a test page on an allowed external domain, and buy through them; verify the order, stock and channel attribution. Open a checkout link with two preloaded variants and a discount and verify the reviewed totals. Embed on a disallowed domain and verify refusal, then unpublish the product and verify the button stops selling.
+
+  Current evidence: no implementation found.
+
+- **REVIEWS-001 — Verified reviews, upsells and cross-sells.** **missing** — Fulfil an order, send a permitted review request via the native door and the Judge.me and Yotpo adapters, collect a photo review, moderate a reported review and show purchase provenance. Fetch the product page HTML and validate its review structured data. Add a recommended bundle to cart, exhaust one component and verify the offer updates without overselling.
 
   Current evidence: no implementation found.
 
 ## Reporting, accounting and migration
 
-- **ANALYTICS-001 — Sales, conversion and contribution margin.** **missing** — Follow a known visitor-to-refund journey, import historical sales, replay events and compare channel/date totals with orders and processor/accounting references. Remove cost/analytics consent and verify unknowns are labeled rather than fabricated margin or visits.
+- **ANALYTICS-001 — Sales, conversion and contribution margin.** **missing** — Arrive through a UTM-tagged email link, a search referrer and a direct visit, and buy after two of them; verify the traffic-source report attributes sessions, conversion and sales to the right campaign, referrer and landing page. Follow a known visitor-to-refund journey, import historical sales, replay events and compare channel/date totals with orders and processor/accounting references. Remove cost/analytics consent and verify unknowns are labeled rather than fabricated margin or visits.
 
   Current evidence: no implementation found.
 
@@ -172,7 +192,7 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: no implementation found.
 
-- **MIGRATE-001 — Full reviewed Shopify migration.** **partial** — Use Shopify exports and authorized API data for a representative store, including metafield definitions and values; dry-run counts/values and redirects, apply/resume, reconcile customers/orders/refunds/balances and custom fields, then import the cutover delta. Open old links and customer history; verify no external money/stock/mail effects and undo preserves later native work.
+- **MIGRATE-001 — Full reviewed Shopify migration.** **partial** — Use Shopify exports and authorized API data for a representative store, including metafield definitions and values, shipping profiles and a Judge.me review export; dry-run counts/values and redirects, apply/resume, reconcile customers/orders/refunds/balances and custom fields, then import the cutover delta. Open old links and customer history; verify no external money/stock/mail effects and undo preserves later native work.
 
   Current evidence: `src/stall/imports/csv.ts`; `src/stall/imports/service.ts`; `tests/api/imports.test.mjs`. Only a bounded six-column product CSV stages simple unpublished products; full Shopify objects, media, variants, customers, orders and redirects are absent.
 
@@ -195,6 +215,10 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 - **MIGRATE-006 — Cutover completeness, source limitations and outstanding liabilities.** **partial** — For each source in MIGRATE-001/002/003/004/005 import continuation rows, variants/modifiers, guest orders, unknown consent, a partially refunded order and a gift liability; interrupt pagination and resume. Retire a source image URL and follow old product/content URLs. Inspect count/value/omission reports, resolve collisions, activate a customer and verify no password, new charge, renewal, stock or message side effect comes from historical data.
 
   Current evidence: `src/stall/imports/service.ts`; `src/stall/imports/targets.ts`; `tests/api/imports.test.mjs`. Current product import binds reviewed source/native snapshots and protects undo; complete cross-platform cutover, media, redirects, customer activation and outstanding liability handling are absent.
+
+- **MIGRATE-007 — Product review and rating migration.** **missing** — Dry-run and import a Judge.me CSV export and a Yotpo export for a migrated catalogue, including a review for a deleted product and a photo review. Verify the orphan is listed, each review maps to the right product by handle or ID, keeps its original date and source verified status, and its photo is served from owned storage after the source URL is retired. Fetch the product page and validate the structured data and the imported label; confirm no review-request or marketing mail was sent and the imported reviews are not counted as new verified purchases. Re-run both imports and verify no duplicates, then undo one import and verify native reviews remain.
+
+  Current evidence: `src/stall/imports/targets.ts`. No implementation found: the only import target is products; review import, mapping and rendering are absent.
 
 - **EXPORT-001 — Business CSVs and complete merchant exit.** **partial** — Export a populated shop through the desk/API and open its product/customer/order/payment CSVs and complete archive in an independent reader. Reconcile records and exact totals, verify explicit bounds/exclusions and refuse an unauthorized export.
 
@@ -296,4 +320,4 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
 Provider credentials, approvals and original idempotency references must stay local and private. No current proof claims live provider acceptance, inbox receipt, physical delivery, WCAG conformance, load capacity or operating cost. The target requires those measurements as applicable rather than excluding their features. No test or contract check may be weakened to make these documents pass.
 
-Target clause totals: **7 done / 30 partial / 29 missing** (66 total).
+Target clause totals: **7 done / 30 partial / 35 missing** (72 total).
