@@ -45,7 +45,7 @@ try {
   await page.setViewportSize({width:1440,height:1000})
  }
  // Follow the run site's public links, including Markdown-derived docs.
- const pending=['/'], visited=new Set()
+ const pending=['/','/404'], visited=new Set()
  while(pending.length) {
   const path=pending.shift();if(visited.has(path))continue;visited.add(path)
   const response=await fetch(site+path);assert.equal(response.status,200,`run site ${path}`)
