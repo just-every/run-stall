@@ -8,15 +8,13 @@ An owned online shop for an Australian maker or retailer whose stock already liv
 
 ## From clone to app
 
-Install Git and Node 22 or newer, then:
+Install Git and Node 22 or newer, then run one line. It installs RER, clones Stall and starts it:
 
 ```sh
-npx -y @runeditrun/rer cli install
-export PATH="$HOME/.local/bin:$PATH"
-git clone https://github.com/just-every/run-stall.git
-cd run-stall
-rer dev
+npx -y @runeditrun/rer dev just-every/run-stall
 ```
+
+To start it again later, run `cd run-stall && rer dev`.
 
 RER installs the pinned dependencies and Node 22.20.0, builds and migrates local D1, prepares the local owner, and starts the app. Allow several minutes on the first run. Open the private `RER_OPEN` link in the terminal, then select **Finish setup**. Keep that link private. Open `/app` on the `RER_READY` origin for the shop desk, and `/shop` for the customer storefront. Repeat `rer dev` after an interruption; it resumes. Stop with `rer dev --stop` or Ctrl-C. Use `rer dev --port 8899` if another checkout occupies your saved app port.
 
