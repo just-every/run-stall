@@ -17,7 +17,11 @@ const articles: Article[] = Object.entries(sources).map(([file, markdown]) => {
   if (!title) throw new Error(`Documentation needs a title: ${source}`)
   const description = markdown.split(/\n\s*\n/).find(block => block.trim() && !/^(?:#|```|~~~|\||[-*] |\d+\. )/.test(block.trim())) ?? ''
   return { source, markdown, title: plain(title), description: plain(description), path: `/docs/${source.slice(5, -3).toLowerCase()}` }
-}).sort((a, b) => a.path.localeCompare(b.path))
+}).sort((a, b) => {
+  const order = ['getting-started', 'products', 'orders', 'connections', 'move-in', 'backup-restore', 'commands', 'readme', 'sources']
+  const rank = (article: Article) => { const index = order.indexOf(article.path.slice(6)); return index < 0 ? order.length : index }
+  return rank(a) - rank(b) || a.path.localeCompare(b.path)
+})
 const published = new Map(articles.map(article => [article.source.toLowerCase(), article.path]))
 
 function hrefFor(href: string, article: Article): string {
