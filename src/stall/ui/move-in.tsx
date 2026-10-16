@@ -2,7 +2,7 @@ import { humanLabel, shortId } from './presentation'
 import { useEffect, useRef, useState } from 'react'
 import type { Diagnostic, ImportJob, ImportPlan } from '../../modules/import-kit/src/types'
 import { request, errorMessage } from './api'
-import { JsonDetail, Notice, Section } from './primitives'
+import { RecordDetail, Notice, Section } from './primitives'
 import { ImportJournal, type Journal } from './import-journal'
 import { Dialog } from './dialog'
 
@@ -79,7 +79,7 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
       <dl className="st-counts">{Object.entries(preview.counts).filter(([, value]) => typeof value === 'number').map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{String(value)}</dd></div>)}</dl>
       {preview.diagnostics.length ? <ul className="st-diagnostics">{preview.diagnostics.map((diagnostic, index) => <li key={index}><strong>{diagnostic.severity}: {diagnostic.code}</strong><p>{diagnostic.message}</p>{diagnostic.location?.row && <small>CSV row {diagnostic.location.row}</small>}</li>)}</ul> : <p>No diagnostics reported.</p>}
       <label>Reviewed fingerprint<input readOnly value={preview.fingerprint} className="st-mono" /></label>
-      <JsonDetail value={preview.plan.entries.map(entry => ({ sourceId: entry.source.sourceId, effects: entry.effects, unmapped: entry.unmapped, rejection: entry.rejection }))} label="Review planned product changes" />
+      <RecordDetail value={preview.plan.entries.map(entry => ({ sourceId: entry.source.sourceId, effects: entry.effects, unmapped: entry.unmapped, rejection: entry.rejection }))} label="Review planned product changes" />
       <p>Applying writes these product changes. Existing staged product details may be updated. Each request processes a bounded batch; resume until complete.</p>
       <div className="st-actions"><button disabled={busy || (!canApply && !resume)} onClick={() => void act(apply)}>{resume ? 'Resume apply' : applied?.state === 'completed' ? 'Import completed' : 'Apply reviewed import'}</button></div>
       </>}

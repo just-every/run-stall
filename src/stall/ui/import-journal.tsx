@@ -1,6 +1,6 @@
 import type { ImportJob, RetainedOriginal } from '../../modules/import-kit/src/types'
 import { humanLabel, shortId } from './presentation'
-import { Badge, Empty, JsonDetail } from './primitives'
+import { Badge, Empty, RecordDetail } from './primitives'
 
 export interface Journal { job: ImportJob; originals: RetainedOriginal[]; undoReport: unknown }
 
@@ -15,9 +15,9 @@ export function ImportJournal({ jobs, journal, busy, onOpen, onUndo, onResume }:
       <div className="st-heading-row"><h3>Import {shortId(journal.job.id)}</h3><Badge value={journal.job.state} /></div>
       <p>{journal.job.checkpoint} / {journal.job.total} records processed · {journal.job.namespace}</p>
       {journal.job.error && <p role="alert">{journal.job.error}</p>}
-      <JsonDetail value={journal.job} label="Job journal" />
-      <JsonDetail value={journal.originals.map(original => ({ name: original.name, size: original.size, status: original.original.status, sha256: original.sha256 }))} label="Source custody" />
-      <JsonDetail value={journal.undoReport} label="Undo report" />
+      <RecordDetail value={journal.job} label="Job journal" />
+      <RecordDetail value={journal.originals.map(original => ({ name: original.name, size: original.size, status: original.original.status, sha256: original.sha256 }))} label="Source custody" />
+      <RecordDetail value={journal.undoReport} label="Undo report" />
       {['queued', 'applying', 'failed'].includes(journal.job.state) && <>
         <p>Resume the next batch from this job’s retained CSV and reviewed fingerprint.</p>
         <div className="st-actions"><button disabled={busy || !journal.originals.some(original => original.original.status === 'retained')} onClick={onResume}>Resume apply from retained source</button></div>
