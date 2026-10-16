@@ -11,7 +11,7 @@
 /* The theme owns the frame; Base supplies its accessible form and session. */
 html.rer-themed body{display:grid;place-items:center;padding:144px 16px 80px;background:var(--rer-page);font-family:var(--rer-font-body)}
 html.rer-themed main{position:relative;width:100%;max-width:590px;margin:0 auto;padding:64px 46px;border:1px solid #ECE8E0;border-radius:16px;background:var(--rer-surface);box-shadow:var(--st-shadow);overflow:visible}
-html.rer-themed main::before{content:"";position:absolute;width:44px;height:190px;bottom:calc(100% - 24px);left:calc(50% - 22px);background:url('/brand/hanging.svg') center bottom/44px 190px no-repeat;pointer-events:none}
+html.rer-themed main::before{content:"";position:absolute;width:44px;height:100vh;bottom:calc(100% - 24px);left:calc(50% - 22px);background-image:url('/brand/hanging.svg'),linear-gradient(var(--st-twine),var(--st-twine));background-position:center bottom,center top;background-size:44px 190px,3px calc(100% - 180px);background-repeat:no-repeat;pointer-events:none}
 html.rer-themed .brand,html.rer-themed .rer-brand{justify-content:center;margin:0 0 44px;font-size:32px;font-weight:600;color:var(--rer-text)}
 html.rer-themed .brand::before,html.rer-themed .rer-brand::before{width:38px;height:38px}
 html.rer-themed h1{text-align:center;font-size:44px;line-height:1.08;font-weight:600;letter-spacing:-.025em;margin:0 0 32px;color:var(--rer-text)}

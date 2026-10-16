@@ -62,7 +62,8 @@ try {
  await page.goto(site+'/run');await capture('run')
  await page.goto(site+'/docs');await capture('docs')
  await page.goto(origin);await capture('lobby')
- await page.goto(origin+'/signin');await capture('signin')
+ await page.route('**/signin', async route => { const response = await h.request('/signin', { as: '' }); await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: await response.text() }) });
+ await page.goto(origin+'/signin');await page.getByRole('heading',{name:'Sign in to Stall'}).waitFor();await capture('signin')
  await page.goto(open)
  await page.waitForURL(url=>url.pathname==='/setup'||url.pathname==='/app')
  if(new URL(page.url()).pathname==='/setup') {

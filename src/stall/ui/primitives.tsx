@@ -3,7 +3,7 @@ import { businessTime, humanLabel, shortId, usePerson } from './presentation'
 import { HydrationUnit } from '../../base/hydration/unit'
 export function Notice({ children, error = false }: { children: ReactNode; error?: boolean }) { return <div className={`st-notice ${error ? 'st-error' : ''}`} role={error ? 'alert' : 'status'}>{children}</div> }
 export function Section({ children, id, title }: { children: ReactNode; id?: string; title: string }) { return <HydrationUnit><section className="st-panel st-stack" id={id}><h2>{title}</h2>{children}</section></HydrationUnit> }
-export function Empty({ children }: { children: ReactNode }) { return <div className="st-empty"><svg viewBox="0 0 140 90" aria-hidden="true"><path d="M4 9q0 43 48 40" fill="none" stroke="var(--st-twine)" strokeWidth="3"/><g transform="rotate(15 88 49)"><path d="m48 31 17-14h60v57H65L48 60Z" fill="var(--st-kraft)"/><circle cx="63" cy="44" r="5" fill="var(--st-paper)" stroke="var(--st-kraft-deep)"/></g></svg><div>{children}</div></div> }
+export function Empty({ children }: { children: ReactNode }) { return <div className="st-empty"><svg viewBox="0 0 140 90" aria-hidden="true"><path d="M4 9q0 43 48 40" fill="none" stroke="var(--st-twine)" strokeWidth="3"/><g transform="rotate(-15 88 49)"><path d="m48 31 17-14h60v57H65L48 60Z" fill="var(--st-kraft)"/><circle cx="63" cy="44" r="5" fill="var(--st-paper)" stroke="var(--st-kraft-deep)"/></g></svg><div>{children}</div></div> }
 function RecordedValue({ value, field = '' }: { value: unknown; field?: string }) {
   const person = usePerson()
   if (value == null) return <>Not recorded</>
