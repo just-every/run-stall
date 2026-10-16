@@ -35,23 +35,28 @@
     },
     {
       "binding": "PIER_ORIGIN",
-      "environment": "PIER_ORIGIN"
+      "environment": "PIER_ORIGIN",
+      "optional": true
     },
     {
       "binding": "PIER_SESSION",
-      "environment": "PIER_SESSION"
+      "environment": "PIER_SESSION",
+      "optional": true
     },
     {
       "binding": "PIER_CUSTOMER_ID",
-      "environment": "PIER_CUSTOMER_ID"
+      "environment": "PIER_CUSTOMER_ID",
+      "optional": true
     },
     {
       "binding": "STRIPE_SECRET_KEY",
-      "environment": "STRIPE_SECRET_KEY"
+      "environment": "STRIPE_SECRET_KEY",
+      "optional": true
     },
     {
       "binding": "STRIPE_WEBHOOK_SECRET",
-      "environment": "STRIPE_WEBHOOK_SECRET"
+      "environment": "STRIPE_WEBHOOK_SECRET",
+      "optional": true
     }
   ]
 }

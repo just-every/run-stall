@@ -4,15 +4,13 @@ Start beside your existing shop with two products and a Stripe test payment. A f
 
 ## Open your local installation
 
-Install Git and Node 22 or newer, then run:
+Install Git and Node 22 or newer, then run one line. It installs RER, clones Stall and starts it:
 
 ```sh
-npx -y @runeditrun/rer cli install
-export PATH="$HOME/.local/bin:$PATH"
-git clone https://github.com/just-every/run-stall.git
-cd run-stall
-rer dev
+npx -y @runeditrun/rer dev just-every/run-stall
 ```
+
+To start it again later, run `cd run-stall && rer dev`.
 
 RER prepares the checkout, dependencies, database and local owner. The first run can take several minutes. If interrupted, run `rer dev` again to resume.
 
