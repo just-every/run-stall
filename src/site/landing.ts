@@ -17,5 +17,5 @@ export function landingHtml() {
  ['Activity history','<path d="M4 5v5h5M4 10a8 8 0 1 1 0 6m8-10v6l4 2"/>'],
  ['Backup and restore','<path d="M4 5h16v5H4zM6 10v10h12V10m-9 4h6"/>'],
  ['Agent preparation keys','<circle cx="8" cy="8" r="4"/><path d="m11 11 9 9m-3-3 3-3m-6 0 3-3"/>'],
- ].map(([label, path]) => `<div>${icon(path)}<span>${label}</span></div>`).join('')}</div></section></div><section class="landing-closing"><h2>Try it beside your shop.</h2><p>Keep selling where you sell today. Run Stall with two products and take a test order.</p>${actions}<img src="/brand/band.svg" width="1440" height="300" alt="" aria-hidden="true"></section></main>`)
+ ].map(([label, path]) => `<div>${icon(path)}<span>${label}</span></div>`).join('')}</div></section></div><section class="landing-closing"><img src="/brand/band.svg" width="1440" height="300" alt="" aria-hidden="true"><h2>Try it beside your shop.</h2><p>Keep selling where you sell today. Run Stall with two products and take a test order.</p>${actions}</section></main>`)
 }
