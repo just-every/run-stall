@@ -4,7 +4,7 @@ An owned online shop for an Australian maker or retailer whose stock already liv
 
 [Read the owner guides](docs/README.md): [getting started](docs/GETTING-STARTED.md), [products](docs/PRODUCTS.md), [orders, shipping and refunds](docs/ORDERS.md), [Shopify move-in](docs/MOVE-IN.md), and [backup and restore](docs/BACKUP-RESTORE.md).
 
-**The run site is local for now.** Run `rer dev`, then open `http://127.0.0.1:<port>/run`, using the run-site port RER prints in `RER_SITE`. This can differ from the app's `RER_READY` port. `run-stall.com` is not registered yet. A domain purchase does not block running or deploying your own shop.
+**The run site is at https://run-stall.com**, with the run page at https://run-stall.com/run. To see it locally, run `rer dev`, then open `http://127.0.0.1:<port>/run`, using the run-site port RER prints in `RER_SITE`. This can differ from the app's `RER_READY` port. A domain purchase does not block running or deploying your own shop.
 
 ## From clone to app
 
@@ -66,7 +66,7 @@ rer deploy --dry-run
 rer deploy
 ```
 
-Dry run validates and builds with zero provider requests. Real deploy provisions its Worker/D1, applies migrations, uploads the declared secrets, checks deployment health and claims the configured owner. Open the returned origin. Use email sign-in or `rer signin` from the checkout for the recorded hosted owner, then finish setup. Register that origin's `/api/stall/webhook` in Stripe and test in Stripe test mode before accepting live orders. Real provider delivery and account configuration are separate from the local/CI proof. `rer deploy --site` is unnecessary until the public run-site domain is registered.
+Dry run validates and builds with zero provider requests. Real deploy provisions its Worker/D1, applies migrations, uploads the declared secrets, checks deployment health and claims the configured owner. Open the returned origin. Use email sign-in or `rer signin` from the checkout for the recorded hosted owner, then finish setup. Register that origin's `/api/stall/webhook` in Stripe and test in Stripe test mode before accepting live orders. Real provider delivery and account configuration are separate from the local/CI proof. `rer deploy --site` publishes the run site at run-stall.com from GitHub Actions; you do not need it to run your own shop.
 
 ## Development and verification
 

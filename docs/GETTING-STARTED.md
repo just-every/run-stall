@@ -18,7 +18,7 @@ RER prepares the checkout, dependencies, database and local owner. The first run
 
 Open the private **RER_OPEN** link printed in the terminal. At **Finish setup**, review the owner's name and email, tick **I confirm this owner account is ready to use.**, then select **Finish setup**. Treat the entry link as a credential. Development email is suppressed, so use that link for local owner access.
 
-Use the **RER_READY** origin for `/app` (your Shop desk) and `/shop` (the customer shop). For the local run site, open `/run` on the **RER_SITE** origin; its port can differ from the app port. `run-stall.com` is not registered yet. You do not need to buy a domain to try Stall.
+Use the **RER_READY** origin for `/app` (your Shop desk) and `/shop` (the customer shop). For the local run site, open `/run` on the **RER_SITE** origin; its port can differ from the app port. The public run site is at https://run-stall.com, and you do not need a domain to try Stall.
 
 Stop the app with `rer dev --stop` or Ctrl-C. The [full local reference](../RUN-LOCALLY.md) covers owner configuration and other commands.
 

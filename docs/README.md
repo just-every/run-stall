@@ -20,4 +20,4 @@ For connection and technical details:
 - [First-release scope](../ACCEPTANCE.md) — the supported shop journey and its boundaries.
 - [Source reuse](SOURCES.md) — the foundations Stall uses.
 
-The public run site remains local while `run-stall.com` is unregistered. Follow the [README's local `/run` entry](../README.md#from-clone-to-app). A domain purchase is not needed to run your own installation.
+The public run site is at https://run-stall.com. To see it locally, follow the [README's local `/run` entry](../README.md#from-clone-to-app). A domain purchase is not needed to run your own installation.

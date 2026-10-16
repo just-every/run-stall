@@ -1,5 +1,5 @@
-# run-stall.com is not registered. The owner enables publication after the
-# public-switch record and deployment prerequisites are complete.
+# Publishes the run site (rer deploy --site) to run-stall.com from main. Off
+# until the repository variable RUN_SITE_DEPLOY is 'true'.
 name: Run site
 on:
   push:
@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
-    if: ${{ false }}
+    if: vars.RUN_SITE_DEPLOY == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment: run-site
