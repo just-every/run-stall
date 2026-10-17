@@ -15,15 +15,13 @@ import { Icon } from './icons'
 const urgency = ['Shortfall', 'Refund failed', 'Refund draft', 'Shipping draft', 'Not reserved']
 const rank = (order: Order) => { if (agentDrafted(order)) return -1; const need = needs(order); const at = need ? urgency.indexOf(need) : -1; return at < 0 ? urgency.length : at }
 const newest = (a: Order, b: Order) => b.createdAt.localeCompare(a.createdAt)
-/** An email that wraps after its @ rather than mid-word. */
-const breakable = (email: string) => { const at = email.indexOf('@'); return at < 0 ? email : <>{email.slice(0, at + 1)}<wbr />{email.slice(at + 1)}</> }
 
 function OrderRow({ order, selected, now, onSelect }: { order: Order; selected: boolean; now: number; onSelect: () => void }) {
   const [payment, paymentTone] = paymentPill(order), [fulfilment, fulfilmentTone] = fulfilmentPill(order), flagged = needs(order) !== null
   return <tr className={selected ? 'is-selected' : undefined} onClick={onSelect}>
     <td data-label="Order"><button className="st-order-id" aria-pressed={selected} onClick={event => { event.stopPropagation(); onSelect() }}>{flagged && <span className="st-flag" title="Needs a person" aria-hidden="true" />}<span className="st-sr-only">Order </span>{shortId(order.id)}</button></td>
     <td data-label="Time" className="st-muted-cell">{whenLabel(order.createdAt, now)}</td>
-    <td data-label="Customer" className="st-customer"><span className="st-customer-name" title={order.shippingDetails?.name ?? order.customerEmail ?? undefined}>{order.shippingDetails?.name ?? (order.customerEmail ? breakable(order.customerEmail) : 'Customer details erased')}</span><small title={placeLine(order.shippingDetails?.address) || undefined}>{placeLine(order.shippingDetails?.address) || (order.shippingDetails ? '' : order.customerEmail ? 'No delivery address yet' : '')}</small></td>
+    <td data-label="Customer" className="st-customer"><span className="st-customer-name" title={order.shippingDetails?.name ?? order.customerEmail ?? undefined}>{order.shippingDetails?.name ?? (order.customerEmail ?? 'Customer details erased')}</span><small title={placeLine(order.shippingDetails?.address) || undefined}>{placeLine(order.shippingDetails?.address) || (order.shippingDetails ? '' : order.customerEmail ? 'No delivery address yet' : '')}</small></td>
     <td data-label="Items" className="st-muted-cell">{itemCount(order)}</td>
     <td data-label="Total" className="st-num st-money">{money(order.totalCents)}</td>
     <td data-label="Payment"><Badge value={payment} tone={paymentTone}>{payment}</Badge></td>
