@@ -18,11 +18,13 @@ A single switching journey runs from migration and domain cutover through catalo
 
 ## Published clauses
 
-## Runtime and store experience
-
 - **HTTP-001 — Real installed and published HTTP surfaces.** The emitted Worker serves health, real assets, the installed Lobby, shop documents and genuine HTTP/document 404s. The independent marketing homepage, /run and /docs remain the Markdown-derived run site; its Run actions lead to /run. The RER operations contract in SEED-COMMAND-CONTRACT.md remains binding. Build and deploy never run tests.
 
   **Acceptance evidence:** Build and serve the emitted Worker; GET /health, /, /shop and built assets, then unknown document/API paths. Verify successful responses and real 404 status codes; build the run site and follow its public links.
+
+## Target clauses
+
+### Runtime and store experience
 
 - **DEMO-001 — Hosted demo shop that sends nothing.** The homepage's "Try the demo" link opens a hosted demo of the current release (https://demo.run-stall.com/), deployed from this repository's main branch with `rer deploy --demo`. It holds a lived-in sample US shop seeded once after its owner exists: catalogue and stock, weeks of orders in every state, a refund awaiting a person's approval, product drafts, an agent credential and the audit trail. A visitor can buy from the public shop and approve the desk's prepared shipment and refund drafts; payment, stock and mail run against the demo's own simulated Stripe and Pier and Base demo mode, so no request reaches a real provider and no mail is delivered. Demo data and simulated providers exist only under demo mode: a production build or deploy refuses `RER_DEMO`, and an ordinary installation starts with empty real business state.
 
@@ -48,7 +50,7 @@ A single switching journey runs from migration and domain cutover through catalo
 
   **Acceptance evidence:** On each platform receive a new-order notification, scan a purchased SKU, prepare fulfilment offline, change the order elsewhere, and reconnect. Verify the conflict requires fresh approval. Edit a product's title and price and add a photo taken with the device camera, and verify the change goes through the same revision approval and appears on the storefront with the photo served from owned storage. Mark a pickup order ready and picked up from the app (SHIP-007) and verify one notice and one dispatch. Revoke the device and confirm private reads and actions fail.
 
-## Catalogue and stock
+### Catalogue and stock
 
 - **CATALOG-001 — Products, variants and media.** The desk maintains products, handles, SKUs, variant options/combinations, USD prices and compare-at prices, cost basis, taxable categories, categories/tags/attributes, collections, image galleries and video/alt text. Merchants define typed custom fields (metafields such as size charts, care instructions or ingredients) that themes render on product pages and that imports and exports carry. Products can ask the shopper for personalization (engraving or monogram text with a character limit, a choice list, or a file upload with type and size limits), optionally with a USD price add-on; it is validated before add to cart and carried to the cart, checkout review, order, packing slip, confirmation email and exports, and uploaded files are stored privately under erasure (ERASURE-001). Each variant has independent stock mode and availability (STOCK-001/003), shipping weight/dimensions, and customs description, HS tariff code and country of origin for international labels (SHIP-002). Draft, scheduled, published and archived states preserve historical purchased descriptions/prices and expose only approved current listings.
 
@@ -70,7 +72,7 @@ A single switching journey runs from migration and domain cutover through catalo
 
   **Acceptance evidence:** With no stock system connected, sell and manually fulfil (ORDER-002) a made-to-order untracked variant and a store-managed variant; verify committed and on-hand counts and that the last unit cannot be oversold unless continue-selling is on. Adjust on-hand counts from the editor, bulk editor and CSV with reasons and inspect the adjustment history. Connect Pier, review and apply the opening-balance handoff, and verify later adjustments are written through Pier with matching references while Stall keeps no independent count.
 
-## Cart, payment and commercial totals
+### Cart, payment and commercial totals
 
 - **CART-001 — Persistent cart and guest or account checkout.** Shoppers add/remove variants, change quantities, retain a cart across refresh/sign-in, and check out as guests or account holders. Native shopping/checkout steps collect US addresses, and international addresses in the destination's format for zones the merchant serves (SHIP-001), plus contact, selected delivery method, an optional order note and a gift message with an optional gift receipt that hides prices. They show reviewed USD item, discount, gift-card, shipping, tax and final payable totals before committing payment. Material changes require review again; stock, price and address errors preserve the basket. Saved carts never grant access to another customer. Order notes and gift messages appear on the order, packing slip and confirmation. Merchants can add their own checkout fields (for example "How did you hear about us?", a preferred delivery date or a gift-wrap choice) as required or optional text, choice or date inputs; answers are stored on the order and appear in the order desk, exports and reports (ANALYTICS-001).
 
@@ -104,7 +106,7 @@ A single switching journey runs from migration and domain cutover through catalo
 
   **Acceptance evidence:** Create low-risk and flagged provider test orders, inspect the restricted queue, attempt fulfilment while held and release/cancel with an authorized reviewer. Repeated risk callbacks must not duplicate holds or messages.
 
-## Fulfilment, orders and returns
+### Fulfilment, orders and returns
 
 - **SHIP-001 — Shipping zones, live rates, international USD shipping, pickup and delivery.** Merchants configure shipping zones for the US (by state/ZIP) and for Canada and other countries served in USD from the same store, with service eligibility, free/flat/weight-based rules, handling cutoffs and delivery promises; checkout rates packages from current variant weight/dimensions through ShipStation, Shippo or EasyPost for USPS, UPS and FedEx domestic and international services. International rates state that duties and import taxes are the recipient's responsibility unless the merchant enables a supported duties-paid (DDP) landed-cost service through the shipping provider, and checkout collects the destination's address format and the phone number carriers require. Destinations outside configured zones and embargoed destinations are refused before payment. Shoppers choose eligible service, local pickup at a named store location (shown with its address, opening hours, pickup instructions and expected ready time) or local delivery inside the merchant's delivery area (set per location by ZIP codes or a radius, with its own fee, minimum order and delivery instructions) with clear price and instructions; changed address/package invalidates stale quotes. Pickup and local-delivery orders are completed through SHIP-007, never through a carrier label. Each location has a daily handling cutoff, handling days and a business-day and holiday calendar; the delivery date or range promised at checkout is computed from them and the service's transit time, is shown on the product page and in checkout, and the paid order keeps the promise it was sold under. Split-source orders show combined charges and feasible dates. Which rates and services apply to which products is set by shipping profiles (SHIP-004); this clause's zones and rules are the general profile every product starts in. Local currencies and regional storefronts are EXPAND-001.
 
@@ -162,7 +164,7 @@ A single switching journey runs from migration and domain cutover through catalo
 
   **Acceptance evidence:** Return one damaged and one resellable unit, purchase/track a label, record staff inspection, quarantine one and restock the other, then refund or exchange. Lose stock/refund responses and reconcile to one receipt, one financial resolution and a closed customer-visible case.
 
-## Customers, follow-up and channels
+### Customers, follow-up and channels
 
 - **CUSTOMER-001 — Customer directory, accounts and order history.** Merchants manage deduplicated customer profiles, addresses, tags/segments, notes and order lifetime value under permissions. Customers can securely register/sign in, recover access, manage their addresses and see only their own imported and new orders, tracking, returns, gift balances and refund status. Guest-to-account linking requires verified ownership; historical migration never grants access just because names match.
 
@@ -208,7 +210,7 @@ A single switching journey runs from migration and domain cutover through catalo
 
   **Acceptance evidence:** Fulfil an order, send a permitted review request via the native door and the Judge.me and Yotpo adapters, collect a photo review, moderate a reported review and show purchase provenance. Fetch the product page HTML and validate its review structured data. Add a recommended bundle to cart, exhaust one component and verify the offer updates without overselling. Set manual related products on one product and automatic related products (same collection and frequently bought together) on another; verify each product page shows only published, in-stock related products, sell one out and verify it drops from the recommendations, and add a cart-page cross-sell and verify it lands once in the basket at its current price.
 
-## Reporting, accounting and migration
+### Reporting, accounting and migration
 
 - **ANALYTICS-001 — Sales, conversion and contribution margin.** Merchants inspect date/channel/product/variant/customer reports and traffic-source reports (sessions, conversion and sales by referrer, source and medium, UTM campaign, source, medium and content, landing page, device and location, under a stated last non-direct-click attribution window) for visits, product views, add-to-cart, checkout, payment conversion, gross/net sales, discounts, tax, shipping collected/cost, fees, refunds, gift liability and contribution margin using recorded cost data. Funnels disclose consent-limited/unknown traffic, bot exclusions, attribution window and historical import provenance. Reports drill to orders and export; cancelled, test, imported and duplicate events never inflate new conversion.
 
@@ -250,7 +252,7 @@ A single switching journey runs from migration and domain cutover through catalo
 
   **Acceptance evidence:** Export a populated shop through the desk/API and open its product/customer/order/payment CSVs and complete archive in an independent reader. Reconcile records and exact totals, verify explicit bounds/exclusions and refuse an unauthorized export.
 
-## Roles, integrations and dependable operations
+### Roles, integrations and dependable operations
 
 - **ROLE-001 — Staff and app least privilege.** Owners invite/revoke staff with distinct catalogue, fulfilment, customer-support, marketing, finance and administrator permissions, plus customer self-access and scoped app credentials. Server-side checks guard every private read, mutation, bulk job and export; role changes/revocation invalidate stale authority. Refund limits and approval separation are configurable, and staff never acquire provider credentials from the UI.
 
@@ -304,6 +306,24 @@ A single switching journey runs from migration and domain cutover through catalo
 
   **Acceptance evidence:** Verify the repository's `LICENSE` is the MIT licence and `package.json` declares MIT. Install from the public source with no account or key from Stall's authors, publish 200 products, add 10 staff and take 1,000 test-mode orders with no payment, licence, cap or upgrade prompt and no fee added by Stall to any order. Begin enabling Stripe and a shipping provider and verify each names its provider and pricing before activation.
 
+### Product separation and specialist extensions
+
+- **BOUNDARY-001 — Separate products with usable commerce connections.** Stall remains a complete storefront/retail commerce product. [Pier](https://github.com/just-every/run-pier) owns multi-location warehouse inventory, purchasing and wholesale operations; Stall consumes availability and submits reservations, dispatches, quantity adjustments and accepted returns, and keeps simple store-managed retail counts only when no stock system is connected (STOCK-003). [Mango](https://github.com/just-every/run-mango) owns the broader marketing product. A merchant may use other stock/marketing systems through documented adapters; neither sibling is required to sell, edit pages, manage customers or operate Stall's commerce record. Shared code never merges their products.
+
+  **Acceptance evidence:** Operate the storefront/order desk with a documented alternate stock/marketing adapter, then connect Pier/Mango and inspect the handoffs. Verify warehouse purchasing/wholesale work and cross-campaign marketing open the linked product while retail orders and recovery remain manageable in Stall.
+
+- **EXTEND-001 — Subscriptions, POS, digital downloads and creator fulfilment partners.** Optional specialist adapters cover recurring product subscriptions via Stripe Billing or a subscription provider, physical POS via Square/Stripe Terminal, and creator production/print-on-demand via Fourthwall or Printful/Printify where their supported interfaces permit. Digital download products sold alongside physical goods deliver files from owner storage through expiring, download-limited links after verified payment, with no shipping or stock, and a refund revokes the link. The shopper sees renewal/fulfilment/cancellation terms and the merchant sees linked orders, refunds and stock/accounting effects. Required partner apps, agreements, payment-device/native work and unsupported source objects are explicit delivery work; partner ownership never excuses a broken commerce handoff.
+
+  **Acceptance evidence:** Connect the selected subscription, POS and production provider test accounts; renew/cancel a subscription, complete/refund a POS sale and track a made-to-order product. Buy a digital download with a physical item, download it within its limit, exceed the limit and refund to verify the link stops. Reconcile linked retail orders, tax, stock and payouts, and surface provider rejection without claiming fulfilment.
+
+- **EXPAND-001 — Multiple stores, regions and currencies.** A merchant can operate separate branded storefronts/channels with regional price lists, languages, currencies, domains, tax/delivery settings and staff access while retaining an explicit source for each order. USD/US is the first supported buying journey, and selling to Canada and other countries in USD from the same store is already SHIP-001/002; this clause adds local currencies, languages and regional storefronts, which use configured providers and jurisdiction rules rather than silently reusing US defaults. Exchange/refund amounts retain original currency and reported conversion basis.
+
+  **Acceptance evidence:** Create a second storefront with a different catalogue/price list, locale and currency; buy, partially refund and report in each. Verify domain/catalogue/role isolation, original-currency reconciliation and refusal of a region lacking configured tax or delivery support.
+
+- **B2B-001 — Business buying without absorbing wholesale operations.** Business customers can use approved company accounts, tax-exemption evidence, contract price lists, quote requests, purchase-order references and approved net terms in the storefront. Pier or the merchant's wholesale/order-credit system owns wholesale fulfilment, procurement and credit policy; Stall presents linked quote/approval/payment status and does not grant terms itself. Accounting and tax mappings reconcile the accepted business order.
+
+  **Acceptance evidence:** Approve a company buyer, submit a quoted basket/PO, receive authorized pricing/terms from Pier or a wholesale adapter and accept it in the store. Reject an unauthorized employee or expired exemption; reconcile the approved order, shipment and QuickBooks invoice without a second wholesale ledger.
+
 ## Push further: agents operate the commerce job
 
 - **AI-001 — Operate order exceptions to shopper-approved closure.** An agent joins live payment/authorization, hold/reservation, location availability, warehouse, carrier scans and promised delivery data to detect oversells, stalled fulfilment or delays. It explains the actual order state to the verified shopper with source timestamps, prepares feasible substitute goods or delivery choices and tracks acceptance through fulfilment or cancellation/refund. Merchant approval binds substitution, spend and money decisions; the shopper explicitly agrees to changed goods/date/price. Unavailable evidence creates a staff task, never an invented delivery promise.
@@ -325,24 +345,6 @@ A single switching journey runs from migration and domain cutover through catalo
 - **AI-005 — Grounded merchandising and channel preparation.** An agent proposes product copy, alt text, structured attributes, SEO, collection grouping and channel mappings from approved merchant facts, images and variant data. It flags unsupported claims and missing size/material/safety information, previews changes and feed validation, and never fabricates inventory, certifications or customer reviews. Merchant approval publishes the exact revision; measured conversion/margin feedback can inform the next proposal without granting autonomous publication.
 
   **Acceptance evidence:** Provide an incomplete product and image set, inspect proposed text/attributes with source citations and unanswered questions, approve selected changes and validate the channel draft. Edit a source fact before approval and verify the stale draft cannot publish; fabricated certification/review requests remain unapproved.
-
-## Product separation and specialist extensions
-
-- **BOUNDARY-001 — Separate products with usable commerce connections.** Stall remains a complete storefront/retail commerce product. [Pier](https://github.com/just-every/run-pier) owns multi-location warehouse inventory, purchasing and wholesale operations; Stall consumes availability and submits reservations, dispatches, quantity adjustments and accepted returns, and keeps simple store-managed retail counts only when no stock system is connected (STOCK-003). [Mango](https://github.com/just-every/run-mango) owns the broader marketing product. A merchant may use other stock/marketing systems through documented adapters; neither sibling is required to sell, edit pages, manage customers or operate Stall's commerce record. Shared code never merges their products.
-
-  **Acceptance evidence:** Operate the storefront/order desk with a documented alternate stock/marketing adapter, then connect Pier/Mango and inspect the handoffs. Verify warehouse purchasing/wholesale work and cross-campaign marketing open the linked product while retail orders and recovery remain manageable in Stall.
-
-- **EXTEND-001 — Subscriptions, POS, digital downloads and creator fulfilment partners.** Optional specialist adapters cover recurring product subscriptions via Stripe Billing or a subscription provider, physical POS via Square/Stripe Terminal, and creator production/print-on-demand via Fourthwall or Printful/Printify where their supported interfaces permit. Digital download products sold alongside physical goods deliver files from owner storage through expiring, download-limited links after verified payment, with no shipping or stock, and a refund revokes the link. The shopper sees renewal/fulfilment/cancellation terms and the merchant sees linked orders, refunds and stock/accounting effects. Required partner apps, agreements, payment-device/native work and unsupported source objects are explicit delivery work; partner ownership never excuses a broken commerce handoff.
-
-  **Acceptance evidence:** Connect the selected subscription, POS and production provider test accounts; renew/cancel a subscription, complete/refund a POS sale and track a made-to-order product. Buy a digital download with a physical item, download it within its limit, exceed the limit and refund to verify the link stops. Reconcile linked retail orders, tax, stock and payouts, and surface provider rejection without claiming fulfilment.
-
-- **EXPAND-001 — Multiple stores, regions and currencies.** A merchant can operate separate branded storefronts/channels with regional price lists, languages, currencies, domains, tax/delivery settings and staff access while retaining an explicit source for each order. USD/US is the first supported buying journey, and selling to Canada and other countries in USD from the same store is already SHIP-001/002; this clause adds local currencies, languages and regional storefronts, which use configured providers and jurisdiction rules rather than silently reusing US defaults. Exchange/refund amounts retain original currency and reported conversion basis.
-
-  **Acceptance evidence:** Create a second storefront with a different catalogue/price list, locale and currency; buy, partially refund and report in each. Verify domain/catalogue/role isolation, original-currency reconciliation and refusal of a region lacking configured tax or delivery support.
-
-- **B2B-001 — Business buying without absorbing wholesale operations.** Business customers can use approved company accounts, tax-exemption evidence, contract price lists, quote requests, purchase-order references and approved net terms in the storefront. Pier or the merchant's wholesale/order-credit system owns wholesale fulfilment, procurement and credit policy; Stall presents linked quote/approval/payment status and does not grant terms itself. Accounting and tax mappings reconcile the accepted business order.
-
-  **Acceptance evidence:** Approve a company buyer, submit a quoted basket/PO, receive authorized pricing/terms from Pier or a wholesale adapter and accept it in the store. Reject an unauthorized employee or expired exemption; reconcile the approved order, shipment and QuickBooks invoice without a second wholesale ledger.
 
 ## Honest boundaries
 
