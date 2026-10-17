@@ -8,8 +8,8 @@ import { shipmentCommand } from './fulfilment'
 import { refundCommand } from './refunds'
 import { reconcileOrder } from './orders'
 import { checkout } from './checkout'
-import { webhook } from './payments'
-import { rawBody } from './stripe'
+import { checkAwaitingPayments,confirmReturn,webhook } from './payments'
+import { localShop,rawBody } from './stripe'
 import { eraseCustomer } from './erasure'
 import { connectionCommand,connectionDetails,withConnections } from './connections'
 const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}})
@@ -27,12 +27,16 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own checkout page.',403)
    return json(await checkout(env,await body(request)))
   }
+  if(path==='/api/stall/checkout/confirm'&&request.method==='POST') {
+   if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own order page.',403)
+   return json(await confirmReturn(env,text((await body(request)).orderId,'Order')))
+  }
   const actor=await current(request,env)
   requireSupplier(actor)
   if(!['GET','HEAD'].includes(request.method)&&request.headers.get('origin')!==env.AUTH_ORIGIN&&(!actor.agent||request.headers.has('origin'))) fail('ORIGIN','Use this installation’s own page to change records.',403)
   if(path==='/api/stall/state'&&request.method==='GET') {
    const [selected,history,logs,people]=await Promise.all([products(env.DB),orders(env.DB),env.DB.prepare('SELECT * FROM st_audit ORDER BY rowid DESC LIMIT 200').all(),env.DB.prepare('SELECT id,display_name AS name,email FROM oa_operators').all<{id:string;name:string;email:string}>()])
-   return json({people:Object.fromEntries(people.results.map(person=>[person.id,person.name||person.email])),actor,products:selected,orders:history,audit:logs.results,connections:{pier:pierConfigured(env),stripe:Boolean(env.STRIPE_SECRET_KEY),webhook:Boolean(env.STRIPE_WEBHOOK_SECRET)},connectionDetails:await connectionDetails(base,env)})
+   return json({people:Object.fromEntries(people.results.map(person=>[person.id,person.name||person.email])),actor,products:selected,orders:history,audit:logs.results,connections:{pier:pierConfigured(env),stripe:Boolean(env.STRIPE_SECRET_KEY),webhook:Boolean(env.STRIPE_WEBHOOK_SECRET)||localShop(env)},connectionDetails:await connectionDetails(base,env)})
   }
   if(path==='/api/stall/agent-token'&&request.method==='POST') {
    requirePerson(actor)
@@ -69,4 +73,10 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   if(error instanceof Problem) return json({error:{code:error.code,message:error.message}},error.status)
   return json({error:{code:'CONFLICT',message:'The record or permissions changed. Refresh and reconcile the same operation before continuing.'}},path==='/api/stall/webhook'?503:409)
  }
+}
+/** The minute's scheduled run: confirm payments still awaiting Stripe. */
+export async function stallScheduled(original:Bindings) {
+ const base=runtimeBindings(original)
+ if(base.RER_DEMO==='1') return
+ await checkAwaitingPayments(await withConnections(base))
 }

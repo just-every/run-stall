@@ -2,6 +2,11 @@ import type { Bindings } from '../auth.server'
 import { fail,shopCountry,shopCurrency,type Order,type Refund } from './model'
 import { demoEffect } from '../modules/demo/index.mjs'
 import { demoStripe } from './demo/providers'
+// A shop on the owner's computer cannot receive Stripe's webhooks (Stripe reaches only
+// public addresses), so it confirms each payment by asking Stripe instead
+// (payments.ts confirmFromStripe). An online shop keeps signed webhooks.
+export const localShop=(env:Bindings)=>env.AUTH_LOCAL==='true'
+export const paymentsReady=(env:Bindings)=>Boolean(env.STRIPE_SECRET_KEY&&(env.STRIPE_WEBHOOK_SECRET||localShop(env)))
 export async function stripe(env:Bindings,path:string,form?:URLSearchParams,key?:string):Promise<any> {
  if(!env.STRIPE_SECRET_KEY) fail('STRIPE_UNAVAILABLE','Connect Stripe before accepting payments or issuing refunds.',503)
  // A demo shop works against its own simulated Stripe account (demo/providers.ts).

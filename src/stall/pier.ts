@@ -3,6 +3,7 @@ import { fail,type Line,type Order } from './model'
 import { products } from './store'
 import { demoEffect } from '../modules/demo/index.mjs'
 import { demoPier } from './demo/providers'
+import { paymentsReady } from './stripe'
 const SCALE=1000000n
 export function decimal(value:string):bigint {
  if(typeof value!=='string'||!/^\d{1,10}(\.\d{1,6})?$/.test(value)) fail('PIER_RESPONSE','Pier returned an invalid stock quantity.',502)
@@ -45,12 +46,12 @@ export async function catalogue(env:Bindings) {
   const available=state.positions.filter((x:any)=>x.itemId===item.id&&x.status==='sellable'&&bins.has(x.locationId)).reduce((sum:bigint,x:any)=>sum+decimal(x.available),0n)
   return [{sku:p.id,name:p.value.name,description:p.value.description,unitCents:p.value.unitCents,itemId:item.id,available:format(available)}]
  })
- return {items,observedAt:new Date().toISOString(),checkoutReady:Boolean(env.STRIPE_SECRET_KEY&&env.STRIPE_WEBHOOK_SECRET)}
+ return {items,observedAt:new Date().toISOString(),checkoutReady:paymentsReady(env)}
 }
 export function assertOriginalPier(env:Bindings,order:Order) { if(pierOrigin(env)!==order.pierOrigin||env.PIER_CUSTOMER_ID!==order.pierCustomerId) fail('PIER_CHANGED','Reconnect the original Pier installation and shop customer before reconciling this order.') }
 export async function reserveOrder(env:Bindings,o:Order) {
  assertOriginalPier(env,o)
- return (await call(env,'/api/pier/commands',{commandId:`stall-reserve-${o.id}`,type:'order.create',payload:{customerId:o.pierCustomerId,lines:o.lines.map(l=>({itemId:l.itemId,quantity:String(l.quantity)}))}})).result
+ return (await call(env,'/api/pier/commands',{commandId:`stall-reserve-${o.id}`,type:'order.create',payload:{customerId:o.pierCustomerId,channel:'stall',currency:o.currency.toUpperCase(),lines:o.lines.map(l=>({itemId:l.itemId,quantity:String(l.quantity),price:(l.unitCents/100).toFixed(2)}))}})).result
 }
 export function fullyReserved(result:any,lines:Line[]) {
  return Array.isArray(result?.lines)&&result.lines.length===lines.length&&lines.every(l=>{

@@ -41,7 +41,7 @@ export async function withConnections(env:Bindings):Promise<Bindings> {
 export async function connectionDetails(original:Bindings,env:Bindings) {
  const saved=new Set((await original.DB.prepare('SELECT name FROM st_connections').all<{name:string}>()).results.map(r=>r.name))
  const source=(name:Name)=>FIELDS[name].some(f=>(original as any)[f])?'server settings':saved.has(name)?'this page':null
- return {pier:{origin:env.PIER_ORIGIN??null,source:source('pier')},stripe:{mode:env.STRIPE_SECRET_KEY?.startsWith('sk_live_')||env.STRIPE_SECRET_KEY?.startsWith('rk_live_')?'live':env.STRIPE_SECRET_KEY?'test':null,source:source('stripe')}}
+ return {pier:{origin:env.PIER_ORIGIN??null,source:source('pier')},stripe:{mode:env.STRIPE_SECRET_KEY?.startsWith('sk_live_')||env.STRIPE_SECRET_KEY?.startsWith('rk_live_')?'live':env.STRIPE_SECRET_KEY?'test':null,source:source('stripe'),local:env.AUTH_LOCAL==='true',webhook:Boolean(env.STRIPE_WEBHOOK_SECRET)}}
 }
 
 function origin(value:unknown,env:Bindings) {
@@ -76,11 +76,15 @@ export async function connectionCommand(env:Bindings,actor:Actor,type:string,p:a
   if(!PIER_KEY.test(pierKey)) fail('INPUT','Paste the key Pier showed for Stall. It starts with pier_stall_.',400)
   name='pier';value={PIER_ORIGIN:base,PIER_SESSION:`pier_channel=${pierKey}`,PIER_CUSTOMER_ID:await pierCustomer(base,pierKey)}
  } else if(type==='connection.stripe') {
-  const secret=text(p.secretKey,'Stripe secret key',300).trim(),webhook=text(p.webhookSecret,'Stripe webhook signing secret',300).trim()
+  const secret=text(p.secretKey,'Stripe secret key',300).trim(),given=typeof p.webhookSecret==='string'&&p.webhookSecret.trim()!==''
   if(!/^(sk|rk)_(test|live)_[A-Za-z0-9]+$/.test(secret)) fail('INPUT','Paste Stripe’s secret key. It starts with sk_test_ or sk_live_.',400)
-  if(!/^whsec_[A-Za-z0-9]+$/.test(webhook)) fail('INPUT','Paste the webhook signing secret. It starts with whsec_.',400)
+  // Stripe sends webhooks only to public addresses. A shop on this computer asks
+  // Stripe instead, so a signing secret here could only be invented: refuse it.
+  if(env.AUTH_LOCAL==='true'&&given) fail('INPUT','Leave the webhook signing secret empty. A shop on this computer cannot receive Stripe’s webhooks, so Stall confirms each payment by asking Stripe. Webhooks are for an online shop.',400)
+  const webhook=env.AUTH_LOCAL==='true'?null:text(p.webhookSecret,'Stripe webhook signing secret',300).trim()
+  if(webhook!==null&&!/^whsec_[A-Za-z0-9]+$/.test(webhook)) fail('INPUT','Paste the webhook signing secret from your Stripe webhook endpoint. It starts with whsec_.',400)
   await stripeAccount(secret)
-  name='stripe';value={STRIPE_SECRET_KEY:secret,STRIPE_WEBHOOK_SECRET:webhook}
+  name='stripe';value={STRIPE_SECRET_KEY:secret,...(webhook?{STRIPE_WEBHOOK_SECRET:webhook}:{})}
  } else if(type==='connection.remove') {
   if(!['pier','stripe'].includes(p.name)) fail('INPUT','Choose Pier or Stripe.',400)
   name=p.name;value=null

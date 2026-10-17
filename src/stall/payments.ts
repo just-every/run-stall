@@ -3,7 +3,7 @@ import { digest,live } from './access'
 import { assertOriginalPier,fullyReserved,pierState,reserveOrder } from './pier'
 import { checkoutSession,signedEvent,validateSession } from './stripe'
 import { readOrder,saveOrder } from './store'
-import { fail,type Actor,type Order } from './model'
+import { fail,Problem,type Actor,type Order } from './model'
 export async function paidSession(env:Bindings,order:Order,id:string,actor?:Actor) {
  if(actor) await live(env,actor)
  const session=await checkoutSession(env,id)
@@ -47,4 +47,37 @@ export async function webhook(request:Request,env:Bindings) {
  order=await paidSession(env,order,session.id)
  await env.DB.prepare('UPDATE st_events SET completed_at=? WHERE id=? AND digest=?').bind(new Date().toISOString(),event.id,hash).run()
  return {received:true,status:order.status}
+}
+/** Ask Stripe whether this order's Checkout Session is paid, and confirm it if so.
+ * A local shop's only confirmation besides Reconcile; an online shop's safety net. */
+export async function confirmFromStripe(env:Bindings,order:Order):Promise<Order> {
+ if(order.payment||!order.checkout) return order
+ const session=await checkoutSession(env,order.checkout.id)
+ validateSession(order,session)
+ return session.payment_status==='paid'?paidSession(env,order,session.id):order
+}
+/** The customer's return from Stripe: confirm the payment by asking Stripe. */
+export async function confirmReturn(env:Bindings,orderId:string) {
+ let order=await readOrder(env.DB,orderId)
+ try { order=await confirmFromStripe(env,order) }
+ catch(error) {
+  // Payment may be recorded while Pier is unreachable; the order then waits for Reconcile.
+  if(!(error instanceof Problem)) throw error
+  order=await readOrder(env.DB,orderId)
+  if(!order.payment) throw error
+ }
+ return {status:order.payment?'paid':'awaiting_payment'}
+}
+/** The scheduled check (every minute, also under rer dev): orders still awaiting
+ * payment from the last day, while their Checkout Sessions can still be paid. */
+export async function checkAwaitingPayments(env:Bindings) {
+ if(!env.STRIPE_SECRET_KEY) return {checked:0,confirmed:0}
+ const since=new Date(Date.now()-25*3600000).toISOString()
+ const rows=(await env.DB.prepare("SELECT id FROM st_orders WHERE json_extract(value_json,'$.status')='awaiting_payment' AND json_extract(value_json,'$.createdAt')>? ORDER BY json_extract(value_json,'$.createdAt') LIMIT 20").bind(since).all<{id:string}>()).results
+ let confirmed=0
+ for(const row of rows) {
+  try { if((await confirmFromStripe(env,await readOrder(env.DB,row.id))).payment) confirmed++ }
+  catch(error) { if(!(error instanceof Problem)) throw error } // The order keeps its state; the next run or Reconcile retries.
+ }
+ return {checked:rows.length,confirmed}
 }

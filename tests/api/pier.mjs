@@ -3,7 +3,7 @@ import { access, mkdir, writeFile } from 'node:fs/promises'
 import { execFileSync } from 'node:child_process'
 import { resolve, join } from 'node:path'
 import { installation } from './harness.mjs'
-export const pierCommit = 'dab5731f83d4fc925e378b67ff780fac14a5182b'
+export const pierCommit = '28000f30f84309ef7536ed5b0eaf206b35f60f43'
 export async function pierInstallation() {
  const source=resolve('.cache/pier-source')
  try { await access(join(source,'.git')) }

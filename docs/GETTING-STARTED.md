@@ -29,8 +29,8 @@ Stop the app with `rer dev --stop` or Ctrl-C. The [full local reference](../RUN-
 ## Connect stock and payment
 
 1. In Pier, have two active, stocked, sellable SKUs and an existing customer representing this online shop. Keep each SKU identical in Pier and Stall.
-2. Follow [Pier and Stripe connections](CONNECTIONS.md) to configure Pier, your Stripe test key and the signed webhook. Keep credentials private. Restart the app after changing local configuration.
-3. At **Shop desk → Connections**, check **Pier stock**, **Stripe checkout** and **Stripe webhooks**. The **Configured** indicators show that configuration is present; confirm the connections by completing a test order.
+2. Follow [Pier and Stripe connections](CONNECTIONS.md) to connect Pier and your Stripe test key from **Settings → Provider connections**. A shop on this computer needs no webhook; an online shop adds its signed webhook. Keep credentials private.
+3. At **Settings → Provider connections**, check **Pier stock**, **Stripe checkout** and **Payment confirmations**. The **Configured** indicators show that configuration is present; confirm the connections by completing a test order.
 
 Pier owns stock, reservations and dispatch. Stall owns listing names, descriptions and USD prices. Stall checks Pier at publication and checkout, and reserves stock after verified payment. Stock can change during payment, leaving a visible shortfall to resolve in Pier.
 

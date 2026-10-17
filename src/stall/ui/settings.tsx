@@ -7,12 +7,14 @@ import { AgentCredential } from './agent-credential'
 import { CustomerErasure } from './data'
 import { ConnectPier, ConnectStripe } from './connect-forms'
 
-export const providers: Record<string, [string, string]> = { pier: ['Pier stock', 'Catalog stock, reservations and shipping'], stripe: ['Stripe checkout', 'Hosted checkout and refunds on your Stripe account'], webhook: ['Stripe webhooks', 'Signed payment confirmations'] }
+const providerRows: Record<string, [string, string]> = { pier: ['Pier stock', 'Catalog stock, reservations and shipping'], stripe: ['Stripe checkout', 'Hosted checkout and refunds on your Stripe account'], webhook: ['Payment confirmations', 'Signed Stripe webhooks'] }
+/** Each connection's name and job. A shop on this computer confirms payments by asking Stripe. */
+export const providers = (state: State): Record<string, [string, string]> => state.connectionDetails?.stripe.local && !state.connectionDetails.stripe.webhook ? { ...providerRows, webhook: ['Payment confirmations', 'Stall asks Stripe; webhooks are for an online shop'] } : providerRows
 export function Settings({ state, owner, busy, run, reload }: { state: State; owner: boolean; busy: boolean; run: Run; reload: () => Promise<void> }) {
   return <div className="st-settings">
     <h1>Settings</h1>
     <Section id="connections" title="Provider connections">
-      <ul className="st-connections">{Object.entries(state.connections).map(([name, ready]) => <li key={name}><div><strong>{providers[name]?.[0] ?? name}</strong><small>{providers[name]?.[1]}</small></div><Badge value={ready ? 'Configured' : 'Setup required'} tone={ready ? undefined : 'need'} /></li>)}</ul>
+      <ul className="st-connections">{Object.entries(state.connections).map(([name, ready]) => <li key={name}><div><strong>{providers(state)[name]?.[0] ?? name}</strong><small>{providers(state)[name]?.[1]}</small></div><Badge value={ready ? 'Configured' : 'Setup required'} tone={ready ? undefined : 'need'} /></li>)}</ul>
       {!Object.values(state.connections).every(Boolean) && <Notice>External setup is incomplete. Checkout, stock reservation, payment confirmation and shipping require the corresponding provider connection.</Notice>}
       {owner && <><ConnectPier state={state} busy={busy} run={run} /><ConnectStripe state={state} busy={busy} run={run} /></>}
       <ProviderLinks />

@@ -23,6 +23,8 @@ export function ShopDesk() {
   useEffect(() => { document.title = `${titles[view]} · Stall`; if (section && section !== view && !recordOf(section)) document.getElementById(section)?.scrollIntoView(); else scrollTo(0, 0) }, [view, section, !!state])
   async function reload() { setState(await request<State>('/api/stall/state')) }
   useEffect(() => { void reload().catch(error => setError(errorMessage(error))).finally(() => setLoading(false)) }, [])
+  // New and newly paid orders appear without a reload: the minute's payment check confirms them.
+  useEffect(() => { const timer = setInterval(() => { if (document.visibilityState === 'visible' && !lock.current) void reload().catch(() => { /* The next refresh or action shows the problem. */ }) }, 60000); return () => clearInterval(timer) }, [])
   async function run(type: string, payload: unknown) {
     if (lock.current) return false
     lock.current = true; setBusy(true); setError(''); setNotice('')

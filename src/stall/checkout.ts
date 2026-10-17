@@ -1,7 +1,7 @@
 import type { Bindings } from '../auth.server'
 import { digest,systemAudit } from './access'
 import { catalogue,decimal,pierOrigin } from './pier'
-import { createCheckout,validateSession } from './stripe'
+import { createCheckout,paymentsReady,validateSession } from './stripe'
 import { readOrder,saveOrder } from './store'
 import { paidSession } from './payments'
 import { email,fail,integer,shopCurrency,text,type Line,type Order } from './model'
@@ -23,7 +23,7 @@ export async function checkout(env:Bindings,p:any) {
   order=await readOrder(env.DB,row.id)
   if(order.requestDigest!==requestDigest||order.erasedAt) fail('IDEMPOTENCY','This checkout key belongs to a different or erased purchase. Start a new checkout.')
  } else {
-  if(!env.STRIPE_SECRET_KEY||!env.STRIPE_WEBHOOK_SECRET) fail('STRIPE_UNAVAILABLE','Connect Stripe and its signed webhook before accepting payments.',503)
+  if(!paymentsReady(env)) fail('STRIPE_UNAVAILABLE','Connect Stripe on Settings before accepting payments.',503)
   const stock=await catalogue(env)
   const lines:Line[]=selection.map((line:any)=>{
    const product=stock.items.find(i=>i.sku===line.sku)

@@ -36,7 +36,7 @@ export function Shop() {
       {loading && <p role="status">Checking available products with Pier…</p>}
       {error && <Notice error>{error}</Notice>}
       {!loading && !catalogue && <Empty><h3>The shop is not ready for orders</h3><p>Live stock and payment connections need to be available before checkout can open. Please try again later.</p></Empty>}
-      {catalogue && !catalogue.checkoutReady && <Notice>Payments are not available yet. The shop owner needs to connect Stripe checkout and its payment confirmation webhook before orders can be accepted.</Notice>}
+      {catalogue && !catalogue.checkoutReady && <Notice>Payments are not available yet. The shop owner needs to connect Stripe checkout before orders can be accepted.</Notice>}
       {catalogue && !items.length && <Empty><h3>No products available yet</h3><p>The owner is preparing the catalog. Check back soon.</p></Empty>}
       {!loading && (!catalogue || !catalogue.checkoutReady || !items.length) && <ProviderLinks />}
       {!!items.length && <form className="st-shop-layout" onSubmit={event => void checkout(event)}>

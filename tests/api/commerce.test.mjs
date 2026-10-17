@@ -65,6 +65,9 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
    assert.equal(stock.orders.length,1);
    assert.equal(stock.orders[0].lines.length,2);
    assert.ok(stock.orders[0].lines.every(l=>l.reserved==='1'));
+   // Pier receives the prices Stall charged, so the shipment's invoice can post to the books.
+   assert.equal(stock.orders[0].pricingStatus,'priced');
+   assert.deepEqual(stock.orders[0].lines.map(l=>l.price).sort(),['18','24.5']);
    assert.ok((await h.api('/api/stall/catalogue',undefined,{as:''})).items.every(p=>p.available==='19'));
   });
   await t.test('shipment exact approval and recovery dispatch once through real stock ledger',async()=>{

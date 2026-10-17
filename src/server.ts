@@ -9,7 +9,7 @@ import { lobbyResponse } from './base/lobby'
 import { setupStateResponse } from './base/setup-state'
 import { authResponse, runtimeBindings, type Bindings } from './auth.server'
 import { identity } from './identity'
-import { stallResponse } from './stall/api'
+import { stallResponse, stallScheduled } from './stall/api'
 import { toolsResponse } from './stall/tools'
 import { seedDemo } from './demo'
 
@@ -43,4 +43,6 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (lobby) return lobby
     return rejectedResponse(request, await dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request))))
   },
+  // Every minute: confirm Checkout payments Stripe has taken but no webhook reported.
+  async scheduled(_event, env, execution) { execution.waitUntil(stallScheduled(env)) },
 } satisfies ExportedHandler<Bindings>, { seed: seedDemo })
