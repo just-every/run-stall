@@ -1,8 +1,9 @@
 // The run site (run-stall.com) `rer build --site` writes: the homepage with its
-// Run action, /run, the docs from docs/*.md, and the not-found page. Every Run
+// Run action, /run, the docs from docs/*.md, /contract from CONTRACT.md, and the not-found page. Every Run
 // page string and command is in run.json; nothing here reads installation data.
 import type { ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { contractPageHtml } from '../base/contract-page'
 import { runPageHtml, siteNotFoundHtml, type RunData, type SiteBuild, type SiteContext } from '../base/run-site'
 import { identity } from '../identity'
 import { DocsArticle } from './docs/DocsArticle'
@@ -17,7 +18,7 @@ const COPY = "document.querySelectorAll('.prose pre').forEach(pre=>{const b=docu
 
 const SHARE_IMAGE = `${identity.runSite}/site/share.jpg`
 
-export function sitePages({ styles }: SiteContext): SiteBuild {
+export function sitePages({ styles, contract }: SiteContext): SiteBuild {
   const data: RunData = run
   const document = (title: string, description: string, body: ReactElement, script = '') => '<!doctype html>' + renderToStaticMarkup(
     <html lang="en">
@@ -49,10 +50,11 @@ export function sitePages({ styles }: SiteContext): SiteBuild {
   return {
     pages: [
       { path: '/', html: document('Stall — Your stall never closes', 'Free, open source online shops for US makers and small shops: storefront and checkout, sales tax, labels and tracking, returns and abandoned carts. An alternative to Shopify, Squarespace Commerce and BigCommerce.', <Landing />) },
-      { path: '/run', html: runPageHtml(identity, data) },
+      { path: '/run', html: runPageHtml(identity, data, contract) },
+      ...(contract ? [{ path: '/contract', html: contractPageHtml(identity, data, contract) }] : []),
       { path: '/docs', html: document('Docs · Stall', 'Guides for running your shop on Stall.', <DocsIndex />) },
       ...guides.map(guide => ({ path: guide.path, html: document(`${guide.title} · Stall docs`, guide.description, <DocsArticle slug={guide.slug} />, COPY) })),
-      { path: '/404', html: siteNotFoundHtml(identity, data) },
+      { path: '/404', html: siteNotFoundHtml(identity, data, contract) },
     ],
     assets: ['rer-theme.css', 'fonts', 'brand', 'site', 'favicon.ico', 'apple-touch-icon.png'],
   }

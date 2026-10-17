@@ -5,6 +5,7 @@ export const links = {
   home: '/',
   run: '/run',
   docs: '/docs',
+  contract: '/contract',
   source: run.repository,
   licence: `${run.repository}/blob/main/LICENSE`,
   demo: 'https://demo.run-stall.com/',
