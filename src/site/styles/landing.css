@@ -6,7 +6,8 @@
 .hero { position: relative; min-height: 876px; }
 .hero-row { position: relative; z-index: 2; max-width: 1440px; padding: 0 clamp(16px, 3.6vw, 52px); }
 .hero-copy { max-width: 548px; padding-top: 166px; }
-.hero h1 { font: 800 93px/.93 var(--font-head); letter-spacing: -.052em; max-width: 6.6em; }
+/* Tight tracking narrows the space too; word-spacing gives the words back the desk's gap. */
+.hero h1 { font: 800 93px/.93 var(--font-head); letter-spacing: -.052em; word-spacing: .06em; max-width: 6.6em; }
 .hero-sub { max-width: 525px; margin-top: 30px; font-size: 23.5px; line-height: 1.46; color: #1f2329; letter-spacing: -.005em; }
 .hero-alt { max-width: 470px; margin-top: 26px; font-size: 23.5px; line-height: 1.46; color: #1f2329; letter-spacing: -.005em; }
 .hero-alt strong { font-weight: 700; color: var(--ink); }
@@ -32,7 +33,7 @@
 .feature-art { display: flex; justify-content: flex-end; }
 .feature.flip .feature-art { justify-content: flex-start; }
 .feature-art > div { width: 100%; display: flex; justify-content: inherit; }
-.feature h2, .ownership h2, .details h2 { margin-top: 20px; font: 800 78px/1.02 var(--font-head); letter-spacing: -.052em; }
+.feature h2, .ownership h2, .details h2 { margin-top: 20px; font: 800 78px/1.02 var(--font-head); letter-spacing: -.052em; word-spacing: .06em; }
 .feature-body { margin-top: 26px; max-width: 546px; font-size: 23.5px; line-height: 1.43; color: var(--body); letter-spacing: -.005em; text-wrap: pretty; }
 .feature-body a { color: inherit; text-decoration-color: var(--tangerine); text-decoration-thickness: 2px; text-underline-offset: 5px; }
 #storefront .feature-copy { padding-bottom: 36px; }
@@ -43,7 +44,7 @@
 
 /* Interlude: the counter at full width, the badge over it. */
 .interlude { position: relative; }
-.interlude-art { position: relative; max-width: 1536px; margin: 0 auto; aspect-ratio: 1536 / 1024; }
+.interlude-art { position: relative; aspect-ratio: 1536 / 1024; }
 .interlude-art picture, .interlude-art img { width: 100%; height: 100%; }
 .interlude-art::before, .interlude-art::after { content: ''; position: absolute; top: 0; bottom: 0; width: 6%; z-index: 1; pointer-events: none; }
 .interlude-art::before { left: 0; background: linear-gradient(90deg, var(--paper), transparent); }
@@ -86,14 +87,14 @@
 .detail h3 { margin-top: 22px; font: 800 29px/1.15 var(--font-head); letter-spacing: -.035em; }
 .detail p { margin-top: 14px; font-size: 17.5px; color: var(--body); letter-spacing: -.015em; }
 
-/* Closing: the promise over the white top of the doorstep painting. */
+/* Closing: the promise over the white top of the doorstep painting, edge to edge. */
 .closing { position: relative; }
-.closing-art { position: relative; max-width: 1536px; margin: 0 auto; aspect-ratio: 1536 / 916; }
+.closing-art { position: relative; aspect-ratio: 1536 / 916; }
 .closing-art picture, .closing-art img { width: 100%; height: 100%; }
 .sticker { position: absolute; inset: 0; width: 100%; height: 100%; }
 .sticker-word { font: 800 15px var(--font-head); letter-spacing: -.03em; fill: #141414; text-anchor: middle; }
 .closing-copy { position: absolute; z-index: 2; left: 0; right: 0; top: 10.4%; text-align: center; }
-.closing h2 { font: 800 97px/1 var(--font-head); letter-spacing: -.052em; }
+.closing h2 { font: 800 97px/1 var(--font-head); letter-spacing: -.052em; word-spacing: .06em; }
 .closing-sub { margin-top: 18px; font-size: 37px; letter-spacing: -.02em; color: #15171b; }
 .closing .site-actions { justify-content: center; margin-top: 30px; }
 .closing .hero-note { margin-top: 30px; }

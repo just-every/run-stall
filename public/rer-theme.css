@@ -103,7 +103,7 @@ html.rer-themed dd { padding: 0 20px 12px; background: var(--row); border-radius
 body:has(> header.bar) { background: radial-gradient(55% 40% at 50% 0, var(--tangerine-wash), transparent 70%), var(--paper); }
 body:has(> header.bar) .bar { padding-bottom: 22px; border-bottom: 1px solid var(--line); max-width: none; }
 body:has(> header.bar) .brand { font-weight: 800; letter-spacing: -.035em; }
-body:has(> header.bar) h1 { font-weight: 800; letter-spacing: -.045em; }
+body:has(> header.bar) h1 { font-weight: 800; letter-spacing: -.045em; word-spacing: .06em; }
 body:has(> main > .intro) .intro { padding-top: 64px; }
 body:has(> main > .intro) .step { border-radius: var(--radius-card); border-color: var(--line); background: var(--surface); box-shadow: var(--shadow-card); }
 body:has(> main > .intro) .num { background: var(--tangerine-press); color: #fff; font-weight: 800; }

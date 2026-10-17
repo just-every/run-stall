@@ -9,7 +9,7 @@
 .docs-nav a:hover { background: var(--row); }
 .docs-nav a[aria-current='page'] { background: var(--tangerine-tint); color: var(--ink); font-weight: 600; box-shadow: inset 3px 0 0 var(--tangerine); }
 .docs-main { min-width: 0; max-width: 780px; }
-.docs-main h1 { margin-top: 18px; font: 800 64px/1.02 var(--font-head); letter-spacing: -.05em; text-wrap: balance; }
+.docs-main h1 { margin-top: 18px; font: 800 64px/1.02 var(--font-head); letter-spacing: -.05em; word-spacing: .06em; text-wrap: balance; }
 .docs-lede { margin-top: 22px; font-size: 21px; line-height: 1.5; color: var(--body); }
 .docs-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 44px; }
 .docs-card { display: block; height: 100%; padding: 24px 26px 26px; text-decoration: none; transition: border-color .15s ease, transform .15s ease; }
@@ -24,7 +24,7 @@
 
 .prose { margin-top: 36px; font-size: 17.5px; line-height: 1.7; color: #262a31; }
 .prose > * + * { margin-top: 18px; }
-.prose h2 { margin-top: 56px; font: 800 34px/1.12 var(--font-head); letter-spacing: -.04em; color: var(--ink); }
+.prose h2 { margin-top: 56px; font: 800 34px/1.12 var(--font-head); letter-spacing: -.04em; word-spacing: .05em; color: var(--ink); }
 .prose h2::before { content: ''; display: block; width: 36px; height: 3px; margin-bottom: 18px; border-radius: 2px; background: var(--tangerine); }
 .prose h3 { margin-top: 36px; font: 800 23px/1.2 var(--font-head); letter-spacing: -.03em; color: var(--ink); }
 .prose a { color: var(--ink); text-decoration-color: var(--tangerine); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
