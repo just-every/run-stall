@@ -15,20 +15,25 @@ export function businessTime(value: string | number) {
 }
 export function usePerson() {
   const people = useContext(People)
-  return (id: string) => people[id] ?? (id === 'stripe' ? 'Stripe' : id.startsWith('agent:') ? 'Shop agent' : 'Former shop operator')
+  return (id: string) => people[id] ?? (id === 'stripe' ? 'Stripe' : id === 'pier' ? 'Pier' : id.startsWith('agent:') ? 'Shop agent' : 'Former shop operator')
 }
 const dayKey = (date: Date) => new Intl.DateTimeFormat('en-US', { timeZone: businessTimeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
 const yearOf = (date: Date) => new Intl.DateTimeFormat('en-US', { timeZone: businessTimeZone, year: 'numeric' }).format(date)
-/** "Oct 17, 9:14 AM" in the business time zone, with the year when it is not this year's. */
+/** "Oct 17, 9:14 AM CDT", with the year when it is not this year's. */
 export function shortTime(value: string | number, now = Date.now()) {
   const date = new Date(value)
-  return Number.isNaN(date.valueOf()) ? 'Time not recorded' : new Intl.DateTimeFormat('en-US', { timeZone: businessTimeZone, month: 'short', day: 'numeric', ...(yearOf(date) === yearOf(new Date(now)) ? {} : { year: 'numeric' }), hour: 'numeric', minute: '2-digit' }).format(date)
+  return Number.isNaN(date.valueOf()) ? 'Time not recorded' : new Intl.DateTimeFormat('en-US', { timeZone: businessTimeZone, month: 'short', day: 'numeric', ...(yearOf(date) === yearOf(new Date(now)) ? {} : { year: 'numeric' }), hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(date)
+}
+/** Use the offset in effect at the event, including daylight saving time. */
+export function timeZoneLabel(value:string|number) {
+ const date=new Date(value)
+ return Number.isNaN(date.valueOf())?businessTimeZone:new Intl.DateTimeFormat('en-US',{timeZone:businessTimeZone,timeZoneName:'short'}).formatToParts(date).find(part=>part.type==='timeZoneName')!.value
 }
 /** A log's time: "8:52 AM" today, then "Oct 15, 11:09 AM". */
 export function clockTime(value: string | number, now = Date.now()) {
   const date = new Date(value)
   if (Number.isNaN(date.valueOf())) return 'Time not recorded'
-  return dayKey(date) === dayKey(new Date(now)) ? new Intl.DateTimeFormat('en-US', { timeZone: businessTimeZone, hour: 'numeric', minute: '2-digit' }).format(date) : shortTime(date.valueOf(), now)
+  return dayKey(date) === dayKey(new Date(now)) ? new Intl.DateTimeFormat('en-US', { timeZone: businessTimeZone, hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(date) : shortTime(date.valueOf(), now)
 }
 /** A compact time that shows the full timestamp on hover. */
 export function When({ at, now }: { at: string | number; now?: number }) {

@@ -3,13 +3,15 @@ import { fail,requirePerson,text,type Actor } from './model'
 import { live } from './access'
 import { readOrder,saveOrder } from './store'
 import { paidSession,reservePaid } from './payments'
-import { finishShipment,observeShipment } from './fulfilment'
+import { finishShipment } from './fulfilment'
+import { observeShipment } from './shipment-sync'
 import { finishRefund } from './refunds'
 import { checkoutSession,validateSession } from './stripe'
 export async function reconcileOrder(env:Bindings,actor:Actor,p:any) {
  requirePerson(actor)
  let order=await readOrder(env.DB,text(p.orderId,'Order'))
  await live(env,actor)
+ order=await observeShipment(env,actor,order)
  if(!order.payment) {
   const id=order.checkout?.id??(p.checkoutSessionId?text(p.checkoutSessionId,'Stripe session ID'):undefined)
   if(!id) fail('STRIPE_RECOVERY','Find this order’s existing Checkout Session in Stripe and supply its ID to reconcile.')
@@ -26,7 +28,6 @@ export async function reconcileOrder(env:Bindings,actor:Actor,p:any) {
   order=await paidSession(env,order,id,actor)
  } else if(!order.shipment||order.shipment.status==='draft') order=await reservePaid(env,order,actor)
  if(order.shipment?.status==='pending') order=await finishShipment(env,actor,order)
- else if(order.shipment?.status==='shipped') order=await observeShipment(env,actor,order)
  for(const refund of order.refunds.filter(r=>r.status==='pending')) {
   const recovered=p.refundId===refund.id&&p.stripeRefundId?text(p.stripeRefundId,'Stripe refund ID'):undefined
   order=await finishRefund(env,actor,order,refund,recovered)

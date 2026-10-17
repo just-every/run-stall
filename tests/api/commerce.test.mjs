@@ -68,6 +68,8 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
    // Pier receives the prices Stall charged, so the shipment's invoice can post to the books.
    assert.equal(stock.orders[0].pricingStatus,'priced');
    assert.deepEqual(stock.orders[0].lines.map(l=>l.price).sort(),['18','24.5']);
+   const confirmed=await order(h,bought.orderId);
+   assert.deepEqual(stock.orders[0].channelPayment,{provider:'stripe',reference:confirmed.payment.intentId,amount:'42.50',currency:'USD',paidAt:confirmed.payment.paidAt,orderReference:confirmed.id});
    assert.ok((await h.api('/api/stall/catalogue',undefined,{as:''})).items.every(p=>p.available==='19'));
   });
   await t.test('shipment exact approval and recovery dispatch once through real stock ledger',async()=>{
@@ -76,7 +78,8 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
    await h.command('shipment.approve',{orderId:value.id,revision:'stale'},{status:409});
    edge.loseNextPierResponse('dispatch.create');
    await h.command('shipment.approve',{orderId:value.id,revision:value.revision},{status:503});
-   assert.equal((await order(h,value.id)).shipment.status,'pending');
+   // Reading the desk recovers Pier's committed dispatch without sending it again.
+   assert.equal((await order(h,value.id)).shipment.status,'shipped');
    const shipped=await h.command('order.reconcile',{orderId:value.id});
    assert.equal(shipped.status,'shipped');
    const again=await h.command('shipment.approve',{orderId:value.id,revision:value.revision});
@@ -106,6 +109,42 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
    const history=(await state(h)).audit;
    assert.ok(history.some(a=>a.action==='shipment.approved'));
    assert.ok(history.some(a=>a.action==='refund.approved'));
+  });
+  await t.test('warehouse dispatches refresh into Stall without a second dispatch; partial work stays unfinished',async()=>{
+   const bought=await purchase(h,edge,{email:'warehouse@example.test'});
+   const payment=await deliverWebhook(h,secret,edge.pay(bought.session.id));
+   assert.equal(payment.response.status,200);
+   let value=await order(h,bought.orderId);
+   const native=(await pier.api('/api/pier/state')).orders.find(o=>o.id===value.reservation.id);
+   const calls=edge.pierCalls.filter(c=>c.type==='dispatch.create').length;
+   const first=await pier.command('dispatch.create',{orderId:native.id,shipmentReference:'WAREHOUSE-ONE',lines:[{orderLineId:native.lines[0].id,quantity:'1'}]});
+   value=await order(h,value.id);
+   assert.notEqual(value.status,'shipped');
+   assert.equal(value.shipment.status,'partial');
+   assert.equal(value.shipment.dispatches[0].id,first.id);
+   const refused=await h.command('shipment.prepare',{orderId:value.id,revision:value.revision,reference:'DO-NOT-SHIP-TWICE'},{status:409});
+   assert.equal(refused.error.code,'PART_ALREADY_SHIPPED');
+   const second=await pier.command('dispatch.create',{orderId:native.id,shipmentReference:'WAREHOUSE-TWO',lines:[{orderLineId:native.lines[1].id,quantity:'1'}]});
+   value=await h.command('order.reconcile',{orderId:value.id});
+   assert.equal(value.status,'shipped');
+   assert.deepEqual(value.shipment.dispatches.map(s=>s.id).sort(),[first.id,second.id].sort());
+   assert.ok(value.shipment.dispatches.every(s=>s.shippedAt));
+   const again=await order(h,value.id);
+   assert.equal(again.revision,value.revision);
+   const already=await h.command('shipment.prepare',{orderId:value.id,revision:value.revision,reference:'DUPLICATE'},{status:409});
+   assert.equal(already.error.code,'ALREADY_SHIPPED');
+   assert.match(already.error.message,/WAREHOUSE-ONE/);
+   assert.equal(edge.pierCalls.filter(c=>c.type==='dispatch.create').length,calls);
+   // Revoke the real scoped key, as a restore does. The original Pier reason survives.
+   const channel=(await pier.api('/api/pier/state')).channels.find(c=>c.id===pier.channelId);
+   await pier.command('channel.stallUnlink',{channelId:channel.id,version:channel.version});
+   const provider=await pier.api('/api/pier/state',undefined,{as:pier.bindings.PIER_SESSION,status:401});
+   const stale=await state(h);
+   assert.ok(stale.shipmentSync.error.includes(provider.error.message));
+   assert.equal(stale.orders.find(o=>o.id===value.id).status,'shipped');
+   const revoked=await h.command('shipment.prepare',{orderId:value.id,revision:value.revision,reference:'RESTORED-KEY'},{status:503});
+   assert.equal(revoked.error.code,'PIER_CREDENTIAL');
+   assert.ok(revoked.error.message.includes(provider.error.message));
   });
  }finally {if(h) await h.close();await pier.close();}
 });

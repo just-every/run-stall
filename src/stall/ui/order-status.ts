@@ -5,6 +5,7 @@ import { humanLabel } from './presentation'
 
 /** What a person must do next, or null when the order needs nobody. */
 export function needs(order: Order): string | null {
+  if (order.shipment?.status === 'partial') return 'Partly shipped'
   if (order.status === 'shortfall') return 'Shortfall'
   if (order.shipment?.status === 'draft') return 'Shipping draft'
   if (order.shipment?.status === 'pending') return 'Shipping pending'
@@ -23,7 +24,7 @@ export function draftOf(order: Order) {
 export const agentDrafted = (order: Order) => !!draftOf(order)?.by.startsWith('agent:')
 
 /** True when reconcile has work to retry: payment or stock not settled, or a provider result still pending. */
-export const pendingWork = (order: Order) => ['awaiting_payment', 'checkout_pending', 'paid', 'shortfall'].includes(order.status)
+export const pendingWork = (order: Order) => ['awaiting_payment', 'checkout_pending', 'paid', 'shortfall', 'reserved'].includes(order.status)
   || order.shipment?.status === 'pending' || order.refunds.some(refund => refund.status === 'pending')
 
 export const orderTabs = [
@@ -65,9 +66,10 @@ export function matches(order: Order, query: string) {
 }
 /** The order's next step, in one sentence. */
 export function statusLine(order: Order) {
-  return order.status === 'awaiting_payment' || order.status === 'checkout_pending' ? 'Payment is not yet confirmed. Reconcile to check Stripe and stock reservation.'
+  return order.shipment?.status === 'partial' ? 'Pier shipped part of this order. Finish the remaining lines in Pier, then refresh Stall.'
+    : order.status === 'awaiting_payment' || order.status === 'checkout_pending' ? 'Payment is not yet confirmed. Reconcile to check Stripe and stock reservation.'
     : order.status === 'shortfall' ? 'Payment received, but stock reservation has a shortfall. Resolve stock in Pier, then reconcile this order.'
     : order.status === 'paid' ? 'Payment received. Reconcile to complete or check the stock reservation.'
-    : order.status === 'reserved' ? 'Stock reserved. Prepare shipping for a person to review.'
+    : order.status === 'reserved' ? 'Stock reserved. Pick, pack and dispatch in Pier, or arrange delivery and prepare shipping here for a person to review.'
     : order.status === 'shipped' ? 'Shipping has been confirmed by Pier.' : 'Review the recorded provider state below.'
 }

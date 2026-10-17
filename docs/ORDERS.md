@@ -2,6 +2,8 @@
 
 Open **Shop desk → Orders** as an owner or administrator. **Needs action** lists the orders waiting on a person (a stock shortfall, a shipping or refund draft to approve, a payment to reconcile); **All** lists every order. Select an order: its panel shows the customer's details, purchased lines, exact USD total, payment and current state, with the next step and its approval. Approvals apply to the saved revision you reviewed. If the order changes during review, refresh and review it again.
 
+Order, payment, approval and shipment times show their time-zone abbreviation. The Orders page names the shop's business time zone, America/Chicago, so a Pier warehouse using another zone can show a different local time for the same moment.
+
 ## Follow payment and stock
 
 Customers select products at `/shop`, enter their email, select **Review order**, then **Pay … with Stripe**. Stripe hosts payment and collects delivery details. Card details never enter Stall. Returning to `/order` does not mark an order paid.
@@ -11,12 +13,16 @@ Customers select products at `/shop`, enter their email, select **Review order**
 | **checkout pending** or **awaiting payment** | Payment is not confirmed. Use **Reconcile** to check the existing Stripe operation. |
 | **paid** | Payment has been verified. Reconcile to complete or check the Pier reservation. |
 | **shortfall** | Payment arrived, but stock could not be fully reserved. Receive or reallocate stock in Pier, then reconcile this order. |
-| **reserved** | The paid order's stock is reserved in Pier. Prepare shipping. |
+| **reserved** | The paid order's stock is reserved in Pier. Pick, pack and dispatch in Pier, or arrange delivery and prepare shipping in Stall. |
 | **shipped** | Pier has confirmed dispatch. Review shipping or prepare a partial refund. |
 
 Stall checks the verified payment's session, amount and currency before recording money and reserving stock. A paid shortfall can happen if stock changes while the customer pays. Keep working on the same order when resolving it.
 
 ## Ship a reserved order
+
+Pier owns the stock and records dispatch. If you use Pier's warehouse workflow, pick, pack and dispatch the order there. In Stall select **Refresh shop**: the order moves to **Shipped** once all purchased units have dispatched, with Pier's shipment references, dispatch times, carrier tracking links and delivery status when Pier supplies them. The open desk also checks every minute. A partial dispatch stays unfulfilled and says **Partly shipped**; finish the remaining lines in Pier. Stall never sends another dispatch just to refresh this information.
+
+Choose one place to dispatch each order. For delivery you arrange yourself, Stall offers this alternative:
 
 1. Check the purchased lines and **Delivery address**.
 2. Under **Prepare shipping**, enter a **Shipping reference**, such as your tracking reference, then select **Prepare shipping for approval**.
@@ -26,6 +32,8 @@ Stall checks the verified payment's session, amount and currency before recordin
 To change a prepared shipping reference or refund before approval, select **Edit** beside the approve button and prepare it again; the new draft replaces the old one. **Needs action** lists drafts the shop agent prepared first, each with its **Agent note**.
 
 Approval dispatches the reserved lines through Pier. Stall does not book a courier, calculate shipping rates or print labels; arrange the physical delivery yourself.
+
+Before preparing or approving, Stall checks Pier for an existing dispatch. An order already shipped there names its shipment instead of offering another shipment. A revoked or unrecognized connection key shows Pier's exact reason. After a Pier restore, create a new Stall key in **Pier → Channels**, then paste it into **Stall → Settings → Connect Pier**. If the restored Pier lacks an order or a dispatch Stall already recorded, restore its original business history before shipping again. When a refresh cannot check Pier, Orders shows the reason and clearly marks its shipment information as the last recorded state.
 
 ## Refund one line
 

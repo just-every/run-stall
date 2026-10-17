@@ -8,7 +8,8 @@ export type Product={id:string;value:ProductValue;revision:string}
 export type Approval={by:string;version:number;at:string;revision:string}
 export type Line={sku:string;name:string;itemId:string;quantity:number;unitCents:number}
 export type Refund={id:string;lines:{sku:string;quantity:number}[];amountCents:number;reason:string;status:'draft'|'pending'|'succeeded'|'failed'|'canceled';preparedBy:string;approval?:Approval;startedAt?:string;stripeId?:string}
-export type Shipment={id:string;reference:string;status:'draft'|'pending'|'shipped';preparedBy:string;approval?:Approval;pierShipmentId?:string}
+export type PierDispatch={id:string;reference:string;shippedAt?:string;deliveryStatus?:string;tracking:{carton?:number;trackingCode?:string;trackingUrl?:string}[]}
+export type Shipment={id:string;reference:string;status:'draft'|'pending'|'partial'|'shipped';preparedBy:string;approval?:Approval;pierShipmentId?:string;dispatches?:PierDispatch[]}
 // The shop sells in US dollars and ships within the United States (Stripe's codes).
 export const shopCurrency='usd'
 export const shopCountry='US'

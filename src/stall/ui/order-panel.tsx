@@ -16,6 +16,17 @@ type Editing = 'shipment' | 'refund' | null
 
 function ApprovalRecord({ approval }: { approval?: Approval }) { const person = usePerson(); return approval ? <p className="st-small">Approved by {person(approval.by)} · <When at={approval.at} /> · revision {shortId(approval.revision)}</p> : null }
 
+function Dispatches({ order }: { order: Order }) {
+  return <>{order.shipment?.dispatches?.map(shipment => <div key={shipment.id}>
+    <p className="st-reference">{shipment.reference}</p>
+    <p className="st-small">Dispatched in Pier{shipment.shippedAt && <> · <When at={shipment.shippedAt} /></>}{shipment.deliveryStatus && <> · {humanLabel(shipment.deliveryStatus)}</>}</p>
+    {shipment.tracking.map((tracking, index) => <p className="st-small" key={index}>
+      {tracking.carton !== undefined && <>Carton {tracking.carton} · </>}
+      {tracking.trackingUrl ? <a href={tracking.trackingUrl} target="_blank" rel="noreferrer">Track {tracking.trackingCode ?? 'shipment'}</a> : tracking.trackingCode ?? 'Tracking not supplied by Pier'}
+    </p>)}
+  </div>)}</>
+}
+
 function NextStep({ order, busy, run, canApprove, editing, edit }: { order: Order; busy: boolean; run: Run; canApprove: boolean; editing: Editing; edit: (to: Editing) => void }) {
   const person = usePerson(), need = needs(order), draft = draftOf(order)
   const shipment = draft?.kind === 'shipment' ? order.shipment : undefined, refund = draft?.kind === 'refund' ? draft.refund : undefined
@@ -60,9 +71,10 @@ export function OrderPanel({ order, busy, run, canApprove, previous, next, foote
     </section>
     {details && <section className="st-panel-block"><h3>Delivery address</h3><address>{details.name}<br />{address?.line1}{address?.line2 && <><br />{address.line2}</>}<br />{[placeLine(address), address?.postal_code].filter(Boolean).join(' ')}<br />{countryName(address?.country)}</address></section>}
     <section className="st-panel-block"><div className="st-row"><h3>Shipping</h3>{shipmentDraft && editing !== 'shipment' ? <button className="st-link st-edit-link" disabled={busy} onClick={() => setEditing('shipment')}>Edit<span className="st-sr-only"> shipping reference</span></button> : order.shipment && <Badge value={order.shipment.status} />}</div>
+      <p className="st-small">Pier handles stock and warehouse dispatch. Ship in Pier and refresh Stall to see the result. If you arrange delivery yourself, approve shipping here to record the dispatch in Pier.</p>
       {order.shipment && editing === 'shipment' ? <ShipForm order={order} busy={busy} run={run} initial={order.shipment.reference} onCancel={() => setEditing(null)} />
-        : order.shipment ? <><p className="st-reference">{order.shipment.reference}</p><p className="st-small">Prepared by {person(order.shipment.preparedBy)}{shipmentDraft ? ' · awaiting approval' : ''}</p><ApprovalRecord approval={order.shipment.approval} /></>
-        : ['reserved', 'shipped'].includes(order.status) ? <><p className="st-small">Not shipped yet. Add the carrier’s reference for a person to approve.</p><ShipForm order={order} busy={busy} run={run} /></>
+        : order.shipment ? <>{order.shipment.dispatches?.length ? <Dispatches order={order} /> : <p className="st-reference">{order.shipment.reference}</p>}{order.shipment.preparedBy !== 'pier' && <p className="st-small">Prepared by {person(order.shipment.preparedBy)}{shipmentDraft ? ' · awaiting approval' : ''}</p>}<ApprovalRecord approval={order.shipment.approval} /></>
+        : order.status === 'reserved' ? <><p className="st-small">No dispatch recorded yet. To ship from Stall, add the carrier’s reference for a person to approve.</p><ShipForm order={order} busy={busy} run={run} /></>
         : <p className="st-small">Shipping opens once payment is confirmed and Pier holds the stock.</p>}
     </section>
     {order.refunds.filter(refund => refund.status !== 'draft').map(refund => <section key={refund.id} className="st-panel-block"><div className="st-row"><h3>Refund · {money(refund.amountCents)}</h3><Badge value={refund.status} /></div><p className="st-small">{refund.lines.map(line => `${line.sku} × ${line.quantity}`).join(', ')} · {refund.reason}</p><p className="st-small">Prepared by {person(refund.preparedBy)}</p><ApprovalRecord approval={refund.approval} /></section>)}
