@@ -25,18 +25,20 @@
 
 /* A pair of features: copy beside drawing, then drawing beside copy. */
 .pair { display: grid; row-gap: 44px; max-width: 1440px; padding: 72px clamp(16px, 5.8vw, 84px) 58px; }
-.feature { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 40px; }
+.feature { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 16px; }
 .feature.flip { grid-template-columns: auto minmax(0, 1fr); column-gap: 64px; }
 .feature.flip .feature-copy { order: 2; }
 .feature.flip .feature-art { order: 1; }
 .feature-art { display: flex; justify-content: flex-end; }
 .feature.flip .feature-art { justify-content: flex-start; }
 .feature-art > div { width: 100%; display: flex; justify-content: inherit; }
-.feature h2, .ownership h2, .details h2 { margin-top: 20px; font: 800 78px/1.02 var(--font-head); letter-spacing: -.052em; text-wrap: balance; }
-.feature-body { margin-top: 26px; max-width: 32em; font-size: 23.5px; line-height: 1.43; color: var(--body); letter-spacing: -.005em; text-wrap: pretty; }
+.feature h2, .ownership h2, .details h2 { margin-top: 20px; font: 800 78px/1.02 var(--font-head); letter-spacing: -.052em; }
+.feature-body { margin-top: 26px; max-width: 546px; font-size: 23.5px; line-height: 1.43; color: var(--body); letter-spacing: -.005em; text-wrap: pretty; }
 .feature-body a { color: inherit; text-decoration-color: var(--tangerine); text-decoration-thickness: 2px; text-underline-offset: 5px; }
 #storefront .feature-copy { padding-bottom: 36px; }
 #returns h2 { font-size: 71px; }
+#sales-tax h2 { font-size: 74px; }
+.ownership h2 { font-size: 67px; }
 #move-in h2 { font-size: 74px; }
 
 /* Interlude: the counter at full width, the badge over it. */
@@ -55,10 +57,10 @@
 
 /* Ownership: copy and the three owned things left, the terminal right. */
 .ownership { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 603px); align-items: center; column-gap: 40px; max-width: 1440px; padding: 214px clamp(16px, 5.8vw, 82px) 214px; }
-.ownership .feature-body { font-size: 27px; line-height: 1.6; max-width: 22em; }
+.ownership .feature-body { font-size: 27px; line-height: 1.6; max-width: 600px; }
 .owned { display: grid; gap: 40px; margin-top: 56px; }
 .owned li { display: flex; align-items: center; gap: 56px; font-size: 26px; color: var(--body); letter-spacing: -.01em; }
-.owned .icon { width: 66px; height: 54px; fill: none; stroke: var(--tangerine); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.owned .icon { width: 70px; height: 58px; fill: none; stroke: var(--tangerine); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .terminal-wrap { position: relative; }
 .terminal { min-height: 260px; padding: 24px 30px 40px; border-radius: 16px; background: var(--terminal); box-shadow: 0 0 0 1px #2c2c30 inset, var(--shadow-float); }
 .terminal .lights { display: flex; gap: 12px; }
@@ -78,11 +80,11 @@
 .details { max-width: 1440px; padding: 130px clamp(16px, 3.6vw, 52px) 140px; }
 .details h2 { font-size: 82px; margin-top: 18px; }
 .detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-top: 52px; }
-.detail { padding: 30px 26px 40px 32px; }
+.detail { padding: 30px 20px 40px 32px; }
 .detail-icon { display: grid; place-items: center; width: 79px; height: 79px; border-radius: 50%; background: #fde9dc; }
 .detail-icon .icon { width: 36px; height: 36px; fill: none; stroke: var(--tangerine-press); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .detail h3 { margin-top: 22px; font: 800 29px/1.15 var(--font-head); letter-spacing: -.035em; }
-.detail p { margin-top: 14px; font-size: 18px; color: var(--body); letter-spacing: -.015em; }
+.detail p { margin-top: 14px; font-size: 17.5px; color: var(--body); letter-spacing: -.015em; }
 
 /* Closing: the promise over the white top of the doorstep painting. */
 .closing { position: relative; }
@@ -90,30 +92,69 @@
 .closing-art picture, .closing-art img { width: 100%; height: 100%; }
 .sticker { position: absolute; inset: 0; width: 100%; height: 100%; }
 .sticker-word { font: 800 15px var(--font-head); letter-spacing: -.03em; fill: #141414; text-anchor: middle; }
-.closing-copy { position: absolute; z-index: 2; left: 0; right: 0; top: 7.4%; text-align: center; }
-.closing h2 { font: 800 85px/1 var(--font-head); letter-spacing: -.052em; }
-.closing-sub { margin-top: 22px; font-size: 34px; letter-spacing: -.02em; color: #15171b; }
+.closing-copy { position: absolute; z-index: 2; left: 0; right: 0; top: 10.4%; text-align: center; }
+.closing h2 { font: 800 97px/1 var(--font-head); letter-spacing: -.052em; }
+.closing-sub { margin-top: 18px; font-size: 37px; letter-spacing: -.02em; color: #15171b; }
 .closing .site-actions { justify-content: center; margin-top: 30px; }
 .closing .hero-note { margin-top: 30px; }
 
-/* Between phone and desktop the desk's sizes step down. */
+/* Between phone and desktop the drawings scale down whole, so each keeps the
+   desk's proportions, and the type steps down less. */
+@media (max-width: 1400px) and (min-width: 1081px) {
+  .feature-art > div, .terminal-wrap { zoom: 0.88; }
+  .feature h2, .ownership h2, .details h2 { font-size: 72px; }
+  #returns h2, #sales-tax h2, #move-in h2 { font-size: 66px; }
+  .ownership h2 { font-size: 62px; }
+}
+@media (max-width: 1340px) and (min-width: 1081px) {
+  .feature-art > div, .terminal-wrap { zoom: 0.82; }
+  .feature h2, .ownership h2, .details h2 { font-size: 68px; }
+  #returns h2, #sales-tax h2, #move-in h2 { font-size: 62px; }
+  .ownership h2 { font-size: 58px; }
+}
+@media (max-width: 1280px) and (min-width: 1081px) {
+  .feature-art > div, .terminal-wrap { zoom: 0.77; }
+  .feature h2, .ownership h2, .details h2 { font-size: 64px; }
+  #returns h2, #sales-tax h2, #move-in h2 { font-size: 58px; }
+  .ownership h2 { font-size: 56px; }
+}
+@media (max-width: 1200px) and (min-width: 1081px) {
+  .feature-art > div, .terminal-wrap { zoom: 0.72; }
+  .feature h2, .ownership h2, .details h2 { font-size: 60px; }
+  #returns h2, #sales-tax h2, #move-in h2 { font-size: 54px; }
+  .ownership h2 { font-size: 52px; }
+}
+@media (max-width: 1400px) {
+  .hero-art { width: min(915px, 58vw); }
+  .hero h1 { font-size: 86px; }
+  .hero-sub { max-width: 480px; font-size: 21.5px; }
+  .hero-alt { max-width: 440px; font-size: 21.5px; }
+  .hero .site-pill { min-height: 62px; font-size: 22px; padding: 0 30px 0 32px; }
+}
 @media (max-width: 1240px) {
   .hero h1 { font-size: 78px; }
-  .hero-copy { max-width: 470px; padding-top: 120px; }
+  .hero-copy { max-width: 490px; padding-top: 120px; }
+  .hero .site-actions { gap: 16px 22px; }
+  .hero-art { width: 55vw; top: 30px; }
   .hero-sub, .hero-alt { font-size: 20px; }
-  .feature h2, .ownership h2, .details h2 { font-size: 62px; }
-  #returns h2, #move-in h2 { font-size: 56px; }
+}
+/* From 1200 down the booth sits under the words. */
+@media (max-width: 1200px) {
+  .hero { min-height: 0; display: flex; flex-direction: column; }
+  .hero-art { order: 2; position: relative; top: 0; right: auto; width: min(760px, 100%); margin: 24px auto 0; }
+  .hero-copy { max-width: 640px; padding: 72px 0 0; }
+  .hero-sub { max-width: 560px; }
+  .hero-alt { max-width: 520px; }
+}
+@media (max-width: 1240px) {
   .feature-body { font-size: 20px; }
-  .closing h2 { font-size: 66px; }
+  .closing h2 { font-size: 72px; }
   .closing-sub { font-size: 26px; }
   .badge { height: 76px; font-size: 26px; gap: 20px; }
   .badge i { width: 28px; height: 28px; }
 }
 @media (max-width: 1080px) {
-  .hero { min-height: 0; display: flex; flex-direction: column; }
-  .hero-art { order: 2; }
-  .hero-art { position: relative; top: 0; right: auto; width: min(760px, 100%); margin: 24px auto 0; }
-  .hero-copy { max-width: 640px; padding: 72px 0 0; }
+  .feature h2, .ownership h2, .details h2, #returns h2, #sales-tax h2, #move-in h2 { font-size: 64px; }
   .pair { row-gap: 72px; padding-top: 72px; padding-bottom: 72px; }
   .feature, .feature.flip { grid-template-columns: minmax(0, 1fr); row-gap: 36px; }
   .feature.flip .feature-copy { order: 1; }
