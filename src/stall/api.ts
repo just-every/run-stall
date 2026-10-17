@@ -36,7 +36,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   if(!['GET','HEAD'].includes(request.method)&&request.headers.get('origin')!==env.AUTH_ORIGIN&&(!actor.agent||request.headers.has('origin'))) fail('ORIGIN','Use this installation’s own page to change records.',403)
   if(path==='/api/stall/state'&&request.method==='GET') {
    const [selected,history,logs,people]=await Promise.all([products(env.DB),orders(env.DB),env.DB.prepare('SELECT * FROM st_audit ORDER BY rowid DESC LIMIT 200').all(),env.DB.prepare('SELECT id,display_name AS name,email FROM oa_operators').all<{id:string;name:string;email:string}>()])
-   return json({people:Object.fromEntries(people.results.map(person=>[person.id,person.name||person.email])),actor,products:selected,orders:history,audit:logs.results,connections:{pier:pierConfigured(env),stripe:Boolean(env.STRIPE_SECRET_KEY),webhook:Boolean(env.STRIPE_WEBHOOK_SECRET)||localShop(env)},connectionDetails:await connectionDetails(base,env)})
+   return json({people:Object.fromEntries(people.results.map(person=>[person.id,person.name||person.email])),actor,products:selected,orders:history,audit:logs.results,connections:{pier:pierConfigured(env),stripe:Boolean(env.STRIPE_SECRET_KEY),webhook:Boolean(env.STRIPE_WEBHOOK_SECRET)||(localShop(env)&&Boolean(env.STRIPE_SECRET_KEY))},connectionDetails:await connectionDetails(base,env)})
   }
   if(path==='/api/stall/agent-token'&&request.method==='POST') {
    requirePerson(actor)

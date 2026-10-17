@@ -12,6 +12,7 @@ test('a local shop connects Stripe from the page alone and confirms payments by 
  try {
   await publish(h,'MUG-BLUE','Blue ceramic mug',2450);
   assert.equal((await h.api('/api/stall/catalogue',undefined,{as:''})).checkoutReady,false);
+  assert.equal((await h.api('/api/stall/state')).connections.webhook,false,'payment confirmations wait for the Stripe key');
   // An invented signing secret is refused, never accepted silently.
   await h.command('connection.stripe',{secretKey:'sk_test_localshop',webhookSecret:'whsec_invented0000000000000000000000'},{status:400});
   await h.command('connection.stripe',{secretKey:'sk_test_localshop'});
