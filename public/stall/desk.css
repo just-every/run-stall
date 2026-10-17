@@ -45,10 +45,10 @@
 .st-loading { padding: 24px 0; color: var(--muted); }
 
 /* A view: the record table and the selected record's panel. */
-.st-orders-layout { display: grid; grid-template-columns: minmax(0, 1fr) 432px; min-height: calc(100vh - 74px); }
+.st-orders-layout { display: grid; grid-template-columns: minmax(0, 1fr) 400px; min-height: calc(100vh - 74px); }
 .st-orders-layout.is-single { grid-template-columns: minmax(0, 1fr); }
 .st-orders-layout.is-single > .st-orders { max-width: 1040px; }
-.st-orders { min-width: 0; padding: 16px 20px 32px 22px; }
+.st-orders { min-width: 0; padding: 16px 16px 32px 18px; }
 .st-view-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
 .st-tabs { display: flex; gap: 6px; margin-bottom: 8px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
 .st-app .st-tabs button { flex: none; gap: 8px; min-height: 44px; padding: 4px 14px 10px; border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: none; color: var(--body); font-size: 15px; font-weight: 400; }
@@ -72,21 +72,22 @@
 .st-flag { display: inline-block; width: 9px; height: 9px; flex: none; border-radius: 50%; background: var(--tangerine); }
 .st-order-table td:first-child { padding-left: 14px; white-space: nowrap; }
 .st-order-table td:first-child .st-order-id:not(:has(.st-flag)) { padding-left: 17px; }
-.st-customer { line-height: 1.35; overflow-wrap: break-word; }
+.st-customer { line-height: 1.35; overflow-wrap: anywhere; }
 .st-customer small, .st-product-table small { margin-top: 2px; font-size: 13px; }
-.st-customer small, .st-customer-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-customer small, .st-customer-name { display: block; }
 .st-muted-cell { color: var(--body); white-space: nowrap; }
 .st-money { font-weight: 500; }
 .st-ship-cell { color: var(--body); font-size: 13px; line-height: 1.35; overflow-wrap: normal; hyphens: none; }
 .st-order-table { table-layout: fixed; }
-.st-order-table th:nth-child(1) { width: 66px; }
-.st-order-table th:nth-child(2) { width: 78px; }
-.st-order-table th:nth-child(4) { width: 60px; }
-.st-order-table th:nth-child(5) { width: 76px; }
-.st-order-table th:nth-child(6) { width: 86px; }
-.st-order-table th:nth-child(7) { width: 134px; }
-.st-order-table th:nth-child(8) { width: 118px; }
-.st-order-table .st-badge { white-space: normal; border-radius: 12px; padding-left: 9px; padding-right: 9px; }
+.st-app .st-order-table :is(td, th) { padding-left: 6px; padding-right: 6px; }
+.st-order-table th:nth-child(1) { width: 64px; }
+.st-order-table th:nth-child(2) { width: 76px; }
+.st-order-table th:nth-child(4) { width: 56px; }
+.st-order-table th:nth-child(5) { width: 78px; }
+.st-order-table th:nth-child(6) { width: 128px; }
+.st-order-table th:nth-child(7) { width: 140px; }
+.st-order-table th:nth-child(8) { width: 106px; }
+.st-order-table .st-badge { gap: 5px; padding-left: 7px; padding-right: 8px; }
 .st-product-table { table-layout: fixed; }
 .st-product-table th:nth-child(2) { width: 140px; }
 .st-product-table th:nth-child(3) { width: 74px; }
@@ -152,7 +153,7 @@
 .st-agent-line .st-icon { width: 22px; height: 22px; flex: none; color: var(--muted); }
 .st-agent-line strong { color: var(--tangerine-text); font-weight: 600; }
 .st-editor h3 { font: 800 22px/1.2 var(--font-head); letter-spacing: -.025em; }
-.st-editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 12px; }
+.st-editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 12px; align-items: start; }
 .st-product .st-panel-head h2 { font-size: 24px; }
 
 /* Single-panel views: move in, activity and settings. */
@@ -200,15 +201,24 @@
 .st-readiness .st-connections a { text-decoration: none; }
 .st-readiness .st-connections a:hover { text-decoration: underline; }
 
-@media (max-width: 1320px) {
-  .st-orders-layout { grid-template-columns: minmax(0, 1fr) 380px; }
+/* Narrower desks keep the customer whole: Items, then Shipping, are read in the panel. */
+@media (max-width: 1439px) {
+  .st-orders-layout { grid-template-columns: minmax(0, 1fr) 360px; }
   .st-order-table th:nth-child(4), .st-order-table td:nth-child(4) { display: none; }
+}
+@media (max-width: 1340px) {
+  .st-order-table th:nth-child(8), .st-order-table td:nth-child(8) { display: none; }
+}
+@media (max-width: 1320px) {
   .st-product-table th:nth-child(5), .st-product-table td:nth-child(5) { display: none; }
 }
-@media (max-width: 1180px) {
+@media (max-width: 1260px) {
   .st-orders-layout { grid-template-columns: minmax(0, 1fr); }
   .st-order-panel { border-left: 0; border-top: 1px solid var(--line); max-width: 720px; }
-  .st-order-table th:nth-child(4), .st-order-table td:nth-child(4), .st-product-table th:nth-child(5), .st-product-table td:nth-child(5) { display: table-cell; }
+  .st-product-table th:nth-child(5), .st-product-table td:nth-child(5) { display: table-cell; }
+}
+@media (min-width: 1100px) and (max-width: 1260px) {
+  .st-order-table :is(th, td):is(:nth-child(4), :nth-child(8)) { display: table-cell; }
 }
 @media (max-width: 900px) {
   .st-desk { display: block; }

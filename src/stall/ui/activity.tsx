@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react'
 import type { State } from './types'
 import { Empty, Section } from './primitives'
-import { ago, businessTime, humanLabel, initials, shortId } from './presentation'
+import { ago, businessTime, clockTime, humanLabel, initials, shortId } from './presentation'
 import { Icon } from './icons'
 
 const pageSize = 50
@@ -36,7 +36,7 @@ export function Activity({ state, query }: { state: State; query: string }) {
           <td data-label="Event"><span className={`st-event-dot${tone ? ` is-${tone}` : ''}`} aria-hidden="true" /><strong>{humanLabel(event.action)}</strong></td>
           <td data-label="Record">{event.record.href ? <a href={event.record.href}>{event.record.label}</a> : event.record.label}{event.record.detail && <small>{event.record.detail}</small>}</td>
           <td data-label="By"><span className="st-actor">{event.party.startsWith('agent:') ? <span className="st-actor-mark is-agent" aria-hidden="true"><Icon name="agent" /></span> : <span className="st-actor-mark" aria-hidden="true">{initials(name)}</span>}{name}</span></td>
-          <td data-label="Time" className="st-muted-cell" title={businessTime(event.at)}><time dateTime={event.at}>{businessTime(event.at)}</time><small>{ago(event.at, now)}</small></td>
+          <td data-label="Time" className="st-muted-cell" title={businessTime(event.at)}><time dateTime={event.at}>{clockTime(event.at, now)}</time><small>{ago(event.at, now)}</small></td>
         </tr> })}</tbody>
       </table></div>
       {events.length > shown && <div><button className="st-secondary" onClick={() => setShown(shown + pageSize)}>Show {Math.min(pageSize, events.length - shown)} earlier events</button></div>}

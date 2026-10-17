@@ -16,16 +16,19 @@ const urgency = ['Shortfall', 'Refund failed', 'Refund draft', 'Shipping draft',
 const rank = (order: Order) => { if (agentDrafted(order)) return -1; const need = needs(order); const at = need ? urgency.indexOf(need) : -1; return at < 0 ? urgency.length : at }
 const newest = (a: Order, b: Order) => b.createdAt.localeCompare(a.createdAt)
 
+/** An email that breaks after its "@" when the column is narrow, never cut. */
+const EmailLines = ({ email }: { email: string }) => { const at = email.indexOf('@'); return at < 0 ? <>{email}</> : <>{email.slice(0, at + 1)}<wbr />{email.slice(at + 1)}</> }
+
 function OrderRow({ order, selected, now, onSelect }: { order: Order; selected: boolean; now: number; onSelect: () => void }) {
   const [payment, paymentTone] = paymentPill(order), [fulfilment, fulfilmentTone] = fulfilmentPill(order), flagged = needs(order) !== null
   return <tr className={selected ? 'is-selected' : undefined} onClick={onSelect}>
     <td data-label="Order"><button className="st-order-id" aria-pressed={selected} onClick={event => { event.stopPropagation(); onSelect() }}>{flagged && <span className="st-flag" title="Needs a person" aria-hidden="true" />}<span className="st-sr-only">Order </span>{shortId(order.id)}</button></td>
     <td data-label="Time" className="st-muted-cell">{whenLabel(order.createdAt, now)}</td>
-    <td data-label="Customer" className="st-customer"><span className="st-customer-name" title={order.shippingDetails?.name ?? order.customerEmail ?? undefined}>{order.shippingDetails?.name ?? (order.customerEmail ?? 'Customer details erased')}</span><small title={placeLine(order.shippingDetails?.address) || undefined}>{placeLine(order.shippingDetails?.address) || (order.shippingDetails ? '' : order.customerEmail ? 'No delivery address yet' : '')}</small></td>
+    <td data-label="Customer" className="st-customer"><span className="st-customer-name">{order.shippingDetails?.name ?? (order.customerEmail ? <EmailLines email={order.customerEmail} /> : 'Customer details erased')}</span><small>{placeLine(order.shippingDetails?.address) || (order.shippingDetails ? '' : order.customerEmail ? 'No address yet' : '')}</small></td>
     <td data-label="Items" className="st-muted-cell">{itemCount(order)}</td>
     <td data-label="Total" className="st-num st-money">{money(order.totalCents)}</td>
     <td data-label="Payment"><Badge value={payment} tone={paymentTone}>{payment}</Badge></td>
-    <td data-label="Fulfilment">{fulfilment === '—' ? '—' : <Badge value={fulfilment} tone={fulfilmentTone}>{fulfilment}</Badge>}</td>
+    <td data-label="Fulfillment">{fulfilment === '—' ? '—' : <Badge value={fulfilment} tone={fulfilmentTone}>{fulfilment}</Badge>}</td>
     <td data-label="Shipping" className={`st-ship-cell${order.shipment ? '' : ' is-empty'}`} title={order.shipment?.reference}>{order.shipment ? carrierOf(order.shipment.reference) : '—'}</td>
   </tr>
 }
@@ -61,7 +64,7 @@ export function OrdersView({ state, focus, query, busy, run, canApprove, refresh
       {!orders.length ? <Empty><h3>No orders yet</h3><p>Orders placed through the public shop appear here. Payment is verified by Stripe before stock is reserved.</p></Empty>
         : !shown.length ? <p className="st-none">{query ? `No orders match “${query}”.` : `No orders in ${orderTabs.find(item => item.id === tab)!.label}.`}</p>
         : <div className="st-table-wrap"><table className="st-order-table"><caption className="st-sr-only">Orders</caption>
-          <thead><tr><th scope="col">Order</th><th scope="col">Time</th><th scope="col">Customer</th><th scope="col">Items</th><th scope="col" className="st-num">Total</th><th scope="col">Payment</th><th scope="col">Fulfilment</th><th scope="col">Shipping</th></tr></thead>
+          <thead><tr><th scope="col">Order</th><th scope="col">Time</th><th scope="col">Customer</th><th scope="col">Items</th><th scope="col" className="st-num">Total</th><th scope="col">Payment</th><th scope="col">Fulfillment</th><th scope="col">Shipping</th></tr></thead>
           <tbody>{shown.map(order => <OrderRow key={order.id} order={order} now={now} selected={order === selected} onSelect={() => select(order)} />)}</tbody>
         </table></div>}
     </section></HydrationUnit>

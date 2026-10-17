@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { businessTime, humanLabel, shortId, usePerson } from './presentation'
+import { humanLabel, shortId, usePerson, When } from './presentation'
 import { HydrationUnit } from '../../base/hydration/unit'
 import type { Tone } from './order-status'
 export function Notice({ children, error = false }: { children: ReactNode; error?: boolean }) { return <div className={`st-notice ${error ? 'st-error' : ''}`} role={error ? 'alert' : 'status'}>{children}</div> }
@@ -12,7 +12,7 @@ function RecordedValue({ value, field = '' }: { value: unknown; field?: string }
   if (Array.isArray(value)) return value.length ? <ol>{value.map((item, i) => <li key={i}><RecordedValue value={item} /></li>)}</ol> : <>None</>
   if (typeof value === 'object') return <dl className="st-definition">{Object.entries(value).map(([key, item]) => <div key={key}><dt>{humanLabel(key.replace(/([a-z])([A-Z])/g, '$1 $2'))}</dt><dd><RecordedValue value={item} field={key} /></dd></div>)}</dl>
   const text = String(value)
-  return <>{['by', 'preparedBy', 'actor'].includes(field) ? person(text) : /^\d{4}-\d{2}-\d{2}T/.test(text) ? businessTime(text) : /^[a-f0-9-]{36}$/i.test(text) ? `Record ${shortId(text)}` : ['status', 'state', 'code', 'action', 'severity'].includes(field) ? humanLabel(text) : text}</>
+  return <>{['by', 'preparedBy', 'actor'].includes(field) ? person(text) : /^\d{4}-\d{2}-\d{2}T/.test(text) ? <When at={text} /> : /^[a-f0-9-]{36}$/i.test(text) ? `Record ${shortId(text)}` : ['status', 'state', 'code', 'action', 'severity'].includes(field) ? humanLabel(text) : text}</>
 }
 export function RecordDetail({ value, label }: { value: unknown; label: string }) { return <details><summary>{label}</summary><RecordedValue value={value} /></details> }
 const toneOf = (value: string): Tone => value === 'failed' ? 'bad' : ['Setup required', 'shortfall', 'draft'].includes(value) ? 'need' : undefined

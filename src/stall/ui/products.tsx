@@ -6,7 +6,7 @@ import { HydrationUnit } from '../../base/hydration/unit'
 import type { Product, ProductValue, Run, State } from './types'
 import { money } from './api'
 import { Badge, Empty } from './primitives'
-import { businessTime, shortDate, shortId, shortTime, usePerson } from './presentation'
+import { businessTime, shortDate, shortId, shortTime, usePerson, When } from './presentation'
 import { Icon } from './icons'
 
 const blank: ProductValue = { sku: '', name: '', description: '', unitCents: 0, active: true }
@@ -38,7 +38,7 @@ function ProductPanel({ product, preparedBy, busy, run, canApprove, onEdit }: { 
     <p className="st-small">{product.id} · revision {shortId(product.revision)}</p>
     <section className="st-panel-block st-sums"><p><span>Unit price · USD</span><strong>{money(product.value.unitCents)}</strong></p></section>
     {product.value.description && <section className="st-panel-block"><div className="st-row"><h3>Description</h3><button className="st-link st-edit-link" disabled={busy} onClick={onEdit}>Edit<span className="st-sr-only"> description</span></button></div><p>{product.value.description}</p></section>}
-    {product.value.approval && <section className="st-panel-block"><h3>Published</h3><p className="st-small">Published by {person(product.value.approval.by)} · {businessTime(product.value.approval.at)} · revision {shortId(product.value.approval.revision)}</p></section>}
+    {product.value.approval && <section className="st-panel-block"><h3>Published</h3><p className="st-small">Published by {person(product.value.approval.by)} · <When at={product.value.approval.at} /> · revision {shortId(product.value.approval.revision)}</p></section>}
     {draft && <div className="st-note"><Icon name="spark" /><div>
       <h3>{agent ? 'Agent note' : `Revision ${shortId(product.revision)} for approval`}</h3>
       {preparedBy && <p>Revision {shortId(product.revision)} prepared by {person(preparedBy.actor)} · {shortTime(preparedBy.at)}</p>}

@@ -7,14 +7,14 @@ import { useState, type ReactNode } from 'react'
 import type { Approval, Order, Run } from './types'
 import { money } from './api'
 import { Badge, RecordDetail } from './primitives'
-import { businessTime, countryName, humanLabel, placeLine, shortId, shortTime, usePerson } from './presentation'
+import { countryName, humanLabel, placeLine, shortId, shortTime, usePerson, When } from './presentation'
 import { draftOf, needs, pendingWork, shortBy, statusLine } from './order-status'
 import { RecoverForm, RefundForm, ShipForm } from './order-forms'
 import { Icon } from './icons'
 
 type Editing = 'shipment' | 'refund' | null
 
-function ApprovalRecord({ approval }: { approval?: Approval }) { const person = usePerson(); return approval ? <p className="st-small">Approved by {person(approval.by)} · {businessTime(approval.at)} · revision {shortId(approval.revision)}</p> : null }
+function ApprovalRecord({ approval }: { approval?: Approval }) { const person = usePerson(); return approval ? <p className="st-small">Approved by {person(approval.by)} · <When at={approval.at} /> · revision {shortId(approval.revision)}</p> : null }
 
 function NextStep({ order, busy, run, canApprove, editing, edit }: { order: Order; busy: boolean; run: Run; canApprove: boolean; editing: Editing; edit: (to: Editing) => void }) {
   const person = usePerson(), need = needs(order), draft = draftOf(order)
@@ -25,7 +25,7 @@ function NextStep({ order, busy, run, canApprove, editing, edit }: { order: Orde
   return <>
     {need && <div className="st-note"><Icon name="spark" /><div>
       <h3>{draft?.by.startsWith('agent:') ? 'Agent note' : 'Needs you'}</h3>
-      {shipment ? <p>Shipping prepared by {person(shipment.preparedBy)}: {shipment.reference}. Approving tells Pier to dispatch the reserved stock.</p>
+      {shipment ? <p>Shipping prepared by {person(shipment.preparedBy)}: {shipment.reference}. Approving tells Pier to ship the reserved stock.</p>
         : refund ? <p>Refund {money(refund.amountCents)} prepared by {person(refund.preparedBy)}: {refund.lines.map(line => `${order.lines.find(item => item.sku === line.sku)?.name ?? line.sku} × ${line.quantity}`).join(', ')}. {refund.reason}</p>
         : <p>{statusLine(order)}</p>}
       {order.shipment?.status === 'pending' && <p>Approval recorded; Pier confirmation is pending. Reconcile to retry safely.</p>}

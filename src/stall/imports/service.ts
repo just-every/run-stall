@@ -28,7 +28,7 @@ async function preparePlan(db: D1Database, actor: Actor, input: ProductImportInp
     if (previous && (previous.value as Record<string, Json>).active !== false)
       importError('IMPORT_PUBLISHED_PRODUCT', 'Unpublish this product through the native workflow before importing it.');
     const dependency = await db.prepare(`SELECT 1 AS found WHERE ${orderDependencySQL}`).bind(record.sourceId).first();
-    if (dependency) importError('IMPORT_ORDER_DEPENDENCY', 'An order refers to this SKU. Preserve its catalogue reference.');
+    if (dependency) importError('IMPORT_ORDER_DEPENDENCY', 'An order refers to this SKU. Preserve its catalog reference.');
     // Bind the complete before-image into the reviewed fingerprint, including
     // edits whose writer failed to change revision. The kit fences it on apply.
     record.payload = { product, previous: (existing.get(record.sourceId) ?? null) as unknown as Json };
@@ -107,7 +107,7 @@ export async function undoProductImport(db: D1Database, actor: Actor, id: string
   const context = await jobContext(db, actor, id, true);
   const dependency = await db.prepare(`SELECT 1 AS found FROM ik_provenance p WHERE p.job_id=? AND p.target_kind='product' AND p.reversed=0 AND EXISTS(SELECT 1 FROM st_orders o,json_each(o.value_json,'$.lines') l WHERE json_extract(l.value,'$.sku')=p.target_id) LIMIT 1`)
     .bind(id).first();
-  if (dependency) importError('IMPORT_ORDER_DEPENDENCY', 'An order refers to an imported SKU. Preserve that catalogue reference and order history.');
+  if (dependency) importError('IMPORT_ORDER_DEPENDENCY', 'An order refers to an imported SKU. Preserve that catalog reference and order history.');
   return undoD1Import(id, context);
 }
 
