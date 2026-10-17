@@ -4,7 +4,8 @@ export const businessTimeZone = 'America/Chicago'
 export const People = createContext<Record<string, string>>({})
 export const shortId = (id: string) => id.replaceAll('-', '').slice(0, 4).toUpperCase()
 export function humanLabel(value: string) {
-  const words = value.replace(/([a-z])([A-Z])/g, '$1 $2').replaceAll(/[._-]/g, ' ').toLowerCase()
+  // Providers' British field names read in US English ("cancelled" → "canceled", "dispatched" → "shipped").
+  const words = value.replace(/([a-z])([A-Z])/g, '$1 $2').replaceAll(/[._-]/g, ' ').toLowerCase().replace(/\bcancell/g, 'cancel').replace(/\bdispatch(ed)?\b/g, (_, ed) => ed ? 'shipped' : 'shipping')
   return words ? words[0].toUpperCase() + words.slice(1) : 'Not recorded'
 }
 /** The full timestamp for a hover title: "Oct 17, 2026, 8:56 AM CDT". */

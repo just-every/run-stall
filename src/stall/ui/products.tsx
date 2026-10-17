@@ -22,7 +22,7 @@ function Editor({ editing, busy, run, done }: { editing: Product | null; busy: b
     if (validPrice && await run('product.prepare', { ...value, unitCents: cents, ...(editing ? { revision: editing.revision } : {}) })) done()
   }
   return <form id="product-editor" className="st-stack st-editor" onSubmit={event => void prepare(event)}>
-    <h3>{editing ? `Prepare changes to ${editing.id}` : 'Prepare a product'}</h3>
+    <h3>{editing ? <>Prepare changes to <span className="st-keep">{editing.id}</span></> : 'Prepare a product'}</h3>
     <div className="st-editor-grid"><label>SKU<input required maxLength={100} value={value.sku} disabled={busy || !!editing} onChange={event => setValue({ ...value, sku: event.target.value })} /></label><label>Unit price · USD<input required inputMode="decimal" value={price} disabled={busy} onChange={event => setPrice(event.target.value)} placeholder="0.00" aria-describedby="price-help" /><small id="price-help">Dollars and cents, at most two decimal places.</small></label></div>
     <label>Product name<input required maxLength={200} value={value.name} disabled={busy} onChange={event => setValue({ ...value, name: event.target.value })} /></label>
     <label>Description<textarea rows={4} value={value.description} disabled={busy} maxLength={4000} onChange={event => setValue({ ...value, description: event.target.value })} /></label>

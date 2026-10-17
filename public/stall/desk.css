@@ -153,6 +153,8 @@
 .st-agent-line .st-icon { width: 22px; height: 22px; flex: none; color: var(--muted); }
 .st-agent-line strong { color: var(--tangerine-text); font-weight: 600; }
 .st-editor h3 { font: 800 22px/1.2 var(--font-head); letter-spacing: -.025em; }
+/* A SKU moves to the next line whole rather than breaking at its hyphens. */
+.st-keep { display: inline-block; max-width: 100%; }
 .st-editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 12px; align-items: start; }
 .st-product .st-panel-head h2 { font-size: 24px; }
 
