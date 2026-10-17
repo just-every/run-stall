@@ -1,11 +1,12 @@
 import { rejectedResponse } from './base/rejected-response'
 import { createDependencies } from './modules/dependencies/index.mjs'
-import { createIdpOwnerClaimHandler } from './modules/owner-claim/index.mjs'
+import { createIdpOwnerClaimHandler, createOwnerClaimHandler } from './modules/owner-claim/index.mjs'
 import { firstRunResponse } from './base/setup'
 import { fontDocumentResponse } from './base/font-response'
 import { createOperatorAuth, createAuthHandler, createSignInHandler, type AuthConfig } from './modules/operator-auth/index.mjs'
 import { operatorMail } from './mail.server.mjs'
 import branding from './branding.json'
+import { demoPierCustomer, demoPierOrigin } from './stall/demo/providers'
 
 // The edition's declared theme (public/rer-theme.css), as Base frames link it.
 const theme = { href: '/rer-theme.css', productName: branding.name, accentColor: branding.primaryColor }
@@ -30,6 +31,10 @@ export interface Bindings {
  RER_MODELS_SERVICE?: string
  RER_MODELS_KEY?: string
  RER_DEMO?: string
+ /** The signed owner claim a hosted demo (or rer's installer) signs the owner in with. */
+ RER_OWNER_CLAIM_PUBLIC_KEYS?: string
+ RER_OWNER_CLAIM_ISSUER?: string
+ RER_OWNER_CLAIM_INSTALLATION_ID?: string
  RER_DEV_KEY?: string
  RER_DEV_IDENTITY?: string
  RER_INSTALLATION_ID?: string
@@ -43,7 +48,13 @@ export interface Bindings {
  MAIL_ACCOUNT_ID?: string
 }
 
-export const runtimeBindings = (env: Bindings): Bindings => env.RER_DEV_ORIGIN && env.AUTH_LOCAL === 'true' ? { ...env, AUTH_ORIGIN: env.RER_DEV_ORIGIN } : env
+// A demo shop is connected to its own simulated Pier and Stripe accounts
+// (src/stall/demo/providers.ts), never to real ones.
+const demoConnections = { PIER_ORIGIN: demoPierOrigin, PIER_SESSION: 'demo', PIER_CUSTOMER_ID: demoPierCustomer, STRIPE_SECRET_KEY: 'sk_demo', STRIPE_WEBHOOK_SECRET: 'whsec_demo' }
+export function runtimeBindings(env: Bindings): Bindings {
+ const local = env.RER_DEV_ORIGIN && env.AUTH_LOCAL === 'true' ? { ...env, AUTH_ORIGIN: env.RER_DEV_ORIGIN } : env
+ return env.RER_DEMO === '1' ? { ...local, ...demoConnections } : local
+}
 export const authConfig = (env: Bindings): AuthConfig => ({ dependencies: true, origin: env.AUTH_ORIGIN, local: env.AUTH_LOCAL === 'true', OWNER_EMAIL: env.OWNER_EMAIL, SESSION_SECRET: env.SESSION_SECRET, SETUP_TOKEN: env.SETUP_TOKEN, MAIL_FROM: env.MAIL_FROM, branding: { productName: branding.name, accentColor: branding.primaryColor, signInPath: '/signin', theme: theme.href } })
 export function operatorAuth(env: Bindings) {
  return createOperatorAuth({ db: env.DB, config: authConfig(env), mailSender: operatorMail(env), clientIp: request => request.headers.get('CF-Connecting-IP') ?? '' })
@@ -52,6 +63,11 @@ export function operatorAuth(env: Bindings) {
 const privateHeaders = { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff', 'x-robots-tag': 'noindex, nofollow' }
 async function handleAuthResponse(request: Request, original: Bindings): Promise<Response | null> {
  const env = runtimeBindings(original), url = new URL(request.url)
+ // A signed owner claim when its keys are configured; a missing part fails closed.
+ if (url.pathname === '/auth/owner-claim' && env.RER_OWNER_CLAIM_PUBLIC_KEYS) {
+  const signed = await createOwnerClaimHandler({ db: env.DB, authConfig: authConfig(env), clientIp: req => req.headers.get('CF-Connecting-IP') ?? '', issuer: env.RER_OWNER_CLAIM_ISSUER ?? '', installationId: env.RER_OWNER_CLAIM_INSTALLATION_ID ?? '', appOrigin: env.AUTH_ORIGIN, expectedEmail: env.OWNER_EMAIL, publicKeys: JSON.parse(env.RER_OWNER_CLAIM_PUBLIC_KEYS) })(request)
+  if (signed) return signed
+ }
  if (url.pathname.startsWith('/.well-known/rer-') || url.pathname.startsWith('/auth/dependencies/')) {
   const linked = await createDependencies({ db: env.DB, origin: env.AUTH_ORIGIN, name: branding.name, provider: env.IDENTITY_PROVIDER, local: env.AUTH_LOCAL === 'true', auth: operatorAuth(env), claimOwner: token => createIdpOwnerClaimHandler({db:env.DB,authConfig:authConfig(env),clientIp:()=>request.headers.get('CF-Connecting-IP')??''})(new Request(env.AUTH_ORIGIN+'/auth/owner-claim',{method:'POST',headers:{Host:new URL(env.AUTH_ORIGIN).host,Origin:env.AUTH_ORIGIN,'Content-Type':'application/json'},body:JSON.stringify({token})})) }).handle(request)
   if (linked) return linked

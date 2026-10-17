@@ -54,7 +54,7 @@ export async function installation({bindings={},outboundService,source=resolve('
    throw Error('Invitation did not produce a usable sign-in link');
   };
   const forward=async incoming=>{const url=new URL(incoming.url);return request(url.pathname+url.search,{method:incoming.method,as:incoming.headers.get('cookie')??'',headers:Object.fromEntries(incoming.headers),...(!['GET','HEAD'].includes(incoming.method)?{body:await incoming.json()}:{})})};
-  return {mf,db,origin,cookie,request,api,command,signIn,forward,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}};
+  return {mf,db,origin,cookie,messages,request,api,command,signIn,forward,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}};
  }catch(error){await mf.dispose();await rm(directory,{recursive:true,force:true});throw error}
 }
 export async function archive(h) {

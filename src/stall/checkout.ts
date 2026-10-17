@@ -3,6 +3,7 @@ import { digest,systemAudit } from './access'
 import { catalogue,decimal,pierOrigin } from './pier'
 import { createCheckout,validateSession } from './stripe'
 import { readOrder,saveOrder } from './store'
+import { paidSession } from './payments'
 import { email,fail,integer,text,type Line,type Order } from './model'
 export async function checkout(env:Bindings,p:any) {
  const key=text(p.idempotencyKey,'Checkout idempotency key',100)
@@ -63,5 +64,8 @@ export async function checkout(env:Bindings,p:any) {
    }
   }
  }
+ // A demo's simulated Stripe Checkout is paid at once: confirm it as the webhook would.
+ if(env.RER_DEMO==='1'&&!order.payment) order=await paidSession(env,order,order.checkout!.id)
+ if(order.payment) return {orderId:order.id,url:'/order?checkout=success&orderId='+encodeURIComponent(order.id),status:order.status}
  return {orderId:order.id,url:order.checkout!.url,status:order.status}
 }

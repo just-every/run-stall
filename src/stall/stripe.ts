@@ -1,7 +1,13 @@
 import type { Bindings } from '../auth.server'
 import { fail,type Order,type Refund } from './model'
+import { demoEffect } from '../modules/demo/index.mjs'
+import { demoStripe } from './demo/providers'
 export async function stripe(env:Bindings,path:string,form?:URLSearchParams,key?:string):Promise<any> {
  if(!env.STRIPE_SECRET_KEY) fail('STRIPE_UNAVAILABLE','Connect Stripe before accepting payments or issuing refunds.',503)
+ // A demo shop works against its own simulated Stripe account (demo/providers.ts).
+ return demoEffect(()=>request(env,path,form,key),()=>demoStripe(env.DB,path,form))
+}
+async function request(env:Bindings,path:string,form?:URLSearchParams,key?:string):Promise<any> {
  let response:Response
  try { response=await fetch('https://api.stripe.com/v1'+path,{method:form?'POST':'GET',redirect:'manual',signal:AbortSignal.timeout(15000),headers:{authorization:`Bearer ${env.STRIPE_SECRET_KEY}`,'Stripe-Version':'2025-06-30.basil',...(form?{'content-type':'application/x-www-form-urlencoded'}:{}),...(key?{'Idempotency-Key':key}:{})},...(form?{body:form.toString()}:{})}) }
  catch { return fail('STRIPE_UNAVAILABLE','Stripe did not answer. The operation is saved; retry or reconcile the same order.',503) }

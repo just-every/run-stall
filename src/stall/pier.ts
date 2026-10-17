@@ -1,6 +1,8 @@
 import type { Bindings } from '../auth.server'
 import { fail,type Line,type Order } from './model'
 import { products } from './store'
+import { demoEffect } from '../modules/demo/index.mjs'
+import { demoPier } from './demo/providers'
 const SCALE=1000000n
 export function decimal(value:string):bigint {
  if(typeof value!=='string'||!/^\d{1,10}(\.\d{1,6})?$/.test(value)) fail('PIER_RESPONSE','Pier returned an invalid stock quantity.',502)
@@ -14,13 +16,17 @@ export function pierOrigin(env:Bindings):string {
  return url.origin
 }
 export const pierConfigured=(env:Bindings)=>Boolean(env.PIER_ORIGIN&&env.PIER_SESSION&&env.PIER_CUSTOMER_ID)
-async function call(env:Bindings,path:string,body?:unknown):Promise<any> {
- const base=pierOrigin(env)
+async function request(env:Bindings,base:string,path:string,body?:unknown):Promise<any> {
  let response:Response
  try { response=await fetch(base+path,{method:body?'POST':'GET',redirect:'manual',signal:AbortSignal.timeout(12000),headers:{cookie:env.PIER_SESSION!,origin:base,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})}) }
  catch { return fail('PIER_UNAVAILABLE','Pier did not answer. Reconcile this order to resume the same operation.',503) }
  if(!response.ok) fail('PIER_UNAVAILABLE','Pier refused the request. Check its connection and stock desk before reconciling.',503)
- const value:any=await response.json()
+ return response.json()
+}
+async function call(env:Bindings,path:string,body?:unknown):Promise<any> {
+ const base=pierOrigin(env)
+ // A demo shop works against its own simulated Pier stock desk (demo/providers.ts).
+ const value:any=await demoEffect(()=>request(env,base,path,body),()=>demoPier(env.DB,path,body))
  if(value.ok===false) fail('PIER_REJECTED','Pier refused this operation. Check the order at the stock desk.',409)
  return value
 }

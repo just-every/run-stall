@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "domain": "run-stall.com",
+  "name": "Stall",
+  "ownerEmail": "hannah@saltbushclay.example",
+  "settings": {
+    "MAIL_FROM": "hello@saltbushclay.example"
+  }
+}
