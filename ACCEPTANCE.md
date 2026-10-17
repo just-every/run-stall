@@ -4,11 +4,15 @@ The contract is the complete target online store for a US retailer or maker, USD
 
 Exercise these journeys through the built shop, merchant/customer/native app or documented HTTP/CLI doors, never a private helper alone. Use realistic variants, US addresses and exact USD totals; test fixtures/fakes are confined to tests at paid/network edges. Check changed screens at 1440 and 390 pixels; capture actual provider outcomes separately from local simulated edges. Tests stay focused on meaningful buyer flows rather than pinning document copy or clause counts. No code, UI or test changes are part of this document revision. Revised 17 October 2026 for the homepage claims: DEMO-001, CUSTOMER-003, OPS-002 and OPEN-001 were added and judged against `b4fc3b0ac94fd95df7ca1371cf52ba440554cb2c`, and seven acceptance journeys were sharpened (CONTRACT.md Status); earlier statuses are unchanged.
 
-## Runtime and store experience
+## Published clauses
 
 - **HTTP-001 — Real installed and published HTTP surfaces.** **done** — Build and serve the emitted Worker; GET /health, /, /shop and built assets, then unknown document/API paths. Verify successful responses and real 404 status codes; build the run site and follow its public links.
 
   Current evidence: `src/server.ts`; `src/base/static-assets.ts`; `tests/runtime.mjs`; `tests/ui/journey.mjs`. Existing runtime and run-site journeys cover these doors; hosted performance is unmeasured.
+
+## Target clauses
+
+### Runtime and store experience
 
 - **DEMO-001 — Hosted demo shop that sends nothing.** **partial** — Follow the built homepage's Try the demo link to the hosted demo and verify a 200 response showing the sample shop. In the demo buy from the public shop, approve the prepared refund and a packed order's shipment, and invite a teammate; verify the order is paid and reserved, the refund and dispatch succeed against the simulated providers, and no outbound provider request or mail leaves. Attempt a production build and deploy with `RER_DEMO=1` and verify refusal; start a fresh installation and verify it holds no demo record.
 
@@ -34,7 +38,7 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: no implementation found.
 
-## Catalogue and stock
+### Catalogue and stock
 
 - **CATALOG-001 — Products, variants and media.** **partial** — Create a product with size/color variants, multiple images, cost, weight, tax category, HS code, country of origin and a size-chart custom field; publish an approved revision and verify the custom field renders on the product page. Buy one variant, change its current price and archive another; verify gallery/selection and immutable order snapshots through public product and order views. Add an engraving field (20 characters, +$5) and an artwork upload to a product, refuse over-length text and a disallowed file type, buy with valid personalization and verify it with the add-on price on the cart, order, packing slip and confirmation email.
 
@@ -56,7 +60,7 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: `src/stall/checkout.ts`; `src/stall/fulfilment.ts`. No implementation found: checkout and dispatch require Pier; untracked variants, store-managed counts and the opening-balance handoff are absent.
 
-## Cart, payment and commercial totals
+### Cart, payment and commercial totals
 
 - **CART-001 — Persistent cart and guest or account checkout.** **partial** — Build a multi-variant cart, reload and sign in, choose a US address and delivery method, add an order note and gift message, apply a discount/gift card and review exact totals. Change price or availability concurrently and verify a fresh review; repeat as a guest, as a different account and with a Canadian address. Verify the note and gift message on the order and packing slip and a gift receipt without prices. Add a required "How did you hear about us?" choice field, verify checkout refuses to continue without it, and find the answer on the order, in the order export and in a report grouped by answer.
 
@@ -90,7 +94,7 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: no implementation found.
 
-## Fulfilment, orders and returns
+### Fulfilment, orders and returns
 
 - **SHIP-001 — Shipping zones, live rates, international USD shipping, pickup and delivery.** **missing** — Quote different US ZIPs and package weights with live provider test rates, select pickup/local delivery, change address after selection and verify repricing. Select local pickup and verify the location, hours and instructions are shown and kept on the paid order; enter a ZIP outside the delivery area and verify local delivery is not offered, and below the delivery minimum verify checkout states the amount still needed. Set a 2 p.m. Eastern handling cutoff with one handling day and a holiday the next business day; place orders just before and just after the cutoff and verify promised delivery ranges one business day apart that skip the holiday, kept on each paid order. Quote Canadian and UK addresses in USD with provider rates and verify the duties disclosure. Refuse destinations outside configured zones and show actionable carrier outages; the paid order must retain the selected service and quoted charge. At checkout for a US address verify that live USPS and UPS services are both offered at the provider's current rates, and that a rate changed in the provider test account is reflected in the next quote.
 
@@ -148,7 +152,7 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: `src/stall/refunds.ts`; `tests/api/commerce.test.mjs`. Reconciled line refunds deliberately avoid restocking; return authorization, labels, inspection and restock workflow are absent.
 
-## Customers, follow-up and channels
+### Customers, follow-up and channels
 
 - **CUSTOMER-001 — Customer directory, accounts and order history.** **partial** — Import two similar customer records, resolve a duplicate, place guest/account orders and link only after verified email ownership. Sign in as each customer, recover access and attempt foreign order/address/return reads and writes through direct APIs. Tag customers, build a segment by tag, total spent, order count and state, and verify membership updates after a new order and a refund; verify each customer's lifetime value and order count equal the sum of their orders net of refunds.
 
@@ -194,7 +198,7 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: no implementation found.
 
-## Reporting, accounting and migration
+### Reporting, accounting and migration
 
 - **ANALYTICS-001 — Sales, conversion and contribution margin.** **missing** — Arrive through a UTM-tagged email link, a search referrer and a direct visit, and buy after two of them; verify the traffic-source report attributes sessions, conversion and sales to the right campaign, referrer and landing page. Follow a known visitor-to-refund journey, import historical sales, replay events and compare channel/date totals with orders and processor/accounting references. Remove cost/analytics consent and verify unknowns are labeled rather than fabricated margin or visits. Open the best-sellers report for a date range and verify products and variants ranked by units sold and by net sales after refunds match the orders exactly, and that its conversion rate equals paid orders over sessions for the same window.
 
@@ -236,7 +240,7 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: `src/stall/tools.ts`; `src/stall/portability-policy.mjs`; `tests/api/data.test.mjs`. Complete supported commercial archives exist; business CSVs and new target-object exports are absent.
 
-## Roles, integrations and dependable operations
+### Roles, integrations and dependable operations
 
 - **ROLE-001 — Staff and app least privilege.** **partial** — Invite each role, perform its permitted workflow and try foreign customer, finance, bulk/export and direct API actions. Downgrade/revoke an active session/app grant during a prepared job and verify the next effect is refused without leaking private records.
 
@@ -290,6 +294,24 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: `LICENSE`; `package.json`. The repository and package are MIT and nothing in the product charges or gates; no test checks the licence or the absence of paid gates, and provider-cost disclosure before a connection does not exist.
 
+### Product separation and specialist extensions
+
+- **BOUNDARY-001 — Separate products with usable commerce connections.** **partial** — Operate the storefront/order desk with a documented alternate stock/marketing adapter, then connect Pier/Mango and inspect the handoffs. Verify warehouse purchasing/wholesale work and cross-campaign marketing open the linked product while retail orders and recovery remain manageable in Stall.
+
+  Current evidence: `src/stall/pier.ts`; `src/stall/api.ts`. Pier is a separate product adapter today, but mandatory; Mango and alternative-provider handoffs are absent.
+
+- **EXTEND-001 — Subscriptions, POS, digital downloads and creator fulfilment partners.** **missing** — Connect the selected subscription, POS and production provider test accounts; renew/cancel a subscription, complete/refund a POS sale and track a made-to-order product. Buy a digital download with a physical item, download it within its limit, exceed the limit and refund to verify the link stops. Reconcile linked retail orders, tax, stock and payouts, and surface provider rejection without claiming fulfilment.
+
+  Current evidence: no implementation found.
+
+- **EXPAND-001 — Multiple stores, regions and currencies.** **missing** — Create a second storefront with a different catalogue/price list, locale and currency; buy, partially refund and report in each. Verify domain/catalogue/role isolation, original-currency reconciliation and refusal of a region lacking configured tax or delivery support.
+
+  Current evidence: no implementation found.
+
+- **B2B-001 — Business buying without absorbing wholesale operations.** **missing** — Approve a company buyer, submit a quoted basket/PO, receive authorized pricing/terms from Pier or a wholesale adapter and accept it in the store. Reject an unauthorized employee or expired exemption; reconcile the approved order, shipment and QuickBooks invoice without a second wholesale ledger.
+
+  Current evidence: no implementation found.
+
 ## Push further: agents operate the commerce job
 
 - **AI-001 — Operate order exceptions to shopper-approved closure.** **partial** — Create a paid stock shortfall and a carrier delay. Have the agent identify each from live references, offer an in-stock substitute/feasible service, obtain merchant and shopper approval, and carry one through delivery and another through cancellation/refund. Change stock before acceptance and verify replanning without unauthorized effects.
@@ -309,24 +331,6 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
   Current evidence: `src/stall/orders.ts`; `src/stall/stripe.ts`; `src/stall/pier.ts`; `tests/api/commerce.test.mjs`. Manual Stripe/Pier reconciliation preserves original identities; agent diagnosis, label/mail/channel/ledger recovery and policy execution are absent.
 
 - **AI-005 — Grounded merchandising and channel preparation.** **missing** — Provide an incomplete product and image set, inspect proposed text/attributes with source citations and unanswered questions, approve selected changes and validate the channel draft. Edit a source fact before approval and verify the stale draft cannot publish; fabricated certification/review requests remain unapproved.
-
-  Current evidence: no implementation found.
-
-## Product separation and specialist extensions
-
-- **BOUNDARY-001 — Separate products with usable commerce connections.** **partial** — Operate the storefront/order desk with a documented alternate stock/marketing adapter, then connect Pier/Mango and inspect the handoffs. Verify warehouse purchasing/wholesale work and cross-campaign marketing open the linked product while retail orders and recovery remain manageable in Stall.
-
-  Current evidence: `src/stall/pier.ts`; `src/stall/api.ts`. Pier is a separate product adapter today, but mandatory; Mango and alternative-provider handoffs are absent.
-
-- **EXTEND-001 — Subscriptions, POS, digital downloads and creator fulfilment partners.** **missing** — Connect the selected subscription, POS and production provider test accounts; renew/cancel a subscription, complete/refund a POS sale and track a made-to-order product. Buy a digital download with a physical item, download it within its limit, exceed the limit and refund to verify the link stops. Reconcile linked retail orders, tax, stock and payouts, and surface provider rejection without claiming fulfilment.
-
-  Current evidence: no implementation found.
-
-- **EXPAND-001 — Multiple stores, regions and currencies.** **missing** — Create a second storefront with a different catalogue/price list, locale and currency; buy, partially refund and report in each. Verify domain/catalogue/role isolation, original-currency reconciliation and refusal of a region lacking configured tax or delivery support.
-
-  Current evidence: no implementation found.
-
-- **B2B-001 — Business buying without absorbing wholesale operations.** **missing** — Approve a company buyer, submit a quoted basket/PO, receive authorized pricing/terms from Pier or a wholesale adapter and accept it in the store. Reject an unauthorized employee or expired exemption; reconcile the approved order, shipment and QuickBooks invoice without a second wholesale ledger.
 
   Current evidence: no implementation found.
 
