@@ -7,7 +7,7 @@ import { digest } from '../access'
 import { fullyReserved } from '../pier'
 import { validateShipment } from '../fulfilment'
 import { validateSession } from '../stripe'
-import type { Approval, Order, Product, ProductValue, Refund, Shipment } from '../model'
+import { shopCountry, shopCurrency, type Approval, type Order, type Product, type ProductValue, type Refund, type Shipment } from '../model'
 import { demoPierCustomer, demoPierOrigin, hex, sessionObject, type PierOrder, type PierShipment, type PierState, type StripeSession, type StripeState } from './providers'
 import { agentGrant, bins, customers, orders as orderSeeds, products as productSeeds, shop, type OrderSeed } from './shop'
 
@@ -22,10 +22,10 @@ export async function uuidFrom(name: string) {
 }
 
 export function clock(now: Date) {
- // A Perth (UTC+8) wall-clock time `days` ago; today's orders are `minutes` ago.
+ // A Santa Fe (Mountain time, UTC-6 in the demo's season) wall-clock time `days` ago; today's orders are `minutes` ago.
  const at = (days: number, hour: number, minute = 0) => {
   if (days === 0) return new Date(now.getTime() - hour * 60000 - minute * 1000).toISOString()
-  const d = new Date(now.getTime() - days * 86400000); d.setUTCHours(hour - 8, minute, 0, 0); return d.toISOString()
+  const d = new Date(now.getTime() - days * 86400000); d.setUTCHours(hour + 6, minute, 0, 0); return d.toISOString()
  }
  const later = (iso: string, minutes: number) => new Date(Math.min(Date.parse(iso) + minutes * 60000, now.getTime() - 60000)).toISOString()
  return { at, later }
@@ -73,10 +73,10 @@ export async function history(now: Date, staff: Staff, pier: PierState) {
   const totalCents = lines.reduce((sum, l) => sum + l.quantity * l.unitCents, 0)
   const selection = lines.map(l => ({ sku: l.sku, quantity: l.quantity })).sort((a, b) => a.sku.localeCompare(b.sku))
   const sessionId = `cs_demo_${hex(id)}`, paid = fate !== 'abandoned'
-  const shipping = { name: customer.name, address: { line1: customer.line1, line2: '', city: customer.city, state: customer.state, postal_code: customer.postcode, country: 'AU' } }
+  const shipping = { name: customer.name, address: { line1: customer.line1, line2: '', city: customer.city, state: customer.state, postal_code: customer.postcode, country: shopCountry } }
   const session: StripeSession = { id: sessionId, orderId: id, email: customer.email, amount: totalCents, paid, status: paid ? 'complete' : days > 0 ? 'expired' : 'open', intent: paid ? `pi_demo_${hex(id)}` : null, shipping }
   stripe.sessions[sessionId] = session
-  let order: Order = { id, revision: '', customerEmail: customer.email, lines, totalCents, currency: 'aud', status: 'awaiting_payment', createdAt: created, requestDigest: await digest(JSON.stringify({ customerEmail: customer.email, lines: selection, expectedTotalCents: totalCents })), checkoutKey: await digest(await uuidFrom(`order:${n}:checkout-key`)), pierOrigin: demoPierOrigin, pierCustomerId: demoPierCustomer, checkout: { id: sessionId, url: `https://checkout.stripe.com/c/pay/${sessionId}` }, refunds: [] }
+  let order: Order = { id, revision: '', customerEmail: customer.email, lines, totalCents, currency: shopCurrency, status: 'awaiting_payment', createdAt: created, requestDigest: await digest(JSON.stringify({ customerEmail: customer.email, lines: selection, expectedTotalCents: totalCents })), checkoutKey: await digest(await uuidFrom(`order:${n}:checkout-key`)), pierOrigin: demoPierOrigin, pierCustomerId: demoPierCustomer, checkout: { id: sessionId, url: `https://checkout.stripe.com/c/pay/${sessionId}` }, refunds: [] }
   happened('customer', 'checkout.prepared', created)
   happened('stripe', 'checkout.created', later(created, 1))
   if (paid) {

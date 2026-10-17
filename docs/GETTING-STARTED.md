@@ -4,13 +4,19 @@ Start beside your existing shop with two products and a Stripe test payment. A f
 
 ## Open your local installation
 
-Install Git and Node 22 or newer, then run one line. It installs RER, clones Stall and starts it:
+Two lines, the same as [run-stall.com/run](https://run-stall.com/run), on macOS, Linux or Windows with WSL2, with git installed. First install rer, the tool that runs Stall. It brings its own Node if you have no Node 22 or later:
 
 ```sh
-npx -y @runeditrun/rer dev just-every/run-stall
+curl -fsSL https://runeditrun.com/install.sh | sh
 ```
 
-To start it again later, run `cd run-stall && rer dev`.
+Then start Stall. rer clones it, installs everything, makes you the owner and prints a link that opens Stall signed in:
+
+```sh
+rer dev just-every/run-stall
+```
+
+Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-stall` does both in one line. If the installer prints an `export PATH=…` line, run it before the second line. To start Stall again later, run `cd run-stall && rer dev`.
 
 RER prepares the checkout, dependencies, database and local owner. The first run can take several minutes. If interrupted, run `rer dev` again to resume.
 
@@ -26,7 +32,7 @@ Stop the app with `rer dev --stop` or Ctrl-C. The [full local reference](../RUN-
 2. Follow [Pier and Stripe connections](CONNECTIONS.md) to configure Pier, your Stripe test key and the signed webhook. Keep credentials private. Restart the app after changing local configuration.
 3. At **Shop desk → Connections**, check **Pier stock**, **Stripe checkout** and **Stripe webhooks**. The **Configured** indicators show that configuration is present; confirm the connections by completing a test order.
 
-Pier owns stock, reservations and dispatch. Stall owns listing names, descriptions and AUD prices. Stall checks Pier at publication and checkout, and reserves stock after verified payment. Stock can change during payment, leaving a visible shortfall to resolve in Pier.
+Pier owns stock, reservations and dispatch. Stall owns listing names, descriptions and USD prices. Stall checks Pier at publication and checkout, and reserves stock after verified payment. Stock can change during payment, leaving a visible shortfall to resolve in Pier.
 
 ## Prepare two products
 
@@ -35,7 +41,7 @@ Use **Products** to [prepare and publish each product](PRODUCTS.md), or use **Mo
 ## Take a test order
 
 1. Open `/shop`, choose whole quantities of your published products and enter **Email for your order**.
-2. Select **Review order**, check quantities and **Total · AUD**, then select **Pay … with Stripe**.
+2. Select **Review order**, check quantities and **Total · USD**, then select **Pay … with Stripe**.
 3. Complete payment using your Stripe test setup. Returning to Stall does not confirm payment: Stall verifies the Stripe session, amount and currency before recording it.
 4. At **Shop desk → Orders**, select **Reconcile / retry pending work** when needed. Continue when the order is **reserved**. Resolve a **shortfall** in Pier, then reconcile the same order.
 5. Prepare a shipping reference, review the saved draft and approve shipping. Check for **shipped**, then try a one-line partial refund. The [orders guide](ORDERS.md) explains each step and pending results.
@@ -44,7 +50,7 @@ Before relying on the installation, [save a private backup](BACKUP-RESTORE.md). 
 
 ## Business time
 
-Stall displays shop activity and approvals in Australia/Perth time, including
+Stall displays shop activity and approvals in US Central time (America/Chicago), including
 the time zone beside each time. Set `businessTimeZone` in
 `src/stall/ui/presentation.tsx` to the IANA time zone for your business.
 

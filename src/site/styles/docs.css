@@ -1,0 +1,70 @@
+/* /docs and each guide: the homepage's header and type, the guide list on the
+   left, the article in white cards' company, dark code cards with Copy. */
+.docs { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 64px; max-width: 1280px; padding-top: 64px; padding-bottom: 120px; }
+.docs-nav { position: sticky; top: 24px; align-self: start; font-size: 15.5px; }
+.docs-nav-home { display: block; padding: 8px 12px; border-radius: 10px; font-weight: 600; text-decoration: none; }
+.docs-nav-section { margin: 26px 12px 6px; font: 700 12.5px/1.2 var(--font-body); letter-spacing: .2em; text-transform: uppercase; color: var(--tangerine-text); }
+.docs-nav ul { display: grid; gap: 2px; }
+.docs-nav li a { display: block; padding: 8px 12px; border-radius: 10px; color: var(--body); text-decoration: none; }
+.docs-nav a:hover { background: var(--row); }
+.docs-nav a[aria-current='page'] { background: var(--tangerine-tint); color: var(--ink); font-weight: 600; box-shadow: inset 3px 0 0 var(--tangerine); }
+.docs-main { min-width: 0; max-width: 780px; }
+.docs-main h1 { margin-top: 18px; font: 800 64px/1.02 var(--font-head); letter-spacing: -.05em; text-wrap: balance; }
+.docs-lede { margin-top: 22px; font-size: 21px; line-height: 1.5; color: var(--body); }
+.docs-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 44px; }
+.docs-card { display: block; height: 100%; padding: 24px 26px 26px; text-decoration: none; transition: border-color .15s ease, transform .15s ease; }
+.docs-card:hover { border-color: var(--tangerine-line); transform: translateY(-2px); }
+.docs-card-num { font: 700 14px var(--font-mono); color: var(--tangerine-text); }
+.docs-card h2 { margin-top: 12px; font: 800 25px/1.15 var(--font-head); letter-spacing: -.035em; }
+.docs-card p { margin-top: 10px; font-size: 15.5px; line-height: 1.55; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.docs-contents { margin-top: 28px; padding: 18px 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.docs-contents p { font: 700 12.5px/1.2 var(--font-body); letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+.docs-contents ul { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 10px; font-size: 15.5px; }
+.docs-contents a { text-decoration-color: var(--tangerine); text-underline-offset: 4px; }
+
+.prose { margin-top: 36px; font-size: 17.5px; line-height: 1.7; color: #262a31; }
+.prose > * + * { margin-top: 18px; }
+.prose h2 { margin-top: 56px; font: 800 34px/1.12 var(--font-head); letter-spacing: -.04em; color: var(--ink); }
+.prose h2::before { content: ''; display: block; width: 36px; height: 3px; margin-bottom: 18px; border-radius: 2px; background: var(--tangerine); }
+.prose h3 { margin-top: 36px; font: 800 23px/1.2 var(--font-head); letter-spacing: -.03em; color: var(--ink); }
+.prose a { color: var(--ink); text-decoration-color: var(--tangerine); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+.prose strong { font-weight: 650; color: var(--ink); }
+.prose ul { list-style: disc; padding-left: 1.3em; }
+.prose ul li::marker { color: var(--tangerine); }
+.prose ol { counter-reset: step; display: grid; gap: 14px; }
+.prose ol > li { counter-increment: step; position: relative; padding-left: 46px; }
+.prose ol > li::before { content: counter(step); position: absolute; left: 0; top: 1px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--tangerine-press); color: #fff; font: 700 15px/1 var(--font-body); }
+.prose li + li { margin-top: 6px; }
+.prose li > p + p { margin-top: 10px; }
+.prose code { padding: 2px 6px; border-radius: 6px; background: var(--chip); font: 500 .86em var(--font-mono); color: #1b1d21; overflow-wrap: anywhere; }
+.prose pre { position: relative; padding: 20px 96px 20px 22px; border-radius: 14px; background: var(--terminal); color: var(--rer-code-text); overflow-x: auto; box-shadow: var(--shadow-card); }
+.prose pre code { padding: 0; background: none; color: inherit; font-size: 15px; line-height: 1.75; white-space: pre; overflow-wrap: normal; }
+.prose pre .copy { position: absolute; top: 12px; right: 12px; min-height: 34px; padding: 0 14px; border: 1px solid rgba(255, 255, 255, .25); border-radius: 999px; background: transparent; color: #fff; font: 500 13.5px var(--font-body); cursor: pointer; }
+.prose pre .copy:hover { background: rgba(255, 255, 255, .1); }
+.prose blockquote { padding: 16px 20px; border-left: 3px solid var(--tangerine); border-radius: 0 12px 12px 0; background: var(--tangerine-wash); }
+.prose hr { border: 0; border-top: 1px solid var(--line); }
+.docs-table { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.prose table { width: 100%; border-collapse: collapse; font-size: 15.5px; line-height: 1.5; }
+.prose th, .prose td { padding: 12px 16px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+.prose th { font-weight: 650; background: var(--row); }
+.prose tr:last-child td { border-bottom: 0; }
+.docs-source { margin-top: 48px; font-size: 15px; color: var(--muted); }
+.docs-source a { text-underline-offset: 4px; }
+.docs-pager { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 28px; }
+.docs-pager a { display: grid; gap: 4px; padding: 18px 22px; text-decoration: none; font: 800 20px/1.2 var(--font-head); letter-spacing: -.03em; }
+.docs-pager a span { font: 600 12.5px var(--font-body); letter-spacing: .18em; text-transform: uppercase; color: var(--tangerine-text); }
+.docs-pager .next { text-align: right; }
+.docs-pager a:hover { border-color: var(--tangerine-line); }
+
+@media (max-width: 960px) {
+  .docs { grid-template-columns: minmax(0, 1fr); gap: 28px; padding-top: 32px; padding-bottom: 72px; }
+  .docs-nav { position: static; display: none; }
+  .docs-main h1 { font-size: 42px; }
+  .docs-lede { font-size: 18px; }
+  .docs-cards { grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 30px; }
+  .prose { font-size: 16.5px; }
+  .prose h2 { font-size: 27px; margin-top: 44px; }
+  .prose pre { padding: 50px 16px 16px; }
+  .prose pre code { font-size: 13.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .docs-pager { grid-template-columns: minmax(0, 1fr); }
+}

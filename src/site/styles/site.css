@@ -1,0 +1,68 @@
+/* The run site's frame: page, header, footer, actions and the type every page
+   shares. Tokens come from public/rer-theme.css. Sizes are the desk's at 1440
+   (its 1536 canvas x 0.9375). */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 24px; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.55 var(--font-body); -webkit-font-smoothing: antialiased; overflow-x: clip; }
+h1, h2, h3, p, ul, ol, figure { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+img, svg, picture { display: block; max-width: 100%; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--rer-focus); outline-offset: 3px; border-radius: 6px; }
+
+.site-wrap { width: 100%; max-width: calc(var(--wrap) + 2 * var(--gutter)); margin: 0 auto; padding: 0 var(--gutter); }
+
+.skip-link { position: absolute; left: 16px; top: -60px; z-index: 10; padding: 10px 16px; border-radius: 10px; background: var(--ink); color: #fff; text-decoration: none; }
+.skip-link:focus { top: 12px; }
+
+/* Header: lockup left, Docs and Source right, a hairline under it. */
+.site-header { position: relative; z-index: 3; }
+.site-header::after { content: ''; position: absolute; left: 20px; right: 20px; bottom: 0; height: 1px; background: var(--line); }
+.site-header-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 84px; max-width: none; padding: 0 clamp(16px, 3.6vw, 52px); }
+.site-brand { display: inline-flex; align-items: center; gap: 13px; text-decoration: none; font: 800 41px/1 var(--font-head); letter-spacing: -.035em; color: var(--ink); }
+.site-brand img { width: 40px; height: 40px; margin-top: -3px; }
+.site-header nav { display: flex; gap: 52px; font-size: 20px; font-weight: 500; }
+.site-header nav a { text-decoration: none; }
+.site-header nav a:hover, .site-header nav a[aria-current='page'] { text-decoration: underline; text-decoration-color: var(--tangerine); text-decoration-thickness: 2px; text-underline-offset: 7px; }
+
+/* Footer: one line, the lockup left and three links right. */
+.site-footer { border-top: 1px solid var(--line); background: var(--surface); }
+.site-footer-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 100px; max-width: none; padding: 0 clamp(16px, 3.4vw, 50px); }
+.site-footer .site-brand { gap: 12px; }
+.site-footer .site-brand img { width: 52px; height: 52px; }
+.site-footer nav { display: flex; gap: 40px; font-size: 18px; }
+.site-footer nav a { text-decoration: none; }
+.site-footer nav a:hover { text-decoration: underline; text-underline-offset: 5px; }
+
+/* The one action and its two quiet links. */
+.site-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; }
+.site-pill { display: inline-flex; align-items: center; gap: 12px; min-height: 67px; padding: 0 34px 0 36px; border-radius: 999px; background: var(--tangerine-press); color: #fff; font: 600 24px/1 var(--font-body); letter-spacing: -.01em; text-decoration: none; box-shadow: 0 1px 0 rgba(255, 255, 255, .35) inset, 0 16px 30px -18px rgba(242, 91, 7, .9); transition: background .15s ease, transform .15s ease; }
+.site-pill:hover { background: #e45204; }
+.site-pill:active { transform: translateY(1px); }
+.site-pill .arrow { width: 24px; height: 24px; }
+.site-link { font-size: 19px; font-weight: 500; text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 5px; }
+.site-link:hover { text-decoration-color: var(--tangerine); }
+
+/* Type shared by the homepage and the docs. */
+.eyebrow { font: 700 15px/1.2 var(--font-body); letter-spacing: .24em; text-transform: uppercase; color: var(--tangerine-text); }
+.dot { position: relative; color: transparent; }
+.dot::after { content: ''; position: absolute; left: -.005em; bottom: .075em; width: .17em; height: .17em; border-radius: 50%; background: var(--tangerine); }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border-radius: 999px; background: var(--tangerine-tint); color: var(--tangerine-text); font-weight: 600; white-space: nowrap; }
+.mono-num { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 760px) {
+  body { font-size: 16px; }
+  .site-header-row { height: 64px; }
+  .site-header::after { left: 0; right: 0; }
+  .site-brand { font-size: 28px; gap: 9px; }
+  .site-brand img { width: 30px; height: 30px; }
+  .site-header nav { gap: 24px; font-size: 16px; }
+  .site-footer-row { min-height: 0; padding-top: 22px; padding-bottom: 22px; flex-direction: column; align-items: flex-start; }
+  .site-footer .site-brand img { width: 38px; height: 38px; }
+  .site-footer nav { gap: 22px; font-size: 16px; flex-wrap: wrap; }
+  .site-actions { gap: 14px 24px; }
+  .site-pill { width: 100%; justify-content: center; min-height: 58px; font-size: 20px; }
+  .site-link { font-size: 17px; }
+  .eyebrow { font-size: 13px; }
+}
+.nowrap { white-space: nowrap; }

@@ -4,7 +4,7 @@ Use `POST /api/stall/commands` with JSON `{ "type": "…", "payload": { … } }`
 
 | Command | Payload | Effect |
 | --- | --- | --- |
-| `product.prepare` | `sku,name,description,unitCents,active` | Prepare listing metadata/price. Integer cents, AUD. |
+| `product.prepare` | `sku,name,description,unitCents,active` | Prepare listing metadata/price. Integer cents, USD. |
 | `product.approve` | `sku,revision` | Person publishes the exact prepared revision after Pier validation. |
 | `shipment.prepare` | `orderId,reference` | Prepare a shipment for a paid, fully reserved order. |
 | `shipment.approve` | `orderId,revision` | Person approves, then dispatches the original Pier reservation. |

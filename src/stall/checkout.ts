@@ -4,7 +4,7 @@ import { catalogue,decimal,pierOrigin } from './pier'
 import { createCheckout,validateSession } from './stripe'
 import { readOrder,saveOrder } from './store'
 import { paidSession } from './payments'
-import { email,fail,integer,text,type Line,type Order } from './model'
+import { email,fail,integer,shopCurrency,text,type Line,type Order } from './model'
 export async function checkout(env:Bindings,p:any) {
  const key=text(p.idempotencyKey,'Checkout idempotency key',100)
  if(!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(key)) fail('INPUT','Use a fresh random UUID for each checkout and retain it when retrying.',400)
@@ -36,7 +36,7 @@ export async function checkout(env:Bindings,p:any) {
   integer(totalCents,'Order total cents',50,99999999)
   if(p.expectedTotalCents!==undefined&&integer(p.expectedTotalCents,'Reviewed total cents',50,99999999)!==totalCents) fail('PRICE_CHANGED','A product price changed. Review the refreshed total before paying.')
   const id=crypto.randomUUID(),revision=crypto.randomUUID()
-  order={id,revision,customerEmail,lines,totalCents,currency:'aud',status:'checkout_pending',createdAt:new Date().toISOString(),requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,refunds:[]}
+  order={id,revision,customerEmail,lines,totalCents,currency:shopCurrency,status:'checkout_pending',createdAt:new Date().toISOString(),requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,refunds:[]}
   // Unique checkout key prevents two orders even if concurrent requests observed no row.
   try { await env.DB.batch([env.DB.prepare('INSERT INTO st_orders VALUES(?,?,?)').bind(id,JSON.stringify(order),revision),systemAudit(env.DB,id,'checkout.prepared','customer')]) }
   catch(error) {

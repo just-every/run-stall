@@ -1,5 +1,5 @@
 // Demo data for `rer demo` and the hosted demo (modules/demo runs it once, after
-// the owner exists): Saltbush & Clay, a lived-in Fremantle ceramics shop with
+// the owner exists): Saltbush & Clay, a lived-in Santa Fe ceramics shop with
 // its catalogue and stock in Pier, six weeks of orders in every state (paid,
 // reserved, packed and awaiting shipping approval, shipped, refunded, a stock
 // shortfall, abandoned checkouts), a refund waiting for a person's approval,

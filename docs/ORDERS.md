@@ -1,6 +1,6 @@
 # Orders, shipping and refunds
 
-Open **Shop desk → Orders** as an owner or administrator. Each card shows the customer's details, purchased lines, exact AUD total and current state. Approvals apply to the saved revision you reviewed. If the order changes during review, refresh and review it again.
+Open **Shop desk → Orders** as an owner or administrator. Each card shows the customer's details, purchased lines, exact USD total and current state. Approvals apply to the saved revision you reviewed. If the order changes during review, refresh and review it again.
 
 ## Follow payment and stock
 

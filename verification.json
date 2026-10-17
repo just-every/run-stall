@@ -32,7 +32,7 @@
       "commands": [
         "pnpm run build",
         "pnpm run test:runtime",
-        "rer build --site"
+        "node --test tests/site/site.test.mjs"
       ]
     }
   ],

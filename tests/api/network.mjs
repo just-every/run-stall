@@ -34,15 +34,15 @@ export function stripeEdge({forward}={}) {
   let value;
   if(url.pathname==='/v1/checkout/sessions') {
    assert.equal(form.get('mode'),'payment');
-   assert.equal(form.get('shipping_address_collection[allowed_countries][0]'),'AU');
+   assert.equal(form.get('shipping_address_collection[allowed_countries][0]'),'US');
    assert.ok(![...form.keys()].some(k=>/card|payment_method_data/.test(k)));
    let total=0;
    for(let i=0;form.has(`line_items[${i}][quantity]`);i++) {
-    assert.equal(form.get(`line_items[${i}][price_data][currency]`),'aud');
+    assert.equal(form.get(`line_items[${i}][price_data][currency]`),'usd');
     total+=Number(form.get(`line_items[${i}][quantity]`))*Number(form.get(`line_items[${i}][price_data][unit_amount]`));
    }
    const id='cs_test_'+randomUUID().replaceAll('-','');
-   value={id,object:'checkout.session',mode:'payment',client_reference_id:form.get('client_reference_id'),metadata:{stall_order_id:form.get('metadata[stall_order_id]')},amount_total:total,currency:'aud',status:'open',payment_status:'unpaid',payment_intent:null,url:'https://checkout.stripe.com/c/pay/'+id};
+   value={id,object:'checkout.session',mode:'payment',client_reference_id:form.get('client_reference_id'),metadata:{stall_order_id:form.get('metadata[stall_order_id]')},amount_total:total,currency:'usd',status:'open',payment_status:'unpaid',payment_intent:null,url:'https://checkout.stripe.com/c/pay/'+id};
    sessions.set(id,value);
   } else if(url.pathname==='/v1/refunds') {
    const intent=form.get('payment_intent'),amount=Number(form.get('amount'));
@@ -51,7 +51,7 @@ export function stripeEdge({forward}={}) {
    const existing=[...refunds.values()].filter(r=>r.payment_intent===intent&&r.status!=='failed').reduce((n,r)=>n+r.amount,0);
    assert.ok(existing+amount<=paid.amount_total);
    const id='re_'+randomUUID().replaceAll('-','');
-   value={id,object:'refund',payment_intent:intent,amount,currency:'aud',metadata:{stall_order_id:form.get('metadata[stall_order_id]'),stall_refund_id:form.get('metadata[stall_refund_id]')},status:'succeeded'};
+   value={id,object:'refund',payment_intent:intent,amount,currency:'usd',metadata:{stall_order_id:form.get('metadata[stall_order_id]'),stall_refund_id:form.get('metadata[stall_refund_id]')},status:'succeeded'};
    refunds.set(id,value);
   } else assert.fail('Unexpected Stripe API request '+url.pathname);
   writes.set(key,{body:form.toString(),value});
@@ -61,7 +61,7 @@ export function stripeEdge({forward}={}) {
  }
  function pay(id) {
   const s=sessions.get(id);assert.ok(s);
-  Object.assign(s,{status:'complete',payment_status:'paid',payment_intent:'pi_'+randomUUID().replaceAll('-',''),collected_information:{shipping_details:{name:'Test Customer',address:{line1:'1 Maker Lane',line2:null,city:'Brisbane',state:'QLD',postal_code:'4000',country:'AU'}}}});
+  Object.assign(s,{status:'complete',payment_status:'paid',payment_intent:'pi_'+randomUUID().replaceAll('-',''),collected_information:{shipping_details:{name:'Test Customer',address:{line1:'1 Maker Lane',line2:null,city:'Austin',state:'TX',postal_code:'78702',country:'US'}}}});
   return s;
  }
  return {handle,sessions,refunds,calls,pierCalls,pay,loseNextPierResponse(type){losePierType=type;},loseNextCheckoutResponse(){loseCheckoutResponse=true;},loseNextRefundResponse(){loseRefundResponse=true;}};

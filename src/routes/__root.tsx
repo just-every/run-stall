@@ -12,7 +12,9 @@ export const Route = createRootRoute({
   component: () => <html lang="en"><head>
     {fontLinks.map(link => <link key={link.href} {...link} />)}
     <link rel="stylesheet" href="/rer-theme.css" />
-    <link rel="icon" href="/brand/mark.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/brand/favicon-32.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <HeadContent />
     <script dangerouslySetInnerHTML={{ __html: introGuardScript }} />
     <style>{introCss}</style>

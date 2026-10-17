@@ -1,24 +1,32 @@
 # Stall
 
-An owned online shop for an Australian maker or retailer whose stock already lives in [Pier](https://github.com/just-every/run-pier). Publish products, take payment through your own Stripe Checkout, reserve stock in Pier, ship and make a partial refund with a recorded approval at each step. MIT licensed. [First-release scope](ACCEPTANCE.md).
+![Stall](public/brand/mark.svg)
+
+Your stall never closes. Stall is a free, open source online shop for US makers and small shops whose stock lives in [Pier](https://github.com/just-every/run-pier). Today it publishes products, takes payment in US dollars through your own Stripe Checkout, reserves stock in Pier, ships and makes partial refunds, with a recorded approval at each step. The [product contract](CONTRACT.md) is the Shopify replacement it is being built towards; [first-release scope](ACCEPTANCE.md) is what runs now. MIT licensed.
 
 [Read the owner guides](docs/README.md): [getting started](docs/GETTING-STARTED.md), [products](docs/PRODUCTS.md), [orders, shipping and refunds](docs/ORDERS.md), [Shopify move-in](docs/MOVE-IN.md), and [backup and restore](docs/BACKUP-RESTORE.md).
 
-**The run site is at https://run-stall.com**, with the run page at https://run-stall.com/run. To see it locally, run `rer dev`, then open `http://127.0.0.1:<port>/run`, using the run-site port RER prints in `RER_SITE`. This can differ from the app's `RER_READY` port. A domain purchase does not block running or deploying your own shop.
+**The run site is at https://run-stall.com**, with the run page at https://run-stall.com/run. To see it locally, run `rer dev` and open `/run` on the run-site address RER prints as `RER_SITE`; its port can differ from the app's `RER_READY` port. A domain purchase does not block running or deploying your own shop.
 
 ## From clone to app
 
-Install Git and Node 22 or newer, then run one line. It installs RER, clones Stall and starts it:
+Two lines, the same as [run-stall.com/run](https://run-stall.com/run), on macOS, Linux or Windows with WSL2, with git installed. First install rer, the tool that runs Stall. It brings its own Node if you have no Node 22 or later:
 
 ```sh
-npx -y @runeditrun/rer dev just-every/run-stall
+curl -fsSL https://runeditrun.com/install.sh | sh
 ```
 
-To start it again later, run `cd run-stall && rer dev`.
+Then start Stall. rer clones it, installs everything, makes you the owner and prints a link that opens Stall signed in:
+
+```sh
+rer dev just-every/run-stall
+```
+
+Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-stall` does both in one line. If the installer prints an `export PATH=…` line, run it before the second line. To start Stall again later, run `cd run-stall && rer dev`.
 
 RER installs the pinned dependencies and Node 22.20.0, builds and migrates local D1, prepares the local owner, and starts the app. Allow several minutes on the first run. Open the private `RER_OPEN` link in the terminal, then select **Finish setup**. Keep that link private. Open `/app` on the `RER_READY` origin for the shop desk, and `/shop` for the customer storefront. Repeat `rer dev` after an interruption; it resumes. Stop with `rer dev --stop` or Ctrl-C. Use `rer dev --port 8899` if another checkout occupies your saved app port.
 
-To claim the install with your own mailbox, run `npx -y @runeditrun/rer setup just-every/run-stall --owner-email you@example.com` in place of the one line, then `cd run-stall && rer dev`. Development mail is suppressed. Use the private `RER_OPEN` owner entry locally; ordinary invitations require a hosted installation with configured mail. The owner may invite administrators or members through Base's `/auth/invite` API (see [commands](docs/COMMANDS.md)); only owners/admins manage shop records, and members cannot use the desk APIs.
+To claim the install with your own mailbox, run `npx -y @runeditrun/rer setup just-every/run-stall --owner-email you@example.com` in place of the start line, then `cd run-stall && rer dev`. Development mail is suppressed. Use the private `RER_OPEN` owner entry locally; ordinary invitations require a hosted installation with configured mail. The owner may invite administrators or members through Base's `/auth/invite` API (see [commands](docs/COMMANDS.md)); only owners/admins manage shop records, and members cannot use the desk APIs.
 
 A fresh installation contains no invented stock, products, orders or payment provider. The desk shows which connections are missing. Your local app works without a domain or paid provider account; a purchase needs the real connections below. Tests exercise the whole purchase flow with fakes only at external network edges.
 
@@ -27,7 +35,7 @@ A fresh installation contains no invented stock, products, orders or payment pro
 1. [Connect Pier and Stripe](docs/CONNECTIONS.md). In Pier, have two stocked, sellable SKUs and one customer representing the online shop. Pier remains the stock authority; Stall never copies inventory balances.
 2. In **Move in**, paste or upload your [Shopify product CSV](docs/MOVE-IN.md). Use the [documented-shape synthetic fixture](fixtures/shopify-products.csv) to understand the columns; its SKUs must exist in your Pier installation before publication. Preview, inspect the rows and fingerprint, then explicitly apply. Imported listings stay unpublished. Open the import journal to inspect or undo untouched work.
 3. In **Products**, [prepare the name, description and price](docs/PRODUCTS.md) in dollars and cents, then review and approve the exact revision. For an imported product, select **Edit product**, enable **Available for publication** and prepare a revision first. A price change creates another draft; an existing published listing keeps its approved price until the new draft is approved. Publication validates the Pier SKU.
-4. Open `/shop` as a customer, choose quantities of two in-stock products, enter an email and select **Review order**. Check the AUD total, then select **Pay … with Stripe** to open Stripe's hosted payment page. A return URL alone never marks an order paid: the signed webhook must confirm the exact session, amount and currency.
+4. Open `/shop` as a customer, choose quantities of two in-stock products, enter an email and select **Review order**. Check the USD total, then select **Pay … with Stripe** to open Stripe's hosted payment page. A return URL alone never marks an order paid: the signed webhook must confirm the exact session, amount and currency.
 5. Back in **Orders**, reconcile the paid order. It records a Pier reservation, or a visible shortfall if stock changed while the customer paid. Resolve a shortfall in Pier and reconcile again. Prepare shipping with a tracking/reference, inspect it, then approve. Shipping dispatches Pier's reserved lines once.
 6. After shipping is confirmed, prepare a partial refund for one line, inspect the amount and reason, then approve that revision. Reconcile pending provider results. A refund changes money, not stock; a physical return and restock stay in Pier. The history records approvers and provider references. [Orders, shipping and refunds](docs/ORDERS.md) · [Commands and recovery](docs/COMMANDS.md).
 

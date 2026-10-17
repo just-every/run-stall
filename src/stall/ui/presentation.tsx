@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 // Change this installation setting to the shop's business time zone.
-export const businessTimeZone = 'Australia/Perth'
+export const businessTimeZone = 'America/Chicago'
 export const People = createContext<Record<string, string>>({})
 export const shortId = (id: string) => id.replaceAll('-', '').slice(0, 4).toUpperCase()
 export function humanLabel(value: string) {
@@ -9,7 +9,7 @@ export function humanLabel(value: string) {
 }
 export function businessTime(value: string | number) {
   const date = new Date(value)
-  return Number.isNaN(date.valueOf()) ? 'Time not recorded' : new Intl.DateTimeFormat('en-AU', { timeZone: businessTimeZone, day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }).format(date)
+  return Number.isNaN(date.valueOf()) ? 'Time not recorded' : new Intl.DateTimeFormat('en-US', { timeZone: businessTimeZone, day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }).format(date)
 }
 export function usePerson() {
   const people = useContext(People)

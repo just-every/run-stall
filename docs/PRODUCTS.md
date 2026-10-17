@@ -4,7 +4,7 @@ Open **Shop desk → Products** as an owner or administrator. Product details an
 
 ## Add a product
 
-1. In **Prepare a product**, enter the exact Pier **SKU**, **Product name**, **Unit price · AUD** and **Description**. Enter the price in dollars and cents, for example `24.50`, with at most two decimal places.
+1. In **Prepare a product**, enter the exact Pier **SKU**, **Product name**, **Unit price · USD** and **Description**. Enter the price in dollars and cents, for example `24.50`, with at most two decimal places.
 2. Leave **Available for publication** selected if this product should appear in the shop.
 3. Select **Prepare revision**. This saves a draft; it does not publish the product.
 4. In **Revision … for approval**, review the name, description, price and Active/Inactive setting. Select **Approve & publish revision …** to approve those exact details.

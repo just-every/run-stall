@@ -12,7 +12,7 @@ Start with two products while keeping your existing shop open. The importer take
 listing metadata only; it does not migrate your Shopify shop as a whole.
 
 1. Keep your original Shopify export. Prepare a private copy containing only the
-   six columns documented below, with one row per unique handle and SKU. Use AUD
+   six columns documented below, with one row per unique handle and SKU. Use USD
    prices and the same SKUs as Pier. Remove extra columns and variant or image
    continuation rows; a full Shopify export may not match this supported subset.
 2. Sign in as an owner or administrator and open **Shop desk → Move in**. Under

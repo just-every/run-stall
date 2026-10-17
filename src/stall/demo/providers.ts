@@ -3,7 +3,7 @@
 // refunds, reservations and dispatches answer as the providers would and change
 // this visitor's copy, and nothing leaves. The state lives in Base's demo table,
 // which exists only in demos and is erased with the visitor's copy.
-import { fail } from '../model'
+import { fail, shopCountry, shopCurrency } from '../model'
 
 export const demoPierOrigin = 'https://pier.demo.invalid'
 export const demoPierCustomer = 'pier-party-web-shop'
@@ -74,14 +74,14 @@ export async function demoPier(db: D1Database, path: string, body?: any): Promis
 }
 
 export function sessionObject(s: StripeSession) {
- return { id: s.id, object: 'checkout.session', mode: 'payment', client_reference_id: s.orderId, metadata: { stall_order_id: s.orderId }, customer_email: s.email, currency: 'aud', amount_total: s.amount, payment_status: s.paid ? 'paid' : 'unpaid', status: s.status, payment_intent: s.intent, url: s.status === 'open' ? `https://checkout.stripe.com/c/pay/${s.id}` : null, collected_information: s.paid ? { shipping_details: s.shipping } : null }
+ return { id: s.id, object: 'checkout.session', mode: 'payment', client_reference_id: s.orderId, metadata: { stall_order_id: s.orderId }, customer_email: s.email, currency: shopCurrency, amount_total: s.amount, payment_status: s.paid ? 'paid' : 'unpaid', status: s.status, payment_intent: s.intent, url: s.status === 'open' ? `https://checkout.stripe.com/c/pay/${s.id}` : null, collected_information: s.paid ? { shipping_details: s.shipping } : null }
 }
-export const refundObject = (r: StripeRefund) => ({ id: r.id, object: 'refund', amount: r.amount, currency: 'aud', payment_intent: r.intent, metadata: { stall_order_id: r.orderId, stall_refund_id: r.refundId }, status: r.status })
+export const refundObject = (r: StripeRefund) => ({ id: r.id, object: 'refund', amount: r.amount, currency: shopCurrency, payment_intent: r.intent, metadata: { stall_order_id: r.orderId, stall_refund_id: r.refundId }, status: r.status })
 
 // A demo shopper's details, as Stripe's hosted Checkout would collect them.
 function shopper(email: string) {
  const name = email.split('@')[0].split(/[._-]+/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ') || 'Demo shopper'
- return { name, address: { line1: '27 Wattle Grove', line2: '', city: 'Fremantle', state: 'WA', postal_code: '6160', country: 'AU' } }
+ return { name, address: { line1: '412 Agua Fria Street', line2: '', city: 'Santa Fe', state: 'NM', postal_code: '87501', country: shopCountry } }
 }
 
 // Stripe's Checkout and refund endpoints. A demo's hosted Checkout is paid at once.

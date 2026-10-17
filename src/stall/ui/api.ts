@@ -10,4 +10,4 @@ export async function request<T>(path: string, body?: unknown, method = body ===
   return data as T
 }
 export const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'The request could not be completed.'
-export const money = (cents: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(cents / 100)
+export const money = (cents: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100)

@@ -1,10 +1,10 @@
 import type { Bindings } from '../auth.server'
-import { actorLabel,approval,fail,integer,requirePerson,text,type Actor,type Order,type Refund } from './model'
+import { actorLabel,approval,fail,integer,requirePerson,shopCurrency,text,type Actor,type Order,type Refund } from './model'
 import { createRefund,retrieveRefund } from './stripe'
 import { readOrder,saveOrder } from './store'
 import { exactRevision,liveApproval } from './fulfilment'
 function refundResult(order:Order,r:Refund,result:any):Refund {
- if(typeof result?.id!=='string'||!/^re_[A-Za-z0-9_]+$/.test(result.id)||result.object!=='refund'||result.amount!==r.amountCents||result.currency!=='aud'||result.payment_intent!==order.payment?.intentId||result.metadata?.stall_order_id!==order.id||result.metadata?.stall_refund_id!==r.id||(r.stripeId&&r.stripeId!==result.id)||!['pending','requires_action','succeeded','failed','canceled'].includes(result.status)) fail('REFUND_MISMATCH','Stripe refund does not match this approved refund.',502)
+ if(typeof result?.id!=='string'||!/^re_[A-Za-z0-9_]+$/.test(result.id)||result.object!=='refund'||result.amount!==r.amountCents||result.currency!==shopCurrency||result.payment_intent!==order.payment?.intentId||result.metadata?.stall_order_id!==order.id||result.metadata?.stall_refund_id!==r.id||(r.stripeId&&r.stripeId!==result.id)||!['pending','requires_action','succeeded','failed','canceled'].includes(result.status)) fail('REFUND_MISMATCH','Stripe refund does not match this approved refund.',502)
  return {...r,stripeId:result.id,status:result.status==='requires_action'?'pending':result.status}
 }
 export async function refundCommand(env:Bindings,actor:Actor,type:string,p:any) {

@@ -8,8 +8,8 @@ import site from '../deploy-site.json'
 export const identity: EditionIdentity = {
   product: branding.name,
   deployment: branding.name,
-  purpose: '{deployment} sells your stocked products online, with payments, packing and refunds recorded.',
-  tagline: 'Your small shop, your stock, your account.',
+  purpose: '{deployment} sells your products online: a storefront, Stripe checkout, stock held in Pier, shipping and refunds, each one recorded.',
+  tagline: 'Your stall never closes. Free, open source online shops for US makers and small shops.',
   signInPath: '/signin',
   // The run site `rer deploy --site` publishes (deploy-site.json).
   runSite: `https://${site.domain}`,
@@ -17,7 +17,6 @@ export const identity: EditionIdentity = {
   installedHome: 'lobby',
   theme: '/rer-theme.css',
   mark: '/brand/mark.svg',
-  band: '/brand/band.svg',
   fonts: '/fonts/fonts.css',
   accentColor: branding.primaryColor,
 }

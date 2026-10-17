@@ -26,7 +26,7 @@
       "label": "Brand colour",
       "kind": "colour",
       "required": true,
-      "default": "#4D6FE8",
+      "default": "#FF6A13",
       "group": "application"
     },
     {

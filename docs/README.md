@@ -1,6 +1,6 @@
 # Stall guides
 
-Stall is a shop of your own for an Australian maker or retailer whose stock lives in Pier. Customers pay through your Stripe account; you manage products, orders, shipping and refunds at the Shop desk.
+Stall is a shop of your own for a US maker or small shop whose stock lives in Pier. Customers pay through your Stripe account; you manage products, orders, shipping and refunds at the Shop desk.
 
 | Start here | What it covers |
 | --- | --- |

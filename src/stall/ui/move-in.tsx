@@ -63,7 +63,7 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
     {error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}
     <div className="st-panel st-stack">
       <div className="st-heading-row"><h2><span className="st-step-number">1.</span> Add your CSV</h2></div>
-      <p className="st-small">Use a Shopify product export with Handle, Title, Body (HTML), Variant SKU, Variant Price and Published columns (only these six, in this order). Prices are imported as AUD. Review every warning; published source products are still staged for approval here.</p>
+      <p className="st-small">Use a Shopify product export with Handle, Title, Body (HTML), Variant SKU, Variant Price and Published columns (only these six, in this order). Prices are imported as USD. Review every warning; published source products are still staged for approval here.</p>
       <label>Choose a CSV file<input type="file" accept=".csv,text/csv" disabled={busy} onChange={event => {
         const file = event.target.files?.[0]
         if (file) void act(async () => { const value = await file.text(); changed(); setCsv(value) })
