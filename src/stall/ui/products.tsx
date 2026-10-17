@@ -1,11 +1,13 @@
-// Products in the pick's workspace: a table of products and the selected
-// product's panel, where a revision is prepared and a person publishes it.
-import { useRef, useState, type FormEvent } from 'react'
+// Products in the pick's workspace: a dense table of products and the selected
+// product's panel, where a revision is prepared and a person publishes it. A
+// revision the shop agent prepared carries the Agent note, as orders do.
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { HydrationUnit } from '../../base/hydration/unit'
-import type { Product, ProductValue, Run } from './types'
+import type { Product, ProductValue, Run, State } from './types'
 import { money } from './api'
 import { Badge, Empty } from './primitives'
-import { businessTime, shortId, shortTime, usePerson } from './presentation'
+import { businessTime, shortDate, shortId, shortTime, usePerson } from './presentation'
+import { Icon } from './icons'
 
 const blank: ProductValue = { sku: '', name: '', description: '', unitCents: 0, active: true }
 const statusOf = (product: Product) => product.value.approval ? product.value.active ? 'Published' : 'Inactive' : 'Staged'
@@ -21,36 +23,39 @@ function Editor({ editing, busy, run, done }: { editing: Product | null; busy: b
   }
   return <form id="product-editor" className="st-stack st-editor" onSubmit={event => void prepare(event)}>
     <h3>{editing ? `Prepare changes to ${editing.id}` : 'Prepare a product'}</h3>
-    <div className="st-editor-grid"><label>SKU<input required maxLength={100} value={value.sku} disabled={busy || !!editing} onChange={event => setValue({ ...value, sku: event.target.value })} /></label><label>Unit price · USD<input required inputMode="decimal" value={price} disabled={busy} onChange={event => setPrice(event.target.value)} placeholder="0.00" aria-describedby="price-help" /></label></div>
+    <div className="st-editor-grid"><label>SKU<input required maxLength={100} value={value.sku} disabled={busy || !!editing} onChange={event => setValue({ ...value, sku: event.target.value })} /></label><label>Unit price · USD<input required inputMode="decimal" value={price} disabled={busy} onChange={event => setPrice(event.target.value)} placeholder="0.00" aria-describedby="price-help" /><small id="price-help">Dollars and cents, at most two decimal places.</small></label></div>
     <label>Product name<input required maxLength={200} value={value.name} disabled={busy} onChange={event => setValue({ ...value, name: event.target.value })} /></label>
-    <small id="price-help">Enter dollars and cents, with at most two decimal places.</small>
     <label>Description<textarea rows={4} value={value.description} disabled={busy} maxLength={4000} onChange={event => setValue({ ...value, description: event.target.value })} /></label>
     <label className="st-checkbox"><input type="checkbox" checked={value.active} disabled={busy} onChange={event => setValue({ ...value, active: event.target.checked })} />Available for publication</label>
     <div className="st-actions"><button disabled={busy || !validPrice}>Prepare revision</button><button className="st-secondary" type="button" disabled={busy} onClick={done}>Cancel edit</button></div>
   </form>
 }
 
-function ProductPanel({ product, busy, run, canApprove, onEdit }: { product: Product; busy: boolean; run: Run; canApprove: boolean; onEdit: () => void }) {
-  const person = usePerson(), draft = product.value.draft
+function ProductPanel({ product, preparedBy, busy, run, canApprove, onEdit }: { product: Product; preparedBy?: { actor: string; at: string }; busy: boolean; run: Run; canApprove: boolean; onEdit: () => void }) {
+  const person = usePerson(), draft = product.value.draft, agent = !!preparedBy?.actor.startsWith('agent:')
   return <div className="st-panel-body st-product">
     <div className="st-panel-head"><h2>{product.value.name}</h2><Badge value={statusOf(product)} /></div>
     <p className="st-small">{product.id} · revision {shortId(product.revision)}</p>
     <section className="st-panel-block st-sums"><p><span>Unit price · USD</span><strong>{money(product.value.unitCents)}</strong></p></section>
-    {product.value.description && <section className="st-panel-block"><h3>Description</h3><p>{product.value.description}</p></section>}
+    {product.value.description && <section className="st-panel-block"><div className="st-row"><h3>Description</h3><button className="st-link st-edit-link" disabled={busy} onClick={onEdit}>Edit<span className="st-sr-only"> description</span></button></div><p>{product.value.description}</p></section>}
     {product.value.approval && <section className="st-panel-block"><h3>Published</h3><p className="st-small">Published by {person(product.value.approval.by)} · {businessTime(product.value.approval.at)} · revision {shortId(product.value.approval.revision)}</p></section>}
-    {draft && <div className="st-note"><div>
-      <h3>Revision {shortId(product.revision)} for approval</h3>
+    {draft && <div className="st-note"><Icon name="spark" /><div>
+      <h3>{agent ? 'Agent note' : `Revision ${shortId(product.revision)} for approval`}</h3>
+      {preparedBy && <p>Revision {shortId(product.revision)} prepared by {person(preparedBy.actor)} · {shortTime(preparedBy.at)}</p>}
       <p><strong>{draft.name}</strong> · {money(draft.unitCents)} · {draft.active ? 'Active' : 'Inactive'}</p>
       {draft.description && <p>{draft.description}</p>}
       <p className="st-small">Approving publishes these exact details.</p>
     </div></div>}
-    <div className="st-actions st-panel-actions">{draft && canApprove && <button disabled={busy} onClick={() => void run('product.approve', { sku: product.id, revision: product.revision })}>Approve & publish revision {shortId(product.revision)}</button>}<button className="st-secondary" disabled={busy} onClick={onEdit}>Edit product</button></div>
+    <div className="st-actions st-panel-actions">{draft && canApprove && <button disabled={busy} onClick={() => void run('product.approve', { sku: product.id, revision: product.revision })}>Approve & publish revision {shortId(product.revision)}</button>}<button className="st-secondary" disabled={busy} onClick={onEdit}>Edit<span className="st-sr-only"> product</span></button></div>
   </div>
 }
 
-export function ProductsView({ products, query, busy, run, canApprove }: { products: Product[]; query: string; busy: boolean; run: Run; canApprove: boolean }) {
-  const [tab, setTab] = useState<typeof productTabs[number][0]>('all'), [selectedId, setSelectedId] = useState(''), [editing, setEditing] = useState<Product | 'new' | null>(null)
+/** `focus` is a SKU from a link (#products/<sku>). */
+export function ProductsView({ products, audit, focus, query, busy, run, canApprove }: { products: Product[]; audit: State['audit']; focus?: string; query: string; busy: boolean; run: Run; canApprove: boolean }) {
+  const [tab, setTab] = useState<typeof productTabs[number][0]>('all'), [selectedId, setSelectedId] = useState(focus ?? ''), [editing, setEditing] = useState<Product | 'new' | null>(null)
   const panel = useRef<HTMLElement>(null)
+  useEffect(() => { if (focus) { setTab('all'); setSelectedId(focus); setEditing(null) } }, [focus])
+  const preparedBy = (sku: string) => audit.filter(event => event.subject === sku && event.action === 'product.prepared').sort((a, b) => b.at.localeCompare(a.at))[0]
   const q = query.trim().toLowerCase()
   const shown = products.filter(product => (tab === 'all' || (tab === 'draft' ? !!product.value.draft : statusOf(product) === tab)) && (!q || [product.id, product.value.name, product.value.description].some(text => text.toLowerCase().includes(q))))
   const selected = products.find(product => product.id === selectedId) ?? shown[0]
@@ -65,18 +70,18 @@ export function ProductsView({ products, query, busy, run, canApprove }: { produ
         : <div className="st-table-wrap"><table className="st-product-table"><caption className="st-sr-only">Products</caption>
           <thead><tr><th scope="col">Product</th><th scope="col">SKU</th><th scope="col" className="st-num">Price</th><th scope="col">Status</th><th scope="col">Published</th><th scope="col">Revision</th></tr></thead>
           <tbody>{shown.map(product => <tr key={product.id} className={product === selected && editing !== 'new' ? 'is-selected' : undefined} onClick={() => { setSelectedId(product.id); setEditing(null); reveal() }}>
-            <td data-label="Product"><button className="st-order-id st-product-name" aria-pressed={product === selected} onClick={event => { event.stopPropagation(); setSelectedId(product.id); setEditing(null); reveal() }}>{product.value.draft && <span className="st-flag" title="Revision awaiting approval" aria-hidden="true" />}{product.value.name}</button><small>{product.value.description}</small></td>
-            <td data-label="SKU" className="st-muted-cell st-sku">{product.id}</td>
+            <td data-label="Product" className="st-product-cell"><button className="st-order-id st-product-name" aria-pressed={product === selected} title={product.value.name} onClick={event => { event.stopPropagation(); setSelectedId(product.id); setEditing(null); reveal() }}>{product.value.draft && <span className="st-flag" title="Revision awaiting approval" aria-hidden="true" />}<span>{product.value.name}</span></button>{product.value.description && <small title={product.value.description}>{product.value.description}</small>}</td>
+            <td data-label="SKU" className="st-muted-cell st-sku st-labeled">{product.id}</td>
             <td data-label="Price" className="st-num st-money">{money(product.value.unitCents)}</td>
             <td data-label="Status"><Badge value={statusOf(product)} /></td>
-            <td data-label="Published" className="st-muted-cell">{product.value.approval ? shortTime(product.value.approval.at) : '—'}</td>
-            <td data-label="Revision">{product.value.draft ? <Badge value="draft" tone="need">Awaiting approval</Badge> : <span className="st-muted-cell">{shortId(product.revision)}</span>}</td>
+            <td data-label="Published" className={`st-muted-cell st-labeled${product.value.approval ? '' : ' is-empty'}`} title={product.value.approval ? businessTime(product.value.approval.at) : undefined}>{product.value.approval ? shortDate(product.value.approval.at) : '—'}</td>
+            <td data-label="Revision" className="st-labeled">{product.value.draft ? <Badge value="draft" tone="need">Draft {shortId(product.revision)}</Badge> : <span className="st-muted-cell">{shortId(product.revision)}</span>}</td>
           </tr>)}</tbody>
         </table></div>}
     </section></HydrationUnit>
     {(editing || selected) && <HydrationUnit><aside className="st-order-panel" ref={panel} aria-label={editing === 'new' ? 'Prepare a product' : `Product ${selected?.id}`}>
       {editing ? <Editor key={editing === 'new' ? 'new' : editing.id} editing={editing === 'new' ? null : editing} busy={busy} run={run} done={() => setEditing(null)} />
-        : selected && <ProductPanel product={selected} busy={busy} run={run} canApprove={canApprove} onEdit={() => setEditing(selected)} />}
+        : selected && <ProductPanel product={selected} preparedBy={selected.value.draft ? preparedBy(selected.id) : undefined} busy={busy} run={run} canApprove={canApprove} onEdit={() => setEditing(selected)} />}
     </aside></HydrationUnit>}
   </div>
 }

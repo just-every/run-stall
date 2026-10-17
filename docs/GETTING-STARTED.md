@@ -43,7 +43,7 @@ Use **Products** to [prepare and publish each product](PRODUCTS.md), or use **Mo
 1. Open `/shop`, choose whole quantities of your published products and enter **Email for your order**.
 2. Select **Review order**, check quantities and **Total · USD**, then select **Pay … with Stripe**.
 3. Complete payment using your Stripe test setup. Returning to Stall does not confirm payment: Stall verifies the Stripe session, amount and currency before recording it.
-4. At **Shop desk → Orders**, select **Reconcile / retry pending work** when needed. Continue when the order is **reserved**. Resolve a **shortfall** in Pier, then reconcile the same order.
+4. At **Shop desk → Orders**, select **Reconcile** when it shows (it appears only while payment, stock or a provider result is still pending). Continue when the order is **reserved**. Resolve a **shortfall** in Pier, then reconcile the same order.
 5. Prepare a shipping reference, review the saved draft and approve shipping. Check for **shipped**, then try a one-line partial refund. The [orders guide](ORDERS.md) explains each step and pending results.
 
 Before relying on the installation, [save a private backup](BACKUP-RESTORE.md). For hosting, see [Deploy your shop](../README.md#deploy-your-shop); a workers.dev origin is sufficient.

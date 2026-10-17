@@ -1,5 +1,5 @@
 import type { ImportJob, RetainedOriginal } from '../../modules/import-kit/src/types'
-import { humanLabel, shortId } from './presentation'
+import { shortId } from './presentation'
 import { Badge, Empty, RecordDetail } from './primitives'
 
 export interface Journal { job: ImportJob; originals: RetainedOriginal[]; undoReport: unknown }
@@ -10,7 +10,12 @@ export function ImportJournal({ jobs, journal, busy, onOpen, onUndo, onResume }:
   return <div className="st-stack">
     <h2>Import journal</h2>
     {jobs.length === 0 ? <Empty><h3>No imports recorded</h3>Applied imports will appear here with their progress and undo history.</Empty> :
-      <div className="st-table-wrap"><table><caption className="st-sr-only">Product import jobs</caption><thead><tr><th scope="col">Job</th><th scope="col">Status</th><th scope="col">Progress</th><th scope="col">Journal</th></tr></thead><tbody>{jobs.map(job => <tr key={job.id}><th scope="row">{`Import ${shortId(job.id)}`}<small>{job.namespace}</small></th><td>{humanLabel(job.state)}</td><td>{job.checkpoint} / {job.total}</td><td><button className="st-secondary" onClick={() => onOpen(job.id)} disabled={busy}>View</button></td></tr>)}</tbody></table></div>}
+      <div className="st-table-wrap"><table className="st-journal-table"><caption className="st-sr-only">Product import jobs</caption><thead><tr><th scope="col">Job</th><th scope="col">Status</th><th scope="col">Progress</th><th scope="col"><span className="st-sr-only">Journal</span></th></tr></thead><tbody>{jobs.map(job => <tr key={job.id}>
+        <th scope="row">{`Import ${shortId(job.id)}`}<small>{job.namespace}</small></th>
+        <td data-label="Status"><Badge value={job.state} /></td>
+        <td data-label="Progress"><span className="st-progress"><span className="st-progress-bar" aria-hidden="true"><span style={{ width: `${job.total ? Math.min(100, Math.round(job.checkpoint / job.total * 100)) : 0}%` }} /></span>{job.checkpoint} / {job.total}</span></td>
+        <td className="st-journal-open"><button className="st-secondary" onClick={() => onOpen(job.id)} disabled={busy}>View</button></td>
+      </tr>)}</tbody></table></div>}
     {journal && <div className="st-panel st-stack">
       <div className="st-heading-row"><h3>Import {shortId(journal.job.id)}</h3><Badge value={journal.job.state} /></div>
       <p>{journal.job.checkpoint} / {journal.job.total} records processed · {journal.job.namespace}</p>

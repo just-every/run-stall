@@ -21,6 +21,18 @@ export function shortTime(value: string | number) {
   const date = new Date(value)
   return Number.isNaN(date.valueOf()) ? 'Time not recorded' : new Intl.DateTimeFormat('en-US', { timeZone: businessTimeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date)
 }
+/** A table's date column: "Aug 10", with the year when it is not this year's. */
+export function shortDate(value: string | number, now = Date.now()) {
+  const date = new Date(value)
+  if (Number.isNaN(date.valueOf())) return 'Not recorded'
+  const year = (at: Date) => new Intl.DateTimeFormat('en-US', { timeZone: businessTimeZone, year: 'numeric' }).format(at)
+  return new Intl.DateTimeFormat('en-US', { timeZone: businessTimeZone, month: 'short', day: 'numeric', ...(year(date) === year(new Date(now)) ? {} : { year: 'numeric' }) }).format(date)
+}
+/** "6 min ago", "3 h ago", "2 days ago" for a time in the past. */
+export function ago(value: string | number, now = Date.now()) {
+  const minutes = Math.max(0, Math.round((now - new Date(value).valueOf()) / 60000))
+  return minutes < 1 ? 'just now' : minutes < 60 ? `${minutes} min ago` : minutes < 1440 ? `${Math.round(minutes / 60)} h ago` : `${Math.round(minutes / 1440)} day${Math.round(minutes / 1440) === 1 ? '' : 's'} ago`
+}
 /** A table's time column: the time today, "Yesterday", then "Oct 12". */
 export function whenLabel(value: string | number, now = Date.now()) {
   const date = new Date(value)

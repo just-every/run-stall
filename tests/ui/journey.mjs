@@ -131,6 +131,7 @@ try {
  await capture('shipment-approval',page.getByRole('button',{name:/Approve shipping · revision/}))
  await page.getByRole('button',{name:/Approve shipping · revision/}).click()
  await page.getByText('Shipping has been confirmed by Pier.',{exact:true}).waitFor()
+ await page.getByText('More actions',{exact:true}).click()
  await page.getByText('Prepare a one-line partial refund',{exact:true}).click()
  await page.getByLabel('Reason',{exact:true}).fill('One mug returned damaged; no restock')
  await page.getByRole('button',{name:'Prepare partial refund',exact:true}).click()

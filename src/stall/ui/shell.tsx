@@ -15,8 +15,9 @@ export const deskViews = [
   { id: 'settings', label: 'Settings', icon: 'settings' },
 ] as const satisfies readonly { id: string; label: string; icon: IconName }[]
 export type DeskView = typeof deskViews[number]['id']
-/** Older links to a settings section open Settings at that section. */
-export const viewOf = (hash: string): DeskView => ['connections', 'portability'].includes(hash) ? 'settings' : deskViews.find(view => view.id === hash)?.id ?? 'orders'
+/** Older links to a settings section open Settings at that section; #orders/<id> and #products/<sku> open that record. */
+export const viewOf = (hash: string): DeskView => ['connections', 'portability'].includes(hash) ? 'settings' : deskViews.find(view => view.id === hash.split('/')[0])?.id ?? 'orders'
+export const recordOf = (hash: string) => { const [, id] = hash.split('/'); return id ? decodeURIComponent(id) : undefined }
 
 function Account({ name, email, role }: { name: string; email: string; role: string }) {
   const [open, setOpen] = useState(false), root = useRef<HTMLDivElement>(null)

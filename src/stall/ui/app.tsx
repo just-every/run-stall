@@ -8,11 +8,11 @@ import { OrdersView } from './orders'
 import { MoveIn } from './move-in'
 import { Activity } from './activity'
 import { Settings } from './settings'
-import { DeskShell, viewOf, type DeskView } from './shell'
+import { DeskShell, recordOf, viewOf, type DeskView } from './shell'
 import { needs, orderTabs } from './order-status'
 import { People } from './presentation'
 
-const searchLabel: Partial<Record<DeskView, string>> = { orders: 'Search orders, customers, items', products: 'Search products or SKUs' }
+const searchLabel: Partial<Record<DeskView, string>> = { orders: 'Search orders, customers, items', products: 'Search products or SKUs', history: 'Search activity, records or people' }
 const titles: Record<DeskView, string> = { orders: 'Orders', products: 'Products', 'move-in': 'Move in', history: 'Activity', settings: 'Settings' }
 
 export function ShopDesk() {
@@ -20,7 +20,7 @@ export function ShopDesk() {
   const [view, setView] = useState<DeskView>('orders'), [section, setSection] = useState(''), [host, setHost] = useState(''), [query, setQuery] = useState('')
   const lock = useRef(false)
   useEffect(() => { const update = () => { const hash = location.hash.slice(1); setView(viewOf(hash)); setSection(hash); setQuery('') }; update(); setHost(location.host); addEventListener('hashchange', update); return () => removeEventListener('hashchange', update) }, [])
-  useEffect(() => { document.title = `${titles[view]} · Stall`; if (section && section !== view) document.getElementById(section)?.scrollIntoView(); else scrollTo(0, 0) }, [view, section, !!state])
+  useEffect(() => { document.title = `${titles[view]} · Stall`; if (section && section !== view && !recordOf(section)) document.getElementById(section)?.scrollIntoView(); else scrollTo(0, 0) }, [view, section, !!state])
   async function reload() { setState(await request<State>('/api/stall/state')) }
   useEffect(() => { void reload().catch(error => setError(errorMessage(error))).finally(() => setLoading(false)) }, [])
   async function run(type: string, payload: unknown) {
@@ -37,10 +37,10 @@ export function ShopDesk() {
   return <DeskShell view={view} counts={{ orders: open }} host={host} actor={actor ?? undefined} search={label ? { label, value: query, onChange: setQuery } : undefined}>
     <HydrationUnit><div className="st-messages" aria-live="polite">{loading && <p role="status" className="st-loading">Loading your shop…</p>}{error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}</div></HydrationUnit>
     {state ? <People.Provider value={state.people}>
-      {view === 'orders' && <OrdersView orders={state.orders} audit={state.audit} query={query} busy={busy} run={run} canApprove={canApprove} refresh={() => { setError(''); void reload().catch(error => setError(errorMessage(error))) }} />}
-      {view === 'products' && <ProductsView products={state.products} query={query} busy={busy} run={run} canApprove={canApprove} />}
+      {view === 'orders' && <OrdersView state={state} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} refresh={() => { setError(''); void reload().catch(error => setError(errorMessage(error))) }} />}
+      {view === 'products' && <ProductsView products={state.products} audit={state.audit} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} />}
       {view === 'move-in' && (canApprove ? <MoveIn reload={reload} /> : <Section title="Move in from Shopify"><p>Only an owner or administrator can import products.</p></Section>)}
-      {view === 'history' && <Activity state={state} />}
+      {view === 'history' && <Activity state={state} query={query} />}
       {view === 'settings' && <Settings state={state} owner={owner} busy={busy} run={run} reload={reload} />}
     </People.Provider> : !loading && <Section title="Shop desk unavailable"><p>Sign in with your operator account to manage this shop. If you are already signed in, resolve the error above and refresh.</p><a href="/signin?returnTo=%2Fapp">Sign in</a></Section>}
   </DeskShell>

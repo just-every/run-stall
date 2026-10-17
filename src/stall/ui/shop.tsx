@@ -35,9 +35,10 @@ export function Shop() {
     <Section title="Products" className="st-store-panel"><div className="st-row"><p>Stock is checked again when you continue to payment.</p><button className="st-secondary" onClick={() => void load()} disabled={loading || busy}>Refresh availability</button></div>
       {loading && <p role="status">Checking available products with Pier…</p>}
       {error && <Notice error>{error}</Notice>}
-      {!loading && !catalogue && <><Empty><h3>The shop is not ready for orders</h3><p>Live stock and payment connections need to be available before checkout can open. Please try again later.</p></Empty><ProviderLinks /></>}
-      {catalogue && !catalogue.checkoutReady && <><Notice>Payments are not available yet. The shop owner needs to connect Stripe checkout and its payment confirmation webhook before orders can be accepted.</Notice><ProviderLinks /></>}
-      {catalogue && !items.length && <><Empty><h3>No products available yet</h3><p>The owner is preparing the catalog. Check back soon.</p></Empty><ProviderLinks /></>}
+      {!loading && !catalogue && <Empty><h3>The shop is not ready for orders</h3><p>Live stock and payment connections need to be available before checkout can open. Please try again later.</p></Empty>}
+      {catalogue && !catalogue.checkoutReady && <Notice>Payments are not available yet. The shop owner needs to connect Stripe checkout and its payment confirmation webhook before orders can be accepted.</Notice>}
+      {catalogue && !items.length && <Empty><h3>No products available yet</h3><p>The owner is preparing the catalog. Check back soon.</p></Empty>}
+      {!loading && (!catalogue || !catalogue.checkoutReady || !items.length) && <ProviderLinks />}
       {!!items.length && <form className="st-shop-layout" onSubmit={event => void checkout(event)}>
         <div className="st-product-grid">{items.map(item => <div className="st-product st-stack" key={item.sku}><div><small>{item.sku}</small><h3>{item.name}</h3></div><p>{item.description}</p><div className="st-row"><strong>{money(item.unitCents)}</strong><span>{Number(item.available) > 0 ? `${item.available} available` : 'Sold out'}</span></div><label><span className="st-sr-only">Quantity for {item.name}</span><input type="number" min="0" max={Math.floor(Number(item.available))} step="1" inputMode="numeric" value={quantities[item.sku] ?? ''} placeholder="0" disabled={busy || Number(item.available) <= 0} onChange={event => { changed(); setQuantities(current => ({ ...current, [item.sku]: event.target.value })) }} /></label></div>)}</div>
         {invalid && <Notice error>Choose whole quantities within the available stock.</Notice>}

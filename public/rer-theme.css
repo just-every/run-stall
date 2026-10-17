@@ -100,6 +100,11 @@ html.rer-themed dt { padding: 10px 0 0; font-size: 13px; }
 html.rer-themed dd { padding: 0 0 10px; margin: 0; border-bottom: 1px solid var(--line); color: var(--rer-text); font-weight: 500; }
 @media (max-width: 600px) { html.rer-themed body { padding: 40px 16px 64px; } html.rer-themed main { padding: 28px 20px 24px; } html.rer-themed h1 { font-size: 26px; } html.rer-themed .brand, html.rer-themed .rer-brand { font-size: 24px; margin-bottom: 22px; } }
 
+/* The Lobby's one button is the app's tangerine pill: flat fill, no drop
+   shadow. html[data-state] outranks the Lobby's own .btn rule. */
+html[data-state] .door .btn { background: var(--tangerine-press); color: #fff; box-shadow: none; }
+html[data-state] .door .btn:hover { background: #e45204; }
+
 /* Base's Run page (/run) and not-found page, in the homepage's look: the
    heavy headline, white step cards, tangerine numerals and the dark code cards. */
 body:has(> header.bar) { background: radial-gradient(55% 40% at 50% 0, var(--tangerine-wash), transparent 70%), var(--paper); }

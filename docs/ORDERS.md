@@ -8,7 +8,7 @@ Customers select products at `/shop`, enter their email, select **Review order**
 
 | State | What to do |
 | --- | --- |
-| **checkout pending** or **awaiting payment** | Payment is not confirmed. Use **Reconcile / retry pending work** to check the existing Stripe operation. |
+| **checkout pending** or **awaiting payment** | Payment is not confirmed. Use **Reconcile** to check the existing Stripe operation. |
 | **paid** | Payment has been verified. Reconcile to complete or check the Pier reservation. |
 | **shortfall** | Payment arrived, but stock could not be fully reserved. Receive or reallocate stock in Pier, then reconcile this order. |
 | **reserved** | The paid order's stock is reserved in Pier. Prepare shipping. |
@@ -21,7 +21,9 @@ Stall checks the verified payment's session, amount and currency before recordin
 1. Check the purchased lines and **Delivery address**.
 2. Under **Prepare shipping**, enter a **Shipping reference**, such as your tracking reference, then select **Prepare shipping for approval**.
 3. Review the saved **Shipping · draft** reference and order lines. Select **Approve shipping · revision …**.
-4. Check for **shipped** and **Shipping has been confirmed by Pier.** If confirmation is pending, use **Reconcile / retry pending work**.
+4. Check for **shipped** and **Shipping has been confirmed by Pier.** If confirmation is pending, use **Reconcile**.
+
+To change a prepared shipping reference or refund before approval, select **Edit** beside the approve button and prepare it again; the new draft replaces the old one. **Needs action** lists drafts the shop agent prepared first, each with its **Agent note**.
 
 Approval dispatches the reserved lines through Pier. Stall does not book a courier, calculate shipping rates or print labels; arrange the physical delivery yourself.
 
@@ -29,7 +31,7 @@ Approval dispatches the reserved lines through Pier. Stall does not book a couri
 
 Refunds require a paid order with confirmed shipping. The desk prepares a partial refund for one line and quantity; the amount must be less than the order total.
 
-1. Open **Prepare a one-line partial refund** on the shipped order.
+1. Open **More actions → Prepare a one-line partial refund** on the shipped order.
 2. Choose **Order line**, enter **Refund quantity** and a **Reason**, and inspect **Refund · …**. Stall checks the remaining unrefunded quantity and paid amount.
 3. Select **Prepare partial refund**, then review the saved line, quantity, reason and amount.
 4. Select **Approve … refund · revision …**. This records your approval and asks Stripe for that refund.
@@ -39,9 +41,9 @@ A refund changes money only. Handle a physical return and any restock separately
 
 ## Recover pending provider work
 
-Use **Reconcile / retry pending work** on the existing order when a payment, reservation, shipment or refund needs attention. A recorded approval can remain pending while a provider is unavailable.
+Use **Reconcile** on the existing order when a payment, reservation, shipment or refund needs attention. A recorded approval can remain pending while a provider is unavailable.
 
-If Stripe completed an operation but its result was lost, inspect that operation in your Stripe account. Expand **Recover an existing provider operation**, verify the amount and order, and enter its existing Checkout session ID or select the saved refund and enter its Stripe refund ID. Select **Reconcile existing provider IDs**.
+If Stripe completed an operation but its result was lost, inspect that operation in your Stripe account. Expand **More actions → Recover an existing provider operation**, verify the amount and order, and enter its existing Checkout session ID or select the saved refund and enter its Stripe refund ID. Select **Reconcile existing provider IDs**.
 
 Keep the same order and provider operation. Creating a replacement to recover a timeout can create another payment or stock effect. Keep the original Stripe account and Pier origin for existing orders. For API recovery and retry limits, see [Commands and recovery](COMMANDS.md) and [Connections](CONNECTIONS.md).
 

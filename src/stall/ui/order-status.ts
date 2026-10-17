@@ -14,6 +14,18 @@ export function needs(order: Order): string | null {
   return null
 }
 
+/** The draft a person can approve now (shipping or a refund), with who prepared it. */
+export function draftOf(order: Order) {
+  const shipment = order.shipment?.status === 'draft' ? order.shipment : undefined
+  const refund = order.refunds.find(refund => refund.status === 'draft')
+  return shipment ? { kind: 'shipment' as const, by: shipment.preparedBy } : refund ? { kind: 'refund' as const, by: refund.preparedBy, refund } : null
+}
+export const agentDrafted = (order: Order) => !!draftOf(order)?.by.startsWith('agent:')
+
+/** True when reconcile has work to retry: payment or stock not settled, or a provider result still pending. */
+export const pendingWork = (order: Order) => ['awaiting_payment', 'checkout_pending', 'paid', 'shortfall'].includes(order.status)
+  || order.shipment?.status === 'pending' || order.refunds.some(refund => refund.status === 'pending')
+
 export const orderTabs = [
   { id: 'needs', label: 'Needs action', counted: true, keep: (order: Order) => needs(order) !== null },
   { id: 'unfulfilled', label: 'Unfulfilled', counted: true, keep: (order: Order) => ['paid', 'reserved', 'shortfall'].includes(order.status) },

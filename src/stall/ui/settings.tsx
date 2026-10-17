@@ -6,7 +6,7 @@ import { Portability } from './portability'
 import { AgentCredential } from './agent-credential'
 import { CustomerErasure } from './data'
 
-const providers: Record<string, [string, string]> = { pier: ['Pier stock', 'Catalogue stock, reservations and dispatch'], stripe: ['Stripe checkout', 'Hosted checkout and refunds on your Stripe account'], webhook: ['Stripe webhooks', 'Signed payment confirmations'] }
+export const providers: Record<string, [string, string]> = { pier: ['Pier stock', 'Catalogue stock, reservations and dispatch'], stripe: ['Stripe checkout', 'Hosted checkout and refunds on your Stripe account'], webhook: ['Stripe webhooks', 'Signed payment confirmations'] }
 export function Settings({ state, owner, busy, run, reload }: { state: State; owner: boolean; busy: boolean; run: Run; reload: () => Promise<void> }) {
   return <div className="st-settings">
     <h1>Settings</h1>

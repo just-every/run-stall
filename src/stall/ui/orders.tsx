@@ -1,17 +1,19 @@
 // The Orders workspace (the owner's pick): status tabs, a dense order table and
-// the selected order's panel. Rows a person must act on carry a tangerine dot.
+// the selected order's panel. Rows a person must act on carry a tangerine dot;
+// Needs action opens on the shop agent's drafts, then the most urgent.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { HydrationUnit } from '../../base/hydration/unit'
 import type { Order, Run, State } from './types'
 import { money } from './api'
 import { Badge, Empty } from './primitives'
 import { placeLine, shortId, whenLabel } from './presentation'
-import { carrierOf, fulfilmentPill, itemCount, matches, needs, orderTabs, paymentPill, type OrderTab } from './order-status'
+import { agentDrafted, carrierOf, fulfilmentPill, itemCount, matches, needs, orderTabs, paymentPill, type OrderTab } from './order-status'
 import { OrderPanel } from './order-panel'
+import { Readiness } from './readiness'
 import { Icon } from './icons'
 
 const urgency = ['Shortfall', 'Refund failed', 'Refund draft', 'Shipping draft', 'Not reserved']
-const rank = (order: Order) => { const need = needs(order); const at = need ? urgency.indexOf(need) : -1; return at < 0 ? urgency.length : at }
+const rank = (order: Order) => { if (agentDrafted(order)) return -1; const need = needs(order); const at = need ? urgency.indexOf(need) : -1; return at < 0 ? urgency.length : at }
 const newest = (a: Order, b: Order) => b.createdAt.localeCompare(a.createdAt)
 /** An email that wraps after its @ rather than mid-word. */
 const breakable = (email: string) => { const at = email.indexOf('@'); return at < 0 ? email : <>{email.slice(0, at + 1)}<wbr />{email.slice(at + 1)}</> }
@@ -21,7 +23,7 @@ function OrderRow({ order, selected, now, onSelect }: { order: Order; selected: 
   return <tr className={selected ? 'is-selected' : undefined} onClick={onSelect}>
     <td data-label="Order"><button className="st-order-id" aria-pressed={selected} onClick={event => { event.stopPropagation(); onSelect() }}>{flagged && <span className="st-flag" title="Needs a person" aria-hidden="true" />}<span className="st-sr-only">Order </span>{shortId(order.id)}</button></td>
     <td data-label="Time" className="st-muted-cell">{whenLabel(order.createdAt, now)}</td>
-    <td data-label="Customer" className="st-customer">{order.shippingDetails?.name ?? (order.customerEmail ? breakable(order.customerEmail) : 'Customer details erased')}<small>{placeLine(order.shippingDetails?.address) || (order.shippingDetails ? '' : order.customerEmail ? 'No delivery address yet' : '')}</small></td>
+    <td data-label="Customer" className="st-customer"><span className="st-customer-name" title={order.shippingDetails?.name ?? order.customerEmail ?? undefined}>{order.shippingDetails?.name ?? (order.customerEmail ? breakable(order.customerEmail) : 'Customer details erased')}</span><small title={placeLine(order.shippingDetails?.address) || undefined}>{placeLine(order.shippingDetails?.address) || (order.shippingDetails ? '' : order.customerEmail ? 'No delivery address yet' : '')}</small></td>
     <td data-label="Items" className="st-muted-cell">{itemCount(order)}</td>
     <td data-label="Total" className="st-num st-money">{money(order.totalCents)}</td>
     <td data-label="Payment"><Badge value={payment} tone={paymentTone}>{payment}</Badge></td>
@@ -30,11 +32,15 @@ function OrderRow({ order, selected, now, onSelect }: { order: Order; selected: 
   </tr>
 }
 
-export function OrdersView({ orders, audit, query, busy, run, canApprove, refresh }: { orders: Order[]; audit: State['audit']; query: string; busy: boolean; run: Run; canApprove: boolean; refresh: () => void }) {
-  const [tab, setTab] = useState<OrderTab>(() => orders.some(order => needs(order)) ? 'needs' : 'all')
-  const [selectedId, setSelectedId] = useState(''), [now, setNow] = useState(() => Date.now())
+/** `focus` is an order id from a link (#orders/<id>), opened in the tab that holds it. */
+export function OrdersView({ state, focus, query, busy, run, canApprove, refresh }: { state: State; focus?: string; query: string; busy: boolean; run: Run; canApprove: boolean; refresh: () => void }) {
+  const { orders, audit } = state
+  const tabFor = (id?: string) => { const order = orders.find(order => order.id === id); return order ? needs(order) ? 'needs' : 'all' : orders.some(order => needs(order)) ? 'needs' : 'all' }
+  const [tab, setTab] = useState<OrderTab>(() => tabFor(focus))
+  const [selectedId, setSelectedId] = useState(focus ?? ''), [now, setNow] = useState(() => Date.now())
   const panel = useRef<HTMLElement>(null)
   useEffect(() => setNow(Date.now()), [orders])
+  useEffect(() => { if (focus && orders.some(order => order.id === focus)) { setTab(tabFor(focus)); setSelectedId(focus) } }, [focus])
   const shown = useMemo(() => {
     const keep = orderTabs.find(item => item.id === tab)!.keep
     const list = orders.filter(order => keep(order) && matches(order, query)).sort(newest)
@@ -50,7 +56,7 @@ export function OrdersView({ orders, audit, query, busy, run, canApprove, refres
   const weekAgo = now - 7 * 86400000
   const agentOrders = new Set(audit.filter(event => event.actor.startsWith('agent:') && Date.parse(event.at) >= weekAgo && orders.some(order => order.id === event.subject)).map(event => event.subject)).size
   const waiting = orders.filter(order => needs(order)).length
-  return <div className={`st-orders-layout${selected ? '' : ' is-single'}`} id="orders">
+  return <div className={`st-orders-layout${selected || !orders.length ? '' : ' is-single'}`} id="orders">
     <HydrationUnit><section className="st-orders" aria-labelledby="orders-title">
       <div className="st-view-head"><h1 id="orders-title">Orders</h1><button className="st-secondary" disabled={busy} onClick={refresh}>Refresh shop</button></div>
       <nav className="st-tabs" aria-label="Order status">{orderTabs.map(item => { const count = item.counted ? orders.filter(item.keep).length : 0; return <button key={item.id} aria-current={tab === item.id ? 'true' : undefined} onClick={() => { setTab(item.id); setSelectedId('') }}>{item.label}{!!count && <span className="st-tab-count">{count}</span>}</button> })}</nav>
@@ -67,5 +73,6 @@ export function OrdersView({ orders, audit, query, busy, run, canApprove, refres
         next={position >= 0 && position < shown.length - 1 ? () => select(shown[position + 1], false) : undefined}
         footer={<p className="st-agent-line"><Icon name="agent" /><span>Shop agent prepared work on {agentOrders} order{agentOrders === 1 ? '' : 's'} this week, <strong>{waiting ? `${waiting} need${waiting === 1 ? 's' : ''} you.` : 'nothing needs you.'}</strong></span></p>} />
     </aside></HydrationUnit>}
+    {!orders.length && <HydrationUnit><aside className="st-order-panel" aria-label="Before your first order"><Readiness state={state} /></aside></HydrationUnit>}
   </div>
 }
