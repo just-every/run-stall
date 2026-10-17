@@ -1,5 +1,7 @@
 # Stall target product contract
 
+## Product target
+
 Target approved scope: **16 October 2026**. First buyer: a US small retailer or maker selling physical goods in **USD** through an owned branded online store.
 
 Stall replaces the online-store job sold by **Shopify, Squarespace Commerce, BigCommerce and WooCommerce**: build and merchandise a store, attract and convert shoppers, take payment, deliver orders, support returns and account for the result. **Medusa, Saleor and Fourthwall** are additional switching/extension reference points. This is the product being built towards, not a description of the current release. No homepage, UI or running behavior changes are authorized by this document round.
@@ -7,6 +9,12 @@ Stall replaces the online-store job sold by **Shopify, Squarespace Commerce, Big
 The core records are stores/themes/pages, collections/products/variants/media/custom fields, stock modes/store-managed quantities/stock-provider mappings/holds, carts/quotes, customers/consent/storefront event preferences, promotions/gift balances, tax/delivery quotes, orders/payments, shipments/returns/exchanges/refunds, messages, channel listings, accounting postings and attributable work history. Every record has an explicit store, identity, revision/state and permission boundary appropriate to its job. Historical imports retain provenance and never become current payment or stock authority.
 
 A single switching journey runs from migration and domain cutover through catalogue discovery, checkout, fulfilment, service, return and reconciled books. The clauses specify buyer behavior and the public-door evidence needed to call it complete. Provider test environments/network-edge fakes establish local logic only; live account, domain, carrier, wallet-device and hosted delivery acceptance must be recorded separately. Fixtures are test-only; production has no invented stock, orders, provider success or fallback service.
+
+| | |
+| --- | --- |
+| Category | Ecommerce platforms (online storefronts) |
+| Incumbents a buyer switches from | Shopify, Squarespace Commerce, BigCommerce, WooCommerce, Medusa, Saleor, Fourthwall |
+| First buyer | A US small retailer or maker selling physical goods in USD through an owned branded online store |
 
 ## Published clauses
 
@@ -334,86 +342,92 @@ A single switching journey runs from migration and domain cutover through catalo
 
 The target adapters must verify the merchant-specific source version, permissions and extraction coverage. Official references informing that work are [Shopify product CSV](https://help.shopify.com/en/manual/products/import-export/using-csv) and [order exports](https://help.shopify.com/en/manual/fulfillment/managing-orders/exporting-orders), [Squarespace products](https://support.squarespace.com/hc/en-us/articles/360000694948-Exporting-products-to-a-csv) and [orders](https://support.squarespace.com/hc/en-us/articles/206540677-Export-Commerce-orders), [BigCommerce management APIs](https://docs.bigcommerce.com/developer/api-reference/about-our-apis) and [customers/subscribers](https://docs.bigcommerce.com/developer/docs/admin/customers/customers-and-subscribers), [WooCommerce REST](https://woocommerce.github.io/woocommerce-rest-api-docs/), [Medusa Admin](https://docs.medusajs.com/api/admin), [Saleor GraphQL](https://docs.saleor.io/api-reference/) and [Fourthwall commerce APIs](https://docs.fourthwall.com/llms.txt). Export formats can omit data that another authorized API or reviewed supplement must recover; those references establish source surfaces, not completed Stall adapters (MIGRATE-006).
 
-## Implementation status
+## Status
+
+Judged from the code and tests at commit `7eadb4b8faebf02302be95217ca8c2807fe5d986` (16 October 2026).
 
 Judged against `main` **7eadb4b8faebf02302be95217ca8c2807fe5d986**, the same commit as the supplied 16 October code audit. `main` has since advanced to `f8e62b3` (Pier and Stripe secrets optional at deploy, one-line install docs, logout event key, a TanStack Start security upgrade, non-backtracking mail parsing, and repeated HTML-tag stripping in `src/stall/imports/description.ts`); the only `src/stall` change hardens BASE-001's existing import-sanitizing slice and no test file changed, so these statuses still hold. Optional deploy secrets do not make selling possible without Pier: checkout still binds every order to a Pier origin and customer (STOCK-003). The audit's repeated vendor observations are consolidated into buyer clauses below; a broader clause stays partial even if one underlying inventory row was done. In particular, Pier's existing multi-bin paid reservation is not expiring checkout holds or configurable locations; the responsive narrow shop is not the complete mobile/account/return experience. Status is static code/test evidence, not a claim every cited test was freshly run in this writing round.
 
 `done` means the stated current slice has implementation and a relevant checked-in public journey/test. `partial` means cited code implements only part or the full public journey remains unproven. `missing` means no implementation of the named promise was found. Target/provider acceptance remains required by ACCEPTANCE.md. New product data must extend archive, security, audit and erasure coverage; current done slices do not automatically prove future records. Existing seed metadata describes the current release and does not limit this target.
 
-**73 clauses: 6 done, 31 partial, 36 missing.**
+| Clauses | Done | Partial | Missing | Total |
+| --- | ---: | ---: | ---: | ---: |
+| Published | 1 | 0 | 0 | 1 |
+| Target and push further | 5 | 31 | 36 | 72 |
+| All | 6 | 31 | 36 | 73 |
 
-| Clause | Status | Evidence path and remaining work |
-| --- | --- | --- |
-| HTTP-001 | done | `src/server.ts`; `src/base/static-assets.ts`; `tests/runtime.mjs`; `tests/ui/journey.mjs` Existing runtime and run-site journeys cover these doors; hosted performance is unmeasured. |
-| STORE-001 | partial | `src/stall/ui/shop.tsx`; `src/stall/ui/primitives.tsx` A fixed branded storefront exists; the theme library, switching, duplication, export/re-import, visual building, storefront password, domain management, revision controls and a measured performance run are absent. |
-| STORE-002 | missing | No implementation found. Target journey not implemented. |
-| STORE-003 | missing | No implementation found. Target journey not implemented, including the contact form and newsletter signup. |
-| MOBILE-001 | partial | `src/stall/ui/shop.tsx`; `src/stall/ui/app.tsx`; `tests/ui/journey.mjs` The existing narrow shop/desk journey covers both widths; expanded flows and full accessibility conformance are unimplemented or unverified. |
-| MOBILE-002 | missing | No implementation found. Target journey not implemented. |
-| CATALOG-001 | partial | `src/stall/products.ts`; `src/stall/model.ts`; `tests/api/commerce.test.mjs` SKU/name/description/exact-cent price and reviewed publication exist; variants, media, attributes, custom fields, personalization, cost, shipping and customs fields do not. |
-| CATALOG-002 | partial | `src/stall/imports/service.ts`; `src/stall/imports/targets.ts`; `tests/api/imports.test.mjs` Reviewed, journaled, reversible six-column Shopify product CSV import exists; broad schemas, bulk editing, quantity and inventory-CSV updates and product CSV export are absent. |
-| STOCK-001 | partial | `src/stall/pier.ts`; `src/stall/payments.ts`; `tests/api/commerce.test.mjs` Pier bin availability and paid-order reservations exist; selling still requires Pier (checkout binds every order to the Pier origin/customer). Configurable location/backorder policy, Stall-originated quantity adjustments and alternate adapters are absent. |
-| STOCK-002 | partial | `src/stall/checkout.ts`; `src/stall/payments.ts`; `src/stall/orders.ts`; `tests/api/commerce.test.mjs` Checks before checkout and post-payment reservation/reconciliation exist; prepayment holds, expiry and shopper shortfall resolution do not. |
-| STOCK-003 | missing | `src/stall/checkout.ts`; `src/stall/fulfilment.ts` No implementation found: checkout and dispatch require Pier; untracked variants, store-managed counts and the opening-balance handoff are absent. |
-| CART-001 | partial | `src/stall/ui/shop.tsx`; `src/stall/checkout.ts`; `src/stall/stripe.ts`; `tests/api/commerce.test.mjs` A transient basket, reviewed product total and email guest handoff exist; persistence/accounts/native address and delivery steps, personalization and merchant checkout fields are absent, and hosted addresses are AU-only. |
-| PAY-001 | partial | `src/stall/stripe.ts`; `src/stall/refunds.ts`; `tests/api/commerce.test.mjs` Stripe card Checkout/refunds exist in AUD; named wallets, PayPal, pay-later, manual methods and USD/US acceptance are unimplemented or untested. |
-| PAY-002 | partial | `src/stall/stripe.ts`; `src/stall/payments.ts`; `src/stall/orders.ts` Canonical paid-session retrieval exists; distinct authorization/capture, void, dispute evidence and fee lifecycle handling is absent. |
-| PAY-003 | done | `src/stall/checkout.ts`; `src/stall/payments.ts`; `src/stall/pier.ts`; `tests/api/commerce.test.mjs` The current AUD Stripe/Pier flow proves this invariant; it does not establish the broader USD/multiple-provider requirements. |
-| PROMO-001 | missing | No implementation found. Target journey not implemented. |
-| PROMO-002 | missing | No implementation found. Target journey not implemented. |
-| TAX-001 | missing | No implementation found. Target journey not implemented. |
-| RISK-001 | missing | No implementation found. Target journey not implemented. |
-| SHIP-001 | missing | No implementation found. Target journey not implemented. |
-| SHIP-002 | missing | No implementation found. Target journey not implemented. |
-| SHIP-003 | partial | `src/stall/fulfilment.ts`; `src/stall/pier.ts`; `tests/api/commerce.test.mjs` One approved whole-order Pier shipment/reference exists; splits, carrier tracking and delivery messaging are absent. |
-| SHIP-004 | missing | No implementation found. Target journey not implemented: products carry no shipping profile, weight or rate data. |
-| SHIP-005 | missing | `src/stall/fulfilment.ts` No implementation found: fulfilment prepares and approves one whole-order Pier shipment at a time; batch selection, labels and combined documents are absent. |
-| SHIP-006 | missing | No implementation found. Target journey not implemented: no ShipStation or 3PL order export or tracking write-back exists. |
-| SHIP-007 | missing | `src/stall/fulfilment.ts` No implementation found: fulfilment has only an approved whole-order Pier shipment; pickup and local-delivery states, notices, lists and uncollected-order handling are absent. |
-| ORDER-001 | partial | `src/stall/model.ts`; `src/stall/orders.ts`; `src/stall/ui/orders.tsx`; `src/stall/ui/presentation.tsx` Payment/reservation/shipment/refund records and a one-page desk exist; broader search, notes, manual orders and US time-zone behavior are absent (draft invoices are ORDER-005); current times use Australia/Perth. |
-| ORDER-002 | partial | `src/stall/fulfilment.ts`; `src/stall/pier.ts`; `tests/api/commerce.test.mjs` Proven for current whole-order Pier shipments; alternate-connector dispatch and manual fulfilment with typed tracking are absent, and carrier/partial-fulfilment breadth remains SHIP-002/003. |
-| ORDER-003 | partial | `src/stall/refunds.ts`; `src/stall/orders.ts`; `tests/api/commerce.test.mjs` The AUD shipped-line partial-refund flow is covered; shipping-only and goodwill refunds without returned lines are absent (refund amounts are computed only from purchased lines), and pre-shipment cancellation, tax adjustments and return receipt remain separate target work. |
-| ORDER-004 | partial | `src/stall/store.ts`; `src/stall/fulfilment.ts`; `src/stall/refunds.ts` Revision checks exist for current drafts/effects; general edits, cancellation and claims are absent. |
-| ORDER-005 | missing | `src/stall/checkout.ts` No implementation found: orders start only from storefront checkout; staff drafts, custom lines and invoice links are absent. |
-| RETURN-001 | missing | No implementation found. Target journey not implemented. |
-| RETURN-002 | partial | `src/stall/refunds.ts`; `tests/api/commerce.test.mjs` Reconciled line refunds deliberately avoid restocking; return authorization, labels, inspection and restock workflow are absent. |
-| CUSTOMER-001 | partial | `src/stall/model.ts`; `src/stall/store.ts`; `tests/api/data.test.mjs` Orders retain buyer contact/address and commercial history; customer profiles, shopper authentication and self-service history are absent. |
-| CUSTOMER-002 | partial | `src/stall/erasure.ts`; `src/stall/portability-policy.mjs`; `tests/api/data.test.mjs` Owner-directed contact erasure and later-journal fencing exist; consent/preferences, the storefront privacy banner, account requests and marketing propagation are absent. |
-| MAIL-001 | missing | No implementation found. Shared sign-in mail infrastructure does not implement order/customer transactional notifications. |
-| RECOVERY-001 | missing | No implementation found. Target journey not implemented. |
-| MARKET-001 | missing | No implementation found. Target journey not implemented. |
-| CHANNEL-001 | missing | No implementation found. Target journey not implemented. |
-| CHANNEL-002 | missing | No implementation found. Target journey not implemented. |
-| CHANNEL-003 | missing | No implementation found. Target journey not implemented. |
-| CHANNEL-004 | missing | No implementation found. Target journey not implemented. |
-| REVIEWS-001 | missing | No implementation found. Target journey not implemented. |
-| ANALYTICS-001 | missing | No implementation found. Target journey not implemented. |
-| ACCOUNT-001 | missing | No implementation found. Target journey not implemented. |
-| MIGRATE-001 | partial | `src/stall/imports/csv.ts`; `src/stall/imports/service.ts`; `tests/api/imports.test.mjs` Only a bounded six-column product CSV stages simple unpublished products; full Shopify objects, media, variants, customers, orders, content pages, blogs, menus, discounts and redirects are absent. |
-| MIGRATE-002 | missing | No implementation found. Target journey not implemented. |
-| MIGRATE-003 | missing | No implementation found. Target journey not implemented. |
-| MIGRATE-004 | missing | No implementation found. Target journey not implemented. |
-| MIGRATE-005 | missing | No implementation found. Target journey not implemented. |
-| MIGRATE-006 | partial | `src/stall/imports/service.ts`; `src/stall/imports/targets.ts`; `tests/api/imports.test.mjs` Current product import binds reviewed source/native snapshots and protects undo; complete cross-platform cutover, media, redirects, customer activation and outstanding liability handling are absent. |
-| MIGRATE-007 | missing | `src/stall/imports/targets.ts` No implementation found: the only import target is products; review import, mapping and rendering are absent. |
-| EXPORT-001 | partial | `src/stall/tools.ts`; `src/stall/portability-policy.mjs`; `tests/api/data.test.mjs` Complete supported commercial archives exist; business CSVs and new target-object exports are absent. |
-| ROLE-001 | partial | `src/stall/access.ts`; `src/stall/model.ts`; `src/stall/api.ts`; `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs` Native owner/admin/member roles and revocation exist; functional staff scopes, refund limits and customer/app roles are absent. |
-| AGENT-001 | partial | `src/stall/api.ts`; `src/stall/products.ts`; `src/stall/fulfilment.ts`; `src/stall/refunds.ts`; `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs` All three preparation commands and human-only approval guards exist; checked-in agent journey directly exercises product drafting, not agent shipment/refund preparation end to end. |
-| API-001 | partial | `src/stall/api.ts`; `src/stall/payments.ts`; `src/stall/tools.ts`; `tests/api/commerce.test.mjs` Current JSON commerce doors and incoming Stripe signatures exist; versioned customer/cart APIs, external app scopes and outgoing event subscriptions are absent. |
-| FLOW-001 | partial | `src/stall/payments.ts`; `src/stall/orders.ts` A fixed paid-event reservation transition exists; configurable rules, timers, tasks and notifications are absent. |
-| INTEGRATION-001 | partial | `src/stall/orders.ts`; `src/stall/stripe.ts`; `src/stall/pier.ts`; `src/stall/portability-policy.mjs`; `tests/api/commerce.test.mjs` Stripe/Pier deterministic effects and manual reconciliation exist; generalized connection controls, secret custody and durable jobs for all target providers are absent or unverified. |
-| SECURITY-001 | done | `src/stall/access.ts`; `src/stall/api.ts`; `src/stall/tools.ts`; `tests/api/commerce.test.mjs`; `tests/api/imports.test.mjs`; `tests/api/data.test.mjs` This is the existing native-role security slice, not proof of future customer/app roles or a complete security assessment. |
-| DATA-001 | done | `src/stall/tools.ts`; `src/stall/portability-policy.mjs`; `tests/api/data.test.mjs` The current supported data/archive slice is covered; new target records must join its schema and inactive-restore policy before those clauses can be done. |
-| ERASURE-001 | done | `src/stall/erasure.ts`; `src/stall/portability-policy.mjs`; `tests/api/data.test.mjs` Current customer-contact erasure is covered; broader account/consent deletion remains CUSTOMER-002. |
-| AUDIT-001 | done | `src/stall/access.ts`; `src/stall/api.ts`; `src/stall/store.ts`; `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs` Current actions write st_audit and commercial history; the desk exposes its latest 200 rows. A cryptographic/tamper-evident audit is not claimed. |
-| OPS-001 | partial | `SEED-COMMAND-CONTRACT.md`; `scripts/operations-config.mjs`; `tests/clone-journey.mjs`; `tests/runtime.mjs` The RER command path and local clone/runtime journeys exist; operating costs/capacity and generalized background/provider health are unmeasured or absent. |
-| BASE-001 | partial | `src/stall/imports/description.ts`; `src/stall/imports/csv.ts`; `src/stall/portability-policy.mjs`; `tests/api/imports.test.mjs`; `tests/api/data.test.mjs` Current plain-text/import and archive policies are inspectable; future rich content/media safety and a full Base conformance assessment are not established. |
-| AI-001 | partial | `src/stall/payments.ts`; `src/stall/orders.ts`; `tests/api/commerce.test.mjs` Paid/shortfall states and manual lost-response recovery exist; detection agent, grounded shopper replies, options and closure workflow are absent. |
-| AI-002 | partial | `src/stall/refunds.ts`; `tests/api/commerce.test.mjs` Revision-approved reconciled refunds are a foundation; policy reasoning, labels, return receipt, restock and agent follow-through are absent. |
-| AI-003 | missing | No implementation found. Target journey not implemented. |
-| AI-004 | partial | `src/stall/orders.ts`; `src/stall/stripe.ts`; `src/stall/pier.ts`; `tests/api/commerce.test.mjs` Manual Stripe/Pier reconciliation preserves original identities; agent diagnosis, label/mail/channel/ledger recovery and policy execution are absent. |
-| AI-005 | missing | No implementation found. Target journey not implemented. |
-| BOUNDARY-001 | partial | `src/stall/pier.ts`; `src/stall/api.ts` Pier is a separate product adapter today, but mandatory; Mango and alternative-provider handoffs are absent. |
-| EXTEND-001 | missing | No implementation found. Target journey not implemented. |
-| EXPAND-001 | missing | No implementation found. Target journey not implemented. |
-| B2B-001 | missing | No implementation found. Target journey not implemented. |
+| Clause | Title | Kind | Status | Evidence | Gap |
+| --- | --- | --- | --- | --- | --- |
+| `HTTP-001` | Real installed and published HTTP surfaces | published | done | `src/server.ts`; `src/base/static-assets.ts`; `tests/runtime.mjs`; `tests/ui/journey.mjs` |  |
+| `STORE-001` | Merchant themes, page builder and custom domain | target | partial | `src/stall/ui/shop.tsx`; `src/stall/ui/primitives.tsx` | A fixed branded storefront exists; the theme library, switching, duplication, export/re-import, visual building, storefront password, domain management, revision controls and a measured performance run are absent. |
+| `STORE-002` | Navigation, collections and product discovery | target | missing |  | No implementation found. Target journey not implemented. |
+| `STORE-003` | Content, blog, contact, newsletter and search visibility | target | missing |  | No implementation found. Target journey not implemented, including the contact form and newsletter signup. |
+| `MOBILE-001` | Accessible mobile shopping and merchant work | target | partial | `src/stall/ui/shop.tsx`; `src/stall/ui/app.tsx`; `tests/ui/journey.mjs` | The existing narrow shop/desk journey covers both widths; expanded flows and full accessibility conformance are unimplemented or unverified. |
+| `MOBILE-002` | Native merchant apps and timely order attention | target | missing |  | No implementation found. Target journey not implemented. |
+| `CATALOG-001` | Products, variants and media | target | partial | `src/stall/products.ts`; `src/stall/model.ts`; `tests/api/commerce.test.mjs` | SKU/name/description/exact-cent price and reviewed publication exist; variants, media, attributes, custom fields, personalization, cost, shipping and customs fields do not. |
+| `CATALOG-002` | Bulk catalogue operations and portable files | target | partial | `src/stall/imports/service.ts`; `src/stall/imports/targets.ts`; `tests/api/imports.test.mjs` | Reviewed, journaled, reversible six-column Shopify product CSV import exists; broad schemas, bulk editing, quantity and inventory-CSV updates and product CSV export are absent. |
+| `STOCK-001` | Live availability through Pier or another stock system | target | partial | `src/stall/pier.ts`; `src/stall/payments.ts`; `tests/api/commerce.test.mjs` | Pier bin availability and paid-order reservations exist; selling still requires Pier (checkout binds every order to the Pier origin/customer). Configurable location/backorder policy, Stall-originated quantity adjustments and alternate adapters are absent. |
+| `STOCK-002` | Expiring checkout holds and stock race resolution | target | partial | `src/stall/checkout.ts`; `src/stall/payments.ts`; `src/stall/orders.ts`; `tests/api/commerce.test.mjs` | Checks before checkout and post-payment reservation/reconciliation exist; prepayment holds, expiry and shopper shortfall resolution do not. |
+| `STOCK-003` | Store-managed quantities and untracked items without a stock system | target | missing | `src/stall/checkout.ts`; `src/stall/fulfilment.ts` | No implementation found: checkout and dispatch require Pier; untracked variants, store-managed counts and the opening-balance handoff are absent. |
+| `CART-001` | Persistent cart and guest or account checkout | target | partial | `src/stall/ui/shop.tsx`; `src/stall/checkout.ts`; `src/stall/stripe.ts`; `tests/api/commerce.test.mjs` | A transient basket, reviewed product total and email guest handoff exist; persistence/accounts/native address and delivery steps, personalization and merchant checkout fields are absent, and hosted addresses are AU-only. |
+| `PAY-001` | US dollar cards, wallets, PayPal, pay-later and manual payments | target | partial | `src/stall/stripe.ts`; `src/stall/refunds.ts`; `tests/api/commerce.test.mjs` | Stripe card Checkout/refunds exist in AUD; named wallets, PayPal, pay-later, manual methods and USD/US acceptance are unimplemented or untested. |
+| `PAY-002` | Authorization, capture, cancellation and disputes | target | partial | `src/stall/stripe.ts`; `src/stall/payments.ts`; `src/stall/orders.ts` | Canonical paid-session retrieval exists; distinct authorization/capture, void, dispute evidence and fee lifecycle handling is absent. |
+| `PAY-003` | Verified payment and duplicate-safe paid reservation | target | done | `src/stall/checkout.ts`; `src/stall/payments.ts`; `src/stall/pier.ts`; `tests/api/commerce.test.mjs` |  |
+| `PROMO-001` | Discounts, automatic promotions and controlled budgets | target | missing |  | No implementation found. Target journey not implemented. |
+| `PROMO-002` | Gift cards and stored redemption balances | target | missing |  | No implementation found. Target journey not implemented. |
+| `TAX-001` | US sales tax and exemptions | target | missing |  | No implementation found. Target journey not implemented. |
+| `RISK-001` | Fraud indicators and human review | target | missing |  | No implementation found. Target journey not implemented. |
+| `SHIP-001` | Shipping zones, live rates, international USD shipping, pickup and delivery | target | missing |  | No implementation found. Target journey not implemented. |
+| `SHIP-002` | Purchase, print and void carrier labels | target | missing |  | No implementation found. Target journey not implemented. |
+| `SHIP-003` | Split fulfilment, tracking and delivery exceptions | target | partial | `src/stall/fulfilment.ts`; `src/stall/pier.ts`; `tests/api/commerce.test.mjs` | One approved whole-order Pier shipment/reference exists; splits, carrier tracking and delivery messaging are absent. |
+| `SHIP-004` | Shipping profiles for specific products | target | missing |  | No implementation found. Target journey not implemented: products carry no shipping profile, weight or rate data. |
+| `SHIP-005` | Bulk label purchase and batch fulfilment | target | missing | `src/stall/fulfilment.ts` | No implementation found: fulfilment prepares and approves one whole-order Pier shipment at a time; batch selection, labels and combined documents are absent. |
+| `SHIP-006` | Merchant shipping apps and 3PLs as fulfilment connections | target | missing |  | No implementation found. Target journey not implemented: no ShipStation or 3PL order export or tracking write-back exists. |
+| `SHIP-007` | Local pickup and local delivery fulfilment | target | missing | `src/stall/fulfilment.ts` | No implementation found: fulfilment has only an approved whole-order Pier shipment; pickup and local-delivery states, notices, lists and uncollected-order handling are absent. |
+| `ORDER-001` | Complete retail order desk | target | partial | `src/stall/model.ts`; `src/stall/orders.ts`; `src/stall/ui/orders.tsx`; `src/stall/ui/presentation.tsx` | Payment/reservation/shipment/refund records and a one-page desk exist; broader search, notes, manual orders and US time-zone behavior are absent (draft invoices are ORDER-005); current times use Australia/Perth. |
+| `ORDER-002` | Exact shipment approval and one dispatch | target | partial | `src/stall/fulfilment.ts`; `src/stall/pier.ts`; `tests/api/commerce.test.mjs` | Proven for current whole-order Pier shipments; alternate-connector dispatch and manual fulfilment with typed tracking are absent, and carrier/partial-fulfilment breadth remains SHIP-002/003. |
+| `ORDER-003` | Reviewed line refunds without duplicate money movement | target | partial | `src/stall/refunds.ts`; `src/stall/orders.ts`; `tests/api/commerce.test.mjs` | The AUD shipped-line partial-refund flow is covered; shipping-only and goodwill refunds without returned lines are absent (refund amounts are computed only from purchased lines), and pre-shipment cancellation, tax adjustments and return receipt remain separate target work. |
+| `ORDER-004` | Versioned edits, cancellation and claims | target | partial | `src/stall/store.ts`; `src/stall/fulfilment.ts`; `src/stall/refunds.ts` | Revision checks exist for current drafts/effects; general edits, cancellation and claims are absent. |
+| `ORDER-005` | Draft orders, custom lines and payable invoices | target | missing | `src/stall/checkout.ts` | No implementation found: orders start only from storefront checkout; staff drafts, custom lines and invoice links are absent. |
+| `RETURN-001` | Customer self-service returns, cancellations and exchanges | target | missing |  | No implementation found. Target journey not implemented. |
+| `RETURN-002` | Physical receipt, restocking and reconciled resolution | target | partial | `src/stall/refunds.ts`; `tests/api/commerce.test.mjs` | Reconciled line refunds deliberately avoid restocking; return authorization, labels, inspection and restock workflow are absent. |
+| `CUSTOMER-001` | Customer directory, accounts and order history | target | partial | `src/stall/model.ts`; `src/stall/store.ts`; `tests/api/data.test.mjs` | Orders retain buyer contact/address and commercial history; customer profiles, shopper authentication and self-service history are absent. |
+| `CUSTOMER-002` | Consent, preferences and customer privacy | target | partial | `src/stall/erasure.ts`; `src/stall/portability-policy.mjs`; `tests/api/data.test.mjs` | Owner-directed contact erasure and later-journal fencing exist; consent/preferences, the storefront privacy banner, account requests and marketing propagation are absent. |
+| `MAIL-001` | Transactional confirmations and delivery evidence | target | missing |  | No implementation found. Shared sign-in mail infrastructure does not implement order/customer transactional notifications. |
+| `RECOVERY-001` | Abandoned-checkout recovery to a valid basket | target | missing |  | No implementation found. Target journey not implemented. |
+| `MARKET-001` | Mango and consent-aware lifecycle marketing connections | target | missing |  | No implementation found. Target journey not implemented. |
+| `CHANNEL-001` | Google Shopping, Meta/Instagram, TikTok Shop and Pinterest | target | missing |  | No implementation found. Target journey not implemented. |
+| `CHANNEL-002` | Marketplace adapters without becoming a marketplace | target | missing |  | No implementation found. Target journey not implemented. |
+| `CHANNEL-003` | Ad pixels, conversion APIs and custom storefront events | target | missing |  | No implementation found. Target journey not implemented. |
+| `CHANNEL-004` | Embeddable Buy Button and checkout links | target | missing |  | No implementation found. Target journey not implemented. |
+| `REVIEWS-001` | Verified reviews, upsells and cross-sells | target | missing |  | No implementation found. Target journey not implemented. |
+| `ANALYTICS-001` | Sales, conversion and contribution margin | target | missing |  | No implementation found. Target journey not implemented. |
+| `ACCOUNT-001` | Reconciled QuickBooks Online and NetSuite posting | target | missing |  | No implementation found. Target journey not implemented. |
+| `MIGRATE-001` | Full reviewed Shopify migration | target | partial | `src/stall/imports/csv.ts`; `src/stall/imports/service.ts`; `tests/api/imports.test.mjs` | Only a bounded six-column product CSV stages simple unpublished products; full Shopify objects, media, variants, customers, orders, content pages, blogs, menus, discounts and redirects are absent. |
+| `MIGRATE-002` | Squarespace Commerce migration | target | missing |  | No implementation found. Target journey not implemented. |
+| `MIGRATE-003` | BigCommerce migration | target | missing |  | No implementation found. Target journey not implemented. |
+| `MIGRATE-004` | WooCommerce and extension migration | target | missing |  | No implementation found. Target journey not implemented. |
+| `MIGRATE-005` | Open-engine and creator-store move-in | target | missing |  | No implementation found. Target journey not implemented. |
+| `MIGRATE-006` | Cutover completeness, source limitations and outstanding liabilities | target | partial | `src/stall/imports/service.ts`; `src/stall/imports/targets.ts`; `tests/api/imports.test.mjs` | Current product import binds reviewed source/native snapshots and protects undo; complete cross-platform cutover, media, redirects, customer activation and outstanding liability handling are absent. |
+| `MIGRATE-007` | Product review and rating migration | target | missing | `src/stall/imports/targets.ts` | No implementation found: the only import target is products; review import, mapping and rendering are absent. |
+| `EXPORT-001` | Business CSVs and complete merchant exit | target | partial | `src/stall/tools.ts`; `src/stall/portability-policy.mjs`; `tests/api/data.test.mjs` | Complete supported commercial archives exist; business CSVs and new target-object exports are absent. |
+| `ROLE-001` | Staff and app least privilege | target | partial | `src/stall/access.ts`; `src/stall/model.ts`; `src/stall/api.ts`; `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs` | Native owner/admin/member roles and revocation exist; functional staff scopes, refund limits and customer/app roles are absent. |
+| `AGENT-001` | Human approval of exact agent drafts | target | partial | `src/stall/api.ts`; `src/stall/products.ts`; `src/stall/fulfilment.ts`; `src/stall/refunds.ts`; `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs` | All three preparation commands and human-only approval guards exist; checked-in agent journey directly exercises product drafting, not agent shipment/refund preparation end to end. |
+| `API-001` | Documented headless API and signed events | target | partial | `src/stall/api.ts`; `src/stall/payments.ts`; `src/stall/tools.ts`; `tests/api/commerce.test.mjs` | Current JSON commerce doors and incoming Stripe signatures exist; versioned customer/cart APIs, external app scopes and outgoing event subscriptions are absent. |
+| `FLOW-001` | Event and scheduled workflows with visible follow-up | target | partial | `src/stall/payments.ts`; `src/stall/orders.ts` | A fixed paid-event reservation transition exists; configurable rules, timers, tasks and notifications are absent. |
+| `INTEGRATION-001` | Owned connections and recoverable external work | target | partial | `src/stall/orders.ts`; `src/stall/stripe.ts`; `src/stall/pier.ts`; `src/stall/portability-policy.mjs`; `tests/api/commerce.test.mjs` | Stripe/Pier deterministic effects and manual reconciliation exist; generalized connection controls, secret custody and durable jobs for all target providers are absent or unverified. |
+| `SECURITY-001` | Guarded native commerce doors | target | done | `src/stall/access.ts`; `src/stall/api.ts`; `src/stall/tools.ts`; `tests/api/commerce.test.mjs`; `tests/api/imports.test.mjs`; `tests/api/data.test.mjs` |  |
+| `DATA-001` | Validated archive and inactive receiving authority | target | done | `src/stall/tools.ts`; `src/stall/portability-policy.mjs`; `tests/api/data.test.mjs` |  |
+| `ERASURE-001` | Owner-directed contact erasure and backup fencing | target | done | `src/stall/erasure.ts`; `src/stall/portability-policy.mjs`; `tests/api/data.test.mjs` |  |
+| `AUDIT-001` | Durable attributable commercial action history | target | done | `src/stall/access.ts`; `src/stall/api.ts`; `src/stall/store.ts`; `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs` |  |
+| `OPS-001` | Owned installation, recovery and explicit operating limits | target | partial | `SEED-COMMAND-CONTRACT.md`; `scripts/operations-config.mjs`; `tests/clone-journey.mjs`; `tests/runtime.mjs` | The RER command path and local clone/runtime journeys exist; operating costs/capacity and generalized background/provider health are unmeasured or absent. |
+| `BASE-001` | Preserved Base guarantees with scoped replacements | target | partial | `src/stall/imports/description.ts`; `src/stall/imports/csv.ts`; `src/stall/portability-policy.mjs`; `tests/api/imports.test.mjs`; `tests/api/data.test.mjs` | Current plain-text/import and archive policies are inspectable; future rich content/media safety and a full Base conformance assessment are not established. |
+| `AI-001` | Operate order exceptions to shopper-approved closure | push-further | partial | `src/stall/payments.ts`; `src/stall/orders.ts`; `tests/api/commerce.test.mjs` | Paid/shortfall states and manual lost-response recovery exist; detection agent, grounded shopper replies, options and closure workflow are absent. |
+| `AI-002` | Manage returns end to end | push-further | partial | `src/stall/refunds.ts`; `tests/api/commerce.test.mjs` | Revision-approved reconciled refunds are a foundation; policy reasoning, labels, return receipt, restock and agent follow-through are absent. |
+| `AI-003` | Improve profitable conversion with measured experiments | push-further | missing |  | No implementation found. Target journey not implemented. |
+| `AI-004` | Recover failed integration work without invented success | push-further | partial | `src/stall/orders.ts`; `src/stall/stripe.ts`; `src/stall/pier.ts`; `tests/api/commerce.test.mjs` | Manual Stripe/Pier reconciliation preserves original identities; agent diagnosis, label/mail/channel/ledger recovery and policy execution are absent. |
+| `AI-005` | Grounded merchandising and channel preparation | push-further | missing |  | No implementation found. Target journey not implemented. |
+| `BOUNDARY-001` | Separate products with usable commerce connections | target | partial | `src/stall/pier.ts`; `src/stall/api.ts` | Pier is a separate product adapter today, but mandatory; Mango and alternative-provider handoffs are absent. |
+| `EXTEND-001` | Subscriptions, POS, digital downloads and creator fulfilment partners | target | missing |  | No implementation found. Target journey not implemented. |
+| `EXPAND-001` | Multiple stores, regions and currencies | target | missing |  | No implementation found. Target journey not implemented. |
+| `B2B-001` | Business buying without absorbing wholesale operations | target | missing |  | No implementation found. Target journey not implemented. |
