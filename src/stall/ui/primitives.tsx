@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
 import { businessTime, humanLabel, shortId, usePerson } from './presentation'
 import { HydrationUnit } from '../../base/hydration/unit'
+import type { Tone } from './order-status'
 export function Notice({ children, error = false }: { children: ReactNode; error?: boolean }) { return <div className={`st-notice ${error ? 'st-error' : ''}`} role={error ? 'alert' : 'status'}>{children}</div> }
-export function Section({ children, id, title }: { children: ReactNode; id?: string; title: string }) { return <HydrationUnit><section className="st-panel st-stack" id={id}><h2>{title}</h2>{children}</section></HydrationUnit> }
-export function Empty({ children }: { children: ReactNode }) { return <div className="st-empty"><svg viewBox="0 0 140 90" aria-hidden="true"><path d="M4 9q0 43 48 40" fill="none" stroke="var(--st-twine)" strokeWidth="3"/><g transform="rotate(-15 88 49)"><path d="m48 31 17-14h60v57H65L48 60Z" fill="var(--st-kraft)"/><circle cx="63" cy="44" r="5" fill="var(--st-paper)" stroke="var(--st-kraft-deep)"/></g></svg><div>{children}</div></div> }
+export function Section({ children, id, title, className = '' }: { children: ReactNode; id?: string; title: string; className?: string }) { return <HydrationUnit><section className={`st-panel st-stack ${className}`} id={id}><h2>{title}</h2>{children}</section></HydrationUnit> }
+export function Empty({ children }: { children: ReactNode }) { return <div className="st-empty"><span className="st-empty-mark" aria-hidden="true"><img src="/brand/mark.svg" width="40" height="41" alt="" /></span><div>{children}</div></div> }
 function RecordedValue({ value, field = '' }: { value: unknown; field?: string }) {
   const person = usePerson()
   if (value == null) return <>Not recorded</>
@@ -14,6 +15,9 @@ function RecordedValue({ value, field = '' }: { value: unknown; field?: string }
   return <>{['by', 'preparedBy', 'actor'].includes(field) ? person(text) : /^\d{4}-\d{2}-\d{2}T/.test(text) ? businessTime(text) : /^[a-f0-9-]{36}$/i.test(text) ? `Record ${shortId(text)}` : ['status', 'state', 'code', 'action', 'severity'].includes(field) ? humanLabel(text) : text}</>
 }
 export function RecordDetail({ value, label }: { value: unknown; label: string }) { return <details><summary>{label}</summary><RecordedValue value={value} /></details> }
-export function Badge({ children, value }: { children?: ReactNode; value: string }) { return <span className={`st-badge ${['Setup required','shortfall','failed'].includes(value) ? 'st-badge-outline' : ''} ${value === 'failed' ? 'st-badge-danger' : ''}`}>{children ?? humanLabel(value)}</span> }
-export function Chrome({ desk = false }: { desk?: boolean }) { return <HydrationUnit><header className="st-header"><a className="st-brand" href={desk ? '/app' : '/shop'}><img src="/brand/mark.svg" width="30" height="30" alt="" /><span data-rer-name>Stall</span></a><nav aria-label="Main navigation"><a href="/shop" aria-current={!desk ? 'page' : undefined}>Shop</a><a href="/app" aria-current={desk ? 'page' : undefined}>Shop desk</a>{desk && <a href="/auth/settings/identity">Account</a>}</nav></header></HydrationUnit> }
+const toneOf = (value: string): Tone => value === 'failed' ? 'bad' : ['Setup required', 'shortfall', 'draft'].includes(value) ? 'need' : undefined
+export function Badge({ children, value, tone = toneOf(value) }: { children?: ReactNode; value: string; tone?: Tone }) { return <span className={`st-badge${tone ? ` st-badge-${tone}` : ''}`}>{children ?? humanLabel(value)}</span> }
+export function Brand({ href }: { href: string }) { return <a className="st-brand" href={href}><img src="/brand/mark.svg" width="32" height="33" alt="" /><span data-rer-name>Stall</span></a> }
+/** The storefront's and order page's header: the lockup and the two doors. */
+export function Chrome() { return <HydrationUnit><header className="st-store-header"><Brand href="/shop" /><nav aria-label="Main navigation"><a href="/shop" aria-current="page">Shop</a><a href="/app">Shop desk</a></nav></header></HydrationUnit> }
 export function ProviderLinks() { return <p className="st-small">Connect your stock provider and payments before taking orders. <a href="https://github.com/just-every/run-stall/blob/main/docs/CONNECTIONS.md" target="_blank" rel="noreferrer">Pier and Stripe connection guide</a> · <a href="https://docs.stripe.com/checkout/quickstart" target="_blank" rel="noreferrer">Stripe setup guide</a></p> }

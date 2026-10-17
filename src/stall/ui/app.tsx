@@ -1,39 +1,47 @@
 import { useEffect, useRef, useState } from 'react'
 import { HydrationUnit } from '../../base/hydration/unit'
 import { request, errorMessage } from './api'
-import { Badge, Chrome, Empty, Notice, ProviderLinks, Section } from './primitives'
+import { Notice, Section } from './primitives'
 import type { State } from './types'
-import { Products } from './products'
-import { Orders } from './orders'
+import { ProductsView } from './products'
+import { OrdersView } from './orders'
 import { MoveIn } from './move-in'
-import { Portability } from './portability'
-import { AgentCredential } from './agent-credential'
-import { CustomerErasure } from './data'
-import { People, businessTime, humanLabel, shortId } from './presentation'
+import { Activity } from './activity'
+import { Settings } from './settings'
+import { DeskShell, viewOf, type DeskView } from './shell'
+import { needs, orderTabs } from './order-status'
+import { People } from './presentation'
+
+const searchLabel: Partial<Record<DeskView, string>> = { orders: 'Search orders, customers, items', products: 'Search products or SKUs' }
+const titles: Record<DeskView, string> = { orders: 'Orders', products: 'Products', 'move-in': 'Move in', history: 'Activity', settings: 'Settings' }
+
 export function ShopDesk() {
   const [state, setState] = useState<State | null>(null), [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true)
+  const [view, setView] = useState<DeskView>('orders'), [section, setSection] = useState(''), [host, setHost] = useState(''), [query, setQuery] = useState('')
   const lock = useRef(false)
-  const [tab, setTab] = useState('orders')
-  useEffect(() => { const update = () => setTab(location.hash.slice(1) || 'orders'); update(); addEventListener('hashchange', update); return () => removeEventListener('hashchange', update) }, [])
-  useEffect(() => { const active = document.querySelector<HTMLElement>('.st-tabs [aria-current="true"]'); const nav = active?.parentElement; if (active && nav) { const left = active.offsetLeft - nav.offsetLeft; if (left < nav.scrollLeft || left + active.offsetWidth > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = left } }, [tab, state?.actor.role])
+  useEffect(() => { const update = () => { const hash = location.hash.slice(1); setView(viewOf(hash)); setSection(hash); setQuery('') }; update(); setHost(location.host); addEventListener('hashchange', update); return () => removeEventListener('hashchange', update) }, [])
+  useEffect(() => { document.title = `${titles[view]} · Stall`; if (section && section !== view) document.getElementById(section)?.scrollIntoView(); else scrollTo(0, 0) }, [view, section, !!state])
   async function reload() { setState(await request<State>('/api/stall/state')) }
   useEffect(() => { void reload().catch(error => setError(errorMessage(error))).finally(() => setLoading(false)) }, [])
   async function run(type: string, payload: unknown) {
     if (lock.current) return false
     lock.current = true; setBusy(true); setError(''); setNotice('')
-    try { await request('/api/stall/commands', { type, payload }); await reload(); setNotice('Saved. The latest recorded state is shown below.'); return true }
+    try { await request('/api/stall/commands', { type, payload }); await reload(); setNotice('Saved. The latest recorded state is shown.'); return true }
     catch (error) { setError(errorMessage(error)); try { await reload() } catch { /* Keep the last known state visible; the action error remains explicit. */ } return false }
     finally { lock.current = false; setBusy(false) }
   }
-  const owner = state?.actor.role.toLowerCase() === 'owner', canApprove = !!state && !state.actor.agent && ['owner', 'admin'].includes(state.actor.role.toLowerCase())
-  return <div className="st-shell"><Chrome desk /><main id="main" className="st-stack"><HydrationUnit><header className="st-page-heading"><p className="st-eyebrow">Shop desk</p><div className="st-row"><div><h1>Your shop, in view.</h1><p>Prepare products, review orders and approve the work that moves money or stock.</p></div><button className="st-secondary" disabled={busy || loading} onClick={() => { setError(''); void reload().catch(error => setError(errorMessage(error))) }}>Refresh shop</button></div>{state && <p className="st-small">{state.actor.email} · {state.actor.role}</p>}</header></HydrationUnit>
-    <HydrationUnit><nav className="st-tabs" aria-label="Shop desk sections">{[['products', 'Products'], ['orders', 'Orders'], ['move-in', 'Move in'], ['connections', 'Connections'], ['history', 'Activity'], ...(owner ? [['portability', 'Your data']] : [])].map(([id, label]) => <a key={id} href={`#${id}`} aria-current={tab === id ? 'true' : undefined}>{label}</a>)}</nav></HydrationUnit>
-    <HydrationUnit><div aria-live="polite">{loading && <p role="status">Loading your shop…</p>}{error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}</div></HydrationUnit>
-    {state ? <People.Provider value={state.people}><Section id="connections" title="Provider connections"><div className="st-metrics">{Object.entries(state.connections).map(([name, ready]) => <div key={name}><strong>{name === 'pier' ? 'Pier stock' : name === 'stripe' ? 'Stripe checkout' : 'Stripe webhooks'}</strong><Badge value={ready ? 'Configured' : 'Setup required'} /></div>)}</div>{!Object.values(state.connections).every(Boolean) && <Notice>External setup is incomplete. Checkout, stock reservation, payment confirmation and shipping require the corresponding provider connection.</Notice>}<ProviderLinks /></Section>
-      {tab === 'products' ? <><Products products={state.products} busy={busy} run={run} canApprove={canApprove} /><Orders orders={state.orders} busy={busy} run={run} canApprove={canApprove} /></> : <><Orders orders={state.orders} busy={busy} run={run} canApprove={canApprove} /><Products products={state.products} busy={busy} run={run} canApprove={canApprove} /></>}
-      {canApprove && <MoveIn reload={reload} />}
-      <Section id="history" title="Activity & reconciliation"><p>Approval actors and provider reconciliation are recorded here. Use the order’s reconcile action to resolve pending work.</p>{!state.audit.length ? <Empty>No activity recorded yet. Preparing and approving work will create an audit trail.</Empty> : <ol className="st-audit">{state.audit.map(event => <li key={event.id}><strong>{humanLabel(event.action)}</strong><p>{state.products.find(product => product.id === event.subject)?.value.name ?? (state.orders.some(order => order.id === event.subject) ? `Order ${shortId(event.subject)}` : 'Shop record')}</p><small>{state.people[event.actor] ?? (event.actor === 'stripe' ? 'Stripe' : event.actor.startsWith('agent:') ? 'Shop agent' : 'Shop operator')} · {businessTime(event.at)}</small></li>)}</ol>}</Section>
-      {owner && <><Portability reload={reload} /><CustomerErasure busy={busy} run={run} /><AgentCredential /></>}
+  const role = state?.actor.role.toLowerCase() ?? '', owner = role === 'owner', canApprove = !!state && !state.actor.agent && ['owner', 'admin'].includes(role)
+  const open = state?.orders.filter(order => orderTabs[1].keep(order) || needs(order)).length ?? 0
+  const label = searchLabel[view]
+  const actor = state && { name: state.people[state.actor.id] ?? state.actor.email, email: state.actor.email, role: state.actor.role }
+  return <DeskShell view={view} counts={{ orders: open }} host={host} actor={actor ?? undefined} search={label ? { label, value: query, onChange: setQuery } : undefined}>
+    <HydrationUnit><div className="st-messages" aria-live="polite">{loading && <p role="status" className="st-loading">Loading your shop…</p>}{error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}</div></HydrationUnit>
+    {state ? <People.Provider value={state.people}>
+      {view === 'orders' && <OrdersView orders={state.orders} audit={state.audit} query={query} busy={busy} run={run} canApprove={canApprove} refresh={() => { setError(''); void reload().catch(error => setError(errorMessage(error))) }} />}
+      {view === 'products' && <ProductsView products={state.products} query={query} busy={busy} run={run} canApprove={canApprove} />}
+      {view === 'move-in' && (canApprove ? <MoveIn reload={reload} /> : <Section title="Move in from Shopify"><p>Only an owner or administrator can import products.</p></Section>)}
+      {view === 'history' && <Activity state={state} />}
+      {view === 'settings' && <Settings state={state} owner={owner} busy={busy} run={run} reload={reload} />}
     </People.Provider> : !loading && <Section title="Shop desk unavailable"><p>Sign in with your operator account to manage this shop. If you are already signed in, resolve the error above and refresh.</p><a href="/signin?returnTo=%2Fapp">Sign in</a></Section>}
-  </main></div>
+  </DeskShell>
 }

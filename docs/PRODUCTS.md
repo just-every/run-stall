@@ -4,7 +4,7 @@ Open **Shop desk → Products** as an owner or administrator. Product details an
 
 ## Add a product
 
-1. In **Prepare a product**, enter the exact Pier **SKU**, **Product name**, **Unit price · USD** and **Description**. Enter the price in dollars and cents, for example `24.50`, with at most two decimal places.
+1. Select **Prepare a product** and enter the exact Pier **SKU**, **Product name**, **Unit price · USD** and **Description**. Enter the price in dollars and cents, for example `24.50`, with at most two decimal places.
 2. Leave **Available for publication** selected if this product should appear in the shop.
 3. Select **Prepare revision**. This saves a draft; it does not publish the product.
 4. In **Revision … for approval**, review the name, description, price and Active/Inactive setting. Select **Approve & publish revision …** to approve those exact details.
@@ -14,7 +14,7 @@ An available product must have a matching active SKU in Pier. If publication fai
 
 ## Change a listing
 
-Select **Edit product**, change its details and select **Prepare revision**. The SKU stays fixed. A previously published listing keeps its approved details and price until you approve the replacement draft.
+Select the product in the table, then **Edit product**; change its details and select **Prepare revision**. The SKU stays fixed. A previously published listing keeps its approved details and price until you approve the replacement draft.
 
 To withdraw a listing, prepare a revision with **Available for publication** cleared, then approve it. The product becomes **Inactive**. Preparing that change alone leaves the published listing in place.
 
@@ -22,6 +22,6 @@ If someone changes the record while you are reviewing it, Stall refuses the old 
 
 ## Publish imported products
 
-[Shopify move-in](MOVE-IN.md) creates staged, unpublished products, even when the source says `Published=TRUE`. For each imported product, select **Edit product**, review the imported details, select **Available for publication** and **Prepare revision**, then approve the exact revision. Verify the SKU in Pier before doing so.
+[Shopify move-in](MOVE-IN.md) creates staged, unpublished products, even when the source says `Published=TRUE`. For each imported product, select it in the table, then **Edit product**, review the imported details, select **Available for publication** and **Prepare revision**, then approve the exact revision. Verify the SKU in Pier before doing so.
 
 An agent credential can prepare a draft. A signed-in owner or administrator must approve publication. **Activity** records product preparation and publication.

@@ -4,7 +4,7 @@ Stall archives contain business records and customer information. Store them pri
 
 ## Download a backup from the desk
 
-1. Sign in as the owner and open **Shop desk → Your data**.
+1. Sign in as the owner and open **Shop desk → Settings → Your installation, your data**.
 2. Select **Prepare export download**. If shown, select **Continue preparing export** until the transfer is complete.
 3. Select **Download archive** and keep the downloaded `stall.rer` in private storage. Use dated filenames when keeping multiple backups.
 
@@ -14,7 +14,7 @@ Take another backup after changes you need to preserve. An archive does not back
 
 Use an installation with no product or order data. Restore refuses a nonempty destination and verifies the archive before completing the transfer.
 
-1. Sign in as the destination's owner and open **Your data → Restore an archive into this empty installation**.
+1. Sign in as the destination's owner and open **Settings → Your installation, your data → Restore an archive into this empty installation**.
 2. Select **Choose archive** and open your complete archive.
 3. Expand **Review archive manifest**. Check its source and contents, then tick **I have reviewed this archive and confirm restoring it into this empty installation.**
 4. Select **Restore reviewed archive**. Wait for the restored notice and review the records.
@@ -48,7 +48,7 @@ Use setup's prompt to establish the destination owner and configuration. Re-ente
 
 ## Erase a customer's details
 
-As owner, open **Your data → Erase customer details**, enter **Customer email** and select **Review customer erasure**. Review the mailbox, type `ERASE` and select **Permanently erase customer details**.
+As owner, open **Settings → Erase customer details**, enter **Customer email** and select **Review customer erasure**. Review the mailbox, type `ERASE` and select **Permanently erase customer details**.
 
 This removes the customer's retained email, delivery address and checkout request identifiers from matching Stall orders. Anonymous commercial, stock, shipping and approval history remains. Orders must be shipped and pending provider work resolved first. Erasure cannot be undone.
 

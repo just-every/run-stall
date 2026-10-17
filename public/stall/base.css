@@ -1,0 +1,115 @@
+/* Stall's app components: type, buttons, fields, pills, notices, tables,
+   disclosures and dialogs, shared by the shop desk and the storefront.
+   Tokens live once in /rer-theme.css. Look: the owner's pick (desk 17 Oct
+   2026), a white canvas, hairline dividers, near-black Inter Tight headings,
+   Inter body with tabular figures and tangerine as the one accent. */
+body:has(.st-app) { margin: 0; padding: 0; background: var(--surface); }
+.st-app { color: var(--ink); font: 400 14px/1.5 var(--font-body); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
+.st-app *, .st-app *::before, .st-app *::after { box-sizing: border-box; }
+.st-app :where(h1, h2, h3, h4, p, dl, dd, figure) { margin: 0; }
+.st-app h1 { font: 800 34px/1.15 var(--font-head); letter-spacing: -.035em; }
+.st-app h2 { font: 700 20px/1.25 var(--font-head); letter-spacing: -.02em; }
+.st-app h3 { font: 600 15px/1.35 var(--font-body); }
+.st-app h4 { font: 600 14px/1.35 var(--font-body); }
+.st-app small, .st-small { font-size: 13px; line-height: 1.45; color: var(--muted); }
+.st-app a { color: var(--ink); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.st-app a:hover { text-decoration-color: var(--tangerine); }
+.st-app :focus-visible { outline: 2px solid var(--rer-focus); outline-offset: 2px; }
+.st-app :is(p, h2, h3, h4, small, address, dd) { overflow-wrap: anywhere; }
+.st-app address { font-style: normal; }
+
+/* Buttons: the tangerine pill is the primary action; quiet outlined pills
+   for the rest; red only for erasing or undoing. */
+.st-app button, .st-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; max-width: 100%; padding: 9px 18px; border: 1px solid var(--tangerine-press); border-radius: 999px; background: var(--tangerine-press); color: #fff; font: 600 14px/1.2 var(--font-body); cursor: pointer; text-decoration: none; transition: background .12s ease, border-color .12s ease; }
+.st-app button:hover { background: #e45204; border-color: #e45204; }
+.st-app button.st-secondary, .st-app .st-secondary { background: var(--surface); border-color: var(--field-line); color: var(--ink); font-weight: 500; }
+.st-app button.st-secondary:hover { background: var(--row); border-color: var(--faint); }
+.st-app button.st-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.st-app button.st-link { min-height: 0; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--body); font-weight: 400; text-decoration: underline; text-underline-offset: 3px; }
+.st-app button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Fields: thin quiet edges, a tangerine ring on focus. */
+.st-app :is(input, textarea, select) { width: 100%; min-width: 0; min-height: 40px; padding: 8px 12px; border: 1px solid var(--field-line); border-radius: 10px; background: var(--field-fill); color: var(--ink); font: 400 14px/1.4 var(--font-body); transition: border-color .12s ease, box-shadow .12s ease; }
+.st-app :is(input, textarea, select):hover { border-color: var(--faint); }
+.st-app :is(input, textarea, select):focus { outline: none; border-color: var(--tangerine); box-shadow: var(--focus-ring); background: var(--surface); }
+.st-app :is(input, textarea, select):disabled { background: var(--row); color: var(--muted); }
+.st-app textarea { resize: vertical; }
+.st-app input[type=checkbox] { width: 18px; min-height: 18px; height: 18px; flex: none; margin: 1px 0 0; padding: 0; accent-color: var(--tangerine-press); }
+.st-app input[type=file] { padding: 7px 8px; }
+.st-app label { display: grid; gap: 6px; font-size: 13px; font-weight: 500; color: var(--body); }
+.st-app .st-checkbox { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: var(--ink); }
+.st-mono { font-family: var(--font-mono); font-size: 12px; overflow-wrap: anywhere; }
+
+/* Layout helpers. */
+.st-stack { display: grid; gap: 16px; min-width: 0; }
+.st-stack > button, .st-stack > .st-button { justify-self: start; }
+.st-row, .st-heading-row { display: flex; gap: 12px 16px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.st-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.st-form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.st-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* Panels: white cards with a hairline, no heavy shadow. */
+.st-panel { min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); scroll-margin-top: 16px; }
+.st-review { padding: 14px 16px; border-radius: 12px; background: var(--row); }
+
+/* Pills: neutral grey with a dot; green only for Paid; tangerine only where a
+   person is needed; red only for a failure. */
+.st-badge { display: inline-flex; align-items: center; gap: 6px; width: max-content; max-width: 100%; padding: 4px 10px; border: 1px solid transparent; border-radius: 999px; background: var(--chip); color: var(--body); font-size: 12px; font-weight: 500; line-height: 1.35; white-space: nowrap; }
+.st-badge::before { content: ''; width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--faint); }
+.st-badge-good { background: var(--green-tint); color: var(--green-ink); }
+.st-badge-good::before { background: var(--green); }
+.st-badge-need { background: var(--tangerine-wash); border-color: var(--tangerine-line); color: var(--tangerine-text); }
+.st-badge-need::before { background: var(--tangerine); }
+.st-badge-bad { background: var(--danger-tint); color: var(--danger); }
+.st-badge-bad::before { background: var(--danger); }
+
+/* Notices: a quiet row with a dot; errors in red. */
+.st-notice { position: relative; padding: 10px 14px 10px 34px; border-radius: 10px; background: var(--row); color: var(--body); overflow-wrap: anywhere; }
+.st-notice::before { content: ''; position: absolute; left: 15px; top: 17px; width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+.st-notice.st-error { background: var(--danger-tint); color: var(--danger); }
+.st-notice.st-error::before { background: var(--danger); }
+
+/* Empty states: the real parcel mark on a soft tangerine wash. */
+.st-empty { display: flex; align-items: center; gap: 20px; padding: 28px 24px; border: 1px dashed var(--line); border-radius: 14px; background: var(--surface); }
+.st-empty-mark { display: grid; place-items: center; flex: none; width: 72px; height: 72px; border-radius: 50%; background: var(--tangerine-wash); }
+.st-empty-mark img { width: 40px; height: 40px; }
+.st-empty h3 { font: 700 18px/1.3 var(--font-head); letter-spacing: -.015em; margin-bottom: 4px; }
+.st-empty p { color: var(--muted); }
+
+/* Tables: 12px grey headers, hairline rows, right-aligned money. */
+.st-table-wrap { overflow-x: auto; min-width: 0; }
+.st-app table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
+.st-app th, .st-app td { padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; font-weight: 400; }
+.st-app thead th { padding-top: 10px; padding-bottom: 10px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.st-app th small, .st-app td small { display: block; }
+.st-num { text-align: right !important; white-space: nowrap; }
+
+/* Disclosures and record details. */
+.st-app details { min-width: 0; border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; background: var(--surface); }
+.st-app summary { cursor: pointer; font-weight: 500; color: var(--body); }
+.st-app details[open] > summary { margin-bottom: 12px; }
+.st-definition { display: grid; gap: 0; font-size: 13px; }
+.st-definition > div { display: grid; grid-template-columns: minmax(96px, 1fr) 2fr; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line-soft); }
+.st-definition dt { color: var(--muted); }
+.st-definition dd { overflow-wrap: anywhere; }
+.st-definition ol { margin: 0; padding-left: 18px; }
+
+/* Dialogs. */
+.st-app .st-dialog { width: calc(100% - 32px); max-width: 560px; max-height: 90vh; overflow: auto; padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-float); }
+.st-dialog::backdrop { background: rgb(14 14 16 / .4); }
+.st-dialog:not([open]) { display: none; }
+
+/* Totals. */
+.st-total, .st-lines li { display: flex; justify-content: space-between; gap: 16px; font-variant-numeric: tabular-nums; }
+.st-total { align-items: baseline; padding-top: 12px; border-top: 1px solid var(--line); font-weight: 600; }
+.st-total strong { font: 700 20px/1.2 var(--font-head); letter-spacing: -.01em; }
+.st-lines { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+
+@media (max-width: 600px) {
+  .st-app h1 { font-size: 28px; }
+  .st-form-grid { grid-template-columns: 1fr; }
+  .st-empty { flex-direction: column; text-align: center; padding: 24px 16px; }
+  .st-definition > div { grid-template-columns: 1fr; gap: 2px; }
+  .st-actions > button { flex: 1 1 auto; }
+}
+@media (prefers-reduced-motion: reduce) { .st-app * { transition: none !important; scroll-behavior: auto !important; } }

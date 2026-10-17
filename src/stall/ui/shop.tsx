@@ -30,9 +30,9 @@ export function Shop() {
       window.location.assign(url.href)
     } catch (error) { setError(errorMessage(error)); lock.current = false; setBusy(false) }
   }
-  return <div className="st-shell st-shop"><Chrome /><main id="main" className="st-stack">
-    <HydrationUnit><header className="st-page-heading"><p className="st-eyebrow">The shop</p><h1>Choose something good.</h1><p>Available products, current stock, and a clear total in US dollars.</p></header></HydrationUnit>
-    <Section title="Products"><div className="st-row"><p>Stock is checked again when you continue to payment.</p><button className="st-secondary" onClick={() => void load()} disabled={loading || busy}>Refresh availability</button></div>
+  return <div className="st-app st-store"><Chrome /><main id="main" className="st-store-main">
+    <HydrationUnit><header className="st-store-heading"><p className="st-eyebrow">The shop</p><h1>Choose something good.</h1><p>Available products, current stock, and a clear total in US dollars.</p></header></HydrationUnit>
+    <Section title="Products" className="st-store-panel"><div className="st-row"><p>Stock is checked again when you continue to payment.</p><button className="st-secondary" onClick={() => void load()} disabled={loading || busy}>Refresh availability</button></div>
       {loading && <p role="status">Checking available products with Pier…</p>}
       {error && <Notice error>{error}</Notice>}
       {!loading && !catalogue && <><Empty><h3>The shop is not ready for orders</h3><p>Live stock and payment connections need to be available before checkout can open. Please try again later.</p></Empty><ProviderLinks /></>}

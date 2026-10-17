@@ -29,7 +29,7 @@ listing metadata only; it does not migrate your Shopify shop as a whole.
 5. Select **Apply reviewed import**. If the job needs another batch, select
    **Resume apply** until complete. Existing staged product details may be
    replaced by the reviewed changes.
-6. Open **Products**, select **Edit product** for each staged listing, check its
+6. Open **Products**, select each staged listing (the **Staged** tab lists them), then **Edit product**, check its
    details and select **Available for publication**. Prepare a revision, then
    separately approve it. The [products guide](PRODUCTS.md) covers publication;
    matching SKUs must exist and be active in Pier.

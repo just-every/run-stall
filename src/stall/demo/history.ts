@@ -56,7 +56,8 @@ export async function catalogue(now: Date, staff: Staff) {
  return { products, pier, events }
 }
 
-const tracking = (n: number) => `AusPost 33KRT${String(51207 + n * 389).padStart(6, '0')}`
+// A USPS Ground Advantage tracking number: 22 digits, shown in groups of four.
+const tracking = (n: number) => `USPS Ground Advantage ${`940011189922${String(30512070 + n * 3891).padStart(8, '0')}${String(n % 100).padStart(2, '0')}`.replace(/(\d{4})(?=\d)/g, '$1 ')}`
 
 export async function history(now: Date, staff: Staff, pier: PierState) {
  const { at, later } = clock(now), stripe: StripeState = { sessions: {}, refunds: {} }

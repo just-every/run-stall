@@ -10,7 +10,7 @@ Stall is a shop of your own for a US maker or small shop whose stock lives in Pi
 | [Move in from Shopify](MOVE-IN.md) | Prepare the supported CSV, review and apply an import, resume or undo it. |
 | [Backup and restore](BACKUP-RESTORE.md) | Download an archive, restore into an empty installation and handle customer erasure. |
 
-The Shop desk is at `/app`; customers shop at `/shop`. Owners and administrators manage shop records. **Your data**, customer erasure and agent credentials are available to the owner.
+The Shop desk is at `/app`; customers shop at `/shop`. Owners and administrators manage shop records. In **Settings**, the archive (**Your installation, your data**), customer erasure and agent credentials are available to the owner.
 
 For connection and technical details:
 

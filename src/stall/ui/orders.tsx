@@ -1,27 +1,71 @@
-import { useState, type FormEvent } from 'react'
-import type { Approval, Order, Run } from './types'
+// The Orders workspace (the owner's pick): status tabs, a dense order table and
+// the selected order's panel. Rows a person must act on carry a tangerine dot.
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { HydrationUnit } from '../../base/hydration/unit'
+import type { Order, Run, State } from './types'
 import { money } from './api'
-import { Badge, Empty, RecordDetail, Section } from './primitives'
-import { businessTime, humanLabel, shortId, usePerson } from './presentation'
-function ApprovalRecord({ approval }: { approval?: Approval }) { const person = usePerson(); return approval ? <p className="st-small">Approved by {person(approval.by)} · {businessTime(approval.at)} · revision {shortId(approval.revision)}</p> : null }
-function OrderCard({ order, busy, run, canApprove }: { order: Order; busy: boolean; run: Run; canApprove: boolean }) {
-  const person = usePerson()
-  const statusLine = order.status === 'awaiting_payment' || order.status === 'checkout_pending' ? 'Payment is not yet confirmed. Reconcile to check Stripe and stock reservation.' : order.status === 'shortfall' ? 'Payment received, but stock reservation has a shortfall. Resolve stock in Pier, then reconcile this order.' : order.status === 'paid' ? 'Payment received. Reconcile to complete or check the stock reservation.' : order.status === 'reserved' ? 'Stock reserved. Prepare shipping for a person to review.' : order.status === 'shipped' ? 'Shipping has been confirmed by Pier.' : 'Review the recorded provider state below.'
-  const [sessionId, setSessionId] = useState(''), [refundId, setRefundId] = useState(''), [stripeRefundId, setStripeRefundId] = useState('')
-  const [reference, setReference] = useState(''), [sku, setSku] = useState(order.lines[0]?.sku ?? ''), [quantity, setQuantity] = useState('1'), [reason, setReason] = useState('')
-  const line = order.lines.find(line => line.sku === sku), refundTotal = line ? Number(quantity) * line.unitCents : 0
-  const validRefund = line && Number.isSafeInteger(Number(quantity)) && Number(quantity) > 0 && Number(quantity) <= line.quantity
-  async function prepareShipment(event: FormEvent) { event.preventDefault(); await run('shipment.prepare', { orderId: order.id, reference, revision: order.revision }) }
-  async function prepareRefund(event: FormEvent) { event.preventDefault(); if (validRefund) await run('refund.prepare', { orderId: order.id, lines: [{ sku, quantity: Number(quantity) }], reason, revision: order.revision }) }
-  return <details className="st-order"><summary className="st-order-summary"><div><h3>Order {shortId(order.id)}</h3><p>{order.customerEmail ?? 'Customer details erased'}</p><small>{businessTime(order.createdAt)} · revision {shortId(order.revision)}</small></div><div><strong>Order total · USD {money(order.totalCents)}</strong><p>{statusLine}</p></div><Badge value={order.status} /><button className="st-secondary st-button" disabled={busy} onClick={event => { event.preventDefault(); event.stopPropagation(); void run('order.reconcile', { orderId: order.id }) }}>Reconcile / retry pending work</button></summary><div className="st-order-body st-stack"><div className="st-order-address-lines">
-    {order.shippingDetails && <div className="st-review"><h4>Delivery address</h4><p>{order.shippingDetails.name}</p><address>{Object.values(order.shippingDetails.address ?? {}).filter(Boolean).join(", ")}</address></div>}
-    <div className="st-table-wrap"><table><caption className="st-sr-only">Order lines</caption><thead><tr><th>Product</th><th>Quantity</th><th>Unit price</th><th>Total</th></tr></thead><tbody>{order.lines.map(line => <tr key={line.sku}><th scope="row">{line.name}<small>{line.sku}</small></th><td>{line.quantity}</td><td>{money(line.unitCents)}</td><td>{money(line.quantity * line.unitCents)}</td></tr>)}</tbody></table></div></div><div className="st-total"><span>Order total · USD</span><strong>{money(order.totalCents)}</strong></div>
-    <details><summary>Recover an existing provider operation</summary><form className="st-stack" onSubmit={event => { event.preventDefault(); void run('order.reconcile', { orderId: order.id, ...(sessionId.trim() ? { checkoutSessionId: sessionId.trim() } : {}), ...(refundId ? { refundId } : {}), ...(stripeRefundId.trim() ? { stripeRefundId: stripeRefundId.trim() } : {}) }) }}><p>If a provider timed out and its result is unknown, find the existing operation in Stripe. Supply its ID to reconcile this order. Keep the same operation; verify the recorded amount and order in Stripe first.</p><label>Existing Stripe checkout session ID<input value={sessionId} disabled={busy} placeholder="cs_…" onChange={event => setSessionId(event.target.value)} /></label><label>Refund being recovered<select value={refundId} disabled={busy} onChange={event => setRefundId(event.target.value)}><option value="">No refund selected</option>{(order.refunds ?? []).map(refund => <option value={refund.id} key={refund.id}>Refund {shortId(refund.id)} · {money(refund.amountCents)} · {humanLabel(refund.status)}</option>)}</select></label><label>Existing Stripe refund ID<input value={stripeRefundId} disabled={busy} placeholder="re_…" onChange={event => setStripeRefundId(event.target.value)} /></label><button className="st-secondary" disabled={busy || (!sessionId.trim() && !(refundId && stripeRefundId.trim()))}>Reconcile existing provider IDs</button></form></details>
-    {order.shipment && <div className="st-review st-stack"><h4>Shipping · {humanLabel(order.shipment.status)}</h4><p>Reference: {order.shipment.reference}</p><p className="st-small">Prepared by {person(order.shipment.preparedBy)}</p><ApprovalRecord approval={order.shipment.approval} />{order.shipment.status === 'draft' && canApprove && <button disabled={busy} onClick={() => void run('shipment.approve', { orderId: order.id, revision: order.revision })}>Approve shipping · revision {shortId(order.revision)}</button>}{order.shipment.status === 'pending' && <p>Approval recorded; Pier confirmation is pending. Use reconcile to retry safely.</p>}</div>}
-    {['reserved', 'shipped'].includes(order.status) && !order.shipment && <form className="st-stack" onSubmit={event => void prepareShipment(event)}><h4>Prepare shipping</h4><label>Shipping reference<input required maxLength={200} value={reference} disabled={busy} onChange={event => setReference(event.target.value)} /></label><button disabled={busy}>Prepare shipping for approval</button></form>}
-    {!!order.payment && <details><summary>Prepare a one-line partial refund</summary><form className="st-stack" onSubmit={event => void prepareRefund(event)}><p>Select the exact line and quantity to refund. A person must approve the saved revision before Stripe is called.</p><div className="st-form-grid"><label>Order line<select value={sku} disabled={busy} onChange={event => setSku(event.target.value)}>{order.lines.map(line => <option value={line.sku} key={line.sku}>{line.name} ({line.sku})</option>)}</select></label><label>Refund quantity<input required type="number" min="1" max={line?.quantity ?? 1} step="1" value={quantity} disabled={busy} onChange={event => setQuantity(event.target.value)} /></label></div><label>Reason<input required maxLength={500} value={reason} disabled={busy} onChange={event => setReason(event.target.value)} /></label><strong>Refund · {money(refundTotal)}</strong><button disabled={busy || !validRefund || refundTotal >= order.totalCents}>Prepare partial refund</button><small>The refund must be less than the full order total. Previous refunds are checked by the server.</small></form></details>}
-    {(order.refunds ?? []).map(refund => <div key={refund.id} className="st-review st-stack"><div className="st-row"><h4>Refund · {money(refund.amountCents)}</h4><Badge value={refund.status} /></div><p>{refund.lines.map(line => `${line.sku} × ${line.quantity}`).join(', ')} · {refund.reason}</p><p className="st-small">Prepared by {person(refund.preparedBy)}</p><ApprovalRecord approval={refund.approval} />{refund.status === 'draft' && canApprove && <button disabled={busy} onClick={() => void run('refund.approve', { orderId: order.id, revision: order.revision })}>Approve {money(refund.amountCents)} refund · revision {shortId(order.revision)}</button>}{['pending', 'failed'].includes(refund.status) && <p>Reconcile this order to retry or retrieve the provider’s latest result.</p>}</div>)}
-    <RecordDetail label="Payment, stock reservation & provider details" value={{ payment: order.payment, reservation: order.reservation, shipment: order.shipment, refunds: order.refunds }} />
-  </div></details>
+import { Badge, Empty } from './primitives'
+import { placeLine, shortId, whenLabel } from './presentation'
+import { carrierOf, fulfilmentPill, itemCount, matches, needs, orderTabs, paymentPill, type OrderTab } from './order-status'
+import { OrderPanel } from './order-panel'
+import { Icon } from './icons'
+
+const urgency = ['Shortfall', 'Refund failed', 'Refund draft', 'Shipping draft', 'Not reserved']
+const rank = (order: Order) => { const need = needs(order); const at = need ? urgency.indexOf(need) : -1; return at < 0 ? urgency.length : at }
+const newest = (a: Order, b: Order) => b.createdAt.localeCompare(a.createdAt)
+/** An email that wraps after its @ rather than mid-word. */
+const breakable = (email: string) => { const at = email.indexOf('@'); return at < 0 ? email : <>{email.slice(0, at + 1)}<wbr />{email.slice(at + 1)}</> }
+
+function OrderRow({ order, selected, now, onSelect }: { order: Order; selected: boolean; now: number; onSelect: () => void }) {
+  const [payment, paymentTone] = paymentPill(order), [fulfilment, fulfilmentTone] = fulfilmentPill(order), flagged = needs(order) !== null
+  return <tr className={selected ? 'is-selected' : undefined} onClick={onSelect}>
+    <td data-label="Order"><button className="st-order-id" aria-pressed={selected} onClick={event => { event.stopPropagation(); onSelect() }}>{flagged && <span className="st-flag" title="Needs a person" aria-hidden="true" />}<span className="st-sr-only">Order </span>{shortId(order.id)}</button></td>
+    <td data-label="Time" className="st-muted-cell">{whenLabel(order.createdAt, now)}</td>
+    <td data-label="Customer" className="st-customer">{order.shippingDetails?.name ?? (order.customerEmail ? breakable(order.customerEmail) : 'Customer details erased')}<small>{placeLine(order.shippingDetails?.address) || (order.shippingDetails ? '' : order.customerEmail ? 'No delivery address yet' : '')}</small></td>
+    <td data-label="Items" className="st-muted-cell">{itemCount(order)}</td>
+    <td data-label="Total" className="st-num st-money">{money(order.totalCents)}</td>
+    <td data-label="Payment"><Badge value={payment} tone={paymentTone}>{payment}</Badge></td>
+    <td data-label="Fulfilment">{fulfilment === '—' ? '—' : <Badge value={fulfilment} tone={fulfilmentTone}>{fulfilment}</Badge>}</td>
+    <td data-label="Shipping" className={`st-ship-cell${order.shipment ? '' : ' is-empty'}`} title={order.shipment?.reference}>{order.shipment ? carrierOf(order.shipment.reference) : '—'}</td>
+  </tr>
 }
-export function Orders(props: { orders: Order[]; busy: boolean; run: Run; canApprove: boolean }) { return <Section id="orders" title="Orders, shipping & refunds">{!props.orders.length && <Empty><h3>No orders yet</h3><p>Orders placed through the public shop appear here. Payment is verified by Stripe before stock is reserved.</p></Empty>}{props.orders.map(order => <OrderCard key={order.id} order={order} busy={props.busy} run={props.run} canApprove={props.canApprove} />)}</Section> }
+
+export function OrdersView({ orders, audit, query, busy, run, canApprove, refresh }: { orders: Order[]; audit: State['audit']; query: string; busy: boolean; run: Run; canApprove: boolean; refresh: () => void }) {
+  const [tab, setTab] = useState<OrderTab>(() => orders.some(order => needs(order)) ? 'needs' : 'all')
+  const [selectedId, setSelectedId] = useState(''), [now, setNow] = useState(() => Date.now())
+  const panel = useRef<HTMLElement>(null)
+  useEffect(() => setNow(Date.now()), [orders])
+  const shown = useMemo(() => {
+    const keep = orderTabs.find(item => item.id === tab)!.keep
+    const list = orders.filter(order => keep(order) && matches(order, query)).sort(newest)
+    return tab === 'needs' ? list.sort((a, b) => rank(a) - rank(b) || newest(a, b)) : list
+  }, [orders, tab, query])
+  const selected = orders.find(order => order.id === selectedId) ?? shown[0]
+  const position = selected ? shown.indexOf(selected) : -1
+  function select(order: Order | undefined, reveal = true) {
+    if (!order) return
+    setSelectedId(order.id)
+    if (reveal && matchMedia('(max-width: 1180px)').matches) requestAnimationFrame(() => panel.current?.scrollIntoView({ block: 'start' }))
+  }
+  const weekAgo = now - 7 * 86400000
+  const agentOrders = new Set(audit.filter(event => event.actor.startsWith('agent:') && Date.parse(event.at) >= weekAgo && orders.some(order => order.id === event.subject)).map(event => event.subject)).size
+  const waiting = orders.filter(order => needs(order)).length
+  return <div className={`st-orders-layout${selected ? '' : ' is-single'}`} id="orders">
+    <HydrationUnit><section className="st-orders" aria-labelledby="orders-title">
+      <div className="st-view-head"><h1 id="orders-title">Orders</h1><button className="st-secondary" disabled={busy} onClick={refresh}>Refresh shop</button></div>
+      <nav className="st-tabs" aria-label="Order status">{orderTabs.map(item => { const count = item.counted ? orders.filter(item.keep).length : 0; return <button key={item.id} aria-current={tab === item.id ? 'true' : undefined} onClick={() => { setTab(item.id); setSelectedId('') }}>{item.label}{!!count && <span className="st-tab-count">{count}</span>}</button> })}</nav>
+      {!orders.length ? <Empty><h3>No orders yet</h3><p>Orders placed through the public shop appear here. Payment is verified by Stripe before stock is reserved.</p></Empty>
+        : !shown.length ? <p className="st-none">{query ? `No orders match “${query}”.` : `No orders in ${orderTabs.find(item => item.id === tab)!.label}.`}</p>
+        : <div className="st-table-wrap"><table className="st-order-table"><caption className="st-sr-only">Orders</caption>
+          <thead><tr><th scope="col">Order</th><th scope="col">Time</th><th scope="col">Customer</th><th scope="col">Items</th><th scope="col" className="st-num">Total</th><th scope="col">Payment</th><th scope="col">Fulfilment</th><th scope="col">Shipping</th></tr></thead>
+          <tbody>{shown.map(order => <OrderRow key={order.id} order={order} now={now} selected={order === selected} onSelect={() => select(order)} />)}</tbody>
+        </table></div>}
+    </section></HydrationUnit>
+    {selected && <HydrationUnit><aside className="st-order-panel" ref={panel} aria-label={`Order ${shortId(selected.id)}`}>
+      <OrderPanel key={selected.id} order={selected} busy={busy} run={run} canApprove={canApprove}
+        previous={position > 0 ? () => select(shown[position - 1], false) : undefined}
+        next={position >= 0 && position < shown.length - 1 ? () => select(shown[position + 1], false) : undefined}
+        footer={<p className="st-agent-line"><Icon name="agent" /><span>Shop agent prepared work on {agentOrders} order{agentOrders === 1 ? '' : 's'} this week, <strong>{waiting ? `${waiting} need${waiting === 1 ? 's' : ''} you.` : 'nothing needs you.'}</strong></span></p>} />
+    </aside></HydrationUnit>}
+  </div>
+}

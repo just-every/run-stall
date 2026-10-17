@@ -41,9 +41,9 @@ A fresh installation contains no invented stock, products, orders or payment pro
 
 ## Agent preparation and data
 
-The owner grants a short-lived preparation credential in **Your data**, copies it once into their agent's secret store and can revoke it there. [The agent API](docs/COMMANDS.md) prepares product, shipment and refund drafts. It cannot approve, export, erase, restore, grant access or spend. Approvals require a current native human session and the exact reviewed revision.
+The owner grants a short-lived preparation credential in **Settings → Agent access**, copies it once into their agent's secret store and can revoke it there. [The agent API](docs/COMMANDS.md) prepares product, shipment and refund drafts. It cannot approve, export, erase, restore, grant access or spend. Approvals require a current native human session and the exact reviewed revision.
 
-In **Your data**, export a private archive or restore one into an empty installation. The [backup and restore guide](docs/BACKUP-RESTORE.md) covers the desk controls, archive contents and customer erasure. CLI backups also work; stop the app first:
+In **Settings → Your installation, your data**, export a private archive or restore one into an empty installation. The [backup and restore guide](docs/BACKUP-RESTORE.md) covers the desk controls, archive contents and customer erasure. CLI backups also work; stop the app first:
 
 ```sh
 rer dev --stop

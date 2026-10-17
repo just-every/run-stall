@@ -1,6 +1,6 @@
 # Pier and Stripe connections
 
-All values are private configuration. Never paste a session cookie or key into a URL or Git. Locally place only the needed variables in an owner-readable `.dev.vars` file (ignored by Git); preserve the settings RER setup generated. Stop and restart `rer dev` after changing configuration. For deployment, `deploy.json` declares them as optional secrets: a deploy without them succeeds and the Connections section shows Setup required. Supply them from your secret manager, or add each later with `rer deploy --set-secret NAME`.
+All values are private configuration. Never paste a session cookie or key into a URL or Git. Locally place only the needed variables in an owner-readable `.dev.vars` file (ignored by Git); preserve the settings RER setup generated. Stop and restart `rer dev` after changing configuration. For deployment, `deploy.json` declares them as optional secrets: a deploy without them succeeds and **Settings → Provider connections** shows Setup required. Supply them from your secret manager, or add each later with `rer deploy --set-secret NAME`.
 
 | Variable | Source |
 | --- | --- |

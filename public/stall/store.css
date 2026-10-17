@@ -1,0 +1,49 @@
+/* The storefront (/shop) and the checkout return page (/order) in the desk's
+   look: the lockup in a hairline top bar, product rows at the desk's density
+   and the order card on the right with the tangerine pay pill. */
+.st-store { min-height: 100vh; background: var(--surface); }
+.st-store-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 72px; padding: 0 clamp(16px, 3vw, 40px); border-bottom: 1px solid var(--line); }
+.st-store .st-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font: 800 30px/1 var(--font-head); letter-spacing: -.035em; text-decoration: none; }
+.st-store .st-brand img { width: 38px; height: 39px; }
+.st-store-header nav { display: flex; gap: 28px; font-size: 15px; font-weight: 500; }
+.st-store-header nav a { color: var(--body); text-decoration: none; padding: 6px 0; }
+.st-store-header nav a[aria-current=page] { color: var(--ink); box-shadow: inset 0 -2px 0 var(--tangerine); }
+.st-store-main { display: grid; gap: 20px; max-width: 1180px; margin: 0 auto; padding: 32px clamp(16px, 3vw, 40px) 64px; }
+.st-store-narrow { max-width: 720px; }
+.st-store-heading { display: grid; gap: 6px; }
+.st-eyebrow { color: var(--tangerine-text); font-size: 13px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+.st-store-heading > p:last-child { color: var(--body); font-size: 16px; }
+.st-store-panel { padding: 0; border: 0; }
+.st-store-panel > h2 { font-size: 20px; }
+.st-shop-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 28px; align-items: start; }
+.st-product-grid { display: grid; border-top: 1px solid var(--line); }
+.st-product-grid > .st-product { display: grid; grid-template-columns: minmax(0, 1fr) 110px 84px; gap: 4px 20px; align-items: center; padding: 16px 4px; border-bottom: 1px solid var(--line); }
+.st-product-grid > .st-product > div:first-child { grid-column: 1; }
+.st-product-grid > .st-product > div:first-child small { font-family: var(--font-mono); font-size: 12px; }
+.st-product-grid > .st-product > p { grid-column: 1; color: var(--muted); font-size: 13px; }
+.st-product-grid > .st-product > .st-row { grid-column: 2; grid-row: 1 / 3; display: grid; gap: 2px; justify-items: end; text-align: right; }
+.st-product-grid > .st-product > .st-row strong { font-size: 16px; font-weight: 600; }
+.st-product-grid > .st-product > .st-row span { color: var(--muted); font-size: 13px; }
+.st-product-grid > .st-product > label { grid-column: 3; grid-row: 1 / 3; }
+.st-product-grid > .st-product > label input { text-align: center; }
+.st-checkout { position: sticky; top: 20px; display: grid; gap: 14px; padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-card); }
+.st-checkout h3 { font: 800 22px/1.2 var(--font-head); letter-spacing: -.025em; }
+.st-checkout .st-actions { display: grid; }
+.st-checkout .st-actions button { min-height: 46px; font-size: 15px; }
+.st-checkout .st-total strong { font-size: 26px; }
+
+@media (max-width: 900px) {
+  .st-shop-layout { grid-template-columns: 1fr; }
+  .st-checkout { position: static; }
+}
+@media (max-width: 600px) {
+  .st-store-header { height: 60px; }
+  .st-store .st-brand { font-size: 24px; gap: 8px; }
+  .st-store .st-brand img { width: 30px; height: 31px; }
+  .st-store-header nav { gap: 18px; font-size: 14px; }
+  .st-store-main { padding-top: 24px; gap: 16px; }
+  .st-product-grid > .st-product { grid-template-columns: minmax(0, 1fr) 72px; gap: 6px 12px; }
+  .st-product-grid > .st-product > .st-row { grid-column: 1; grid-row: 3; display: flex; justify-content: flex-start; gap: 12px; text-align: left; }
+  .st-product-grid > .st-product > label { grid-column: 2; grid-row: 1 / 4; }
+  .st-checkout { padding: 18px; }
+}

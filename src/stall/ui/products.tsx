@@ -1,28 +1,82 @@
-import { useState, type FormEvent } from 'react'
+// Products in the pick's workspace: a table of products and the selected
+// product's panel, where a revision is prepared and a person publishes it.
+import { useRef, useState, type FormEvent } from 'react'
 import { HydrationUnit } from '../../base/hydration/unit'
 import type { Product, ProductValue, Run } from './types'
 import { money } from './api'
-import { Badge, Empty, Section } from './primitives'
-import { businessTime, shortId, usePerson } from './presentation'
+import { Badge, Empty } from './primitives'
+import { businessTime, shortId, shortTime, usePerson } from './presentation'
+
 const blank: ProductValue = { sku: '', name: '', description: '', unitCents: 0, active: true }
-export function Products({ products, busy, run, canApprove }: { products: Product[]; busy: boolean; run: Run; canApprove: boolean }) {
-  const person = usePerson()
-  const [editing, setEditing] = useState<Product | null>(null), [value, setValue] = useState<ProductValue>(blank), [price, setPrice] = useState('')
-  const cents = Math.round(Number(price) * 100)
-  const validPrice = /^\d+(\.\d{1,2})?$/.test(price) && Number.isSafeInteger(cents) && cents > 0
+const statusOf = (product: Product) => product.value.approval ? product.value.active ? 'Published' : 'Inactive' : 'Staged'
+const productTabs = [['all', 'All'], ['Published', 'Published'], ['Staged', 'Staged'], ['Inactive', 'Inactive'], ['draft', 'Awaiting approval']] as const
+
+function Editor({ editing, busy, run, done }: { editing: Product | null; busy: boolean; run: Run; done: () => void }) {
+  const start = editing ? editing.value.draft ?? editing.value : blank
+  const [value, setValue] = useState<ProductValue>({ sku: start.sku, name: start.name, description: start.description, unitCents: start.unitCents, active: start.active }), [price, setPrice] = useState(editing ? (start.unitCents / 100).toFixed(2) : '')
+  const cents = Math.round(Number(price) * 100), validPrice = /^\d+(\.\d{1,2})?$/.test(price) && Number.isSafeInteger(cents) && cents > 0
   async function prepare(event: FormEvent) {
     event.preventDefault()
-    if (!validPrice) return
-    if (await run('product.prepare', { ...value, unitCents: cents, ...(editing ? { revision: editing.revision } : {}) })) { setEditing(null); setValue(blank); setPrice('') }
+    if (validPrice && await run('product.prepare', { ...value, unitCents: cents, ...(editing ? { revision: editing.revision } : {}) })) done()
   }
-  return <><Section id="products" title="Products & publication">
-    <p>Prepare a product revision, review its exact price and availability, then approve that revision to publish it in the shop.</p>
-    {!products.length && <Empty><h3>Bring your products into Stall</h3><p><a href="#move-in">Import a Shopify product CSV</a>, or prepare a product below. <a href="#connections">Connect Pier and Stripe</a> before taking orders.</p></Empty>}
-    <div className="st-product-grid">{products.map(product => <div className="st-product st-stack" key={product.id}><div className="st-row"><h3>{product.value.name}</h3><Badge value={product.value.approval ? product.value.active ? 'Published' : 'Inactive' : 'Staged'} /></div><small>{product.id} · revision {shortId(product.revision)}</small><p>{product.value.description}</p><strong>{money(product.value.unitCents)}</strong>
-      {product.value.approval && <p className="st-small">Published by {person(product.value.approval.by)} · {businessTime(product.value.approval.at)} · revision {shortId(product.value.approval.revision)}</p>}
-      {product.value.draft && <div className="st-review st-stack"><h4>Revision {shortId(product.revision)} for approval</h4><p>{product.value.draft.name}</p><p>{product.value.draft.description}</p><strong>{money(product.value.draft.unitCents)} · {product.value.draft.active ? 'Active' : 'Inactive'}</strong><p className="st-small">Approving publishes these exact details.</p>{canApprove && <button disabled={busy} onClick={() => void run('product.approve', { sku: product.id, revision: product.revision })}>Approve & publish revision {shortId(product.revision)}</button>}</div>}
-      <button className="st-secondary" disabled={busy} onClick={() => { setEditing(product); setValue(product.value.draft ?? product.value); setPrice(((product.value.draft ?? product.value).unitCents / 100).toFixed(2)); document.getElementById('product-editor')?.scrollIntoView({ behavior: 'smooth' }) }}>Edit product</button>
-    </div>)}</div>
-  </Section><HydrationUnit><form id="product-editor" className="st-panel st-stack" onSubmit={event => void prepare(event)}><h2>{editing ? `Prepare changes to ${editing.id}` : 'Prepare a product'}</h2><div className="st-form-grid"><label>SKU<input required maxLength={100} value={value.sku} disabled={busy || !!editing} onChange={event => setValue({ ...value, sku: event.target.value })} /></label><label>Product name<input required maxLength={200} value={value.name} disabled={busy} onChange={event => setValue({ ...value, name: event.target.value })} /></label><label>Unit price · USD<input required inputMode="decimal" value={price} disabled={busy} onChange={event => setPrice(event.target.value)} placeholder="0.00" aria-describedby="price-help" /></label></div><small id="price-help">Enter dollars and cents, with at most two decimal places.</small><label>Description<textarea rows={3} value={value.description} disabled={busy} maxLength={4000} onChange={event => setValue({ ...value, description: event.target.value })} /></label><label className="st-checkbox"><input type="checkbox" checked={value.active} disabled={busy} onChange={event => setValue({ ...value, active: event.target.checked })} />Available for publication</label><div className="st-actions"><button disabled={busy || !validPrice}>Prepare revision</button>{editing && <button className="st-secondary" type="button" disabled={busy} onClick={() => { setEditing(null); setValue(blank); setPrice('') }}>Cancel edit</button>}</div></form>
-  </HydrationUnit></>
+  return <form id="product-editor" className="st-stack st-editor" onSubmit={event => void prepare(event)}>
+    <h3>{editing ? `Prepare changes to ${editing.id}` : 'Prepare a product'}</h3>
+    <div className="st-editor-grid"><label>SKU<input required maxLength={100} value={value.sku} disabled={busy || !!editing} onChange={event => setValue({ ...value, sku: event.target.value })} /></label><label>Unit price · USD<input required inputMode="decimal" value={price} disabled={busy} onChange={event => setPrice(event.target.value)} placeholder="0.00" aria-describedby="price-help" /></label></div>
+    <label>Product name<input required maxLength={200} value={value.name} disabled={busy} onChange={event => setValue({ ...value, name: event.target.value })} /></label>
+    <small id="price-help">Enter dollars and cents, with at most two decimal places.</small>
+    <label>Description<textarea rows={4} value={value.description} disabled={busy} maxLength={4000} onChange={event => setValue({ ...value, description: event.target.value })} /></label>
+    <label className="st-checkbox"><input type="checkbox" checked={value.active} disabled={busy} onChange={event => setValue({ ...value, active: event.target.checked })} />Available for publication</label>
+    <div className="st-actions"><button disabled={busy || !validPrice}>Prepare revision</button><button className="st-secondary" type="button" disabled={busy} onClick={done}>Cancel edit</button></div>
+  </form>
+}
+
+function ProductPanel({ product, busy, run, canApprove, onEdit }: { product: Product; busy: boolean; run: Run; canApprove: boolean; onEdit: () => void }) {
+  const person = usePerson(), draft = product.value.draft
+  return <div className="st-panel-body st-product">
+    <div className="st-panel-head"><h2>{product.value.name}</h2><Badge value={statusOf(product)} /></div>
+    <p className="st-small">{product.id} · revision {shortId(product.revision)}</p>
+    <section className="st-panel-block st-sums"><p><span>Unit price · USD</span><strong>{money(product.value.unitCents)}</strong></p></section>
+    {product.value.description && <section className="st-panel-block"><h3>Description</h3><p>{product.value.description}</p></section>}
+    {product.value.approval && <section className="st-panel-block"><h3>Published</h3><p className="st-small">Published by {person(product.value.approval.by)} · {businessTime(product.value.approval.at)} · revision {shortId(product.value.approval.revision)}</p></section>}
+    {draft && <div className="st-note"><div>
+      <h3>Revision {shortId(product.revision)} for approval</h3>
+      <p><strong>{draft.name}</strong> · {money(draft.unitCents)} · {draft.active ? 'Active' : 'Inactive'}</p>
+      {draft.description && <p>{draft.description}</p>}
+      <p className="st-small">Approving publishes these exact details.</p>
+    </div></div>}
+    <div className="st-actions st-panel-actions">{draft && canApprove && <button disabled={busy} onClick={() => void run('product.approve', { sku: product.id, revision: product.revision })}>Approve & publish revision {shortId(product.revision)}</button>}<button className="st-secondary" disabled={busy} onClick={onEdit}>Edit product</button></div>
+  </div>
+}
+
+export function ProductsView({ products, query, busy, run, canApprove }: { products: Product[]; query: string; busy: boolean; run: Run; canApprove: boolean }) {
+  const [tab, setTab] = useState<typeof productTabs[number][0]>('all'), [selectedId, setSelectedId] = useState(''), [editing, setEditing] = useState<Product | 'new' | null>(null)
+  const panel = useRef<HTMLElement>(null)
+  const q = query.trim().toLowerCase()
+  const shown = products.filter(product => (tab === 'all' || (tab === 'draft' ? !!product.value.draft : statusOf(product) === tab)) && (!q || [product.id, product.value.name, product.value.description].some(text => text.toLowerCase().includes(q))))
+  const selected = products.find(product => product.id === selectedId) ?? shown[0]
+  function reveal() { if (matchMedia('(max-width: 1180px)').matches) requestAnimationFrame(() => panel.current?.scrollIntoView({ block: 'start' })) }
+  const draftCount = products.filter(product => product.value.draft).length
+  return <div className={`st-orders-layout${editing || selected ? '' : ' is-single'}`} id="products">
+    <HydrationUnit><section className="st-orders" aria-labelledby="products-title">
+      <div className="st-view-head"><h1 id="products-title">Products</h1><button disabled={busy} onClick={() => { setEditing('new'); reveal() }}>Prepare a product</button></div>
+      <nav className="st-tabs" aria-label="Product status">{productTabs.map(([id, label]) => <button key={id} aria-current={tab === id ? 'true' : undefined} onClick={() => { setTab(id); setSelectedId('') }}>{label}{id === 'draft' && !!draftCount && <span className="st-tab-count">{draftCount}</span>}</button>)}</nav>
+      {!products.length ? <Empty><h3>Bring your products into Stall</h3><p><a href="#move-in">Import a Shopify product CSV</a>, or prepare a product. <a href="#connections">Connect Pier and Stripe</a> before taking orders.</p></Empty>
+        : !shown.length ? <p className="st-none">No products match.</p>
+        : <div className="st-table-wrap"><table className="st-product-table"><caption className="st-sr-only">Products</caption>
+          <thead><tr><th scope="col">Product</th><th scope="col">SKU</th><th scope="col" className="st-num">Price</th><th scope="col">Status</th><th scope="col">Published</th><th scope="col">Revision</th></tr></thead>
+          <tbody>{shown.map(product => <tr key={product.id} className={product === selected && editing !== 'new' ? 'is-selected' : undefined} onClick={() => { setSelectedId(product.id); setEditing(null); reveal() }}>
+            <td data-label="Product"><button className="st-order-id st-product-name" aria-pressed={product === selected} onClick={event => { event.stopPropagation(); setSelectedId(product.id); setEditing(null); reveal() }}>{product.value.draft && <span className="st-flag" title="Revision awaiting approval" aria-hidden="true" />}{product.value.name}</button><small>{product.value.description}</small></td>
+            <td data-label="SKU" className="st-muted-cell st-sku">{product.id}</td>
+            <td data-label="Price" className="st-num st-money">{money(product.value.unitCents)}</td>
+            <td data-label="Status"><Badge value={statusOf(product)} /></td>
+            <td data-label="Published" className="st-muted-cell">{product.value.approval ? shortTime(product.value.approval.at) : '—'}</td>
+            <td data-label="Revision">{product.value.draft ? <Badge value="draft" tone="need">Awaiting approval</Badge> : <span className="st-muted-cell">{shortId(product.revision)}</span>}</td>
+          </tr>)}</tbody>
+        </table></div>}
+    </section></HydrationUnit>
+    {(editing || selected) && <HydrationUnit><aside className="st-order-panel" ref={panel} aria-label={editing === 'new' ? 'Prepare a product' : `Product ${selected?.id}`}>
+      {editing ? <Editor key={editing === 'new' ? 'new' : editing.id} editing={editing === 'new' ? null : editing} busy={busy} run={run} done={() => setEditing(null)} />
+        : selected && <ProductPanel product={selected} busy={busy} run={run} canApprove={canApprove} onEdit={() => setEditing(selected)} />}
+    </aside></HydrationUnit>}
+  </div>
 }
