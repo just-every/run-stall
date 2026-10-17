@@ -11,13 +11,16 @@ import { checkout } from './checkout'
 import { webhook } from './payments'
 import { rawBody } from './stripe'
 import { eraseCustomer } from './erasure'
+import { connectionCommand,connectionDetails,withConnections } from './connections'
 const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}})
 async function body(request:Request):Promise<any> { try { const value=JSON.parse(await rawBody(request,100000));if(!value||typeof value!=='object'||Array.isArray(value)) fail('INPUT','A JSON object is required.',400);return value }catch(e) { if(e instanceof Problem) throw e;return fail('INPUT','Invalid JSON request.',400) } }
 export async function stallResponse(request:Request,original:Bindings):Promise<Response|null> {
  const path=new URL(request.url).pathname
  if(!path.startsWith('/api/stall/')) return null
  try {
-  const env=runtimeBindings(original)
+  const base=runtimeBindings(original)
+  // A demo uses its simulated providers; otherwise saved Settings connections fill unset secrets.
+  const env=base.RER_DEMO==='1'?base:await withConnections(base)
   if(path==='/api/stall/webhook'&&request.method==='POST') return json(await webhook(request,env))
   if(path==='/api/stall/catalogue'&&request.method==='GET') return json(await catalogue(env))
   if(path==='/api/stall/checkout'&&request.method==='POST') {
@@ -29,7 +32,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   if(!['GET','HEAD'].includes(request.method)&&request.headers.get('origin')!==env.AUTH_ORIGIN&&(!actor.agent||request.headers.has('origin'))) fail('ORIGIN','Use this installation’s own page to change records.',403)
   if(path==='/api/stall/state'&&request.method==='GET') {
    const [selected,history,logs,people]=await Promise.all([products(env.DB),orders(env.DB),env.DB.prepare('SELECT * FROM st_audit ORDER BY rowid DESC LIMIT 200').all(),env.DB.prepare('SELECT id,display_name AS name,email FROM oa_operators').all<{id:string;name:string;email:string}>()])
-   return json({people:Object.fromEntries(people.results.map(person=>[person.id,person.name||person.email])),actor,products:selected,orders:history,audit:logs.results,connections:{pier:pierConfigured(env),stripe:Boolean(env.STRIPE_SECRET_KEY),webhook:Boolean(env.STRIPE_WEBHOOK_SECRET)}})
+   return json({people:Object.fromEntries(people.results.map(person=>[person.id,person.name||person.email])),actor,products:selected,orders:history,audit:logs.results,connections:{pier:pierConfigured(env),stripe:Boolean(env.STRIPE_SECRET_KEY),webhook:Boolean(env.STRIPE_WEBHOOK_SECRET)},connectionDetails:await connectionDetails(base,env)})
   }
   if(path==='/api/stall/agent-token'&&request.method==='POST') {
    requirePerson(actor)
@@ -57,6 +60,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    else if(['refund.prepare','refund.approve'].includes(type)) result=await refundCommand(env,actor,type,payload)
    else if(type==='order.reconcile') result=await reconcileOrder(env,actor,payload)
    else if(type==='customer.erase') result=await eraseCustomer(env,actor,payload)
+   else if(['connection.pier','connection.stripe','connection.remove'].includes(type)) result=await connectionCommand(base,actor,type,payload)
    else fail('COMMAND','Unknown shop command.',404)
    return json({result})
   }
