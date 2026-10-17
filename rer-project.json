@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "projectId": "just-every/run-stall",
+  "name": "Stall",
+  "sourceRepository": "https://github.com/just-every/run-stall",
+  "license": "MIT"
+}
