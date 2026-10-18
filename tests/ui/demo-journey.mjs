@@ -57,9 +57,11 @@ test('DEMO-001: the built homepage opens the hosted demo; a hosted visitor buys 
   }
   const before=await api('/api/stall/state')
   assert.ok(before.products.some(p=>p.value.draft))
-  for(const status of ['paid','awaiting_payment','reserved','shipped','shortfall'])assert.ok(before.orders.some(o=>o.status===status))
+  for(const status of ['checkout_pending','paid','awaiting_payment','reserved','shipped','shortfall'])assert.ok(before.orders.some(o=>o.status===status))
   assert.ok(before.audit.some(a=>a.actor.startsWith('agent:')))
   await capture('orders')
+  await page.getByRole('button',{name:'Awaiting payment',exact:true}).click()
+  await capture('awaiting-payment')
   step='approve prepared refund'
   const refund=before.orders.find(o=>o.refunds.some(r=>r.status==='draft'))
   assert.ok(refund)
