@@ -7,13 +7,18 @@ import { pierInstallation } from './pier.mjs'
 import { stripeEdge, deliverWebhook, publish, purchase } from './network.mjs'
 const state=h=>h.api('/api/stall/state')
 
-test('owner data doors preserve orders and import custody, exclude credentials and fence erasure',async t=>{
- const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex')
- const h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle})
+test('BASE-001: native owner data doors preserve commerce and custody, exclude authority and fence erasure',async t=>{
+ const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret='whsec_'+randomBytes(32).toString('hex'),stripeKey='sk_test_'+randomBytes(32).toString('hex')
+ const h=await installation({outboundService:edge.handle})
  let destination
  const destinations=[]
  const fresh=async()=>{const value=await installation();destinations.push(value);return value}
  try {
+  // Connect through the same owner-only Settings commands as a real install.
+  const pierKey=pier.bindings.PIER_SESSION.slice('pier_channel='.length)
+  await h.command('connection.pier',{origin:pier.origin,key:pierKey})
+  await h.command('connection.stripe',{secretKey:stripeKey,webhookSecret:secret})
+  assert.deepEqual((await state(h)).connections,{pier:true,stripe:true,webhook:true})
   const csv=await readFile(new URL('../../fixtures/shopify-products.csv',import.meta.url),'utf8')
   const preview=await h.api('/api/stall/imports/preview',{csv})
   const job=await h.api('/api/stall/imports/apply',{csv,fingerprint:preview.fingerprint})
@@ -31,6 +36,8 @@ test('owner data doors preserve orders and import custody, exclude credentials a
   await h.command('shipment.approve',{orderId:order.id,revision:order.revision})
   const grant=await h.api('/api/stall/agent-token',{})
   const old=await archive(h)
+  const privateValues=[['Stripe secret',stripeKey],['Stripe signing secret',secret],['Pier key',pierKey],['agent token',grant.token],...h.cookie.split(';').map((part,i)=>[`session cookie ${i}`,part.trim().slice(part.trim().indexOf('=')+1)])]
+  for(const bytes of [JSON.stringify(old),JSON.stringify(await state(h))])for(const [label,value] of privateValues)assert.ok(!bytes.includes(value),`${label} must stay out of state and archive bytes`)
   await t.test('anonymous, member and agent cannot export or restore',async()=>{
    await h.api('/api/stall/portability/exports',{}, {as:'',status:401})
    const member=await h.signIn('staff@example.test')
@@ -55,6 +62,8 @@ test('owner data doors preserve orders and import custody, exclude credentials a
    assert.equal((await restore(destination,later)).phase,'complete')
    const restored=await state(destination)
    assert.equal(restored.orders.length,1)
+   assert.deepEqual(restored.connections,{pier:false,stripe:false,webhook:false})
+   for(const action of ['product.prepared','product.published','shipment.approved','shipment.shipped','agent.granted','customer.email-erased'])assert.ok(restored.audit.some(a=>a.action===action&&a.actor&&Number.isFinite(Date.parse(a.at))),`restored activity retains ${action}`)
    assert.equal(restored.orders[0].customerEmail,null)
    assert.equal(restored.orders[0].totalCents,4250)
    assert.equal((await destination.api('/api/stall/imports/'+job.id)).job.state,'completed')

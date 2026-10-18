@@ -423,8 +423,8 @@ Judged against `main` **7eadb4b8faebf02302be95217ca8c2807fe5d986**, the same com
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 1 | 0 | 0 | 1 |
-| Target and push further | 7 | 32 | 37 | 76 |
-| All | 8 | 32 | 37 | 77 |
+| Target and push further | 8 | 31 | 37 | 76 |
+| All | 9 | 31 | 37 | 77 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -494,7 +494,7 @@ Judged against `main` **7eadb4b8faebf02302be95217ca8c2807fe5d986**, the same com
 | `AUDIT-001` | Durable attributable commercial action history | target | done | `src/stall/access.ts`; `src/stall/api.ts`; `src/stall/store.ts`; `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs` |  |
 | `OPS-001` | Owned installation, recovery and explicit operating limits | target | partial | `SEED-COMMAND-CONTRACT.md`; `scripts/operations-config.mjs`; `tests/clone-journey.mjs`; `tests/runtime.mjs` | The RER command path and local clone/runtime journeys exist; operating costs/capacity and generalized background/provider health are unmeasured or absent. |
 | `OPS-002` | Run Stall on the owner's own computer or own server | target | partial | `src/site/run.json`; `scripts/installer/local.mjs`; `deploy.json`; `tests/clone-journey.mjs` | The one-line local start and own-account Cloudflare deploy exist; there is no own-server production path (`rer dev` and `rer preview` are rer-managed servers with a 12-hour idle stop), and the one-line start has no recorded fresh-machine acceptance. |
-| `BASE-001` | Preserved Base guarantees with scoped replacements | target | partial | `src/stall/imports/description.ts`; `src/stall/imports/csv.ts`; `src/stall/portability-policy.mjs`; `tests/api/imports.test.mjs`; `tests/api/data.test.mjs` | Current plain-text/import and archive policies are inspectable; future rich content/media safety and a full Base conformance assessment are not established. |
+| `BASE-001` | Preserved Base guarantees with scoped replacements | target | done | `src/stall/imports/description.ts`; `src/stall/portability-policy.mjs`; `tests/api/imports.test.mjs`; `tests/api/data.test.mjs`; `tests/api/commerce.test.mjs`; `tests/ui/journey.mjs` | Current supported doors conform: named BASE-001 import/data/browser journeys exercise hostile plain text, unsupported input, owner-only saved connections, credential exclusion, inactive receiving authority, erased contacts, durable audit and native direct-door guards. Rich content/media/new-provider obligations remain conditions on future clauses, not claims those features exist (ct clarification, 19 Oct). |
 | `OPEN-001` | Free and open source under the MIT license | target | partial | `LICENSE`; `package.json` | The repository and package are MIT and nothing in the product charges or gates; no test checks the license or the absence of paid gates, and provider-cost disclosure before a connection does not exist. |
 | `AI-001` | Operate order exceptions to shopper-approved closure | push-further | partial | `src/stall/payments.ts`; `src/stall/orders.ts`; `tests/api/commerce.test.mjs` | Paid/shortfall states and manual lost-response recovery exist; detection agent, grounded shopper replies, options and closure workflow are absent. |
 | `AI-002` | Manage returns end to end | push-further | partial | `src/stall/refunds.ts`; `tests/api/commerce.test.mjs` | Revision-approved reconciled refunds are a foundation; policy reasoning, labels, return receipt, restock and agent follow-through are absent. |

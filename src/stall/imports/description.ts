@@ -8,7 +8,7 @@ function stripTags(html: string): string {
    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,'')
    .replace(/<br\s*\/?>/gi,'\n')
    .replace(/<\/(p|div|li|h[1-6])\s*>/gi,'\n')
-   .replace(/<[^>]*>/g,'')
+   .replace(/<[^<>]*>/g,'')
  } while (text !== previous)
  return text
 }

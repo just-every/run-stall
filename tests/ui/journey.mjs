@@ -11,6 +11,7 @@ import { installation } from '../api/harness.mjs'
 import { pierInstallation } from '../api/pier.mjs'
 import { stripeEdge, deliverWebhook } from '../api/network.mjs'
 const exec=promisify(execFile),rer=resolve('node_modules/@runeditrun/rer/global/rer.mjs')
+const hostileDescription='Hand-thrown stoneware. <script>window.stallUnsafe=1</script><img src=https://unsafe.example.test/pixel onerror=alert(1)>';
 const evidence=resolve(process.env.STALL_SCREENSHOTS??'test-results/browser')
 await mkdir(evidence,{recursive:true})
 const scratch=await mkdtemp(join(tmpdir(),'stall-browser-')),checkout=join(scratch,'run-stall')
@@ -109,6 +110,7 @@ try {
  for(const name of ['Stoneware mug','Linen towel']) {
   await page.getByRole('button',{name,exact:true}).click()
   await page.getByRole('button',{name:'Edit product',exact:true}).click()
+  if(name==='Stoneware mug')await page.locator('#product-editor textarea').fill(hostileDescription)
   await page.getByLabel('Available for publication',{exact:true}).check()
   await page.getByRole('button',{name:'Prepare revision',exact:true}).click()
   await page.getByRole('button',{name:/Approve & publish revision/}).waitFor()
@@ -119,6 +121,10 @@ try {
  await capture('products')
  await capture('products-published')
  await page.goto(origin+'/shop')
+ // BASE-001: arbitrary product HTML stays visible plain text in the public shop.
+ await page.getByText(hostileDescription,{exact:true}).waitFor()
+ assert.equal(await page.locator('.st-product script,.st-product img').count(),0)
+ assert.equal(await page.evaluate(()=>window.stallUnsafe),undefined)
  await page.getByLabel('Quantity for Stoneware mug').fill('1')
  await page.getByLabel('Quantity for Linen towel').fill('1')
  await page.getByLabel('Email for your order').fill('customer@example.test')
@@ -153,6 +159,9 @@ try {
  await page.getByRole('button',{name:/Approve \$24.50 refund/}).waitFor()
  await capture('refund-approval',page.getByRole('button',{name:/Approve \$24.50 refund/}))
  await page.getByRole('button',{name:/Approve \$24.50 refund/}).click()
+ // Completed work leaves Needs action. Open its truthful terminal record.
+ await page.getByRole('button',{name:'Refunds',exact:true}).click()
+ await page.locator('#orders .st-order-id').first().click()
  await page.locator('#orders .st-badge').filter({hasText:/^Succeeded$/}).waitFor()
  await capture('order-reconciled','.st-order-panel')
  await page.getByRole('link',{name:'Activity',exact:true}).click()
@@ -204,7 +213,7 @@ try {
  assert.deepEqual(errors,[])
  await dev.assertRunning()
  console.log(`Run site linked pages: ${[...visited].join(', ')}`)
- console.log('Browser journey passed: move-in, product approvals, customer checkout, shipping, refund, backup/restore, credentials and erasure at 1440 and 390.')
+ console.log('BASE-001 browser journey passed: move-in, product approvals, customer checkout, shipping, refund, backup/restore, credentials and erasure at 1440 and 390.')
  }catch(error){journeyError=error;throw error}
  finally {
  try{await finishCleanup(cleanup,journeyError)}finally{for(const signal of ['SIGINT','SIGTERM'])process.off(signal,interrupted)}

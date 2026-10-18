@@ -62,7 +62,7 @@ test('Shopify move-in through the authenticated Stall API', async t => {
       await h.api('/api/stall/agent-token/revoke', {});
       await h.api(`${base}/preview`, { csv }, { as: '', headers, status: 401 });
     });
-    await t.test('malformed and unsupported source rows never write products', async () => {
+    await t.test('BASE-001: hostile descriptions become plain text; malformed and unsupported source rows never write products', async () => {
       for (const csv of [
         csvFor('BAD').replace('12.34', '12.345'),
         csvFor('BAD').replace('12.34', '1e3'),
@@ -72,6 +72,12 @@ test('Shopify move-in through the authenticated Stall API', async t => {
         csvFor('BAD').replace('<p>Product description</p>', '"Unclosed description'),
       ]) await h.api(`${base}/preview`, { csv }, { status: 409 });
       assert.equal(await product(h, 'BAD'), null);
+      const hostile=csvFor('SAFE-TEXT').replace('<p>Product description</p>','<scr<b>ipt>globalThis.stallUnsafe=1</scr<b>ipt><p>Care &amp; use</p>&lt;img src=x onerror=alert(1)&gt;');
+      await apply(h,hostile);
+      const imported=(await h.api('/api/stall/state')).products.find(p=>p.id==='SAFE-TEXT');
+      assert.equal(imported.value.description,'Care & use\n<img src=x onerror=alert(1)>');
+      assert.equal(imported.value.active,false);
+      assert.doesNotMatch(imported.value.description,/<script|stallUnsafe/i);
     });
     await t.test('native changes invalidate review and stop undo, including unchanged revision edits', async () => {
       const csv = csvFor('FENCED');
