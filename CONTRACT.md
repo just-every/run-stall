@@ -375,7 +375,7 @@ Every capability claim on the approved homepage (`src/site/landing/`, checked ag
 | 7 | "the carts people left behind" | RECOVERY-001 | missing |
 | 8 | "100% free, open source" / "Free and open source, MIT licensed." | OPEN-001 | partial |
 | 9 | "alternative to Shopify, Squarespace Commerce and BigCommerce" | MIGRATE-001, MIGRATE-002, MIGRATE-003 | partial |
-| 10 | "Try the demo" | DEMO-001 | partial |
+| 10 | "Try the demo" | DEMO-001 | done |
 | 11 | "Pick a theme" | STORE-001 | partial |
 | 12 | "add your photos" | CATALOG-001 | partial |
 | 13 | "and collections" | STORE-002 | missing |
@@ -423,13 +423,13 @@ Judged against `main` **7eadb4b8faebf02302be95217ca8c2807fe5d986**, the same com
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 1 | 0 | 0 | 1 |
-| Target and push further | 6 | 33 | 37 | 76 |
-| All | 7 | 33 | 37 | 77 |
+| Target and push further | 7 | 32 | 37 | 76 |
+| All | 8 | 32 | 37 | 77 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
 | `HTTP-001` | Real installed and published HTTP surfaces | published | done | `src/server.ts`; `src/base/static-assets.ts`; `tests/runtime.mjs`; `tests/ui/journey.mjs` |  |
-| `DEMO-001` | Hosted demo shop that sends nothing | target | partial | `src/demo.ts`; `src/stall/demo/providers.ts`; `src/site/shell/links.ts`; `tests/api/demo.test.mjs` | The demo shop, simulated Stripe/Pier and an outbound-free purchase/approval test exist and the homepage links the hosted demo; no checked-in check follows that link to the hosted demo, and Stall's own tests do not exercise the production refusal of demo mode or an empty fresh installation. |
+| `DEMO-001` | Hosted demo shop that sends nothing | target | done | `src/demo.ts`; `src/stall/demo/providers.ts`; `tests/api/demo.test.mjs`; `tests/ui/demo-journey.mjs`; `.github/workflows/demo-acceptance.yml` | `DEMO-001` HTTP tests cover seed-once, sample history/drafts/grant, outbound-free purchase/approvals/invite, empty ordinary installs and production build/deploy refusal. Hosted acceptance follows the built homepage link to production’s real human-check entry and exercises the exact-SHA sample shop on the separate admitted test-key host, then removes that host. |
 | `STORE-001` | Merchant themes, page builder and custom domain | target | partial | `src/stall/ui/shop.tsx`; `src/stall/ui/primitives.tsx` | A fixed branded storefront exists; the theme library, switching, duplication, export/re-import, visual building, storefront password, domain management, revision controls and a measured performance run are absent. |
 | `STORE-002` | Navigation, collections and product discovery | target | missing |  | No implementation found. Target journey not implemented. |
 | `STORE-003` | Content, blog, contact, newsletter and search visibility | target | missing |  | No implementation found. Target journey not implemented, including the contact form and newsletter signup. |
