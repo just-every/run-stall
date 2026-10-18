@@ -246,9 +246,9 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: `src/stall/access.ts`; `src/stall/model.ts`; `src/stall/api.ts`; `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs`. Native owner/admin/member roles and revocation exist; functional staff scopes, refund limits and customer/app roles are absent.
 
-- **AGENT-001 — Human approval of exact agent drafts.** **partial** — Grant an agent credential, prepare a product draft, attempt its approval/export/erasure as the agent and reject each, approve as a human, then revoke the grant and retry direct reads/writes. Prepare shipping/refund drafts through the same policy and require exact human approval.
+- **AGENT-001 — Human approval of exact agent drafts.** **done** — Grant an agent credential, prepare a product draft, attempt its approval/export/erasure as the agent and reject each, approve as a human, then revoke the grant and retry direct reads/writes. Prepare shipping/refund drafts through the same policy and require exact human approval.
 
-  Current evidence: `src/stall/api.ts`; `src/stall/products.ts`; `src/stall/fulfilment.ts`; `src/stall/refunds.ts`; `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs`. All three preparation commands and human-only approval guards exist; checked-in agent journey directly exercises product drafting, not agent shipment/refund preparation end to end.
+  Current evidence: `src/stall/api.ts`; `src/stall/products.ts`; `src/stall/fulfilment.ts`; `src/stall/refunds.ts`; `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs`. `AGENT-001` in `tests/api/commerce.test.mjs` exercises product, shipment and refund preparation as an agent, exact owner/admin approvals, stale-revision refusal before effects, forbidden authority/export/restore/erasure, and revoked/expired reads and writes through HTTP.
 
 - **API-001 — Documented headless API and signed events.** **partial** — Use a documented external storefront client to buy and view its own order, subscribe to signed events and reject a tampered delivery. Replay and reorder callbacks, revoke its credential and verify one commercial effect and bounded access.
 

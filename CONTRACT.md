@@ -423,8 +423,8 @@ Judged against `main` **7eadb4b8faebf02302be95217ca8c2807fe5d986**, the same com
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 1 | 0 | 0 | 1 |
-| Target and push further | 5 | 34 | 37 | 76 |
-| All | 6 | 34 | 37 | 77 |
+| Target and push further | 6 | 33 | 37 | 76 |
+| All | 7 | 33 | 37 | 77 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -484,7 +484,7 @@ Judged against `main` **7eadb4b8faebf02302be95217ca8c2807fe5d986**, the same com
 | `MIGRATE-007` | Product review and rating migration | target | missing | `src/stall/imports/targets.ts` | No implementation found: the only import target is products; review import, mapping and rendering are absent. |
 | `EXPORT-001` | Business CSVs and complete merchant exit | target | partial | `src/stall/tools.ts`; `src/stall/portability-policy.mjs`; `tests/api/data.test.mjs` | Complete supported commercial archives exist; business CSVs and new target-object exports are absent. |
 | `ROLE-001` | Staff and app least privilege | target | partial | `src/stall/access.ts`; `src/stall/model.ts`; `src/stall/api.ts`; `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs` | Native owner/admin/member roles and revocation exist; functional staff scopes, refund limits and customer/app roles are absent. |
-| `AGENT-001` | Human approval of exact agent drafts | target | partial | `src/stall/api.ts`; `src/stall/products.ts`; `src/stall/fulfilment.ts`; `src/stall/refunds.ts`; `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs` | All three preparation commands and human-only approval guards exist; checked-in agent journey directly exercises product drafting, not agent shipment/refund preparation end to end. |
+| `AGENT-001` | Human approval of exact agent drafts | target | done | `src/stall/api.ts`; `src/stall/products.ts`; `src/stall/fulfilment.ts`; `src/stall/refunds.ts`; `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs` | `AGENT-001` in `tests/api/commerce.test.mjs` exercises all three agent-prepared drafts through HTTP, owner/admin exact-revision approvals, stale-revision refusal before effects, forbidden authority/export/restore/erasure, and revoked/expired reads and writes. |
 | `API-001` | Documented headless API and signed events | target | partial | `src/stall/api.ts`; `src/stall/payments.ts`; `src/stall/tools.ts`; `tests/api/commerce.test.mjs` | Current JSON commerce doors and incoming Stripe signatures exist; versioned customer/cart APIs, external app scopes and outgoing event subscriptions are absent. |
 | `FLOW-001` | Event and scheduled workflows with visible follow-up | target | partial | `src/stall/payments.ts`; `src/stall/orders.ts` | A fixed paid-event reservation transition exists; configurable rules, timers, tasks and notifications are absent. |
 | `INTEGRATION-001` | Owned connections and recoverable external work | target | partial | `src/stall/orders.ts`; `src/stall/stripe.ts`; `src/stall/pier.ts`; `src/stall/portability-policy.mjs`; `tests/api/commerce.test.mjs` | Stripe/Pier deterministic effects and manual reconciliation exist; generalized connection controls, secret custody and durable jobs for all target providers are absent or unverified. |

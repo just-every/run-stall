@@ -149,9 +149,10 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
  }finally {if(h) await h.close();await pier.close();}
 });
 
-test('people approve exact drafts; members and revoked agent grants cannot write',async()=>{
+test('AGENT-001: agents prepare exact product, shipment and refund drafts; only people approve; expired and revoked grants fail',async()=>{
  const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward});
- const h=await installation({bindings:pier.bindings,outboundService:edge.handle});
+ const secret=randomBytes(32).toString('hex');
+ const h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle});
  try {
   const member=await h.signIn('member@example.test');
   const admin=await h.signIn('admin@example.test','admin');
@@ -161,16 +162,67 @@ test('people approve exact drafts; members and revoked agent grants cannot write
   await h.command('product.prepare',{sku:'CSRF',name:'Nope',description:'',unitCents:100,active:true},{headers:{origin:'https://other.example.test'},status:403});
   const grant=await h.api('/api/stall/agent-token',{});
   const agent={as:'',headers:{authorization:'Bearer '+grant.token}};
+  assert.ok(grant.expiresAt>Date.now());
+  const owner=(await state(h)).actor;
+  const administrator=(await h.api('/api/stall/state',undefined,{as:admin})).actor;
   const draft=await h.command('product.prepare',{sku:'MUG-BLUE',name:'Made by owner',description:'Australian ceramic',unitCents:3000,active:true},agent);
   assert.equal(draft.value.active,false);
   await h.command('product.approve',{sku:'MUG-BLUE',revision:draft.revision},{...agent,status:403});
   await h.api('/api/stall/agent-token',{}, {...agent,status:403});
+  await h.api('/api/stall/agent-token/revoke',{}, {...agent,status:403});
+  await h.api('/api/stall/portability/exports',{}, {...agent,status:403});
+  await h.api('/api/stall/portability/imports',{confirmed:true}, {...agent,status:403});
+  await h.command('customer.erase',{email:'customer@example.test',confirm:'ERASE'},{...agent,status:403});
+  await h.command('connection.remove',{provider:'stripe'},{...agent,status:403});
   await h.command('product.approve',{sku:'MUG-BLUE',revision:'stale'},{status:409});
   const published=await h.command('product.approve',{sku:'MUG-BLUE',revision:draft.revision});
   assert.equal(published.value.active,true);
-  assert.ok(published.value.approval.by);
+  assert.equal(published.value.approval.by,owner.id);
+  assert.equal(published.value.approval.revision,draft.revision);
+  await publish(h,'TOWEL-NAT','Natural linen towel',1800);
+  const bought=await purchase(h,edge,{expectedTotalCents:4800});
+  assert.equal((await deliverWebhook(h,secret,edge.pay(bought.session.id))).response.status,200);
+  let value=await order(h,bought.orderId);
+  const first=await h.command('shipment.prepare',{orderId:value.id,revision:value.revision,reference:'USPS-AGENT-ORIGINAL'},agent);
+  value=await h.command('shipment.prepare',{orderId:first.id,revision:first.revision,reference:'USPS-AGENT-REVIEWED'},agent);
+  assert.equal(value.shipment.preparedBy,`agent:${grant.id}`);
+  await h.command('shipment.approve',{orderId:value.id,revision:value.revision},{...agent,status:403});
+  await h.command('shipment.approve',{orderId:value.id,revision:first.revision},{as:admin,status:409});
+  assert.equal((await pier.api('/api/pier/state')).shipments.length,0);
+  const shippingRevision=value.revision;
+  value=await h.command('shipment.approve',{orderId:value.id,revision:shippingRevision},{as:admin});
+  assert.equal(value.shipment.status,'shipped');
+  assert.equal(value.shipment.reference,'USPS-AGENT-REVIEWED');
+  assert.equal(value.shipment.approval.by,administrator.id);
+  assert.equal(value.shipment.approval.revision,shippingRevision);
+  assert.equal((await pier.api('/api/pier/state')).shipments.length,1);
+  const refund=await h.command('refund.prepare',{orderId:value.id,revision:value.revision,lines:[{sku:'MUG-BLUE',quantity:1}],reason:'Mug damaged; customer keeps towel'},agent);
+  value=await h.command('refund.prepare',{orderId:value.id,revision:refund.revision,lines:[{sku:'MUG-BLUE',quantity:1}],reason:'Customer supplied damage photos; no stock return'},agent);
+  assert.equal(value.refunds[0].preparedBy,`agent:${grant.id}`);
+  assert.equal(value.refunds[0].amountCents,3000);
+  await h.command('refund.approve',{orderId:value.id,revision:value.revision},{...agent,status:403});
+  await h.command('refund.approve',{orderId:value.id,revision:refund.revision},{status:409});
+  assert.equal(edge.refunds.size,0);
+  const refundRevision=value.revision;
+  value=await h.command('refund.approve',{orderId:value.id,revision:refundRevision});
+  assert.equal(value.refunds[0].status,'succeeded');
+  assert.equal(value.refunds[0].approval.by,owner.id);
+  assert.equal(value.refunds[0].approval.revision,refundRevision);
+  assert.equal(edge.refunds.size,1);
+  const history=(await state(h)).audit;
+  for(const action of ['product.prepared','shipment.prepared','refund.prepared'])assert.ok(history.some(a=>a.actor===`agent:${grant.id}`&&a.action===action));
   await h.api('/api/stall/agent-token/revoke',{grantId:grant.id});
+  await h.api('/api/stall/state',undefined,{...agent,status:401});
   await h.command('product.prepare',{sku:'MUG-BLUE',revision:published.revision,name:'Changed',description:'',unitCents:1,active:true},{...agent,status:401});
   assert.equal((await state(h)).products.find(p=>p.id==='MUG-BLUE').value.unitCents,3000);
+  const expiring=await h.api('/api/stall/agent-token',{});
+  const expired={as:'',headers:{authorization:'Bearer '+expiring.token}};
+  await h.api('/api/stall/state',undefined,expired);
+  // Advance the stored grant's lifetime to its expired state; authorization is
+  // exercised only through public HTTP, without waiting a week in the suite.
+  await h.db.prepare('UPDATE st_agent_tokens SET expires_at=? WHERE id=?').bind(Date.now()-1,expiring.id).run();
+  await h.api('/api/stall/state',undefined,{...expired,status:401});
+  await h.command('product.prepare',{sku:'EXPIRED',name:'Must not exist',description:'',unitCents:100,active:false},{...expired,status:401});
+  assert.ok(!(await state(h)).products.some(p=>p.id==='EXPIRED'));
  }finally {await h.close();await pier.close();}
 });
