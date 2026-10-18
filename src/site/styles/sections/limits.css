@@ -1,0 +1,22 @@
+/* 11 · Honest limits: a slim strip, the parcel-and-bow icon in a tinted circle, the link at its right. */
+.limits { padding: 8px 0 56px; }
+.limit { display: grid; grid-template-columns: 124px minmax(0, 1fr) auto; align-items: center; column-gap: 32px; padding: 30px 40px; }
+.limit-icon { display: grid; place-items: center; width: 124px; height: 124px; border-radius: 50%; background: var(--tangerine-tint); }
+.limit-icon svg { width: 74px; height: 74px; fill: none; stroke: var(--tangerine-press); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.limit-copy h2 { font: 800 38px/1.1 var(--font-head); letter-spacing: -.035em; word-spacing: .06em; }
+.limit-copy p { margin-top: 8px; font-size: 19px; color: var(--muted); }
+.limit-link { white-space: nowrap; }
+@media (max-width: 860px) {
+  .limit { grid-template-columns: 80px minmax(0, 1fr); row-gap: 16px; column-gap: 20px; padding: 22px; }
+  .limit-icon { width: 80px; height: 80px; }
+  .limit-icon svg { width: 44px; height: 44px; }
+  .limit-link { grid-column: 2; justify-self: start; }
+}
+@media (max-width: 760px) {
+  .limits { padding: 8px 0 40px; }
+  .limit { grid-template-columns: 56px minmax(0, 1fr); column-gap: 16px; padding: 18px 16px; }
+  .limit-icon { width: 56px; height: 56px; align-self: start; }
+  .limit-icon svg { width: 32px; height: 32px; }
+  .limit-copy h2 { font-size: 24px; }
+  .limit-copy p { font-size: 15.5px; }
+}

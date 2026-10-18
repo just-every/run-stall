@@ -1,0 +1,60 @@
+/* 04 · The drop: the collection page on fogandclay.com, lapped on its right by the checkout holding a mug. */
+.drop .column { grid-template-columns: minmax(0, 1fr); row-gap: 36px; }
+.drop-art .drawing { display: grid; grid-template-columns: minmax(0, 1fr) 150px 250px; align-items: start; }
+.drop-art::before { content: ''; position: absolute; right: -4%; top: 4%; width: 46%; height: 96%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 106, 19, .1), transparent); pointer-events: none; }
+.drop-art { position: relative; }
+.store { grid-area: 1 / 1 / 2 / 3; overflow: hidden; }
+.browser-bar { display: flex; align-items: center; gap: 24px; height: 58px; padding: 0 18px 0 22px; border-bottom: 1px solid var(--line-soft); background: #f7f7f8; }
+.address { display: flex; align-items: center; gap: 10px; width: min(660px, 75%); height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); font-size: 16px; color: #23262b; white-space: nowrap; overflow: hidden; }
+.store-title { padding: 20px 36px 0; font: 700 26px/1.2 var(--font-body); letter-spacing: -.025em; }
+.store-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px; padding: 16px 168px 26px 36px; }
+.store-item { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; }
+.store-mug { aspect-ratio: 1 / .88; }
+.store-line { display: flex; justify-content: space-between; gap: 10px; padding: 14px 16px 0; font-size: 18px; }
+.store-line b { font-weight: 600; }
+.store-line span { color: #3a3e46; }
+.store-left { padding: 4px 16px 14px; font-size: 16.5px; color: var(--tangerine-text); }
+.pay { grid-area: 1 / 2 / 2 / 4; z-index: 1; margin-top: 44px; padding: 26px 26px 24px; box-shadow: var(--shadow-float); }
+.pay-item { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; align-items: center; column-gap: 16px; margin-top: 18px; font-size: 17px; }
+.pay-thumb { width: 84px; height: 84px; border-radius: 8px; }
+.pay-item b { font-weight: 600; }
+.pay-rows { display: grid; gap: 12px; margin: 22px 0 0; padding-bottom: 20px; border-bottom: 1px solid var(--line); font-size: 17px; }
+.pay-rows div { display: flex; justify-content: space-between; gap: 12px; }
+.pay-rows dt { color: #2b2e34; }
+.pay-rows dd { margin: 0; font-variant-numeric: tabular-nums; }
+.pay-total { display: flex; justify-content: space-between; margin-top: 18px; font-size: 24px; letter-spacing: -.02em; }
+.pay-button { display: grid; place-items: center; height: 56px; margin-top: 18px; border-radius: 10px; background: #18191c; color: #fff; font-size: 18px; font-weight: 600; }
+.held { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 14px; padding: 14px; border-radius: 10px; background: var(--tangerine-tint); color: var(--tangerine-text); font-size: 16.5px; font-weight: 600; }
+.held .clock { width: 24px; height: 24px; color: var(--tangerine-press); }
+@media (max-width: 1240px) and (min-width: 1081px) {
+  .drop-art .drawing { grid-template-columns: minmax(0, 1fr) 150px 230px; }
+  .store-grid { padding-right: 168px; gap: 12px; }
+  .store-line { font-size: 16px; padding: 12px 12px 0; }
+  .store-left { font-size: 15px; padding: 4px 12px 12px; }
+  .pay-rows, .pay-item { font-size: 15.5px; }
+}
+@media (max-width: 1080px) {
+  .drop-art .drawing { grid-template-columns: minmax(0, 1fr); }
+  .store { grid-area: auto; }
+  .store-grid { padding: 16px 24px 28px; }
+  .pay { grid-area: auto; justify-self: end; width: min(440px, 100%); margin: -36px 20px 0 0; }
+}
+@media (max-width: 760px) {
+  .drop .column { row-gap: 32px; }
+  .browser-bar { height: auto; padding: 10px 12px; gap: 12px; }
+  .browser-bar .lights { display: none; }
+  .address { width: 100%; height: 30px; padding: 0 10px; gap: 8px; font-size: 12.5px; }
+  .store-title { padding: 14px 14px 0; font-size: 21px; }
+  .store-grid { gap: 8px; padding: 12px 12px 18px; }
+  .store-line { display: block; padding: 8px 8px 0; font-size: 13.5px; }
+  .store-line span { display: block; margin-top: 1px; }
+  .store-left { padding: 1px 8px 10px; font-size: 13px; }
+  .pay { justify-self: stretch; width: auto; margin: -14px 4px 0; padding: 18px 16px; }
+  .pay-item { grid-template-columns: 56px minmax(0, 1fr) auto; column-gap: 12px; margin-top: 12px; font-size: 15px; }
+  .pay-thumb { width: 56px; height: 56px; }
+  .pay-rows { gap: 9px; margin-top: 14px; padding-bottom: 14px; font-size: 15px; }
+  .pay-total { margin-top: 12px; font-size: 20px; }
+  .pay-button { height: 48px; margin-top: 14px; font-size: 16px; }
+  .held { margin: 12px auto 0; padding: 10px 16px; width: fit-content; border-radius: 999px; font-size: 14.5px; gap: 8px; }
+  .held .clock { width: 18px; height: 18px; }
+}

@@ -9,4 +9,6 @@ export const links = {
   source: run.repository,
   licence: `${run.repository}/blob/main/LICENSE`,
   demo: 'https://demo.run-stall.com/',
+  // The contract's Honest boundaries: what Stall leaves to Pier, the help desk and the merchant.
+  limits: `${run.repository}/blob/main/CONTRACT.md#honest-boundaries`,
 }

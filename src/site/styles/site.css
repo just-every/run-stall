@@ -19,7 +19,7 @@ a { color: inherit; }
 .site-header { position: relative; z-index: 3; }
 .site-header::after { content: ''; position: absolute; left: 20px; right: 20px; bottom: 0; height: 1px; background: var(--line); }
 .site-header-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 84px; max-width: none; padding: 0 clamp(16px, 3.6vw, 52px); }
-.site-brand { display: inline-flex; align-items: center; gap: 13px; text-decoration: none; font: 800 41px/1 var(--font-head); letter-spacing: -.035em; color: var(--ink); }
+.site-brand { display: inline-flex; align-items: center; gap: 13px; text-decoration: none; font: 800 41px/1.2 var(--font-head); letter-spacing: -.035em; color: var(--ink); }
 .site-brand img { width: 40px; height: 40px; margin-top: -3px; }
 .site-header nav { display: flex; gap: 52px; font-size: 20px; font-weight: 500; }
 .site-header nav a { text-decoration: none; }
@@ -47,8 +47,6 @@ a { color: inherit; }
 .eyebrow { font: 700 15px/1.2 var(--font-body); letter-spacing: .24em; text-transform: uppercase; color: var(--tangerine-text); }
 .dot { position: relative; color: transparent; }
 .dot::after { content: ''; position: absolute; left: -.005em; bottom: .075em; width: .17em; height: .17em; border-radius: 50%; background: var(--tangerine); }
-.chip { display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border-radius: 999px; background: var(--tangerine-tint); color: var(--tangerine-text); font-weight: 600; white-space: nowrap; }
-.mono-num { font-variant-numeric: tabular-nums; }
 
 @media (max-width: 760px) {
   body { font-size: 16px; }

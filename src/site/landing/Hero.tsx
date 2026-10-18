@@ -1,6 +1,8 @@
 import { Actions, Dot } from '../shell/Actions'
 import { Painting } from './parts'
-import { mug, shop, usd } from './sample'
+import { dollars, heroMug, mugs, shop } from './kiln'
+
+const mug = mugs[heroMug.glaze]
 
 // The booth's back wall is the shop's product page. The painting keeps the
 // screen, the photos and the browser chrome; its words were removed and are
@@ -13,8 +15,8 @@ function ScreenText() {
       <text x="15" y="18" className="screen-url">{shop.domain}</text>
     </g>
     <text transform="matrix(1.1114 -0.0611 0 1.0098 634.8 172.6)" x="0" y="25" className="screen-title">{mug.name}</text>
-    <text transform="matrix(1.0668 -0.0407 0 1.0098 634.8 213.0)" x="0" y="21" className="screen-price">{usd(mug.price).replace('.00', '')}</text>
-    <text transform="matrix(1.0668 -0.0236 0 1.0098 634.8 251.4)" x="0" y="12" className="screen-left">{mug.left} left</text>
+    <text transform="matrix(1.0668 -0.0407 0 1.0098 634.8 213.0)" x="0" y="21" className="screen-price">{dollars(mug.price)}</text>
+    <text transform="matrix(1.0668 -0.0236 0 1.0098 634.8 251.4)" x="0" y="12" className="screen-left">{heroMug.left} left</text>
     <g transform="matrix(1.1062 -0.0118 0 1.0098 634.8 278.6)">
       <rect width="140" height="43" rx="6" className="screen-cart" />
       <text x="70" y="27" className="screen-cart-label">Add to cart</text>

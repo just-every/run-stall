@@ -362,53 +362,52 @@ The target adapters must verify the merchant-specific source version, permission
 
 ## Homepage claims
 
-Every capability claim on the approved homepage (`src/site/landing/`, checked against br's claims truth table of 17 October 2026, rows 1–43 in page order) maps to the clauses that promise it. A claim's status is `done` when every mapped clause is done, `missing` when every one is missing, and `partial` otherwise. The closing section repeats claims 8 and 35 and is not counted again; the sample figures in the drawings (one Texas order with USPS Ground Advantage and 8.25% sales tax) are illustrations, not claims. 43 claims: 3 done, 23 partial, 17 missing.
+Every capability claim on the homepage built on the owner-approved structure page-s1 (`src/site/landing/`, 18 October 2026; one shop, Fog & Clay, through one kiln batch) maps to the clauses that promise it, with the code that backs it today. A claim's status is `done` when every mapped clause is done (backed by code), `missing` when every one is missing (contract, not yet in code), and `partial` otherwise (partly in code). The sample shop, orders and figures in the drawings (kiln.ts) are illustrations, not claims; the honest-limits strip ("No warehouse purchasing, live chat or Etsy listings.") states what Stall leaves to Pier and the help desk ([Honest boundaries](#honest-boundaries), BOUNDARY-001) and is true of the code today. 42 claims: 2 done, 26 partial, 14 missing.
 
-| # | Claim | Clause(s) | Status |
-| --- | --- | --- | --- |
-| 1 | "Stall puts your shop online" | HTTP-001 | done |
-| 2 | "storefront" | STORE-001, STORE-002 | partial |
-| 3 | "checkout" | CART-001, PAY-003 | partial |
-| 4 | "sales tax" | TAX-001 | missing |
-| 5 | "labels and tracking" | SHIP-002, SHIP-003 | partial |
-| 6 | "returns" | RETURN-001, RETURN-002 | partial |
-| 7 | "the carts people left behind" | RECOVERY-001 | missing |
-| 8 | "100% free, open source" / "Free and open source, MIT licensed." | OPEN-001 | partial |
-| 9 | "alternative to Shopify, Squarespace Commerce and BigCommerce" | MIGRATE-001, MIGRATE-002, MIGRATE-003 | partial |
-| 10 | "Try the demo" | DEMO-001 | partial |
-| 11 | "Pick a theme" | STORE-001 | partial |
-| 12 | "add your photos" | CATALOG-001 | partial |
-| 13 | "and collections" | STORE-002 | missing |
-| 14 | "and make it yours" | STORE-001 | partial |
-| 15 | "Search, filters" | STORE-002 | missing |
-| 16 | "and your own domain included" | STORE-001 | partial |
-| 17 | Drawn: variants (Fog, Cobalt, Speckle swatches) | CATALOG-001 | partial |
-| 18 | "Apple Pay, Google Pay and cards" | PAY-001 | partial |
-| 19 | "Discount codes" | PROMO-001 | missing |
-| 20 | "gift cards" | PROMO-002 | missing |
-| 21 | "and stock held while they pay" | STOCK-002 | partial |
-| 22 | Drawn: shipping and sales-tax lines in the checkout total | CART-001, SHIP-001, TAX-001 | partial |
-| 23 | "Live USPS and UPS rates at checkout" | SHIP-001 | missing |
-| 24 | "labels printed from the order" | SHIP-002 | missing |
-| 25 | "and tracking emails sent for you" | SHIP-003, MAIL-001 | partial |
-| 26 | "The right rate for every US address" | TAX-001 | missing |
-| 27 | "collected at checkout and ready to file" | TAX-001 | missing |
-| 28 | "38 orders while you slept" (orders complete without you) | PAY-003 | done |
-| 29 | "When stock runs out or a parcel stalls, Stall offers your customer a real choice and finishes the job." | AI-001, STOCK-002 | partial |
-| 30 | "Customers start a return or exchange themselves." | RETURN-001 | missing |
-| 31 | "The label, restock and refund follow." | RETURN-002, AI-002 | partial |
-| 32 | "A friendly reminder brings people back to what they left behind." | RECOVERY-001 | missing |
-| 33 | "Move from Shopify in an afternoon." | MIGRATE-001 | partial |
-| 34 | "Products, customers, orders and redirects come with you." | MIGRATE-001, MIGRATE-006 | partial |
-| 35 | "Run Stall on your own computer or server." | OPS-001, OPS-002 | partial |
-| 36 | "Your shop, your customers, your data." / "Your own shop" / "Your own customers" | DATA-001, ERASURE-001 | done |
-| 37 | "Export any time" | DATA-001, EXPORT-001 | partial |
-| 38 | Gift cards: "Sell them, and they work at checkout." | PROMO-002 | missing |
-| 39 | Customer accounts: "Order history and one-click reorders." | CUSTOMER-001, CUSTOMER-003 | partial |
-| 40 | Order emails: "Confirmation, shipped, delivered, refunded." | MAIL-001 | missing |
-| 41 | Sell everywhere: "Google Shopping, Instagram and TikTok Shop." | CHANNEL-001 | missing |
-| 42 | QuickBooks sync: "Sales and fees post to your books." | ACCOUNT-001 | missing |
-| 43 | Analytics: "Sales, conversion and best sellers." | ANALYTICS-001 | missing |
+| # | Section | Claim | Clause(s) | Backing in code today | Status |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Hero | "Stall puts your shop online" | HTTP-001 | `src/routes/shop.tsx`; `src/stall/ui/shop.tsx` | done |
+| 2 | Hero | "storefront" | STORE-001, STORE-002 | `src/stall/ui/shop.tsx` (one fixed branded shop page) | partial |
+| 3 | Hero | "checkout" | CART-001, PAY-003 | `src/stall/checkout.ts`; `src/stall/stripe.ts`; `src/stall/payments.ts` | partial |
+| 4 | Hero | "sales tax" | TAX-001 | — | missing |
+| 5 | Hero | "labels and tracking" | SHIP-002, SHIP-003 | `src/stall/fulfilment.ts` (approved shipment with a reference) | partial |
+| 6 | Hero | "returns" | RETURN-001, RETURN-002 | `src/stall/refunds.ts` (person-approved line refunds) | partial |
+| 7 | Hero | "the carts people left behind" | RECOVERY-001 | — | missing |
+| 8 | Hero | "100% free, open source" / "Free and open source, MIT licensed." | OPEN-001 | `LICENSE`; `package.json` | partial |
+| 9 | Hero | "alternative to Shopify, Squarespace Commerce and BigCommerce" | MIGRATE-001, MIGRATE-002, MIGRATE-003 | `src/stall/imports/*` | partial |
+| 10 | Hero | "Try the demo" | DEMO-001 | `src/demo.ts`; `src/stall/demo/*`; `src/site/shell/links.ts` | partial |
+| 11 | Hero | Drawn: the shop page on the booth wall ("Fog mug · $38 · 3 left", Add to cart) | STORE-001, STOCK-001 | `src/stall/ui/shop.tsx` (published products with live Pier stock) | partial |
+| 12 | Sunday · Move in | "Products, customers, orders and redirects come over from Shopify in one import." | MIGRATE-001, MIGRATE-006 | `src/stall/imports/csv.ts`; `src/stall/imports/service.ts` (product CSV only) | partial |
+| 13 | Sunday · Move in | Drawn: variants and gift cards imported; products missing a weight flagged and fixed | MIGRATE-001, CATALOG-001 | `src/stall/imports/service.ts` (dry run, apply, journal and undo) | partial |
+| 14 | Sunday · Move in | Drawn: `git clone …`, `cd stall`, `rer install`, `rer setup`, `rer dev` start Stall on your own computer | OPS-001, OPS-002 | `SEED-COMMAND-CONTRACT.md`; `rer-project.json`; `tests/clone-journey.mjs` | partial |
+| 15 | Friday 9:40 PM · New batch | "Photos, prices and stock for the new batch" | CATALOG-001, STOCK-001 | `src/stall/products.ts` (exact-cent prices, reviewed publication); `src/stall/pier.ts` (stock); no media | partial |
+| 16 | Friday 9:40 PM · New batch | "set to go live on its own" (scheduled publishing) | CATALOG-001 | — | partial |
+| 17 | Friday 9:40 PM · New batch | Drawn: channels Online store, Google Shopping, Instagram | CHANNEL-001 | — | missing |
+| 18 | Friday 10:00 PM · The drop | "Apple Pay, Google Pay, cards" | PAY-001 | `src/stall/stripe.ts` (Stripe hosted Checkout; wallets untested) | partial |
+| 19 | Friday 10:00 PM · The drop | "and codes" | PROMO-001 | — | missing |
+| 20 | Friday 10:00 PM · The drop | "Each mug is held for ten minutes at checkout." | STOCK-002 | `src/stall/checkout.ts`; `src/stall/payments.ts` (check before checkout, reservation after payment; no hold) | partial |
+| 21 | Friday 10:00 PM · The drop | Drawn: the collection page | STORE-002 | — | missing |
+| 22 | Friday 10:00 PM · The drop | Drawn: discount, shipping rate and sales tax in the checkout total | CART-001, PROMO-001, SHIP-001, TAX-001 | `src/stall/checkout.ts` (product lines only) | partial |
+| 23 | Friday 10:43 PM · Sold out | "When a hold runs out, the mug goes back on sale" | STOCK-002 | `src/stall/payments.ts` (shortfall shown after payment) | partial |
+| 24 | Friday 10:43 PM · Sold out | "and the shopper gets a note with what is still in stock." | RECOVERY-001 | — | missing |
+| 25 | Friday 10:43 PM · Sold out | Drawn: carts left, came back and recovered dollars | RECOVERY-001, ANALYTICS-001 | — | missing |
+| 26 | Interlude | "38 orders while you slept" (orders complete without you) | PAY-003 | `src/stall/payments.ts` (signed webhook records payment and reserves stock); the count is sample data | done |
+| 27 | Saturday 8:00 AM · Packing day | "Live USPS and UPS rates" | SHIP-001 | — | missing |
+| 28 | Saturday 8:00 AM · Packing day | "addresses checked" | SHIP-001, SHIP-005 | — | missing |
+| 29 | Saturday 8:00 AM · Packing day | "labels printed" (every label in one run) | SHIP-002, SHIP-005 | — | missing |
+| 30 | Saturday 8:00 AM · Packing day | "and tracking emails sent." | SHIP-003, MAIL-001 | `src/stall/fulfilment.ts` (shipment reference; no email) | partial |
+| 31 | Tuesday 2:14 PM · The order agent | "The order agent reads the carrier exception" | AI-001, SHIP-003 | `src/stall/orders.ts` (shortfall and lost-response states) | partial |
+| 32 | Tuesday 2:14 PM · The order agent | "checks live stock" | STOCK-001 | `src/stall/pier.ts` | partial |
+| 33 | Tuesday 2:14 PM · The order agent | "offers the customer a real choice" | AI-001 | — | partial |
+| 34 | Tuesday 2:14 PM · The order agent | "and you tap Ship." | AGENT-001 | `src/stall/api.ts`; `src/stall/fulfilment.ts` (a person approves the exact draft) | partial |
+| 35 | Tuesday 2:14 PM · The order agent | Drawn: replacement shipped, the price difference refunded and a carrier damage claim filed | ORDER-003, ORDER-004, SHIP-002 | `src/stall/refunds.ts` (line refunds) | partial |
+| 36 | Oct 27 · Returns | "Customers start a return from their account." | RETURN-001, CUSTOMER-001 | `src/stall/model.ts` (orders keep buyer contact); no shopper account | partial |
+| 37 | Oct 27 · Returns | "Label, receipt, restock and refund stay in one record." | RETURN-002, AI-002 | `src/stall/refunds.ts` (reconciled refunds, no restock) | partial |
+| 38 | Oct 31 · Month end | "Sales tax ready to file" | TAX-001 | — | missing |
+| 39 | Oct 31 · Month end | Drawn: nexus over the last 12 months by state | TAX-001 | — | missing |
+| 40 | Oct 31 · Month end | "and every sale posted to QuickBooks." | ACCOUNT-001 | — | missing |
+| 41 | Oct 31 · Month end | Drawn: a payout line matched to its refund | ACCOUNT-001 | — | missing |
+| 42 | Closing | "Open source online shops for makers." | OPEN-001 | `LICENSE` | partial |
 
 ## Status
 

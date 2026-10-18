@@ -1,0 +1,51 @@
+/* 03 · New batch: the Kiln batch 12 editor left, the copy right. */
+.new-batch .column { grid-template-columns: minmax(0, 640px) minmax(0, 1fr); column-gap: 56px; }
+.batch-art { position: relative; }
+.batch-art::before { content: ''; position: absolute; inset: -6% -8%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 106, 19, .11), transparent); pointer-events: none; }
+.batch { padding: 30px 30px 26px; }
+.batch-head { display: flex; align-items: center; gap: 18px; }
+.batch-rows { margin-top: 18px; }
+.batch-rows li { display: grid; grid-template-columns: 104px minmax(0, 1.3fr) minmax(0, .8fr) minmax(0, 1fr) auto; align-items: center; column-gap: 20px; padding: 7px 0; border-top: 1px solid var(--line-soft); font-size: 18px; }
+.batch-rows li:last-child { border-bottom: 1px solid var(--line-soft); }
+.batch-mug { width: 104px; height: 92px; border-radius: 9px; }
+.batch-name { font-weight: 600; }
+.batch-price, .batch-stock { font-variant-numeric: tabular-nums; }
+.batch-weight { color: #6b6f78; padding-right: 8px; }
+.channels { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; margin-top: 26px; font-size: 16.5px; }
+.channels b { font-weight: 600; margin-right: 4px; }
+.channel { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; }
+.channel .box { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; background: var(--tangerine); color: #fff; }
+.channel .tick { width: 15px; height: 15px; }
+.schedule { display: flex; align-items: center; gap: 16px; margin-top: 26px; padding: 16px 18px 16px 24px; border-radius: 12px; background: var(--tangerine-wash); font-size: 17.5px; }
+.schedule .clock { width: 32px; height: 32px; color: var(--tangerine-press); }
+.schedule > span:nth-child(2) { flex: 1; }
+.scheduled { padding: 10px 24px; border: 1.5px solid var(--tangerine); border-radius: 999px; background: var(--surface); color: var(--tangerine-text); font-weight: 600; white-space: nowrap; }
+@media (max-width: 1300px) and (min-width: 1081px) {
+  .new-batch .column { grid-template-columns: minmax(0, 600px) minmax(0, 1fr); column-gap: 44px; }
+  .batch-rows li { grid-template-columns: 104px minmax(0, 1.25fr) minmax(0, .8fr) minmax(0, 1fr) auto; column-gap: 16px; font-size: 16.5px; }
+  .batch-mug { width: 104px; height: 96px; }
+  .channels { gap: 10px 16px; font-size: 15px; }
+  .channel .box { width: 22px; height: 22px; }
+  .schedule { font-size: 16px; }
+}
+@media (max-width: 1080px) {
+  .new-batch .column { grid-template-columns: minmax(0, 1fr); }
+  .new-batch .heading { order: -1; }
+}
+@media (max-width: 760px) {
+  .batch { padding: 20px 16px 18px; }
+  .batch-rows { margin-top: 12px; }
+  .batch-rows li { grid-template-columns: 72px minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 14px; row-gap: 2px; padding: 8px 0; font-size: 15px; }
+  .batch-mug { grid-row: span 2; width: 72px; height: 68px; }
+  .batch-name { grid-column: 2; }
+  .batch-price { grid-column: 3; text-align: right; }
+  .batch-stock { grid-column: 2; color: #4b505a; }
+  .batch-weight { grid-column: 3; text-align: right; padding-right: 0; }
+  .channels { gap: 10px 18px; margin-top: 18px; font-size: 15px; }
+  .channels b { width: 100%; margin: 0; }
+  .channel { gap: 8px; }
+  .channel .box { width: 22px; height: 22px; }
+  .schedule { flex-wrap: wrap; gap: 10px 12px; margin-top: 18px; padding: 14px; font-size: 15px; }
+  .schedule .clock { width: 24px; height: 24px; }
+  .scheduled { padding: 7px 16px; }
+}
