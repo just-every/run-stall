@@ -45,7 +45,16 @@ test('DEMO-001: the built homepage opens the hosted demo; a hosted visitor buys 
    return response.json()
   }
   const health=await api('/health')
-  assert.equal(health.deployment.sourceSha,process.env.GITHUB_SHA,'hosted bundle must be the tested commit')
+  assert.equal(health.ok,true)
+  // Native demos do not populate deploy-kit's sourceSha binding. Compare the
+  // served application chunks with this checkout's emitted build instead.
+  const chunks=await page.locator('script[src]').evaluateAll(scripts=>scripts.map(s=>new URL(s.src).pathname).filter(path=>path.startsWith('/assets/')))
+  assert.ok(chunks.length,'the sample shop loads the emitted application')
+  for(const path of chunks) {
+   const response=await context.request.get(origin+path)
+   assert.equal(response.status(),200)
+   assert.deepEqual(await response.body(),await readFile(resolve('dist/client','.'+path)),`hosted ${path} differs from this commit's build`)
+  }
   const before=await api('/api/stall/state')
   assert.ok(before.products.some(p=>p.value.draft))
   for(const status of ['paid','awaiting_payment','reserved','shipped','shortfall'])assert.ok(before.orders.some(o=>o.status===status))
