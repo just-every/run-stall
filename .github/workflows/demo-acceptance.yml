@@ -59,7 +59,7 @@ jobs:
         run: node tests/ui/demo-journey.mjs
       - name: Save the actual hosted screens
         if: always()
-        uses: actions/upload-artifact@604373da6381bf24206979c74d06a1653e964ea3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: DEMO-001-${{ github.sha }}
           path: test-results/DEMO-001
