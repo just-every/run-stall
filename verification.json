@@ -43,7 +43,8 @@
       "hosted": false,
       "commands": [
         "pnpm run test:browser",
-        "node tests/ui/integration-journey.mjs"
+        "node tests/ui/integration-journey.mjs",
+        "node tests/ui/bulk-products-journey.mjs"
       ]
     },
     {

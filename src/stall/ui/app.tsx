@@ -40,7 +40,7 @@ export function ShopDesk() {
     <HydrationUnit><div className="st-messages" aria-live="polite">{loading && <p role="status" className="st-loading">Loading your shop…</p>}{error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}</div></HydrationUnit>
     {state ? <People.Provider value={state.people}>
       {view === 'orders' && <OrdersView state={state} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} refresh={() => { setError(''); void reload().catch(error => setError(errorMessage(error))) }} />}
-      {view === 'products' && <ProductsView products={state.products} audit={state.audit} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} />}
+      {view === 'products' && <ProductsView products={state.products} audit={state.audit} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} reload={reload} />}
       {view === 'move-in' && (canApprove ? <MoveIn reload={reload} /> : <Section title="Move in from Shopify"><p>Only an owner or administrator can import products.</p></Section>)}
       {view === 'history' && <Activity state={state} query={query} />}
       {view === 'settings' && <Settings state={state} owner={owner} busy={busy} run={run} reload={reload} />}

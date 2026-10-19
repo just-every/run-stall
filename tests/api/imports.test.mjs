@@ -98,6 +98,90 @@ test('Shopify move-in through the authenticated Stall API', async t => {
       await h.api(`${base}/apply`, { csv: staleCSV, fingerprint: stale.fingerprint }, { status: 409 });
       assert.equal((await product(h, 'EDITED')).value.description, 'Another native edit');
     });
+    await t.test('CATALOG-002: bulk catalogue review, bounded resume and undo preserve native edits and custody', async () => {
+      const namespace = 'stall-catalog-bulk';
+      const rows = Array.from({ length: 12 }, (_, index) => ({
+        sku: `CATALOG-BULK-${index + 1}`, name: `Bulk title ${index + 1}`,
+        description: `Updated description ${index + 1}`, unitCents: 2301 + index * 107,
+      }));
+      for (const [index, row] of rows.entries()) await h.command('product.prepare', {
+        sku: row.sku, name: `Native title ${index + 1}`, description: `Native description ${index + 1}`,
+        unitCents: 1101 + index * 103, active: false,
+      });
+      const catalogue = async () => (await h.api('/api/stall/state')).products
+        .filter(item => rows.some(row => row.sku === item.id)).sort((a, b) => a.id.localeCompare(b.id));
+      const provenance = async id => (await h.db.prepare('SELECT id,target_id,record_json,reversed FROM ik_provenance WHERE job_id=? ORDER BY target_id,id').bind(id).all()).results;
+      const csv = 'Handle,Title,Body (HTML),Variant SKU,Variant Price,Published\n' + rows.map(row =>
+        `${row.sku.toLowerCase()},${row.name},<p>${row.description}</p>,${row.sku},${Math.floor(row.unitCents / 100)}.${String(row.unitCents % 100).padStart(2, '0')},FALSE\n`).join('');
+      const initial = await catalogue();
+      const jobsBefore = (await h.api(base)).jobs;
+      const review = await h.api(`${base}/preview`, { csv, namespace });
+      assert.equal(review.counts.mapped, rows.length);
+      assert.equal(review.counts.effects, rows.length);
+      assert.deepEqual(await catalogue(), initial, 'dry-run preserves complete native records and revisions');
+      assert.deepEqual((await h.api(base)).jobs, jobsBefore, 'dry-run creates no custody job');
+      await h.api(`${base}/apply`, { csv: csv.replace('Bulk title 1,', 'Changed source title,'), namespace, fingerprint: review.fingerprint }, { status: 409 });
+      assert.deepEqual(await catalogue(), initial);
+      const native = initial.find(item => item.id === rows.at(-1).sku);
+      await h.command('product.prepare', { sku: native.id, revision: native.revision,
+        name: 'Native edit after review', description: 'Keep this native draft', unitCents: 1987, active: false });
+      const before = await catalogue();
+      await h.api(`${base}/apply`, { csv, namespace, fingerprint: review.fingerprint }, { status: 409 });
+      assert.deepEqual(await catalogue(), before, 'stale before-images refuse all writes');
+      assert.deepEqual((await h.api(base)).jobs, jobsBefore);
+
+      const run = async source => {
+        const fresh = await h.api(`${base}/preview`, { csv: source, namespace });
+        const body = { csv: source, namespace, fingerprint: fresh.fingerprint };
+        let job = await h.api(`${base}/apply`, body);
+        const id = job.id;
+        assert.equal(job.state, 'applying', 'bulk work yields before all rows are written');
+        assert.ok(job.checkpoint > 0 && job.checkpoint < rows.length);
+        for (let request = 0; job.state === 'applying' && request < rows.length; request++) {
+          const previous = job.checkpoint;
+          job = await h.api(`${base}/apply`, body);
+          assert.equal(job.id, id, 'resume retains the same job');
+          assert.ok(job.checkpoint > previous && job.checkpoint - previous < rows.length, 'each request makes bounded progress');
+        }
+        assert.equal(job.state, 'completed');
+        assert.equal(job.checkpoint, rows.length);
+        const applied = await catalogue(), attributed = await provenance(id);
+        assert.equal(attributed.length, rows.length);
+        assert.equal(new Set(attributed.map(item => item.target_id)).size, rows.length);
+        assert.ok(attributed.every(item => item.reversed === 0));
+        assert.deepEqual(await h.api(`${base}/apply`, body), job, 'replaying the exact source and approval is idempotent');
+        assert.deepEqual(await catalogue(), applied, 'replay does not repeat product effects or revisions');
+        assert.deepEqual(await provenance(id), attributed, 'replay does not duplicate provenance');
+        const journal = await h.api(`${base}/${id}`);
+        const retained = journal.originals.filter(item => item.original.status === 'retained');
+        assert.equal(retained.length, 1);
+        assert.equal(Buffer.from(retained[0].original.base64, 'base64').toString('utf8'), source);
+        return job;
+      };
+      const job = await run(csv);
+      const exported = (await h.api('/api/stall/exports/records')).products;
+      for (const row of rows) {
+        const matches = exported.filter(item => item.id === row.sku);
+        assert.equal(matches.length, 1);
+        assert.deepEqual(matches[0].value, { ...row, active: false });
+      }
+      let undone;
+      for (let request = 0; request < rows.length; request++) {
+        undone = await h.api(`${base}/${job.id}/undo`, {});
+        if (undone.state !== 'undoing') break;
+      }
+      assert.equal(undone.state, 'undone');
+      assert.deepEqual(await catalogue(), before, 'undo restores complete original drafts, prices and revisions');
+
+      const protectedJob = await run(csv.replace('Bulk title 1,', 'Second bulk title,'));
+      const target = (await catalogue()).find(item => item.id === rows.at(-1).sku);
+      await h.command('product.prepare', { sku: target.id, revision: target.revision,
+        name: 'Later native edit', description: 'Must survive bulk undo', unitCents: 4567, active: false });
+      const protectedRow = (await catalogue()).find(item => item.id === target.id);
+      await h.api(`${base}/${protectedJob.id}/undo`, {}, { status: 409 });
+      assert.deepEqual((await catalogue()).find(item => item.id === target.id), protectedRow,
+        'strict undo refusal preserves the later native draft and its revision');
+    });
     await t.test('publication and order references preserve catalogue rows against imports and undo', async () => {
       const { job } = await apply(h, csvFor('ORDERED'));
       // Test data represents an existing order: the import route must honour all

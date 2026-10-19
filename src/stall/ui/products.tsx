@@ -8,6 +8,7 @@ import { money } from './api'
 import { Badge, Empty } from './primitives'
 import { businessTime, shortDate, shortId, shortTime, usePerson, When } from './presentation'
 import { Icon } from './icons'
+import { BulkProducts } from './bulk-products'
 
 const blank: ProductValue = { sku: '', name: '', description: '', unitCents: 0, active: true }
 const statusOf = (product: Product) => product.value.approval ? product.value.active ? 'Published' : 'Inactive' : 'Staged'
@@ -51,7 +52,8 @@ function ProductPanel({ product, preparedBy, busy, run, canApprove, onEdit }: { 
 }
 
 /** `focus` is a SKU from a link (#products/<sku>). */
-export function ProductsView({ products, audit, focus, query, busy, run, canApprove }: { products: Product[]; audit: State['audit']; focus?: string; query: string; busy: boolean; run: Run; canApprove: boolean }) {
+export function ProductsView({ products, audit, focus, query, busy, run, canApprove, reload }: { products: Product[]; audit: State['audit']; focus?: string; query: string; busy: boolean; run: Run; canApprove: boolean; reload: () => Promise<void> }) {
+  const [bulk, setBulk] = useState(false)
   const [tab, setTab] = useState<typeof productTabs[number][0]>('all'), [selectedId, setSelectedId] = useState(focus ?? ''), [editing, setEditing] = useState<Product | 'new' | null>(null)
   const panel = useRef<HTMLElement>(null)
   useEffect(() => { if (focus) { setTab('all'); setSelectedId(focus); setEditing(null) } }, [focus])
@@ -61,9 +63,10 @@ export function ProductsView({ products, audit, focus, query, busy, run, canAppr
   const selected = products.find(product => product.id === selectedId) ?? shown[0]
   function reveal() { if (matchMedia('(max-width: 1180px)').matches) requestAnimationFrame(() => panel.current?.scrollIntoView({ block: 'start' })) }
   const draftCount = products.filter(product => product.value.draft).length
+  if (bulk) return <BulkProducts products={products} reload={reload} close={() => setBulk(false)} />
   return <div className={`st-orders-layout${editing || selected ? '' : ' is-single'}`} id="products">
     <HydrationUnit><section className="st-orders" aria-labelledby="products-title">
-      <div className="st-view-head"><h1 id="products-title">Products</h1><button disabled={busy} onClick={() => { setEditing('new'); reveal() }}>Prepare a product</button></div>
+      <div className="st-view-head"><h1 id="products-title">Products</h1><div className="st-actions">{canApprove && <button className="st-secondary" disabled={busy} onClick={() => setBulk(true)}>Bulk edit staged products</button>}<button disabled={busy} onClick={() => { setEditing('new'); reveal() }}>Prepare a product</button></div></div>
       <nav className="st-tabs" aria-label="Product status">{productTabs.map(([id, label]) => <button key={id} aria-current={tab === id ? 'true' : undefined} onClick={() => { setTab(id); setSelectedId('') }}>{label}{id === 'draft' && !!draftCount && <span className="st-tab-count">{draftCount}</span>}</button>)}</nav>
       {!products.length ? <Empty><h3>Bring your products into Stall</h3><p><a href="#move-in">Import a Shopify product CSV</a>, or prepare a product. <a href="#connections">Connect Pier and Stripe</a> before taking orders.</p></Empty>
         : !shown.length ? <p className="st-none">No products match.</p>
