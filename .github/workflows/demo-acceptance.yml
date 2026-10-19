@@ -1,0 +1,69 @@
+name: Demo acceptance
+on:
+  push:
+    branches: [main, sx-stall-r1-demo]
+    paths:
+      - 'tests/api/demo.test.mjs'
+      - 'tests/ui/demo-journey.mjs'
+      - '.github/workflows/demo-acceptance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: run-demo-test
+  cancel-in-progress: false
+jobs:
+  hosted-demo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: run-demo
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TURNSTILE_SITE_KEY: '1x00000000000000000000AA'
+      TURNSTILE_SECRET_KEY: '1x0000000000000000000000000000000AA'
+      RER_DEMO_MEASUREMENT_TOKEN: ${{ secrets.RER_DEMO_MEASUREMENT_TOKEN }}
+      STALL_DEMO_TEST_ORIGIN: https://demo.test.run-stall.com
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - run: corepack enable && pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Scope the hosted acceptance to its separate test domain
+        id: scope
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const path='deploy-demo.json', config=JSON.parse(fs.readFileSync(path,'utf8'));
+          config.domain=`test.${config.domain}`;
+          fs.writeFileSync(path,JSON.stringify(config));
+          JS
+      - run: pnpm exec rer build --site
+      - name: Deploy this commit's test demo
+        run: pnpm exec rer deploy --demo --environment demo-test
+      - name: Wait for the public test host
+        run: |
+          deadline=$((SECONDS + 300))
+          until [ "$(curl --silent --max-time 10 -o /dev/null -w '%{http_code}' "$STALL_DEMO_TEST_ORIGIN/")" = 200 ]; do
+            if [ "$SECONDS" -ge "$deadline" ]; then exit 1; fi
+            sleep 10
+          done
+      - name: DEMO-001 hosted public-door journey
+        run: node tests/ui/demo-journey.mjs
+      - name: Save the actual hosted screens
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: DEMO-001-${{ github.sha }}
+          path: test-results/DEMO-001
+          if-no-files-found: ignore
+      - name: Remove this test host
+        if: ${{ always() && steps.scope.outcome == 'success' }}
+        run: pnpm exec rer deploy --demo --remove --yes --environment demo-test

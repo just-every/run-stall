@@ -25,6 +25,13 @@ export async function createCheckout(env:Bindings,o:Order) {
  writeWindow(o.createdAt)
  const form=new URLSearchParams({mode:'payment',customer_email:o.customerEmail!,client_reference_id:o.id,'metadata[stall_order_id]':o.id,'payment_intent_data[metadata][stall_order_id]':o.id,success_url:env.AUTH_ORIGIN+'/order?checkout=success&orderId='+encodeURIComponent(o.id),cancel_url:env.AUTH_ORIGIN+'/order?checkout=cancelled&orderId='+encodeURIComponent(o.id),'shipping_address_collection[allowed_countries][0]':shopCountry})
  o.lines.forEach((l,i)=>{form.set(`line_items[${i}][quantity]`,String(l.quantity));form.set(`line_items[${i}][price_data][currency]`,shopCurrency);form.set(`line_items[${i}][price_data][unit_amount]`,String(l.unitCents));form.set(`line_items[${i}][price_data][product_data][name]`,l.name)})
+ const shippingCents=o.shippingCents??0
+ if(shippingCents>0) {
+  form.set('shipping_options[0][shipping_rate_data][type]','fixed_amount')
+  form.set('shipping_options[0][shipping_rate_data][fixed_amount][amount]',String(shippingCents))
+  form.set('shipping_options[0][shipping_rate_data][fixed_amount][currency]',shopCurrency)
+  form.set('shipping_options[0][shipping_rate_data][display_name]','Domestic shipping')
+ }
  return stripe(env,'/checkout/sessions',form,`stall-checkout-${o.id}`)
 }
 export const checkoutSession=(env:Bindings,id:string)=>stripe(env,'/checkout/sessions/'+encodeURIComponent(id))
@@ -35,6 +42,7 @@ export async function createRefund(env:Bindings,o:Order,r:Refund) {
 export const retrieveRefund=(env:Bindings,id:string)=>stripe(env,'/refunds/'+encodeURIComponent(id))
 export function validateSession(o:Order,s:any,paid=false) {
  if(typeof s?.id!=='string'||!/^cs_[A-Za-z0-9_]+$/.test(s.id)||s.object!=='checkout.session'||s.mode!=='payment'||s.client_reference_id!==o.id||s.metadata?.stall_order_id!==o.id||s.currency!==shopCurrency||s.amount_total!==o.totalCents||(o.checkout&&o.checkout.id!==s.id)||(o.payment&&o.payment.sessionId!==s.id)) fail('PAYMENT_MISMATCH','Stripe session does not match this order.',400)
+ if((o.shippingCents??0)>0&&s.total_details?.amount_shipping!==o.shippingCents) fail('PAYMENT_MISMATCH','Stripe shipping does not match the reviewed shipping charge.',400)
  if(paid&&(s.payment_status!=='paid'||s.status!=='complete'||typeof s.payment_intent!=='string'||!/^pi_[A-Za-z0-9_]+$/.test(s.payment_intent)||(o.payment&&o.payment.intentId!==s.payment_intent))) fail('PAYMENT_MISMATCH','Stripe has not confirmed the expected completed payment.',400)
 }
 export async function signedEvent(request:Request,env:Bindings) {

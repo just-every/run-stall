@@ -1,18 +1,29 @@
 import { runtimeBindings, type Bindings } from '../auth.server'
 import { createPortabilityHandler, boundedJson } from '@runeditrun/rer/modules/portability/http'
 import { portabilityPolicy } from './portability-policy.mjs'
-import { current, live } from './access'
+import { audit, commit, current, live } from './access'
+import { businessExport } from './exports'
 import { Problem, fail, requirePerson, requireSupplier } from './model'
 import { dryRunProductImport, applyProductImport, listProductImports, getProductImport, undoProductImport } from './imports'
 
 const json = (value: unknown, status = 200) => Response.json(value, { status, headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } })
 export async function toolsResponse(request: Request, original: Bindings): Promise<Response | null> {
  const path = new URL(request.url).pathname
- if (!path.startsWith('/api/stall/imports') && !path.startsWith('/api/stall/portability/')) return null
+ if (!path.startsWith('/api/stall/imports') && !path.startsWith('/api/stall/portability/') && !path.startsWith('/api/stall/exports/')) return null
  try {
   const env = runtimeBindings(original), actor = await current(request, env)
   requireSupplier(actor)
   if (!['GET', 'HEAD'].includes(request.method) && !actor.agent && request.headers.get('origin') !== env.AUTH_ORIGIN) fail('ORIGIN', 'Use this installation’s own page.', 403)
+  if (path.startsWith('/api/stall/exports/')) {
+   requirePerson(actor)
+   if (actor.role !== 'owner') fail('FORBIDDEN', 'Only the owner may export business records.', 403)
+   if (request.method !== 'GET') return json({ error: { code: 'NOT_FOUND', message: 'Download business exports with GET.' } }, 404)
+   await live(env, actor)
+   const kind = path.slice('/api/stall/exports/'.length)
+   const response = await businessExport(env.DB, kind)
+   await commit(env.DB, actor, [audit(env.DB, actor, kind, 'business.exported')])
+   return response
+  }
   if (path.startsWith('/api/stall/portability/')) {
    requirePerson(actor)
    if (actor.role !== 'owner') fail('FORBIDDEN', 'Only the owner may export or restore the installation.', 403)

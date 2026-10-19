@@ -58,7 +58,7 @@ export const customers: Customer[] = [
 ]
 
 // Each order: [days ago, hour in Santa Fe (minutes ago for today's), customer, lines [sku, quantity], what happened].
-export type Fate = 'shipped' | 'refunded' | 'refund-waiting' | 'packed' | 'reserved' | 'paid' | 'shortfall' | 'abandoned'
+export type Fate = 'shipped' | 'refunded' | 'refund-waiting' | 'packed' | 'reserved' | 'paid' | 'shortfall' | 'abandoned' | 'checkout-pending'
 export type Refunded = { sku: string; quantity: number; reason: string }
 export type OrderSeed = [number, number, number, [string, number][], Fate, Refunded?]
 export const orders: OrderSeed[] = [
@@ -106,4 +106,5 @@ export const orders: OrderSeed[] = [
  [1, 20, 10, [['SC-HONEY-MESQUITE', 1], ['SC-TEA-SAGE', 1]], 'reserved'],
  [0, 190, 22, [['SC-BOWL-RIPPLE', 1]], 'abandoned'],
  [0, 25, 17, [['SC-MUG-OCHRE', 2], ['SC-TOWEL-LINEN', 1]], 'paid'],
+ [0, 12, 12, [['SC-CANDLE-PINON', 1]], 'checkout-pending'],
 ]

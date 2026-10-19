@@ -73,13 +73,15 @@ export async function history(now: Date, staff: Staff, pier: PierState) {
   const lines = picks.map(([sku, quantity]) => ({ sku, name: productSeeds.find(p => p.sku === sku)!.name, itemId: item(sku).id, quantity, unitCents: unit(sku) }))
   const totalCents = lines.reduce((sum, l) => sum + l.quantity * l.unitCents, 0)
   const selection = lines.map(l => ({ sku: l.sku, quantity: l.quantity })).sort((a, b) => a.sku.localeCompare(b.sku))
-  const sessionId = `cs_demo_${hex(id)}`, paid = fate !== 'abandoned'
+  const sessionId = `cs_demo_${hex(id)}`, pending = fate === 'checkout-pending', paid = fate !== 'abandoned' && !pending
   const shipping = { name: customer.name, address: { line1: customer.line1, line2: '', city: customer.city, state: customer.state, postal_code: customer.postcode, country: shopCountry } }
   const session: StripeSession = { id: sessionId, orderId: id, email: customer.email, amount: totalCents, paid, status: paid ? 'complete' : days > 0 ? 'expired' : 'open', intent: paid ? `pi_demo_${hex(id)}` : null, shipping }
   stripe.sessions[sessionId] = session
-  let order: Order = { id, revision: '', customerEmail: customer.email, lines, totalCents, currency: shopCurrency, status: 'awaiting_payment', createdAt: created, requestDigest: await digest(JSON.stringify({ customerEmail: customer.email, lines: selection, expectedTotalCents: totalCents })), checkoutKey: await digest(await uuidFrom(`order:${n}:checkout-key`)), pierOrigin: demoPierOrigin, pierCustomerId: demoPierCustomer, checkout: { id: sessionId, url: `https://checkout.stripe.com/c/pay/${sessionId}` }, refunds: [] }
+  let order: Order = { id, revision: '', customerEmail: customer.email, lines, totalCents, currency: shopCurrency, status: pending ? 'checkout_pending' : 'awaiting_payment', createdAt: created, requestDigest: await digest(JSON.stringify({ customerEmail: customer.email, lines: selection, expectedTotalCents: totalCents })), checkoutKey: await digest(await uuidFrom(`order:${n}:checkout-key`)), pierOrigin: demoPierOrigin, pierCustomerId: demoPierCustomer, ...(!pending ? { checkout: { id: sessionId, url: `https://checkout.stripe.com/c/pay/${sessionId}` } } : {}), refunds: [] }
   happened('customer', 'checkout.prepared', created)
-  happened('stripe', 'checkout.created', later(created, 1))
+  // A pending checkout represents a lost processor response: its session exists
+  // at the simulated edge, but Stall has not received a checkout reference.
+  if (!pending) happened('stripe', 'checkout.created', later(created, 1))
   if (paid) {
    const paidAt = later(created, 4)
    order = { ...order, shippingDetails: shipping, payment: { sessionId, intentId: session.intent!, paidAt }, status: 'paid' }
@@ -106,7 +108,7 @@ export async function history(now: Date, staff: Staff, pier: PierState) {
     const approved = later(prepared, 25), approval: Approval = { by: approver.id, version: approver.version, at: approved, revision: await revision() }
     happened(approver.id, 'shipment.approved', approved)
     const p = pier.orders.find(o => o.id === order.reservation!.id)!
-    const dispatch: PierShipment = { id: `pier-shipment-${pier.shipments.length + 1}`, orderId: p.id, reference: shipment.reference, lines: lines.map(l => ({ itemId: l.itemId, quantity: String(l.quantity) })) }
+    const dispatch: PierShipment = { id: `pier-shipment-${pier.shipments.length + 1}`, orderId: p.id, reference: shipment.reference, createdAt: later(approved, 1), lines: lines.map(l => ({ orderLineId: p.lines.find(line => line.itemId === l.itemId)!.id, itemId: l.itemId, quantity: String(l.quantity) })) }
     for (const line of p.lines) line.dispatched = line.reserved
     pier.shipments.push(dispatch); pier.commands[`stall-ship-${shipment.id}`] = dispatch
     order = { ...order, status: 'shipped', shipment: { ...shipment, status: 'shipped', approval, pierShipmentId: dispatch.id } }

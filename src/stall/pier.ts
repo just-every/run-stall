@@ -4,6 +4,7 @@ import { products } from './store'
 import { demoEffect } from '../modules/demo/index.mjs'
 import { demoPier } from './demo/providers'
 import { paymentsReady } from './stripe'
+import { shippingCharge } from './shipping-charge'
 const SCALE=1000000n
 export function decimal(value:string):bigint {
  if(typeof value!=='string'||!/^\d{1,10}(\.\d{1,6})?$/.test(value)) fail('PIER_RESPONSE','Pier returned an invalid stock quantity.',502)
@@ -41,8 +42,9 @@ async function call(env:Bindings,path:string,body?:unknown):Promise<any> {
 export const pierState=(env:Bindings)=>call(env,'/api/pier/state')
 export async function catalogue(env:Bindings) {
  const listings=(await products(env.DB)).filter(p=>p.value.active)
+ const shippingCents=await shippingCharge(env.DB)
  // An unpublished shop has no stock promises to ask Pier about.
- if(!listings.length) return {items:[],observedAt:new Date().toISOString(),checkoutReady:false}
+ if(!listings.length) return {items:[],shippingCents,observedAt:new Date().toISOString(),checkoutReady:false}
  const state=await pierState(env)
  if(!Array.isArray(state.items)||!Array.isArray(state.locations)||!Array.isArray(state.positions)||!Array.isArray(state.parties)) fail('PIER_RESPONSE','Pier stock response is incomplete.',502)
  if(!state.parties.some((p:any)=>p.id===env.PIER_CUSTOMER_ID&&p.kind==='customer')) fail('PIER_CUSTOMER','Select an existing Pier customer for shop orders.',503)
@@ -53,14 +55,17 @@ export async function catalogue(env:Bindings) {
   const available=state.positions.filter((x:any)=>x.itemId===item.id&&x.status==='sellable'&&bins.has(x.locationId)).reduce((sum:bigint,x:any)=>sum+decimal(x.available),0n)
   return [{sku:p.id,name:p.value.name,description:p.value.description,unitCents:p.value.unitCents,itemId:item.id,available:format(available)}]
  })
- return {items,observedAt:new Date().toISOString(),checkoutReady:paymentsReady(env)}
+ return {items,shippingCents,observedAt:new Date().toISOString(),checkoutReady:paymentsReady(env)}
 }
 export function assertOriginalPier(env:Bindings,order:Order) { if(pierOrigin(env)!==order.pierOrigin||env.PIER_CUSTOMER_ID!==order.pierCustomerId) fail('PIER_CHANGED','Reconnect the original Pier installation and shop customer before reconciling this order.') }
 export async function reserveOrder(env:Bindings,o:Order) {
  assertOriginalPier(env,o)
  const result=(await call(env,'/api/pier/commands',{commandId:`stall-reserve-${o.id}`,type:'order.create',payload:{customerId:o.pierCustomerId,channel:'stall',currency:o.currency.toUpperCase(),lines:o.lines.map(l=>({itemId:l.itemId,quantity:String(l.quantity),price:(l.unitCents/100).toFixed(2)}))}})).result
  if(typeof result?.id!=='string') fail('PIER_RESPONSE','Pier did not return the reserved order. Reconcile the same order to recover it.',502)
- if(o.payment) await call(env,'/api/pier/commands',{commandId:`stall-payment-${o.id}`,type:'order.channelPayment',payload:{orderId:result.id,payment:{provider:'stripe',reference:o.payment.intentId,amount:(o.totalCents/100).toFixed(2),currency:o.currency.toUpperCase(),paidAt:o.payment.paidAt,orderReference:o.id}}})
+ // Pier's order contains merchandise only. Allocate that portion of the verified
+ // charge to it; the separate shipping charge and gross payment remain in Stall.
+ const merchandiseCents=o.lines.reduce((sum,line)=>sum+line.quantity*line.unitCents,0)
+ if(o.payment) await call(env,'/api/pier/commands',{commandId:`stall-payment-${o.id}`,type:'order.channelPayment',payload:{orderId:result.id,payment:{provider:'stripe',reference:o.payment.intentId,amount:(merchandiseCents/100).toFixed(2),currency:o.currency.toUpperCase(),paidAt:o.payment.paidAt,orderReference:o.id}}})
  return result
 }
 export function fullyReserved(result:any,lines:Line[]) {

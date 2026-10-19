@@ -1,0 +1,1 @@
+CREATE TABLE st_shipping(id INTEGER PRIMARY KEY NOT NULL CHECK(id=1),shipping_cents INTEGER NOT NULL CHECK(typeof(shipping_cents)='integer' AND shipping_cents>=0 AND shipping_cents<=99999999),updated_by TEXT,updated_at TEXT);

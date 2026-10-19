@@ -9,7 +9,8 @@ import { money } from './api'
 import { Badge, RecordDetail } from './primitives'
 import { countryName, humanLabel, placeLine, shortId, shortTime, usePerson, When } from './presentation'
 import { draftOf, needs, pendingWork, shortBy, statusLine } from './order-status'
-import { RecoverForm, RefundForm, ShipForm } from './order-forms'
+import { RecoverForm, ShipForm } from './order-forms'
+import { RefundForm, refundDescription } from './refund-form'
 import { Icon } from './icons'
 
 type Editing = 'shipment' | 'refund' | null
@@ -37,14 +38,14 @@ function NextStep({ order, busy, run, canApprove, editing, edit }: { order: Orde
     {need && <div className="st-note"><Icon name="spark" /><div>
       <h3>{draft?.by.startsWith('agent:') ? 'Agent note' : 'Needs you'}</h3>
       {shipment ? <p>Shipping prepared by {person(shipment.preparedBy)}: {shipment.reference}. Approving tells Pier to ship the reserved stock.</p>
-        : refund ? <p>Refund {money(refund.amountCents)} prepared by {person(refund.preparedBy)}: {refund.lines.map(line => `${order.lines.find(item => item.sku === line.sku)?.name ?? line.sku} × ${line.quantity}`).join(', ')}. {refund.reason}</p>
+        : refund ? <p>Refund {money(refund.amountCents)} prepared by {person(refund.preparedBy)}: {refundDescription(refund, order)}. {refund.reason}</p>
         : <p>{statusLine(order)}</p>}
       {order.shipment?.status === 'pending' && <p>Approval recorded; Pier confirmation is pending. Reconcile to retry safely.</p>}
       {order.refunds.some(refund => refund.status === 'pending') && <p>Reconcile this order to retrieve Stripe’s latest refund result.</p>}
       {failed && <p>Stripe did not complete a refund. Prepare a new refund if one is still owed.</p>}
     </div></div>}
     {!need && <p className="st-next">{statusLine(order)}</p>}
-    {editing === 'refund' && refund && <div className="st-panel-edit"><RefundForm order={order} busy={busy} run={run} initial={{ sku: refund.lines[0].sku, quantity: refund.lines[0].quantity, reason: refund.reason }} onCancel={() => edit(null)} /></div>}
+    {editing === 'refund' && refund && <div className="st-panel-edit"><RefundForm order={order} busy={busy} run={run} initial={refund} onCancel={() => edit(null)} /></div>}
     {(approve || draft || pendingWork(order)) && <div className="st-actions st-panel-actions">
       {approve}
       {draft && !editing && <button className="st-secondary" disabled={busy} onClick={() => edit(draft.kind)}>Edit<span className="st-sr-only"> {draft.kind === 'refund' ? 'refund' : 'shipping'}</span></button>}
@@ -65,6 +66,7 @@ export function OrderPanel({ order, busy, run, canApprove, previous, next, foote
       <ul className="st-items">{order.lines.map(line => { const gap = short[line.itemId]; return <li key={line.sku}><div><span>{line.name}</span><small>{line.sku}</small></div><span className="st-num">{money(line.unitCents)}</span><span className="st-qty">× {line.quantity}</span><span className="st-num">{money(line.quantity * line.unitCents)}</span>{gap && <p className="st-short">Short in Pier ({gap.reserved} of {gap.quantity} reserved)</p>}</li> })}</ul>
     </section>
     <section className="st-panel-block st-sums">
+      <p><span>Shipping charged</span><span>{money(order.shippingCents ?? 0)}</span></p>
       <p><span>Order total · USD</span><strong>{money(order.totalCents)}</strong></p>
       <p><span>Payment</span><span>{order.payment ? `Paid ${shortTime(order.payment.paidAt)} · Stripe` : humanLabel(order.status)}</span></p>
       {!!refunded && <p><span>Refunded</span><span>−{money(refunded)}</span></p>}
@@ -77,11 +79,11 @@ export function OrderPanel({ order, busy, run, canApprove, previous, next, foote
         : order.status === 'reserved' ? <><p className="st-small">No dispatch recorded yet. To ship from Stall, add the carrier’s reference for a person to approve.</p><ShipForm order={order} busy={busy} run={run} /></>
         : <p className="st-small">Shipping opens once payment is confirmed and Pier holds the stock.</p>}
     </section>
-    {order.refunds.filter(refund => refund.status !== 'draft').map(refund => <section key={refund.id} className="st-panel-block"><div className="st-row"><h3>Refund · {money(refund.amountCents)}</h3><Badge value={refund.status} /></div><p className="st-small">{refund.lines.map(line => `${line.sku} × ${line.quantity}`).join(', ')} · {refund.reason}</p><p className="st-small">Prepared by {person(refund.preparedBy)}</p><ApprovalRecord approval={refund.approval} /></section>)}
+    {order.refunds.filter(refund => refund.status !== 'draft').map(refund => <section key={refund.id} className="st-panel-block"><div className="st-row"><h3>Refund · {money(refund.amountCents)}</h3><Badge value={refund.status} /></div><p className="st-small">{refundDescription(refund, order)} · {refund.reason}</p><p className="st-small">Prepared by {person(refund.preparedBy)}</p><ApprovalRecord approval={refund.approval} /></section>)}
     <NextStep order={order} busy={busy} run={run} canApprove={canApprove} editing={editing} edit={setEditing} />
     {footer}
     <details className="st-more"><summary>More actions</summary>
-      {!!order.payment && <details><summary>Prepare a one-line partial refund</summary><RefundForm order={order} busy={busy} run={run} /></details>}
+      {!!order.payment && <details><summary>Prepare a refund</summary><RefundForm order={order} busy={busy} run={run} /></details>}
       <details><summary>Recover an existing provider operation</summary><RecoverForm order={order} busy={busy} run={run} /></details>
       <RecordDetail label="Payment, stock reservation & provider details" value={{ payment: order.payment, reservation: order.reservation, shipment: order.shipment, refunds: order.refunds }} />
     </details>

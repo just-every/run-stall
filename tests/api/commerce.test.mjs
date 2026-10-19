@@ -4,8 +4,48 @@ import { randomBytes,randomUUID } from 'node:crypto';
 import { installation } from './harness.mjs';
 import { pierInstallation } from './pier.mjs';
 import { stripeEdge,deliverWebhook,publish,purchase } from './network.mjs';
+import { volumeStock } from './volume-stock.mjs';
 const state=h=>h.api('/api/stall/state');
 const order=async(h,id)=>(await state(h)).orders.find(o=>o.id===id);
+test('OPEN-001: an owned installation publishes 200 products, adds 10 staff and takes 1000 paid orders without author fees or gates',async()=>{
+ const stock=volumeStock(),edge=stripeEdge({forward:stock.forward}),secret=randomBytes(32).toString('hex');
+ const h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'test-stock-network-edge',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle});
+ try {
+  for(let i=0;i<10;i++) {
+   const cookie=await h.signIn(`maker-${i}@example.test`);
+   assert.equal((await h.api('/auth/session',undefined,{as:cookie})).operator.role,'member');
+  }
+  for(const [i,item] of stock.items.entries()) await publish(h,item.sku,`Handmade piece ${i+1}`,1250+i);
+  assert.equal((await h.api('/api/stall/catalogue',undefined,{as:''})).items.length,200);
+  const expected=new Map();
+  for(let i=0;i<1000;i++) {
+   const index=i%stock.items.length,cents=1250+index;
+   const bought=await purchase(h,edge,{skus:[stock.items[index].sku],quantities:[1],expectedTotalCents:cents});
+   const paid=edge.pay(bought.session.id);
+   assert.equal(paid.amount_total,cents);
+   const delivered=await deliverWebhook(h,secret,paid);
+   assert.equal(delivered.response.status,200,JSON.stringify(delivered.value));
+   assert.equal(delivered.value.status,'reserved');
+   expected.set(bought.orderId,cents);
+  }
+  const result=await state(h);
+  assert.equal(result.products.length,200);
+  assert.equal(result.orders.length,1000);
+  assert.equal(stock.payments.size,1000);
+  assert.equal(edge.sessions.size,1000);
+  // EXPORT-001: the public download retains the entire supported volume.
+  const exported=await h.api('/api/stall/exports/records');
+  assert.equal(exported.products.length,200);
+  assert.equal(exported.orders.length,1000);
+  assert.equal(exported.reconciliation.length,1000);
+  for(const row of result.orders) {
+   assert.equal(row.status,'reserved');
+   assert.equal(row.totalCents,expected.get(row.id));
+   assert.equal(row.currency,'usd');
+   assert.equal(stock.payments.get(`stall-payment-${row.id}`).amount,(row.totalCents/100).toFixed(2));
+  }
+ }finally{await h.close()}
+});
 test('shop purchase, signed paid reservation, shipment and partial refund reconcile through real Pier',async t=>{
  const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex');
  let h;
@@ -89,7 +129,7 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
    assert.equal(stock.reservations.length,0);
    assert.ok(stock.positions.every(p=>p.quantity==='19'));
   });
-  await t.test('partial refund recovery cannot overrefund and never restocks the shipped item',async()=>{
+  await t.test('ORDER-003: partial line refund recovery cannot overrefund and never restocks the shipped item',async()=>{
    let value=await order(h,bought.orderId);
    value=await h.command('refund.prepare',{orderId:value.id,revision:value.revision,lines:[{sku:'MUG-BLUE',quantity:1}],reason:'Customer kept towel'});
    assert.equal(value.refunds[0].amountCents,2450);
@@ -109,6 +149,82 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
    const history=(await state(h)).audit;
    assert.ok(history.some(a=>a.action==='shipment.approved'));
    assert.ok(history.some(a=>a.action==='refund.approved'));
+  });
+  await t.test('ORDER-003: shipping and goodwill approvals preserve cents, quantities, history and one provider effect',async()=>{
+   const admin=await h.signIn('shipping-admin@example.test','admin');
+   await h.command('shipping.configure',{shippingCents:625},{as:admin,status:403});
+   await h.command('shipping.configure',{shippingCents:6.25},{status:400});
+   await h.command('shipping.configure',{shippingCents:625});
+   assert.equal((await h.api('/api/stall/catalogue',undefined,{as:''})).shippingCents,625);
+   await h.api('/api/stall/checkout',{customerEmail:'late@example.test',lines:[{sku:'MUG-BLUE',quantity:1}],expectedTotalCents:2450,idempotencyKey:randomUUID()},{as:'',status:409});
+   const bought=await purchase(h,edge,{email:'late@example.test',expectedTotalCents:4875});
+   assert.equal(bought.session.amount_total,4875);
+   const changed=await deliverWebhook(h,secret,{...bought.session,total_details:{amount_shipping:624}});
+   assert.equal(changed.response.status,400);
+   await h.command('shipping.configure',{shippingCents:0});
+   const retry=await purchase(h,edge,{email:'late@example.test',key:bought.key,expectedTotalCents:4875});
+   assert.equal(retry.orderId,bought.orderId);
+   assert.equal((await deliverWebhook(h,secret,edge.pay(bought.session.id))).response.status,200);
+   let value=await order(h,bought.orderId);
+   assert.equal(value.shippingCents,625);
+   const native=(await pier.api('/api/pier/state')).orders.find(row=>row.id===value.reservation.id);
+   assert.equal(native.channelPayment.amount,'42.50');
+   assert.equal(native.channelPayment.reference,value.payment.intentId);
+   const originalLines=structuredClone(value.lines),before=await pier.api('/api/pier/state');
+   value=await h.command('shipment.prepare',{orderId:value.id,revision:value.revision,reference:'USPS LATE-PARCEL'});
+   value=await h.command('shipment.approve',{orderId:value.id,revision:value.revision});
+   const refundCount=edge.refunds.size;
+   value=await h.command('refund.prepare',{orderId:value.id,revision:value.revision,kind:'shipping',amountCents:250,reason:'Shipping service delay'});
+   const stale=value.revision,first=value.refunds.at(-1).id;
+   value=await h.command('refund.prepare',{orderId:value.id,revision:value.revision,kind:'shipping',amountCents:250,reason:'Partial shipping refund for delay'});
+   await h.command('refund.approve',{orderId:value.id,revision:stale},{status:409});
+   assert.equal(edge.refunds.size,refundCount);
+   edge.loseNextRefundResponse();
+   const approvedRevision=value.revision;
+   await h.command('refund.approve',{orderId:value.id,revision:approvedRevision},{status:503});
+   value=await order(h,value.id);
+   assert.equal(value.refunds.at(-1).status,'pending');
+   assert.equal(value.refunds.at(-1).approval.revision,approvedRevision);
+   assert.equal(value.refunds.at(-1).lines.length,0);
+   await h.command('refund.prepare',{orderId:value.id,revision:value.revision,kind:'goodwill',amountCents:500,reason:'Wait for prior refund'},{status:409});
+   value=await h.command('order.reconcile',{orderId:value.id});
+   assert.equal(value.refunds.at(-1).status,'succeeded');
+   await h.command('refund.approve',{orderId:value.id,revision:approvedRevision,refundId:value.refunds.at(-1).id});
+   assert.equal(edge.refunds.size,refundCount+1);
+   assert.ok(!value.refunds.some(refund=>refund.id===first));
+   await h.command('refund.prepare',{orderId:value.id,revision:value.revision,kind:'shipping',amountCents:376,reason:'Too much shipping'},{status:409});
+   value=await h.command('refund.prepare',{orderId:value.id,revision:value.revision,kind:'shipping',amountCents:375,reason:'Remaining shipping for late delivery'});
+   value=await h.command('refund.approve',{orderId:value.id,revision:value.revision});
+   await h.command('refund.prepare',{orderId:value.id,revision:value.revision,kind:'shipping',amountCents:1,reason:'Already refunded shipping'},{status:409});
+   for(const amountCents of [0,-1,5.01]) await h.command('refund.prepare',{orderId:value.id,revision:value.revision,kind:'goodwill',amountCents,reason:'Invalid amount'},{status:400});
+   await h.command('refund.prepare',{orderId:value.id,revision:value.revision,kind:'goodwill',amountCents:500,lines:[{sku:'MUG-BLUE',quantity:1}],reason:'Mixed semantics'},{status:400});
+   await h.command('refund.prepare',{orderId:value.id,revision:value.revision,kind:'goodwill',amountCents:500,reason:''},{status:400});
+   value=await h.command('refund.prepare',{orderId:value.id,revision:value.revision,kind:'goodwill',amountCents:500,reason:'Late parcel goodwill; no goods returned'});
+   value=await h.command('refund.approve',{orderId:value.id,revision:value.revision});
+   assert.equal(edge.refunds.size,refundCount+3);
+   assert.deepEqual(value.lines,originalLines);
+   assert.ok(value.refunds.every(refund=>refund.lines.length===0));
+   assert.deepEqual(value.refunds.map(refund=>refund.accountingCategory),['shipping','shipping','goodwill']);
+   assert.ok(value.refunds.every(refund=>refund.taxTreatment==='no_tax_recorded'));
+   await h.command('refund.prepare',{orderId:value.id,revision:value.revision,kind:'goodwill',amountCents:3751,reason:'Above remaining paid value'},{status:409});
+   // Non-line money has consumed value, not purchased quantities: the mug remains refundable in full.
+   value=await h.command('refund.prepare',{orderId:value.id,revision:value.revision,lines:[{sku:'MUG-BLUE',quantity:1}],reason:'Refund purchased mug'});
+   assert.equal(value.refunds.at(-1).amountCents,2450);
+   value=await h.command('refund.approve',{orderId:value.id,revision:value.revision});
+   await h.command('refund.prepare',{orderId:value.id,revision:value.revision,lines:[{sku:'TOWEL-NAT',quantity:1}],reason:'Line exceeds remaining value after goodwill'},{status:409});
+   value=await h.command('refund.prepare',{orderId:value.id,revision:value.revision,kind:'goodwill',amountCents:1300,reason:'Refund remaining paid value'});
+   value=await h.command('refund.approve',{orderId:value.id,revision:value.revision});
+   assert.equal(value.refunds.reduce((sum,refund)=>sum+refund.amountCents,0),4875);
+   await h.command('refund.prepare',{orderId:value.id,revision:value.revision,kind:'goodwill',amountCents:1,reason:'No refundable value'},{status:409});
+   const stock=await pier.api('/api/pier/state');
+   assert.equal(stock.returns.length,0);
+   assert.equal(stock.shipments.length,before.shipments.length+1);
+   const exported=await h.api('/api/stall/exports/records'),record=exported.orders.find(row=>row.id===value.id);
+   assert.equal(record.shippingCents,625);
+   assert.deepEqual(record.refunds.map(refund=>refund.kind),['shipping','shipping','goodwill','lines','goodwill']);
+   const net=exported.reconciliation.find(row=>row.orderId===value.id);
+   assert.equal(net.netRecordedCents,0);
+   assert.equal(net.succeededRefundCents,4875);
   });
   await t.test('warehouse dispatches refresh into Stall without a second dispatch; partial work stays unfinished',async()=>{
    const bought=await purchase(h,edge,{email:'warehouse@example.test'});

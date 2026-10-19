@@ -10,7 +10,9 @@ import { chromium } from '@playwright/test'
 import { installation } from '../api/harness.mjs'
 import { pierInstallation } from '../api/pier.mjs'
 import { stripeEdge, deliverWebhook } from '../api/network.mjs'
+import { readCsv } from '../api/csv-reader.mjs'
 const exec=promisify(execFile),rer=resolve('node_modules/@runeditrun/rer/global/rer.mjs')
+const hostileDescription='Hand-thrown stoneware. <script>window.stallUnsafe=1</script><img src=https://unsafe.example.test/pixel onerror=alert(1)>';
 const evidence=resolve(process.env.STALL_SCREENSHOTS??'test-results/browser')
 await mkdir(evidence,{recursive:true})
 const scratch=await mkdtemp(join(tmpdir(),'stall-browser-')),checkout=join(scratch,'run-stall')
@@ -50,13 +52,14 @@ try {
   await route.fulfill({status:response.status,headers:{'content-type':response.headers.get('content-type')??'application/json',...(response.headers.get('content-disposition')?{'content-disposition':response.headers.get('content-disposition')}:{})},body:Buffer.from(await response.arrayBuffer())})
  })
  async function capture(name,selector) {
+  if(process.env.STALL_PROOF==='ORDER-003'&&!/^(ORDER-003|shop-review|order$|refund-approval)/.test(name))return
   for(const width of [1440,390]) {
    await page.setViewportSize({width,height:1000})
    if(selector)await (typeof selector==='string'?page.locator(selector):selector).evaluate(element=>window.scrollTo(0,element.getBoundingClientRect().top+scrollY-20))
    else await page.evaluate(()=>window.scrollTo(0,0))
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`page overflows at ${width}: ${name}`)
    await page.screenshot({path:resolve(evidence,`${name}-${width}.png`)})
-   if(['order','products','settings','move-in-preview','empty','home','shop-review','checkout-return'].includes(name))await page.screenshot({path:resolve(evidence,`${name}-full-${width}.png`),fullPage:true})
+   if(name.endsWith('terminal')||['order','products','settings','move-in-preview','empty','home','shop-review','checkout-return'].includes(name))await page.screenshot({path:resolve(evidence,`${name}-full-${width}.png`),fullPage:true})
   }
   await page.setViewportSize({width:1440,height:1000})
  }
@@ -90,6 +93,17 @@ try {
  await page.getByRole('heading',{name:'Orders',exact:true,level:1}).waitFor()
  await page.getByText('No orders yet',{exact:true}).waitFor()
  await capture('empty')
+ // OPEN-001: provider identity and pricing are visible before saving a connection.
+ await page.getByRole('link',{name:'Settings',exact:true}).click()
+ await page.getByRole('heading',{name:'Settings',exact:true,level:1}).waitFor()
+ assert.equal(await page.getByRole('link',{name:'Stripe pricing',exact:true}).getAttribute('href'),'https://stripe.com/pricing')
+ assert.ok(await page.getByRole('form',{name:'Connect Pier'}).getByRole('link',{name:'Cloudflare hosting pricing'}).count())
+ await capture('OPEN-001-provider-costs','#connections')
+ await page.getByLabel('Domestic shipping · USD',{exact:true}).fill('6.25')
+ await page.getByRole('button',{name:'Save shipping charge',exact:true}).click()
+ await page.waitForFunction(()=>!document.querySelector('form[aria-label="Shipping charge"] button:disabled'))
+ assert.equal((await h.api('/api/stall/state')).shippingCents,625)
+ await capture('ORDER-003-shipping-setting',page.getByRole('form',{name:'Shipping charge'}))
  await page.getByRole('link',{name:'Products',exact:true}).click()
  await page.getByText('Bring your products into Stall',{exact:true}).waitFor()
  await capture('desk-empty')
@@ -109,6 +123,7 @@ try {
  for(const name of ['Stoneware mug','Linen towel']) {
   await page.getByRole('button',{name,exact:true}).click()
   await page.getByRole('button',{name:'Edit product',exact:true}).click()
+  if(name==='Stoneware mug')await page.locator('#product-editor textarea').fill(hostileDescription)
   await page.getByLabel('Available for publication',{exact:true}).check()
   await page.getByRole('button',{name:'Prepare revision',exact:true}).click()
   await page.getByRole('button',{name:/Approve & publish revision/}).waitFor()
@@ -119,16 +134,20 @@ try {
  await capture('products')
  await capture('products-published')
  await page.goto(origin+'/shop')
+ // BASE-001: arbitrary product HTML stays visible plain text in the public shop.
+ await page.getByText(hostileDescription,{exact:true}).waitFor()
+ assert.equal(await page.locator('.st-product script,.st-product img').count(),0)
+ assert.equal(await page.evaluate(()=>window.stallUnsafe),undefined)
  await page.getByLabel('Quantity for Stoneware mug').fill('1')
  await page.getByLabel('Quantity for Linen towel').fill('1')
  await page.getByLabel('Email for your order').fill('customer@example.test')
  await page.getByRole('button',{name:'Review order',exact:true}).click()
- await page.getByRole('button',{name:'Pay $42.50 with Stripe',exact:true}).waitFor()
+ await page.getByRole('button',{name:'Pay $48.75 with Stripe',exact:true}).waitFor()
  await capture('shop-review')
- await capture('shop-total',page.getByRole('button',{name:'Pay $42.50 with Stripe',exact:true}))
+ await capture('shop-total',page.getByRole('button',{name:'Pay $48.75 with Stripe',exact:true}))
  const payment=page.waitForResponse(response=>response.url().startsWith('https://checkout.stripe.com/'))
  await page.route('https://checkout.stripe.com/**',route=>route.fulfill({status:204,body:''}))
- await page.getByRole('button',{name:'Pay $42.50 with Stripe',exact:true}).click()
+ await page.getByRole('button',{name:'Pay $48.75 with Stripe',exact:true}).click()
  await payment
  const session=[...edge.sessions.values()][0];assert.ok(session)
  const paid=edge.pay(session.id)
@@ -147,18 +166,67 @@ try {
  await page.getByRole('button',{name:/Approve shipping · revision/}).click()
  await page.getByText('Shipping has been confirmed by Pier.',{exact:true}).waitFor()
  await page.getByText('More actions',{exact:true}).click()
- await page.getByText('Prepare a one-line partial refund',{exact:true}).click()
+ await page.getByText('Prepare a refund',{exact:true}).click()
  await page.getByLabel('Reason',{exact:true}).fill('One mug returned damaged; no restock')
- await page.getByRole('button',{name:'Prepare partial refund',exact:true}).click()
+ await page.getByRole('button',{name:'Prepare refund',exact:true}).click()
  await page.getByRole('button',{name:/Approve \$24.50 refund/}).waitFor()
  await capture('refund-approval',page.getByRole('button',{name:/Approve \$24.50 refund/}))
  await page.getByRole('button',{name:/Approve \$24.50 refund/}).click()
+ // Completed work leaves Needs action. Open its truthful terminal record.
+ await page.getByRole('button',{name:'Refunds',exact:true}).click()
+ await page.locator('#orders .st-order-id').first().click()
  await page.locator('#orders .st-badge').filter({hasText:/^Succeeded$/}).waitFor()
  await capture('order-reconciled','.st-order-panel')
+ // ORDER-003: use both no-line refund forms, edit a saved exact draft and inspect terminal records.
+ for(const [kind,amount] of [['shipping','6.25'],['goodwill','5.00']]) {
+  const panel=page.locator('.st-order-panel')
+  if(await panel.locator('details.st-more').getAttribute('open')===null)await panel.getByText('More actions',{exact:true}).click()
+  if(await panel.getByText('Prepare a refund',{exact:true}).evaluate(element=>!element.parentElement.open))await panel.getByText('Prepare a refund',{exact:true}).click()
+  const form=panel.locator('form').filter({has:page.getByLabel('Refund type')})
+  await form.getByLabel('Refund type').selectOption(kind)
+  await form.getByLabel('Refund amount · USD').fill('999.99')
+  await form.getByLabel('Reason',{exact:true}).fill('Late parcel; no goods returned')
+  assert.equal(await form.getByRole('button',{name:'Prepare refund',exact:true}).isEnabled(),false)
+  await capture('ORDER-003-'+kind+'-limit',form)
+  await form.getByLabel('Refund amount · USD').fill(amount)
+  await capture('ORDER-003-'+kind+'-form',form)
+  await form.getByRole('button',{name:'Prepare refund',exact:true}).click()
+  const approvedAmount=kind==='shipping'?'6.25':'5.00'
+  await panel.getByRole('button',{name:new RegExp('Approve [$]'+approvedAmount.replace('.','[.]')+' refund')}).waitFor()
+  if(kind==='goodwill') {
+   await panel.getByRole('button',{name:'Edit refund',exact:true}).click()
+   const edit=panel.locator('.st-panel-edit')
+   assert.equal(await edit.getByLabel('Refund type').inputValue(),'goodwill')
+   await edit.getByLabel('Reason',{exact:true}).fill('Late parcel goodwill; customer keeps the goods')
+   await capture('ORDER-003-goodwill-edit',edit)
+   await edit.getByRole('button',{name:'Prepare refund',exact:true}).click()
+  }
+  await capture('ORDER-003-'+kind+'-approval',panel.getByRole('button',{name:new RegExp('Approve [$]'+approvedAmount.replace('.','[.]')+' refund')}))
+  await panel.getByRole('button',{name:new RegExp('Approve [$]'+approvedAmount.replace('.','[.]')+' refund')}).click()
+  await page.getByRole('button',{name:'Refunds',exact:true}).click()
+  await page.locator('#orders .st-order-id').first().click()
+  await page.waitForFunction(()=>!document.querySelector('.st-app button:disabled[type=submit]'))
+  const recorded=(await h.api('/api/stall/state')).orders[0].refunds.at(-1)
+  assert.equal(recorded.kind,kind);assert.equal(recorded.status,'succeeded');assert.equal(recorded.lines.length,0)
+  await capture('ORDER-003-'+kind+'-terminal','.st-order-panel')
+ }
+
  await page.getByRole('link',{name:'Activity',exact:true}).click()
  await page.getByRole('heading',{name:'Activity & reconciliation',exact:true}).waitFor()
  await capture('activity')
  await page.getByRole('link',{name:'Settings',exact:true}).click()
+ // EXPORT-001: use the merchant download door, including its ready status.
+ const businessDownload=page.waitForEvent('download')
+ await page.locator('#business-exports').getByRole('button',{name:'Orders',exact:true}).click()
+ const businessFile=await businessDownload
+ assert.equal(businessFile.suggestedFilename(),'stall-orders.csv')
+ const exportedOrders=readCsv(await readFile(await businessFile.path(),'utf8'))
+ assert.equal(exportedOrders.length,1)
+ assert.equal(exportedOrders[0].totalCents,'4875')
+ assert.equal(exportedOrders[0].shippingCents,'625')
+ assert.equal(JSON.parse(exportedOrders[0].refunds)[0].status,'succeeded')
+ await page.locator('#business-exports [role=status]').waitFor()
+ await capture('EXPORT-001-business-download','#business-exports')
  await page.getByRole('button',{name:'Create agent credential',exact:true}).click()
  await page.getByLabel('Private agent credential').waitFor()
  await page.getByRole('button',{name:'Hide credential',exact:true}).click()
@@ -200,11 +268,12 @@ try {
  const state=await h.api('/api/stall/state')
  assert.equal(state.orders[0].status,'shipped');assert.equal(state.orders[0].customerEmail,null)
  assert.equal(state.orders[0].refunds[0].status,'succeeded')
- assert.equal(edge.refunds.size,1)
+ assert.equal(edge.refunds.size,3)
  assert.deepEqual(errors,[])
  await dev.assertRunning()
  console.log(`Run site linked pages: ${[...visited].join(', ')}`)
- console.log('Browser journey passed: move-in, product approvals, customer checkout, shipping, refund, backup/restore, credentials and erasure at 1440 and 390.')
+ console.log('ORDER-003 browser journey passed: shipping configuration, paid checkout, item/shipping/goodwill approval and terminal records at 1440/390.');
+ console.log('BASE-001 browser journey passed: move-in, product approvals, customer checkout, shipping, refund, backup/restore, credentials and erasure at 1440 and 390.')
  }catch(error){journeyError=error;throw error}
  finally {
  try{await finishCleanup(cleanup,journeyError)}finally{for(const signal of ['SIGINT','SIGTERM'])process.off(signal,interrupted)}

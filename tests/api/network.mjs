@@ -30,6 +30,7 @@ export function stripeEdge({forward}={}) {
    return value?Response.json(value):Response.json({error:'missing'},{status:404});
   }
   const key=request.headers.get('idempotency-key'),form=new URLSearchParams(await request.text());
+  assert.ok(![...form.keys()].some(k=>/application_fee|transfer_data|on_behalf_of/.test(k)),'Stall must not add an author fee or route money to an author account');
   assert.ok(key);
   if(writes.has(key)) { const saved=writes.get(key);assert.equal(saved.body,form.toString());return Response.json(saved.value); }
   let value;
@@ -42,8 +43,9 @@ export function stripeEdge({forward}={}) {
     assert.equal(form.get(`line_items[${i}][price_data][currency]`),'usd');
     total+=Number(form.get(`line_items[${i}][quantity]`))*Number(form.get(`line_items[${i}][price_data][unit_amount]`));
    }
+   total+=Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]')??0);
    const id='cs_test_'+randomUUID().replaceAll('-','');
-   value={id,object:'checkout.session',mode:'payment',client_reference_id:form.get('client_reference_id'),metadata:{stall_order_id:form.get('metadata[stall_order_id]')},amount_total:total,currency:'usd',status:'open',payment_status:'unpaid',payment_intent:null,url:'https://checkout.stripe.com/c/pay/'+id};
+   value={id,object:'checkout.session',mode:'payment',client_reference_id:form.get('client_reference_id'),metadata:{stall_order_id:form.get('metadata[stall_order_id]')},amount_total:total,total_details:{amount_shipping:Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]')??0)},currency:'usd',status:'open',payment_status:'unpaid',payment_intent:null,url:'https://checkout.stripe.com/c/pay/'+id};
    sessions.set(id,value);
   } else if(url.pathname==='/v1/refunds') {
    const intent=form.get('payment_intent'),amount=Number(form.get('amount'));
