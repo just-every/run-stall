@@ -2,7 +2,7 @@
 
 The first move-in kit imports listing metadata from a deliberately small Shopify
 product CSV subset. It uses Base import-kit for a read-only dry-run, exact reviewed
-fingerprint, retained source bytes, resumable journal and strict undo. It never
+fingerprint, retained source bytes, resumable journal and protected partial undo. It never
 imports inventory, customers, cards, orders, images, options, tax settings or
 fulfilment settings, and never writes to Pier.
 
@@ -23,8 +23,11 @@ listing metadata only; it does not migrate your Shopify shop as a whole.
 3. Select **Run dry run**. Under **2. Review & apply**, read the counts and every
    diagnostic, then expand **Review planned product changes**. Check names,
    descriptions, SKUs and exact prices. A dry run does not change products.
-4. Resolve errors in the CSV and run another dry run. Review the warning that all
-   products remain unpublished. The **Reviewed fingerprint** binds this source
+4. Correct rejected value rows and run another dry run, or explicitly check
+   **Exclude the … rejected CSV rows listed above** to apply only valid rows.
+   Structural problems, ambiguous duplicate SKUs/handles and unsupported columns
+   require correcting the file. A file with no valid rows cannot be applied.
+   Review the warning that all products remain unpublished. The **Reviewed fingerprint** binds this source
    and the destination state you inspected; changed input needs a new review.
 5. Select **Apply reviewed import**. If the job needs another batch, select
    **Resume apply** until complete. Existing staged product details may be
@@ -41,9 +44,11 @@ starting another import.
 
 To undo, view the job and inspect **Job journal**, **Source custody** and **Undo
 report**. Select **Review undo**, then **Undo import** in the confirmation dialog.
-Use **Resume undo** if more work remains. Undo can remove a newly imported product
-or restore its previous draft only while it remains untouched by later edits,
-publication or orders. Inspect the final report for preserved records. Undo keeps
+Use **Resume undo** if more work remains. New jobs reverse untouched products
+while keeping products changed by native edits, publication or orders.
+**Product undo outcomes** names each kept/reversed SKU and protecting order.
+Older v1 jobs retain their original strict behavior: a conflict stops the whole
+undo. Existing jobs remain readable and resumable after an upgrade. Undo keeps
 the journal and retained source; it is not customer erasure.
 
 ## Prepare the supported CSV
@@ -65,7 +70,7 @@ A two-product example is in [fixtures/shopify-products.csv](../fixtures/shopify-
 Use UTF-8, comma separators and these exact case-sensitive headers in this order.
 An optional UTF-8 BOM, LF or CRLF, quoted commas, escaped double quotes and quoted
 multiline descriptions are supported. Empty lines are ignored. Limits are 256 KiB
-and 200 products per import.
+and 200 product rows per import, including rejected value rows.
 
 | Column | Mapping and restrictions |
 | --- | --- |
@@ -78,7 +83,10 @@ and 200 products per import.
 
 One row, one distinct handle and one distinct SKU are supported. Repeated SKUs,
 multiple variants for a handle, image continuation rows, unknown columns and
-blank required cells are rejected. Resolve variants in your source copy rather
+blank required cells are rejected. Value errors name their physical CSV line
+(including blank lines and multiline fields) in preview; an explicitly excluded
+row remains in custody and makes no product change. Structural ambiguity refuses
+the entire source. Resolve variants in your source copy rather
 than allowing this kit to guess a combination. Currency conversion is not
 performed; check the installation currency before review.
 
@@ -90,10 +98,13 @@ performed; check the installation currency before review.
    Preview changes no data. Review every mapped product and warning.
 2. A human owner or admin submits the same CSV and namespace with the preview's
    exact `fingerprint` to `POST /api/stall/imports/apply`. Agents cannot apply or
-   undo. Source bytes, mapping and complete existing product before-images bind
+   undo. If preview contains rejected entries, include `excludedRows:[...]`
+   listing exactly their physical CSV row numbers. Missing, extra or duplicate
+   exclusions are refused. All-invalid plans are refused even with exclusions.
+   Source bytes, mapping and complete existing product before-images bind
    that fingerprint. A stale review fails; preview and review again.
-3. Apply processes bounded batches of up to ten products. While the returned job
-   is `applying`, repeat the same apply request with the original fingerprint.
+3. Apply processes bounded batches of up to ten source records, including excluded rows. While the returned job
+   is `applying`, repeat the same apply request with the original fingerprint and exclusions.
    A replay resumes the same journal job instead of duplicating products.
 4. All results are unpublished drafts, including rows whose Published value was
    TRUE. Confirm each SKU exists and is valid in Pier, then use Stall's separate
@@ -111,7 +122,8 @@ agent grant expiry are checked within Base's reads and writes.
 
 `GET /api/stall/imports` returns `{jobs:[...]}`. Each job includes `id`, `state`,
 `checkpoint`, `total`, `fingerprint` and `error`. `GET /api/stall/imports/:id`
-returns `{job,originals,undoReport}` with the exact retained CSV bytes. Preview
+returns `{job,originals,undoReport,rejectedRows}` with the exact retained CSV bytes.
+Each rejected row has its physical `row`, source identity and `reason`. Preview
 returns `{plan,fingerprint,counts,diagnostics}`; plan entries expose mapped effects
 and before-images. Keep source files free of personal data: this kit is only for
 public product metadata and has no customer-erasure custody.
@@ -119,10 +131,18 @@ public product metadata and has no customer-erasure custody.
 A human owner or admin can `POST /api/stall/imports/:id/undo` with an empty JSON
 object. Repeat while `state` is `undoing`. Undo deletes a newly imported draft or
 restores an existing draft only while it still matches this import's attributed
-after-image. Any native edit, product publication or order reference stops undo;
-those records and catalogue references remain intact. Resolve that situation
-through the native workflow instead of deleting business history. The import
-journal and original bytes remain available after successful undo.
+after-image. Current v2/v3 jobs retain changed or dependent rows while reversing
+untouched rows. The report names each SKU, its disposition/reason, observed and
+expected revisions/content, and protecting order/publication references. Every
+observation and dependency set is fenced in the undo transaction. A repeated undo
+observes the same final dispositions. Source checkpoints include rejected rows;
+undo reports count only product effects. The seed returns all reports within its
+200-row source bound.
+
+Legacy v1 jobs keep strict undo: a native edit, publication or order reference
+stops the whole reversal. No upgrade silently relabels those jobs or changes
+their retained mapping/fingerprint. The journal and original bytes remain
+available after either form of undo.
 
 Publication and undo are separate human decisions. An agent can prepare and
 review a move-in, but cannot grant itself either decision.

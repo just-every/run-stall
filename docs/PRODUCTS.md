@@ -25,3 +25,22 @@ If someone changes the record while you are reviewing it, Stall refuses the old 
 [Shopify move-in](MOVE-IN.md) creates staged, unpublished products, even when the source says `Published=TRUE`. For each imported product, select it in the table, then **Edit product**, review the imported details, select **Available for publication** and **Prepare revision**, then approve the exact revision. Verify the SKU in Pier before doing so.
 
 An agent credential can prepare a draft. A signed-in owner or administrator must approve publication. **Activity** records product preparation and publication.
+
+## Bulk edit staged products
+
+Select **Bulk edit staged products**, choose unpublished SKUs and edit their
+names, plain-text descriptions and exact USD prices. Select **Review bulk edit**
+and compare the server's reviewed before/after values before applying. Description
+whitespace at the start/end is trimmed; literal markup remains plain text.
+
+Each edit accepts up to 200 products within 256 KiB of generated CSV. Existing
+prepared revisions are replaced by the reviewed staged values. Published products
+and products referenced by orders are refused; publication remains a separate
+prepare/approve decision. Changed source or native records require a fresh review
+and preserve your entered grid values.
+
+Resume a bounded apply in the editor or from its retained source in **Move in →
+History**. That journal also exposes original rows and undo. New jobs reverse
+untouched rows while keeping and naming later edits, publication and order
+dependencies; older strict jobs retain their original behavior. See the
+[move-in guide](MOVE-IN.md) for CSV exclusions, custody and undo details.
