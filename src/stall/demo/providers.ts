@@ -4,6 +4,7 @@
 // this visitor's copy, and nothing leaves. The state lives in Base's demo table,
 // which exists only in demos and is erased with the visitor's copy.
 import { fail, shopCountry, shopCurrency } from '../model'
+import { orderTotal, recordChannelPayment, type ChannelPayment } from './channel-payment'
 
 export const demoPierOrigin = 'https://pier.demo.invalid'
 export const demoPierCustomer = 'pier-party-web-shop'
@@ -11,7 +12,7 @@ export const demoPierKey = 'stall-demo-pier'
 export const demoStripeKey = 'stall-demo-stripe'
 
 export type PierLine = { id: string; itemId: string; quantity: string; reserved: string; cancelled: string; dispatched: string }
-export type PierOrder = { id: string; reference: string; customerId: string; lines: PierLine[] }
+export type PierOrder = { id: string; reference: string; customerId: string; channel: string; total: string | null; channelPayment?: ChannelPayment; lines: PierLine[] }
 export type PierShipment = { id: string; orderId: string; reference: string; lines: { itemId: string; quantity: string }[] }
 export type PierState = {
  items: { id: string; sku: string; name: string; archived: boolean }[]
@@ -45,6 +46,8 @@ export async function demoPier(db: D1Database, path: string, body?: any): Promis
  if (body.type === 'order.create') {
   const bins = new Set(state.locations.filter(l => l.kind === 'bin').map(l => l.id)), n = state.orders.length + 1
   if (body.payload?.customerId !== demoPierCustomer || !Array.isArray(body.payload.lines)) return { ok: false }
+  const total = orderTotal(body.payload.lines)
+  if (total === undefined) return { ok: false }
   const lines = body.payload.lines.map((line: { itemId: string; quantity: string }, i: number) => {
    let wanted = Number(line.quantity), reserved = 0
    for (const position of state.positions.filter(p => p.itemId === line.itemId && p.status === 'sellable' && bins.has(p.locationId))) {
@@ -53,8 +56,12 @@ export async function demoPier(db: D1Database, path: string, body?: any): Promis
    }
    return { id: `pier-line-${n}-${i + 1}`, itemId: line.itemId, quantity: line.quantity, reserved: String(reserved), cancelled: '0', dispatched: '0' }
   })
-  result = { id: `pier-order-${n}`, reference: `SO-${1300 + n}`, customerId: demoPierCustomer, lines }
+  result = { id: `pier-order-${n}`, reference: `SO-${1300 + n}`, customerId: demoPierCustomer, channel: body.payload.channel ?? 'manual', total, lines }
   state.orders.push(result)
+ } else if (body.type === 'order.channelPayment') {
+  const order = state.orders.find(o => o.id === body.payload?.orderId)
+  if (!order || !recordChannelPayment(order, body.payload.payment)) return { ok: false }
+  result = structuredClone(order)
  } else if (body.type === 'dispatch.create') {
   const order = state.orders.find(o => o.id === body.payload?.orderId)
   if (!order || !Array.isArray(body.payload.lines)) return { ok: false }

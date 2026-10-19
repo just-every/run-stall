@@ -21,8 +21,15 @@ async function request(env:Bindings,base:string,path:string,body?:unknown):Promi
  let response:Response
  try { response=await fetch(base+path,{method:body?'POST':'GET',redirect:'manual',signal:AbortSignal.timeout(12000),headers:{cookie:env.PIER_SESSION!,origin:base,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})}) }
  catch { return fail('PIER_UNAVAILABLE','Pier did not answer. Reconcile this order to resume the same operation.',503) }
- if(!response.ok) fail('PIER_UNAVAILABLE','Pier refused the request. Check its connection and stock desk before reconciling.',503)
- return response.json()
+ const value:any=await response.json().catch(()=>null)
+ if(!response.ok||value?.ok===false) {
+  const reason=typeof value?.error?.message==='string'?value.error.message.slice(0,1500):undefined
+  const code=typeof value?.error?.code==='string'?value.error.code:'REFUSED'
+  if(response.status===401||response.status===403) fail('PIER_CREDENTIAL',reason?`Pier: ${reason}`:'Pier did not accept the saved credential. It may be expired or revoked after a restore. In Pier, open Channels, create a new key for Stall, then paste it into Stall Settings → Connect Pier.',503)
+  fail(`PIER_${code}`,reason?`Pier: ${reason}`:`Pier returned HTTP ${response.status}. Check this order in Pier before reconciling.`,response.status>=500?503:409)
+ }
+ if(!value||typeof value!=='object') fail('PIER_RESPONSE','Pier did not return a readable response. Check its address in Settings.',502)
+ return value
 }
 async function call(env:Bindings,path:string,body?:unknown):Promise<any> {
  const base=pierOrigin(env)
@@ -51,7 +58,10 @@ export async function catalogue(env:Bindings) {
 export function assertOriginalPier(env:Bindings,order:Order) { if(pierOrigin(env)!==order.pierOrigin||env.PIER_CUSTOMER_ID!==order.pierCustomerId) fail('PIER_CHANGED','Reconnect the original Pier installation and shop customer before reconciling this order.') }
 export async function reserveOrder(env:Bindings,o:Order) {
  assertOriginalPier(env,o)
- return (await call(env,'/api/pier/commands',{commandId:`stall-reserve-${o.id}`,type:'order.create',payload:{customerId:o.pierCustomerId,channel:'stall',currency:o.currency.toUpperCase(),lines:o.lines.map(l=>({itemId:l.itemId,quantity:String(l.quantity),price:(l.unitCents/100).toFixed(2)}))}})).result
+ const result=(await call(env,'/api/pier/commands',{commandId:`stall-reserve-${o.id}`,type:'order.create',payload:{customerId:o.pierCustomerId,channel:'stall',currency:o.currency.toUpperCase(),lines:o.lines.map(l=>({itemId:l.itemId,quantity:String(l.quantity),price:(l.unitCents/100).toFixed(2)}))}})).result
+ if(typeof result?.id!=='string') fail('PIER_RESPONSE','Pier did not return the reserved order. Reconcile the same order to recover it.',502)
+ if(o.payment) await call(env,'/api/pier/commands',{commandId:`stall-payment-${o.id}`,type:'order.channelPayment',payload:{orderId:result.id,payment:{provider:'stripe',reference:o.payment.intentId,amount:(o.totalCents/100).toFixed(2),currency:o.currency.toUpperCase(),paidAt:o.payment.paidAt,orderReference:o.id}}})
+ return result
 }
 export function fullyReserved(result:any,lines:Line[]) {
  return Array.isArray(result?.lines)&&result.lines.length===lines.length&&lines.every(l=>{

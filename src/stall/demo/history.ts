@@ -88,7 +88,7 @@ export async function history(now: Date, staff: Staff, pier: PierState) {
   validateSession(order, sessionObject(session), paid)
   if (paid && fate !== 'paid') {
    const p = pier.orders.length + 1, short = fate === 'shortfall'
-   const reservation: PierOrder = { id: `pier-order-${p}`, reference: `SO-${1300 + p}`, customerId: demoPierCustomer, lines: lines.map((l, i) => ({ id: `pier-line-${p}-${i + 1}`, itemId: l.itemId, quantity: String(l.quantity), reserved: String(short ? l.quantity - 1 : l.quantity), cancelled: '0', dispatched: '0' })) }
+   const reservation: PierOrder = { id: `pier-order-${p}`, reference: `SO-${1300 + p}`, customerId: demoPierCustomer, channel: 'stall', total: (totalCents / 100).toFixed(2), lines: lines.map((l, i) => ({ id: `pier-line-${p}-${i + 1}`, itemId: l.itemId, quantity: String(l.quantity), reserved: String(short ? l.quantity - 1 : l.quantity), cancelled: '0', dispatched: '0' })) }
    pier.commands[`stall-reserve-${id}`] = structuredClone(reservation)
    pier.orders.push(reservation)
    if (fullyReserved(reservation, lines) === short) throw new Error(`Demo order ${n} reservation does not match its state`)

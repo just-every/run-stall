@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
+import { startOwnedDev, finishCleanup } from '../owned-dev.mjs'
 import { promisify } from 'node:util'
 import { mkdir, readFile, mkdtemp, rm } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
@@ -13,11 +14,25 @@ const exec=promisify(execFile),rer=resolve('node_modules/@runeditrun/rer/global/
 const evidence=resolve(process.env.STALL_SCREENSHOTS??'test-results/browser')
 await mkdir(evidence,{recursive:true})
 const scratch=await mkdtemp(join(tmpdir(),'stall-browser-')),checkout=join(scratch,'run-stall')
-let browser,h,pier,restored,original
+const rerHome=join(scratch,'rer-home')
+await mkdir(rerHome)
+let browser,h,pier,restored,original,dev,cleaning,journeyError
+function cleanup() {
+ return cleaning??=(async()=>{
+  const resources=new Set([browser,restored,h,original,pier].filter(Boolean))
+  const results=await Promise.allSettled([...resources].map(resource=>resource.close()).concat(dev?[dev.stop()]:[]))
+  const failures=results.filter(result=>result.status==='rejected').map(result=>result.reason)
+  if(failures.length)throw new AggregateError(failures,'Owned resource cleanup did not finish; the test checkout was preserved.')
+  if(!journeyError?.preserveCheckout)await rm(scratch,{recursive:true,force:true})
+ })()
+}
+const interrupted=()=>{void cleanup().then(()=>process.exit(1),()=>process.exit(1))}
+for(const signal of ['SIGINT','SIGTERM'])process.once(signal,interrupted)
 try {
  await exec('git',['clone','--no-hardlinks',process.cwd(),checkout])
- const {stdout}=await exec(process.execPath,[rer,'dev','--detach','--json','--cwd',checkout],{maxBuffer:4*1024*1024,timeout:600000,env:{...process.env,RER_SERVER_JOURNEY:'1',RER_LOCAL_OPERATION:''}}).catch(error=>{const events=String(error.stdout??'').split('\n').flatMap(line=>{try{return [JSON.parse(line)]}catch{return []}});const code=events.findLast(event=>event.event==='error')?.code;throw Error(`rer dev failed (${error.code}; ${typeof code==='string'&&/^[A-Za-z0-9_.-]+$/.test(code)?code:'no structured code'}); run rer dev for its private diagnostic.`)})
- const ready=stdout.split('\n').flatMap(line=>{try{return [JSON.parse(line)]}catch{return []}}).find(event=>event.event==='ready')
+ dev=await startOwnedDev({launcher:rer,checkout,env:{...process.env,HOME:rerHome,RER_SERVER_JOURNEY:'1',RER_LOCAL_OPERATION:''}})
+ const ready=await dev.ready
+ await dev.assertRunning()
  const origin=ready?.url,open=ready?.openUrl,site=ready?.siteUrl
  assert.ok(origin&&open&&site,'RER must print its app, automatic entry and local run site')
  assert.equal((await fetch(site+'/run')).status,200)
@@ -25,7 +40,7 @@ try {
  const edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex')
  h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle})
  browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
- const page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'})
+ const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'}),page=await context.newPage()
  const errors=[];page.on('pageerror',error=>errors.push(error.message))
  // This test transport directs browser API requests to the real migrated
  // Worker and native owner session. The application contains no fixture path.
@@ -187,10 +202,10 @@ try {
  assert.equal(state.orders[0].refunds[0].status,'succeeded')
  assert.equal(edge.refunds.size,1)
  assert.deepEqual(errors,[])
+ await dev.assertRunning()
  console.log(`Run site linked pages: ${[...visited].join(', ')}`)
  console.log('Browser journey passed: move-in, product approvals, customer checkout, shipping, refund, backup/restore, credentials and erasure at 1440 and 390.')
-} finally {
- await browser?.close();await restored?.close();if(h!==restored)await h?.close();if(original&&original!==h&&original!==restored)await original.close();await pier?.close()
- await exec(process.execPath,[rer,'dev','--stop','--cwd',checkout],{timeout:60000,env:{...process.env,RER_SERVER_JOURNEY:'1',RER_LOCAL_OPERATION:''}}).catch(()=>{})
- await rm(scratch,{recursive:true,force:true})
+ }catch(error){journeyError=error;throw error}
+ finally {
+ try{await finishCleanup(cleanup,journeyError)}finally{for(const signal of ['SIGINT','SIGTERM'])process.off(signal,interrupted)}
 }

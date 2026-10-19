@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Let hosted Stall reach a Pier Worker on the same Cloudflare zone using public fetch routing.
+
+- Hosted mail takes the provider and verified sender from private deployment settings.
+
+- Use the published rer 0.2.51 package. Current package scripts and command guides replace removed queue/copy paths.
+
+- Orders learn actual Pier dispatches on refresh and reconciliation, including partial shipments, references, dispatch times, carrier tracking and delivery state when supplied. Shipping and Settings explain where to dispatch; preparing shipping again names the existing dispatch, and connection failures retain Pier's exact reason. Order timestamps now show their time zone. Paid reservation recovery keeps its original command content and separately supplies Stripe payment evidence to Pier for its books.
 - A shop on your own computer connects Stripe with its secret key alone. Stripe cannot send webhooks to a local address, so Stall confirms each payment by asking Stripe: when the customer comes back from checkout (the order page now says whether payment is confirmed), every minute for orders still awaiting payment (a scheduled check `rer dev` runs too), and on Reconcile. The form says webhooks are for an online shop and gives the steps; an online shop still needs its signing secret, and a local shop refuses one rather than accepting an invented secret. Settings shows Payment confirmations ready once the Stripe key is saved.
 - Paid orders reach Pier priced: each line carries its unit price and USD, so Pier's sales order has a total and its invoice posts to the books.
 - Pinned rer 0.2.48. API tests run against Pier main 28000f3.

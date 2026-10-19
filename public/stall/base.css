@@ -30,9 +30,25 @@ body:has(.st-app) { margin: 0; padding: 0; background: var(--surface); }
 
 /* Fields: thin quiet edges, a tangerine ring on focus. */
 .st-app :is(input, textarea, select) { width: 100%; min-width: 0; min-height: 40px; padding: 8px 12px; border: 1px solid var(--field-line); border-radius: 10px; background: var(--field-fill); color: var(--ink); font: 400 14px/1.4 var(--font-body); transition: border-color .12s ease, box-shadow .12s ease; }
+/* Single-choice fields share a painted chevron; listboxes keep their native appearance. */
+.st-app select:not([multiple],[size]:not([size="1"])) {
+  --rer-select-ink: var(--rer-muted);
+  -webkit-appearance: none;
+  appearance: none;
+  padding-inline-end: 40px;
+  text-overflow: ellipsis;
+  background-image:
+    linear-gradient(to top right, transparent calc(50% - 1.1px), var(--rer-select-ink) calc(50% - .55px), var(--rer-select-ink) calc(50% + .55px), transparent calc(50% + 1.1px)),
+    linear-gradient(to top left, transparent calc(50% - 1.1px), var(--rer-select-ink) calc(50% - .55px), var(--rer-select-ink) calc(50% + .55px), transparent calc(50% + 1.1px));
+  background-repeat: no-repeat;
+  background-position: right 20px center, right 14px center;
+  background-size: 6px 6px;
+}
+.st-app select:not([multiple],[size]:not([size="1"])):focus-visible { --rer-select-ink: var(--rer-text); }
+.st-app select:not([multiple],[size]:not([size="1"])):disabled { --rer-select-ink: color-mix(in srgb, var(--rer-muted) 55%, transparent); }
 .st-app :is(input, textarea, select):hover { border-color: var(--faint); }
-.st-app :is(input, textarea, select):focus { outline: none; border-color: var(--tangerine); box-shadow: var(--focus-ring); background: var(--surface); }
-.st-app :is(input, textarea, select):disabled { background: var(--row); color: var(--muted); }
+.st-app :is(input, textarea, select):focus { outline: none; border-color: var(--tangerine); box-shadow: var(--focus-ring); background-color: var(--surface); }
+.st-app :is(input, textarea, select):disabled { background-color: var(--row); color: var(--muted); }
 .st-app textarea { resize: vertical; }
 .st-app input[type=checkbox] { width: 18px; min-height: 18px; height: 18px; flex: none; margin: 1px 0 0; padding: 0; accent-color: var(--tangerine-press); }
 .st-app input[type=file] { padding: 7px 8px; }

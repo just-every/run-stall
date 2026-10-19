@@ -3,6 +3,7 @@ import { digest,live } from './access'
 import { assertOriginalPier,fullyReserved,pierState,reserveOrder } from './pier'
 import { checkoutSession,signedEvent,validateSession } from './stripe'
 import { readOrder,saveOrder } from './store'
+import { observeShipment } from './shipment-sync'
 import { fail,Problem,type Actor,type Order } from './model'
 export async function paidSession(env:Bindings,order:Order,id:string,actor?:Actor) {
  if(actor) await live(env,actor)
@@ -21,6 +22,8 @@ export async function reservePaid(env:Bindings,order:Order,actor?:Actor):Promise
  if(order.shipment?.status==='shipped') return order
  assertOriginalPier(env,order)
  if(actor) await live(env,actor)
+ order=await observeShipment(env,actor,order)
+ if(order.shipment?.status==='shipped'||order.shipment?.status==='partial') return order
  let result:any
  if(order.reservation) {
   const state=await pierState(env)

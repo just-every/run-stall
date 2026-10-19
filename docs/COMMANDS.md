@@ -6,7 +6,7 @@ Use `POST /api/stall/commands` with JSON `{ "type": "…", "payload": { … } }`
 | --- | --- | --- |
 | `product.prepare` | `sku,name,description,unitCents,active` | Prepare listing metadata/price. Integer cents, USD. |
 | `product.approve` | `sku,revision` | Person publishes the exact prepared revision after Pier validation. |
-| `shipment.prepare` | `orderId,reference` | Prepare a shipment for a paid, fully reserved order. |
+| `shipment.prepare` | `orderId,revision,reference` | Check Pier for an existing dispatch, then prepare a shipment for a paid, fully reserved order. |
 | `shipment.approve` | `orderId,revision` | Person approves, then dispatches the original Pier reservation. |
 | `refund.prepare` | `orderId,lines:[{sku,quantity}],reason` | Prepare an exact partial refund, bounded by unrefunded paid quantities. |
 | `refund.approve` | `orderId,revision` | Person approves the amount and lines, then requests the Stripe refund once. |
@@ -16,6 +16,8 @@ Use `POST /api/stall/commands` with JSON `{ "type": "…", "payload": { … } }`
 To invite an administrator or member, a signed-in owner posts `/auth/invite` with `{email,displayName,role:"admin"}` or `role:"member"`, the native session and same-origin header. The recipient confirms the one-time email link. `GET /auth/operators` lists current operators; `/auth/operator/status` and `/auth/operator/role` change access and invalidate old sessions.
 
 Read current revisions with `GET /api/stall/state`. A stale revision is refused. Agent keys can prepare drafts only; they cannot approve or call reconciliation, erasure, exports, restores, grants or import application. `POST /api/stall/agent-token` grants a preparation key to the signed-in owner; `POST /api/stall/agent-token/revoke` revokes the owner's grants. Tokens are returned once and should never enter source, logs or tickets.
+
+State reads also refresh actual Pier dispatches for paid, linked orders and save changes as `shipment.observed`, without creating a dispatch. `shipment.dispatches` preserves the references, times, tracking and delivery states Pier supplies. All purchased quantities must have dispatched before the order becomes `shipped`; a partial dispatch has `shipment.status: "partial"` and must be completed in Pier. `shipmentSync.checkedAt` records a successful check; `shipmentSync.error` names a failed check while leaving recorded orders available. Reconcile performs the same readback before resuming pending work.
 
 Checkout is a separate public door: `GET /api/stall/catalogue` returns active listings with Pier-observed availability. `POST /api/stall/checkout` takes `{customerEmail,lines:[{sku,quantity}],idempotencyKey}`. Generate one random UUIDv4 per customer checkout attempt and retain it for retries of that same cart. The server calculates prices; client-supplied totals do not decide payment. It returns Stripe's hosted URL.
 

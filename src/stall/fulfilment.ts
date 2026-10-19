@@ -1,6 +1,7 @@
 import type { Bindings } from '../auth.server'
 import { live } from './access'
-import { assertOriginalPier,decimal,dispatchOrder,pierState } from './pier'
+import { decimal,dispatchOrder } from './pier'
+import { observeShipment } from './shipment-sync'
 import { readOrder,saveOrder } from './store'
 import { approval,actorLabel,fail,requirePerson,text,type Actor,type Approval,type Order } from './model'
 export async function liveApproval(env:Bindings,actor:Actor,a?:Approval) {
@@ -10,6 +11,10 @@ export async function liveApproval(env:Bindings,actor:Actor,a?:Approval) {
 export function exactRevision(order:Order,p:any) { if(p.revision!==order.revision) fail('CHANGED','The order changed. Review its current exact revision.') }
 export async function shipmentCommand(env:Bindings,actor:Actor,type:string,p:any) {
  let order=await readOrder(env.DB,text(p.orderId,'Order'))
+ const before=order
+ order=await observeShipment(env,actor,order)
+ if(order.shipment?.status==='partial') fail('PART_ALREADY_SHIPPED',`Pier already shipped part of this order (${order.shipment.reference}). Finish the remaining lines in Pier, then refresh Stall.`)
+ if(order.shipment?.status==='shipped'&&(type==='shipment.prepare'||before.shipment?.status!=='shipped')) fail('ALREADY_SHIPPED',`Pier already shipped this order (${order.shipment.reference}). Refresh Stall to see its shipment; do not ship it again.`)
  if(type==='shipment.prepare') {
   exactRevision(order,p)
   if(order.status!=='reserved'||!order.payment||!order.reservation) fail('SHIPMENT','Only paid orders with fully reserved stock can be shipped.')
@@ -31,6 +36,9 @@ export async function shipmentCommand(env:Bindings,actor:Actor,type:string,p:any
 export async function finishShipment(env:Bindings,actor:Actor,order:Order) {
  if(order.shipment?.status!=='pending') return order
  await liveApproval(env,actor,order.shipment.approval)
+ const observed=await observeShipment(env,actor,order)
+ if(observed.shipment?.status==='shipped') return observed
+ if(observed.shipment?.status==='partial') fail('PART_ALREADY_SHIPPED',`Pier already shipped part of this order (${observed.shipment.reference}). Finish the remaining lines in Pier, then refresh Stall.`)
  const result=await dispatchOrder(env,order)
  validateShipment(order,result)
  return saveOrder(env,{...order,status:'shipped',shipment:{...order.shipment,status:'shipped',pierShipmentId:result.id}},'shipment.shipped',actor)
@@ -40,13 +48,4 @@ export function validateShipment(order:Order,result:any) {
   const matches=result.lines.filter((x:any)=>x.itemId===l.itemId)
   return matches.length===1&&decimal(matches[0].quantity)===BigInt(l.quantity)*1000000n
  })) fail('PIER_RESPONSE','Pier shipment does not match the approved order. Reconcile this shipment.',502)
-}
-
-export async function observeShipment(env:Bindings,actor:Actor,order:Order) {
- assertOriginalPier(env,order)
- await live(env,actor)
- const state=await pierState(env)
- const shipment=Array.isArray(state.shipments)?state.shipments.find((s:any)=>s.id===order.shipment?.pierShipmentId):undefined
- validateShipment(order,shipment)
- return order
 }
