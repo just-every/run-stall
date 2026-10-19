@@ -7,13 +7,14 @@ export type ProductValue={sku:string;name:string;description:string;unitCents:nu
 export type Product={id:string;value:ProductValue;revision:string}
 export type Approval={by:string;version:number;at:string;revision:string}
 export type Line={sku:string;name:string;itemId:string;quantity:number;unitCents:number}
-export type Refund={id:string;lines:{sku:string;quantity:number}[];amountCents:number;reason:string;status:'draft'|'pending'|'succeeded'|'failed'|'canceled';preparedBy:string;approval?:Approval;startedAt?:string;stripeId?:string}
+export type RefundKind='lines'|'shipping'|'goodwill'
+export type Refund={kind?:RefundKind;taxTreatment?:'no_tax_recorded';accountingCategory?:'merchandise'|'shipping'|'goodwill';id:string;lines:{sku:string;quantity:number}[];amountCents:number;reason:string;status:'draft'|'pending'|'succeeded'|'failed'|'canceled';preparedBy:string;approval?:Approval;startedAt?:string;stripeId?:string}
 export type PierDispatch={id:string;reference:string;shippedAt?:string;deliveryStatus?:string;tracking:{carton?:number;trackingCode?:string;trackingUrl?:string}[]}
 export type Shipment={id:string;reference:string;status:'draft'|'pending'|'partial'|'shipped';preparedBy:string;approval?:Approval;pierShipmentId?:string;dispatches?:PierDispatch[]}
 // The shop sells in US dollars and ships within the United States (Stripe's codes).
 export const shopCurrency='usd'
 export const shopCountry='US'
-export type Order={id:string;revision:string;customerEmail:string|null;erasedAt?:string;lines:Line[];totalCents:number;currency:typeof shopCurrency;status:'checkout_pending'|'awaiting_payment'|'paid'|'shortfall'|'reserved'|'shipped';createdAt:string;shippingDetails?:{name:string;address:{line1:string;line2:string;city:string;state:string;postal_code:string;country:string}};requestDigest:string;checkoutKey:string;pierOrigin:string;pierCustomerId:string;checkout?:{id:string;url:string};payment?:{sessionId:string;intentId:string;paidAt:string};reservation?:{id:string;reference:string;lines:any[]};shipment?:Shipment;refunds:Refund[]}
+export type Order={id:string;revision:string;customerEmail:string|null;erasedAt?:string;lines:Line[];totalCents:number;shippingCents?:number;currency:typeof shopCurrency;status:'checkout_pending'|'awaiting_payment'|'paid'|'shortfall'|'reserved'|'shipped';createdAt:string;shippingDetails?:{name:string;address:{line1:string;line2:string;city:string;state:string;postal_code:string;country:string}};requestDigest:string;checkoutKey:string;pierOrigin:string;pierCustomerId:string;checkout?:{id:string;url:string};payment?:{sessionId:string;intentId:string;paidAt:string};reservation?:{id:string;reference:string;lines:any[]};shipment?:Shipment;refunds:Refund[]}
 export const text=(v:unknown,name:string,limit=160):string=>typeof v==='string'&&v.trim()&&v.length<=limit?v.trim():fail('INPUT',`${name} is required (at most ${limit} characters).`,400)
 export const integer=(v:unknown,name:string,min=0,max=100000000):number=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=min&&v<=max?v:fail('INPUT',`${name} must be a whole number between ${min} and ${max}.`,400)
 export const supplier=(a:Actor)=>['owner','admin'].includes(a.role)

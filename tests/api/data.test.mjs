@@ -111,6 +111,7 @@ test('BASE-001: native owner data doors preserve commerce and custody, exclude a
    assert.ok(!JSON.stringify(await h.api('/api/stall/exports/records')).includes('customer@example.test'))
    assert.ok(erased.shipment.approval.by)
   })
+  await h.command('shipping.configure',{shippingCents:625})
   const later=await archive(h)
   await t.test('post-erasure archive restores commercial history and the import journal',async()=>{
    const empty=await fresh()
@@ -123,6 +124,7 @@ test('BASE-001: native owner data doors preserve commerce and custody, exclude a
    assert.equal((await restore(destination,later)).phase,'complete')
    const restored=await state(destination)
    assert.equal(restored.orders.length,1)
+   assert.equal(restored.shippingCents,625)
    assert.deepEqual(restored.connections,{pier:false,stripe:false,webhook:false})
    for(const action of ['product.prepared','product.published','shipment.approved','shipment.shipped','agent.granted','customer.email-erased'])assert.ok(restored.audit.some(a=>a.action===action&&a.actor&&Number.isFinite(Date.parse(a.at))),`restored activity retains ${action}`)
    assert.equal(restored.orders[0].customerEmail,null)

@@ -1,5 +1,4 @@
-// The order panel's forms: prepare shipping, prepare a partial refund and
-// recover a provider operation whose result was lost.
+// The order panel's shipping and provider-recovery forms.
 import { useState, type FormEvent } from 'react'
 import type { Order, Run } from './types'
 import { money } from './api'
@@ -9,21 +8,6 @@ export function ShipForm({ order, busy, run, initial = '', onCancel }: { order: 
   const [reference, setReference] = useState(initial)
   async function prepare(event: FormEvent) { event.preventDefault(); if (await run('shipment.prepare', { orderId: order.id, reference, revision: order.revision })) onCancel?.() }
   return <form className="st-ship-form" onSubmit={event => void prepare(event)}><label>Shipping reference<input required maxLength={200} value={reference} disabled={busy} placeholder="Carrier and tracking number" onChange={event => setReference(event.target.value)} /></label><div className="st-actions"><button disabled={busy}>Prepare shipping for approval</button>{onCancel && <button type="button" className="st-secondary" disabled={busy} onClick={onCancel}>Cancel</button>}</div></form>
-}
-
-/** A one-line partial refund for a person to approve; `initial` edits the refund draft already prepared. */
-export function RefundForm({ order, busy, run, initial, onCancel }: { order: Order; busy: boolean; run: Run; initial?: { sku: string; quantity: number; reason: string }; onCancel?: () => void }) {
-  const [sku, setSku] = useState(initial?.sku ?? order.lines[0]?.sku ?? ''), [quantity, setQuantity] = useState(String(initial?.quantity ?? 1)), [reason, setReason] = useState(initial?.reason ?? '')
-  const line = order.lines.find(line => line.sku === sku), refundTotal = line ? Number(quantity) * line.unitCents : 0
-  const valid = line && Number.isSafeInteger(Number(quantity)) && Number(quantity) > 0 && Number(quantity) <= line.quantity
-  async function prepare(event: FormEvent) { event.preventDefault(); if (valid && await run('refund.prepare', { orderId: order.id, lines: [{ sku, quantity: Number(quantity) }], reason, revision: order.revision })) onCancel?.() }
-  return <form className="st-stack" onSubmit={event => void prepare(event)}>
-    <p className="st-small">Select the exact line and quantity to refund. A person must approve the saved revision before Stripe is called.</p>
-    <div className="st-refund-grid"><label>Order line<select value={sku} disabled={busy} onChange={event => setSku(event.target.value)}>{order.lines.map(line => <option value={line.sku} key={line.sku}>{line.name} ({line.sku})</option>)}</select></label><label>Refund quantity<input required type="number" min="1" max={line?.quantity ?? 1} step="1" value={quantity} disabled={busy} onChange={event => setQuantity(event.target.value)} /></label></div>
-    <label>Reason<input required maxLength={500} value={reason} disabled={busy} onChange={event => setReason(event.target.value)} /></label>
-    <div className="st-row"><strong>Refund · {money(refundTotal)}</strong><div className="st-actions"><button disabled={busy || !valid || refundTotal >= order.totalCents}>Prepare partial refund</button>{onCancel && <button type="button" className="st-secondary" disabled={busy} onClick={onCancel}>Cancel</button>}</div></div>
-    <small>The refund must be less than the full order total. Previous refunds are checked by the server.</small>
-  </form>
 }
 
 export function RecoverForm({ order, busy, run }: { order: Order; busy: boolean; run: Run }) {

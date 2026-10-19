@@ -17,7 +17,7 @@ Supported kinds:
 | `orders` | Every order, including incomplete checkouts, with retained delivery details and nested local payment, reservation, shipment and refund records. |
 | `lines` | Every purchased line, its order ID, one-based line number, original SKU/name/item ID, quantity and prices. |
 | `payments` | Locally confirmed payments, Stripe session/intent references, confirmation time and recorded order amount. |
-| `refunds` | Every refund including drafts, pending, failed and canceled attempts, with line quantities and approval evidence. |
+| `refunds` | Every refund including drafts, pending, failed and canceled attempts, with line quantities, refund kind, explicit tax treatment/accounting category and approval evidence. Shipping and goodwill refunds have empty line arrays. |
 | `shipments` | Every locally recorded draft or shipment, including observed partial dispatches and retained tracking. |
 | `reconciliation` | Per-order local payment/refund totals and checkout, intent, reservation and shipment references/status. |
 | `records` | JSON containing all supported product and order commercial fields, current/pending product drafts, derived customers and reconciliation; order lines/payments/refunds/shipments are nested under each order. |
@@ -71,3 +71,5 @@ data not retained locally (including card details, fees, payouts, full provider
 customer/stock/delivery history and settlement status) is excluded. Nothing is
 fetched to fill gaps. This is a business-data download, not an installation
 backup or an import/restore package; use installation portability for restoration.
+
+Orders retain their original `shippingCents` (zero for historical orders without a charge). Current paid shipping is an owner-configured flat US charge passed to Stripe as a shipping option; it is separate from inventory lines. The Pier stock order contains merchandise only, so its channel payment evidence records the merchandise allocation of the verified Stripe charge, with the same intent reference. Stall retains the gross charge and shipping separately. This allocation is not processor settlement or a second payment.

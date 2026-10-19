@@ -3,7 +3,7 @@ import { HydrationUnit } from '../../base/hydration/unit'
 import { request, errorMessage, money } from './api'
 import { Chrome, Empty, Notice, ProviderLinks, Section } from './primitives'
 interface Item { sku: string; name: string; description?: string; unitCents: number; available: string; active?: boolean }
-interface Catalogue { items: Item[]; observedAt?: string; checkoutReady: boolean }
+interface Catalogue { shippingCents: number; items: Item[]; observedAt?: string; checkoutReady: boolean }
 export function Shop() {
   const [catalogue, setCatalogue] = useState<Catalogue | null>(null)
   const [quantities, setQuantities] = useState<Record<string, string>>({})
@@ -14,7 +14,9 @@ export function Shop() {
   useEffect(() => { void load() }, [])
   const items = (catalogue?.items ?? []).filter(item => item.active !== false)
   const chosen = items.filter(item => Number(quantities[item.sku]) > 0)
-  const total = chosen.reduce((sum, item) => sum + item.unitCents * Number(quantities[item.sku]), 0)
+  const subtotal = chosen.reduce((sum, item) => sum + item.unitCents * Number(quantities[item.sku]), 0)
+  const shipping = chosen.length ? catalogue?.shippingCents ?? 0 : 0
+  const total = subtotal + shipping
   const invalid = items.some(item => quantities[item.sku] && (!Number.isSafeInteger(Number(quantities[item.sku])) || Number(quantities[item.sku]) < 0 || Number(quantities[item.sku]) > Number(item.available)))
   function changed() { setReview(false); key.current = ''; setError('') }
   async function checkout(event: FormEvent) {
@@ -44,7 +46,8 @@ export function Shop() {
         {invalid && <Notice error>Choose whole quantities within the available stock.</Notice>}
         <div className="st-checkout st-stack"><h3>{review ? 'Review your order' : 'Your order'}</h3><label>Email for your order<input required type="email" autoComplete="email" maxLength={254} value={email} disabled={busy} onChange={event => { changed(); setEmail(event.target.value) }} /></label>
           {chosen.length ? <ul className="st-lines">{chosen.map(item => <li key={item.sku}><span>{item.name} × {quantities[item.sku]}</span><strong>{money(item.unitCents * Number(quantities[item.sku]))}</strong></li>)}</ul> : <p>Choose a quantity above to start your order.</p>}
-          <div className="st-total"><span>Total · USD</span><strong>{money(total)}</strong></div><p className="st-small">This is the full product total. Payment opens on Stripe’s secure hosted checkout. Your order is confirmed after payment is verified.</p>
+          <div className="st-row"><span>Product subtotal</span><strong>{money(subtotal)}</strong></div><div className="st-row"><span>Domestic shipping</span><strong>{money(shipping)}</strong></div>
+          <div className="st-total"><span>Total · USD</span><strong>{money(total)}</strong></div><p className="st-small">This total includes the products and domestic shipping. Payment opens on Stripe’s secure hosted checkout. Your order is confirmed after payment is verified.</p>
           {review && <Notice>Check these quantities, your email and the exact total before continuing.</Notice>}
           <div className="st-actions"><button disabled={busy || loading || !catalogue?.checkoutReady || !chosen.length || invalid}>{busy ? 'Opening Stripe…' : review ? `Pay ${money(total)} with Stripe` : 'Review order'}</button>{review && <button type="button" className="st-secondary" disabled={busy} onClick={() => setReview(false)}>Edit order</button>}</div>
         </div>

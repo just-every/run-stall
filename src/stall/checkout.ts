@@ -32,11 +32,12 @@ export async function checkout(env:Bindings,p:any) {
    integer(product.unitCents,'Product unit cents',1)
    return {...line,itemId:product.itemId,name:product.name,unitCents:product.unitCents}
   })
-  const totalCents=lines.reduce((sum,l)=>sum+l.quantity*l.unitCents,0)
+  const shippingCents=stock.shippingCents
+  const totalCents=lines.reduce((sum,l)=>sum+l.quantity*l.unitCents,0)+shippingCents
   integer(totalCents,'Order total cents',50,99999999)
-  if(p.expectedTotalCents!==undefined&&integer(p.expectedTotalCents,'Reviewed total cents',50,99999999)!==totalCents) fail('PRICE_CHANGED','A product price changed. Review the refreshed total before paying.')
+  if(p.expectedTotalCents!==undefined&&integer(p.expectedTotalCents,'Reviewed total cents',50,99999999)!==totalCents) fail('PRICE_CHANGED','A product price or shipping charge changed. Refresh the shop and review the total before paying.')
   const id=crypto.randomUUID(),revision=crypto.randomUUID()
-  order={id,revision,customerEmail,lines,totalCents,currency:shopCurrency,status:'checkout_pending',createdAt:new Date().toISOString(),requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,refunds:[]}
+  order={id,revision,customerEmail,lines,totalCents,shippingCents,currency:shopCurrency,status:'checkout_pending',createdAt:new Date().toISOString(),requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,refunds:[]}
   // Unique checkout key prevents two orders even if concurrent requests observed no row.
   try { await env.DB.batch([env.DB.prepare('INSERT INTO st_orders VALUES(?,?,?)').bind(id,JSON.stringify(order),revision),systemAudit(env.DB,id,'checkout.prepared','customer')]) }
   catch(error) {

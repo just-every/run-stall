@@ -40,7 +40,8 @@ export type OrderTab = typeof orderTabs[number]['id']
 export type Tone = 'good' | 'need' | 'bad' | undefined
 export function paymentPill(order: Order): [string, Tone] {
   if (!order.payment) return ['Unpaid', undefined]
-  return order.refunds.some(refund => refund.status === 'succeeded') ? ['Partly refunded', undefined] : ['Paid', 'good']
+  const refunded = order.refunds.filter(refund => refund.status === 'succeeded').reduce((sum, refund) => sum + refund.amountCents, 0)
+  return refunded >= order.totalCents ? ['Refunded', undefined] : refunded > 0 ? ['Partly refunded', undefined] : ['Paid', 'good']
 }
 export function fulfilmentPill(order: Order): [string, Tone] {
   const need = needs(order)

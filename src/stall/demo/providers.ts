@@ -24,7 +24,7 @@ export type PierState = {
  commands: Record<string, unknown>
 }
 export type Address = { line1: string; line2: string; city: string; state: string; postal_code: string; country: string }
-export type StripeSession = { id: string; orderId: string; email: string; amount: number; paid: boolean; status: 'open' | 'complete' | 'expired'; intent: string | null; shipping: { name: string; address: Address } }
+export type StripeSession = { id: string; orderId: string; email: string; amount: number; shippingCents?: number; paid: boolean; status: 'open' | 'complete' | 'expired'; intent: string | null; shipping: { name: string; address: Address } }
 export type StripeRefund = { id: string; orderId: string; refundId: string; intent: string; amount: number; status: 'succeeded' }
 export type StripeState = { sessions: Record<string, StripeSession>; refunds: Record<string, StripeRefund> }
 
@@ -81,7 +81,7 @@ export async function demoPier(db: D1Database, path: string, body?: any): Promis
 }
 
 export function sessionObject(s: StripeSession) {
- return { id: s.id, object: 'checkout.session', mode: 'payment', client_reference_id: s.orderId, metadata: { stall_order_id: s.orderId }, customer_email: s.email, currency: shopCurrency, amount_total: s.amount, payment_status: s.paid ? 'paid' : 'unpaid', status: s.status, payment_intent: s.intent, url: s.status === 'open' ? `https://checkout.stripe.com/c/pay/${s.id}` : null, collected_information: s.paid ? { shipping_details: s.shipping } : null }
+ return { id: s.id, object: 'checkout.session', mode: 'payment', client_reference_id: s.orderId, metadata: { stall_order_id: s.orderId }, customer_email: s.email, currency: shopCurrency, amount_total: s.amount, total_details: { amount_shipping: s.shippingCents ?? 0 }, payment_status: s.paid ? 'paid' : 'unpaid', status: s.status, payment_intent: s.intent, url: s.status === 'open' ? `https://checkout.stripe.com/c/pay/${s.id}` : null, collected_information: s.paid ? { shipping_details: s.shipping } : null }
 }
 export const refundObject = (r: StripeRefund) => ({ id: r.id, object: 'refund', amount: r.amount, currency: shopCurrency, payment_intent: r.intent, metadata: { stall_order_id: r.orderId, stall_refund_id: r.refundId }, status: r.status })
 
@@ -99,8 +99,9 @@ export async function demoStripe(db: D1Database, path: string, form?: URLSearchP
   const orderId = form.get('metadata[stall_order_id]') ?? '', email = form.get('customer_email') ?? ''
   let amount = 0
   for (let i = 0; form.has(`line_items[${i}][quantity]`); i++) amount += Number(form.get(`line_items[${i}][quantity]`)) * Number(form.get(`line_items[${i}][price_data][unit_amount]`))
+  amount += Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]') ?? 0)
   const sessionId = `cs_demo_${hex(orderId)}`
-  state.sessions[sessionId] ??= { id: sessionId, orderId, email, amount, paid: true, status: 'complete', intent: `pi_demo_${hex(orderId)}`, shipping: shopper(email) }
+  state.sessions[sessionId] ??= { id: sessionId, orderId, email, amount, shippingCents: Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]') ?? 0), paid: true, status: 'complete', intent: `pi_demo_${hex(orderId)}`, shipping: shopper(email) }
   await write(db, demoStripeKey, state)
   return { ...sessionObject(state.sessions[sessionId]), url: `https://checkout.stripe.com/c/pay/${sessionId}` }
  }
