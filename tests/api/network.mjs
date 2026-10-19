@@ -24,7 +24,7 @@ export function stripeEdge({forward}={}) {
   assert.match(request.headers.get('authorization'),/^Bearer /);
   calls.push({path:url.pathname,method:request.method});
   if(request.method==='GET') {
-   if(url.pathname==='/v1/balance') return Response.json({object:'balance'});
+   if(url.pathname==='/v1/balance') return Response.json({object:'balance',available:[],pending:[]});
    const id=decodeURIComponent(url.pathname.split('/').at(-1));
    const value=sessions.get(id)??refunds.get(id);
    return value?Response.json(value):Response.json({error:'missing'},{status:404});

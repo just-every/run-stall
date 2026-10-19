@@ -32,6 +32,8 @@ try {
   const health = await (await fetch(`${origin}/health`)).json()
   assert.equal(health.status, 'ok')
   assert.equal(health.ok, true)
+  assert.equal(health.database.ok, true)
+  assert.ok(Number.isFinite(Date.parse(health.database.checkedAt)))
   assert.deepEqual(Object.keys(health.deployment ?? {}).sort(), ['fingerprint', 'sourceSha', 'versionId'])
   const document = await fetch(origin)
   assert.equal(document.status, 200)
@@ -40,7 +42,7 @@ try {
   for (const path of ['/missing', '/health/extra', '/api', '/api/missing']) {
     assert.equal((await fetch(`${origin}${path}`)).status, 404, path)
   }
-  console.log('HTTP-001 passed against emitted local Worker: health, the installed homepage, HTTP and document 404s')
+  console.log('OPS-001 / HTTP-001 passed against emitted local Worker: health, the installed homepage, HTTP and document 404s')
 } finally {
   worker.kill('SIGTERM')
   await new Promise(resolve => worker.exitCode !== null ? resolve() : worker.once('exit', resolve))

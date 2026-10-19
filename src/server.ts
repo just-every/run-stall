@@ -11,10 +11,14 @@ import { authResponse, runtimeBindings, type Bindings } from './auth.server'
 import { identity } from './identity'
 import { stallResponse, stallScheduled } from './stall/api'
 import { toolsResponse } from './stall/tools'
+import { databaseReadiness } from './stall/operations'
 import { seedDemo } from './demo'
 
 const api = new Hono<{ Bindings: Bindings }>()
-api.get('/health', (context) => context.json({ status: 'ok', ...deploymentHealth(context.env) }))
+api.get('/health', async (context) => {
+  const database = await databaseReadiness(context.env)
+  return context.json({ ...deploymentHealth(context.env), ok: database.ok, status: database.ok ? 'ok' : 'unavailable', database: { ok: database.ok, checkedAt: database.checkedAt } }, database.ok ? 200 : 503)
+})
 
 // Start documents keep their own cache policy and add no-transform, so no proxy
 // rewrites the HTML React hydrates (Cloudflare's email address obfuscation

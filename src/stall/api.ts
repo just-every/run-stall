@@ -11,6 +11,7 @@ import { reconcileOrder } from './orders'
 import { checkout } from './checkout'
 import { checkAwaitingPayments,confirmReturn,webhook } from './payments'
 import { localShop,rawBody } from './stripe'
+import { operationsSnapshot,probeProviders } from './operations'
 import { configureShipping,shippingCharge } from './shipping-charge'
 import { eraseCustomer } from './erasure'
 import { connectionCommand,connectionDetails,withConnections } from './connections'
@@ -36,6 +37,14 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   const actor=await current(request,env)
   requireSupplier(actor)
   if(!['GET','HEAD'].includes(request.method)&&request.headers.get('origin')!==env.AUTH_ORIGIN&&(!actor.agent||request.headers.has('origin'))) fail('ORIGIN','Use this installation’s own page to change records.',403)
+  if(path==='/api/stall/operations'&&request.method==='GET') {
+   requirePerson(actor);await live(env,actor)
+   return json(await operationsSnapshot(env))
+  }
+  if(path==='/api/stall/operations/probe'&&request.method==='POST') {
+   await probeProviders(env,actor)
+   return json(await operationsSnapshot(env))
+  }
   if(path==='/api/stall/state'&&request.method==='GET') {
    const [selected,history,logs,people]=await Promise.all([products(env.DB),orders(env.DB),env.DB.prepare('SELECT * FROM st_audit ORDER BY rowid DESC LIMIT 200').all(),env.DB.prepare('SELECT id,display_name AS name,email FROM oa_operators').all<{id:string;name:string;email:string}>()])
    const shipping=await refreshShipments(env,actor,history)

@@ -1,0 +1,50 @@
+# Operating this installation
+
+Use the pinned RER command path documented in [Run locally](../RUN-LOCALLY.md): install, setup, dev, build, verify, export, import, doctor and deploy. Repeating setup with the saved owner and origin preserves existing settings and business data; conflicting identity or origin requires the documented recovery path. Build and deploy do not run tests. An ordinary installation has no author license, subscription or runtime approval service.
+
+## Observations and outstanding work
+
+The restricted operations view is for signed-in human owners and administrators. It reads the database, stored scheduler observations, provider configuration and outstanding business state. It contains no provider credentials or customer contact fields. Database readiness executes a real database query. Deployment `/health` identifies the running deployment; neither response establishes end-to-end hosted readiness or successful payment processing.
+
+Provider checks are explicit read-only actions: Pier state and Stripe balance. Each retained result has its observation timestamp and a fixed success, unavailable or unconfigured message. No provider payload or raw error message is retained. Configured means the required settings exist, not that the account works. A last successful probe is historical, including after restore, rotation or disconnection. Recheck before relying on it. A probe never buys postage, sends mail, captures payment or changes stock.
+
+The payment scheduler attempts at most 20 awaiting-payment orders per run, oldest first, created within the last 25 hours. Its durable heartbeat records attempt time, completion time, checked/confirmed/failed counts and the last safe error code. Running without a completion may mean interruption; missing heartbeat means no observation exists. An unavailable provider leaves the original order for reconciliation. Orders older than the automatic window remain listed as outside automatic confirmation age and require manual reconciliation of their original Stripe session. Ordinary unpaid sessions can continue to occupy the oldest eligible batch until they expire or move state; the backlog and age window are visible rather than a throughput guarantee.
+
+Outstanding work includes checkout creation, awaiting payment, paid stock work and shortfalls, draft/pending/partial shipments, and draft/pending/failed refunds. Drafts require human review; awaiting payment is not proof of a failure. Original order/revision, checkout, payment, reservation, shipment and refund references identify existing operations. Inspect the original provider operation and reconcile it instead of issuing a replacement. Approved work still checks current human authority before external effects.
+
+Counts cover all matching records. Lists show only the first 100 outstanding orders (oldest first) and first 100 unfinished import jobs; `limit`, `offset: 0` and `truncated` explicitly identify the cap. The order workspace and complete business export retain the full order set; the import journal provides individual job read/resume/undo. Import aggregates include all persisted states, while completed, undone and rolled-back jobs are excluded from its unfinished list. These reads are separate live queries, not a transactional snapshot; work can change while they execute.
+
+## Storage, requests and retention
+
+The database usage observation comes from the real query’s D1 `meta.size_after` field ([Cloudflare D1 return metadata](https://developers.cloudflare.com/d1/worker-api/return-object/)). If the runtime does not provide this observation it is unavailable, never invented as zero. This is not a provider billing meter and does not predict remaining quota. Worker/D1 plan quotas, query limits, memory, response size, available disk and account budget remain the installation's limits. Cloudflare currently documents a per-database maximum of 500 MB on Workers Free and 10 GB on Workers Paid; account-wide storage is 5 GB and 1 TB respectively ([D1 limits](https://developers.cloudflare.com/d1/platform/limits/), checked 19 October 2026). These are provider limits, not measured Stall capacity, and this view does not discover your plan. Stall has no measured maximum shop size or proven sustained throughput; inspect your configured provider account quotas and usage before depending on capacity.
+
+Current application bounds are:
+
+| Surface | Actual bound |
+| --- | --- |
+| Commerce command/checkout JSON | 100,000 request bytes |
+| Stripe webhook body | 1,000,000 request bytes |
+| Catalog import preview/apply JSON | 1,000,000 request bytes |
+| Archive HTTP JSON body | 25,165,824 bytes (24 MiB) per request |
+| Archive parts | 16,777,216 bytes (16 MiB) per part; no declared total archive-byte cap |
+| Product CSV | 262,144 UTF-8 bytes, six supported columns |
+| Import application | 10 records per batch, at most one batch per request; resume the same job |
+| Import journal listing | 50 jobs by default; service accepts at most 100 |
+| Checkout selection | 1–50 distinct products, 1–1,000 units per product |
+| Commerce total | 50–99,999,999 integer USD cents |
+| Operations lists | First 100 records per list, with full matching counts and truncation flag |
+| Business CSV/JSON exports | No row cap; all supported records must fit runtime memory/response limits; failure does not silently truncate |
+
+Products, orders, event identities, approvals, audit, import originals/provenance and last operations observations are retained durably without an automatic commercial-history cleanup schedule. Each scheduler run replaces one heartbeat; each explicit provider probe replaces that provider's last observation. This is not an attempt-by-attempt telemetry log. The 25-hour automatic payment window is a processing rule, not deletion. Customer erasure is owner-directed and retains anonymous commercial history; see [Backup and restore](BACKUP-RESTORE.md). Monitor growth and keep private dated backups under an owner-selected retention policy. No automatic backup, offsite retention or purge is promised.
+
+## Backup and recovery drill
+
+Stop writes using the documented RER lifecycle, export an archive, and restore only into an empty destination with its own owner. Pending checkouts, reservations, shipment/refund approvals and references, webhook identities and import custody travel with business records. Sessions, agent tokens and provider secrets do not. Reconnect the original Stripe account and Pier installation/customer, use only one active shop against them, inspect outstanding work and reconcile the original operation. A restored approval does not confer the destination's current authority; review any required fresh approval. Treat copied provider observations and heartbeat times as historical and probe again. A fresh destination may already have an automatic heartbeat: only the last-observation table is replaceable during restore; merchant records and audit remain empty-only. Test an interrupted provider operation through this drill before relying on your recovery plan; separate Stripe/Pier history is outside Stall's archive.
+
+## Costs and external dependencies
+
+Hosting and database/storage are charged by the merchant's chosen host (currently Cloudflare Workers/D1 for deployment). Local running uses the merchant's computer and disk; it does not eliminate account processing charges. Consult [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) and [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) for the configured plan; no dollar estimate or capacity promise is inferred here.
+
+Stripe charges the merchant's own account for payment processing and enabled Stripe services; consult [Stripe pricing](https://stripe.com/pricing). Pier is separately hosted MIT-licensed stock software; its hosting and any connected provider costs are separate. Stall's flat domestic shipping charge is an amount collected from the shopper, not postage purchase or a live carrier quote. Current product capabilities do not perform provider tax calculation, label purchase, marketing/channel publishing, ledger posting or AI inference. Future TAX/SHIP/MAIL/MARKET/CHANNEL/ACCOUNT/AI capabilities inherit explicit provider readiness, safe observations, durable outstanding outcomes, recovery/backup, storage and separate cost declarations before they ship. Existing sign-in mail and configured identity/dependency providers remain Base's named dependencies; they are not transactional order messaging.
+
+Current commerce provider requests go to the saved Pier origin and Stripe's API; Stripe Checkout opens the provider's hosted checkout. Setup/deploy/runtime acquisition, optional identity/mail/dependency services and package installation have the documented RER/Base/provider destinations and must be considered separately when inspecting outside requests. No local build proves zero egress, external delivery, carrier acceptance or hosted readiness. There is no hidden author telemetry requirement controlling normal commerce operation.
