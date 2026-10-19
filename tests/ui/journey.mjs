@@ -91,6 +91,12 @@ try {
  await page.getByRole('heading',{name:'Orders',exact:true,level:1}).waitFor()
  await page.getByText('No orders yet',{exact:true}).waitFor()
  await capture('empty')
+ // OPEN-001: provider identity and pricing are visible before saving a connection.
+ await page.getByRole('link',{name:'Settings',exact:true}).click()
+ await page.getByRole('heading',{name:'Settings',exact:true,level:1}).waitFor()
+ assert.equal(await page.getByRole('link',{name:'Stripe pricing',exact:true}).getAttribute('href'),'https://stripe.com/pricing')
+ assert.ok(await page.getByRole('form',{name:'Connect Pier'}).getByRole('link',{name:'Cloudflare hosting pricing'}).count())
+ await capture('OPEN-001-provider-costs','#connections')
  await page.getByRole('link',{name:'Products',exact:true}).click()
  await page.getByText('Bring your products into Stall',{exact:true}).waitFor()
  await capture('desk-empty')

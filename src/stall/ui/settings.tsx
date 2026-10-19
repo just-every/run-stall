@@ -14,6 +14,7 @@ export function Settings({ state, owner, busy, run, reload }: { state: State; ow
   return <div className="st-settings">
     <h1>Settings</h1>
     <Section id="connections" title="Provider connections">
+      <p>Stall is <a href="https://github.com/just-every/run-stall/blob/main/LICENSE" target="_blank" rel="noreferrer">free and open source under the MIT license</a>. No Stall license key, subscription, seat, product, order or revenue limit is required. Connected providers and hosting charge you under their own pricing.</p>
       <ul className="st-connections">{Object.entries(state.connections).map(([name, ready]) => <li key={name}><div><strong>{providers(state)[name]?.[0] ?? name}</strong><small>{providers(state)[name]?.[1]}</small></div><Badge value={ready ? 'Configured' : 'Setup required'} tone={ready ? undefined : 'need'} /></li>)}</ul>
       <p>Pier holds stock and records what ships. Pick, pack and dispatch in Pier for warehouse work; Stall checks Pier when Orders refreshes and shows its shipment references and tracking. If you arrange delivery yourself, prepare and approve shipping in Stall to record that dispatch in Pier. Choose one place to dispatch each order.</p>
       {!Object.values(state.connections).every(Boolean) && <Notice>External setup is incomplete. Checkout, stock reservation, payment confirmation and shipping require the corresponding provider connection.</Notice>}

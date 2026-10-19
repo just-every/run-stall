@@ -290,9 +290,9 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: `src/stall/imports/description.ts`; `src/stall/portability-policy.mjs`; `tests/api/imports.test.mjs`; `tests/api/data.test.mjs`; `tests/api/commerce.test.mjs`; `tests/ui/journey.mjs`. Named BASE-001 import/data/browser journeys exercise hostile imported/native descriptions as plain text, unsupported input, private saved connections, credential exclusion from state/archives, inactive receiving authority, retained audit and erasure fencing, alongside native direct-door authorization and exact agent approvals. Current supported doors conform; rich content/media/new providers must meet the same rules when their clauses ship, as ct clarified on 19 October.
 
-- **OPEN-001 — Free and open source under the MIT license.** **partial** — Verify the repository's `LICENSE` is the MIT license and `package.json` declares MIT. Install from the public source with no account or key from Stall's authors, publish 200 products, add 10 staff and take 1,000 test-mode orders with no payment, license, cap or upgrade prompt and no fee added by Stall to any order. Begin enabling Stripe and a shipping provider and verify each names its provider and pricing before activation.
+- **OPEN-001 — Free and open source under the MIT license.** **done** — Verify the repository's `LICENSE` is the MIT license and `package.json` declares MIT. Install from the public source with no account or key from Stall's authors, publish 200 products, add 10 staff and take 1,000 test-mode orders with no payment, license, cap or upgrade prompt and no fee added by Stall to any order. Begin enabling Stripe and a shipping provider and verify each names its provider and pricing before activation.
 
-  Current evidence: `LICENSE`; `package.json`. The repository and package are MIT and nothing in the product charges or gates; no test checks the license or the absence of paid gates, and provider-cost disclosure before a connection does not exist.
+  Current evidence: `LICENSE`; `package.json`; `src/stall/ui/connect-forms.tsx`; `tests/api/commerce.test.mjs`; `tests/ui/journey.mjs`. MIT source/package, fresh public-clone install and named OPEN-001 HTTP journey: 200 published products, 10 signed-in staff and 1,000 paid/reserved USD orders with exact totals and no author fee/destination. Settings names Stripe/Pier and links processing, license and hosting pricing before saving; postage is explicitly separate. The no-gate and provider-disclosure requirements continue to apply when future capabilities/providers ship; no absent shipping-label connector is claimed.
 
 ### Product separation and specialist extensions
 
@@ -344,4 +344,4 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
 Provider credentials, approvals and original idempotency references must stay local and private. No current proof claims live provider acceptance, inbox receipt, physical delivery, WCAG conformance, load capacity or operating cost. The target requires those measurements as applicable rather than excluding their features. No test or contract check may be weakened to make these documents pass.
 
-Target clause totals: **6 done / 34 partial / 37 missing** (77 total).
+Target clause totals: **10 done / 30 partial / 37 missing** (77 total).

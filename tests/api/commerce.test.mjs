@@ -4,8 +4,43 @@ import { randomBytes,randomUUID } from 'node:crypto';
 import { installation } from './harness.mjs';
 import { pierInstallation } from './pier.mjs';
 import { stripeEdge,deliverWebhook,publish,purchase } from './network.mjs';
+import { volumeStock } from './volume-stock.mjs';
 const state=h=>h.api('/api/stall/state');
 const order=async(h,id)=>(await state(h)).orders.find(o=>o.id===id);
+test('OPEN-001: an owned installation publishes 200 products, adds 10 staff and takes 1000 paid orders without author fees or gates',async()=>{
+ const stock=volumeStock(),edge=stripeEdge({forward:stock.forward}),secret=randomBytes(32).toString('hex');
+ const h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'test-stock-network-edge',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle});
+ try {
+  for(let i=0;i<10;i++) {
+   const cookie=await h.signIn(`maker-${i}@example.test`);
+   assert.equal((await h.api('/auth/session',undefined,{as:cookie})).operator.role,'member');
+  }
+  for(const [i,item] of stock.items.entries()) await publish(h,item.sku,`Handmade piece ${i+1}`,1250+i);
+  assert.equal((await h.api('/api/stall/catalogue',undefined,{as:''})).items.length,200);
+  const expected=new Map();
+  for(let i=0;i<1000;i++) {
+   const index=i%stock.items.length,cents=1250+index;
+   const bought=await purchase(h,edge,{skus:[stock.items[index].sku],quantities:[1],expectedTotalCents:cents});
+   const paid=edge.pay(bought.session.id);
+   assert.equal(paid.amount_total,cents);
+   const delivered=await deliverWebhook(h,secret,paid);
+   assert.equal(delivered.response.status,200,JSON.stringify(delivered.value));
+   assert.equal(delivered.value.status,'reserved');
+   expected.set(bought.orderId,cents);
+  }
+  const result=await state(h);
+  assert.equal(result.products.length,200);
+  assert.equal(result.orders.length,1000);
+  assert.equal(stock.payments.size,1000);
+  assert.equal(edge.sessions.size,1000);
+  for(const row of result.orders) {
+   assert.equal(row.status,'reserved');
+   assert.equal(row.totalCents,expected.get(row.id));
+   assert.equal(row.currency,'usd');
+   assert.equal(stock.payments.get(`stall-payment-${row.id}`).amount,(row.totalCents/100).toFixed(2));
+  }
+ }finally{await h.close()}
+});
 test('shop purchase, signed paid reservation, shipment and partial refund reconcile through real Pier',async t=>{
  const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex');
  let h;

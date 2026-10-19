@@ -30,6 +30,7 @@ export function stripeEdge({forward}={}) {
    return value?Response.json(value):Response.json({error:'missing'},{status:404});
   }
   const key=request.headers.get('idempotency-key'),form=new URLSearchParams(await request.text());
+  assert.ok(![...form.keys()].some(k=>/application_fee|transfer_data|on_behalf_of/.test(k)),'Stall must not add an author fee or route money to an author account');
   assert.ok(key);
   if(writes.has(key)) { const saved=writes.get(key);assert.equal(saved.body,form.toString());return Response.json(saved.value); }
   let value;

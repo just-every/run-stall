@@ -373,7 +373,7 @@ Every capability claim on the approved homepage (`src/site/landing/`, checked ag
 | 5 | "labels and tracking" | SHIP-002, SHIP-003 | partial |
 | 6 | "returns" | RETURN-001, RETURN-002 | partial |
 | 7 | "the carts people left behind" | RECOVERY-001 | missing |
-| 8 | "100% free, open source" / "Free and open source, MIT licensed." | OPEN-001 | partial |
+| 8 | "100% free, open source" / "Free and open source, MIT licensed." | OPEN-001 | done |
 | 9 | "alternative to Shopify, Squarespace Commerce and BigCommerce" | MIGRATE-001, MIGRATE-002, MIGRATE-003 | partial |
 | 10 | "Try the demo" | DEMO-001 | done |
 | 11 | "Pick a theme" | STORE-001 | partial |
@@ -423,8 +423,8 @@ Judged against `main` **7eadb4b8faebf02302be95217ca8c2807fe5d986**, the same com
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 1 | 0 | 0 | 1 |
-| Target and push further | 8 | 31 | 37 | 76 |
-| All | 9 | 31 | 37 | 77 |
+| Target and push further | 9 | 30 | 37 | 76 |
+| All | 10 | 30 | 37 | 77 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -495,7 +495,7 @@ Judged against `main` **7eadb4b8faebf02302be95217ca8c2807fe5d986**, the same com
 | `OPS-001` | Owned installation, recovery and explicit operating limits | target | partial | `SEED-COMMAND-CONTRACT.md`; `scripts/operations-config.mjs`; `tests/clone-journey.mjs`; `tests/runtime.mjs` | The RER command path and local clone/runtime journeys exist; operating costs/capacity and generalized background/provider health are unmeasured or absent. |
 | `OPS-002` | Run Stall on the owner's own computer or own server | target | partial | `src/site/run.json`; `scripts/installer/local.mjs`; `deploy.json`; `tests/clone-journey.mjs` | The one-line local start and own-account Cloudflare deploy exist; there is no own-server production path (`rer dev` and `rer preview` are rer-managed servers with a 12-hour idle stop), and the one-line start has no recorded fresh-machine acceptance. |
 | `BASE-001` | Preserved Base guarantees with scoped replacements | target | done | `src/stall/imports/description.ts`; `src/stall/portability-policy.mjs`; `tests/api/imports.test.mjs`; `tests/api/data.test.mjs`; `tests/api/commerce.test.mjs`; `tests/ui/journey.mjs` | Current supported doors conform: named BASE-001 import/data/browser journeys exercise hostile plain text, unsupported input, owner-only saved connections, credential exclusion, inactive receiving authority, erased contacts, durable audit and native direct-door guards. Rich content/media/new-provider obligations remain conditions on future clauses, not claims those features exist (ct clarification, 19 Oct). |
-| `OPEN-001` | Free and open source under the MIT license | target | partial | `LICENSE`; `package.json` | The repository and package are MIT and nothing in the product charges or gates; no test checks the license or the absence of paid gates, and provider-cost disclosure before a connection does not exist. |
+| `OPEN-001` | Free and open source under the MIT license | target | done | `LICENSE`; `package.json`; `src/stall/ui/connect-forms.tsx`; `tests/api/commerce.test.mjs`; `tests/ui/journey.mjs` | MIT source/package, fresh public-clone install and named OPEN-001 HTTP journey: 200 published products, 10 signed-in staff and 1,000 paid/reserved USD orders with exact totals and no author fee/destination. Settings names Stripe/Pier and links processing, license and hosting pricing before saving; postage is explicitly separate. The no-gate and provider-disclosure requirements continue to apply when future capabilities/providers ship; no absent shipping-label connector is claimed. |
 | `AI-001` | Operate order exceptions to shopper-approved closure | push-further | partial | `src/stall/payments.ts`; `src/stall/orders.ts`; `tests/api/commerce.test.mjs` | Paid/shortfall states and manual lost-response recovery exist; detection agent, grounded shopper replies, options and closure workflow are absent. |
 | `AI-002` | Manage returns end to end | push-further | partial | `src/stall/refunds.ts`; `tests/api/commerce.test.mjs` | Revision-approved reconciled refunds are a foundation; policy reasoning, labels, return receipt, restock and agent follow-through are absent. |
 | `AI-003` | Improve profitable conversion with measured experiments | push-further | missing |  | No implementation found. Target journey not implemented. |
