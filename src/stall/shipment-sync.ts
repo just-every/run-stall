@@ -2,6 +2,7 @@ import type { Bindings } from '../auth.server'
 import { fail, Problem, type Actor, type Order, type PierDispatch } from './model'
 import { assertOriginalPier, decimal, pierState } from './pier'
 import { saveOrder } from './store'
+import { observePierWork } from './pier-work'
 
 const plain = (value:unknown):string|undefined => typeof value==='string'&&value.length<=500?value:undefined
 function trackingUrl(value:unknown) {
@@ -54,6 +55,9 @@ export async function observeShipment(env:Bindings,actor:Actor|undefined,order:O
   return quantity===wanted
  }).every(Boolean)
  const records:PierDispatch[]=dispatched.map(dispatchRecord),previous=order.shipment
+ // Only a complete original dispatch can close Stall's uncertain command.
+ const original=previous?.status==='pending'&&complete&&dispatched.length===1&&dispatched[0].reference===previous.reference?dispatched[0]:null
+ if(original) await observePierWork(env.DB,`stall-ship-${previous!.id}`,original.id)
  const own=previous?.pierShipmentId?ids.has(previous.pierShipmentId):previous?.status==='pending'&&dispatched.some((s:any)=>s.reference===previous.reference)
  const shipment={...(own?previous:{}),id:own?previous!.id:records[0].id,reference:records.map(s=>s.reference).join(' · '),status:complete?'shipped' as const:'partial' as const,preparedBy:own?previous!.preparedBy:'pier',pierShipmentId:records[0].id,dispatches:records}
  const status=complete?'shipped' as const:order.status==='shipped'?'reserved' as const:order.status

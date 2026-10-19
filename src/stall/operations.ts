@@ -1,5 +1,6 @@
 import type { Bindings } from '../auth.server'
 import { stripeWork,workRecord } from './integration-work'
+import { pierWork,pierWorkRecord } from './pier-work'
 import { providerConfiguration,providerObservations } from './ops-providers'
 export { probeProviders } from './ops-providers'
 
@@ -35,10 +36,10 @@ const safeCode=(value:unknown)=>typeof value==='string'&&/^[A-Z][A-Z0-9_]{0,79}$
 /** Human-only caller is enforced by the operations HTTP door; no provider calls. */
 export async function operationsSnapshot(env:Bindings) {
  const database=await databaseReadiness(env),configured=providerConfiguration(env)
- const empty={observedAt:new Date().toISOString(),database,providers:{pier:{configured:configured.pier,lastObservation:null},stripe:{configured:configured.stripe,lastObservation:null}},scheduler:null,outstanding:null,imports:null,stripeWork:null,storage:null,limits:operationLimits}
+ const empty={observedAt:new Date().toISOString(),database,providers:{pier:{configured:configured.pier,lastObservation:null},stripe:{configured:configured.stripe,lastObservation:null}},scheduler:null,outstanding:null,imports:null,stripeWork:null,pierWork:null,storage:null,limits:operationLimits}
  if(!database.ok) return empty
  const since=new Date(Date.now()-25*3600000).toISOString()
- const [observations,heartbeat,counts,rows,importCounts,importRows,workRows,workCounts]=await Promise.all([
+ const [observations,heartbeat,counts,rows,importCounts,importRows,pierRows,pierCounts,workRows,workCounts]=await Promise.all([
   providerObservations(env),
   env.DB.prepare("SELECT value_json FROM st_operations WHERE key='scheduler'").first<{value_json:string}>(),
   env.DB.prepare(`SELECT count(*) AS total,
@@ -59,6 +60,8 @@ export async function operationsSnapshot(env:Bindings) {
    FROM st_orders o WHERE ${needs} ORDER BY json_extract(o.value_json,'$.createdAt'),o.id LIMIT 100`).all<OutstandingRow>(),
   env.DB.prepare('SELECT state,count(*) AS count FROM ik_jobs GROUP BY state ORDER BY state').all<{state:string;count:number}>(),
   env.DB.prepare("SELECT id,state,checkpoint,total,CASE WHEN error IS NOT NULL THEN 1 ELSE 0 END AS hasError FROM ik_jobs WHERE state NOT IN ('completed','undone','rolled_back') ORDER BY rowid LIMIT 100").all<{id:string;state:string;checkpoint:number;total:number;hasError:number}>(),
+  pierWork(env.DB,100),
+  env.DB.prepare("SELECT count(*) AS total,coalesce(sum(CASE WHEN status='uncertain' THEN 1 ELSE 0 END),0) AS uncertain FROM st_pier_work").first<{total:number;uncertain:number}>(),
   stripeWork(env.DB,100),
   env.DB.prepare("SELECT count(*) AS total,coalesce(sum(CASE WHEN status='uncertain' THEN 1 ELSE 0 END),0) AS uncertain FROM st_stripe_work").first<{total:number;uncertain:number}>(),
  ])
@@ -73,6 +76,7 @@ export async function operationsSnapshot(env:Bindings) {
   outstanding:{total,limit:100,offset:0,truncated:total>100,counts,orders:rows.results.map(row=>({...row,refunds:JSON.parse(String(row.refunds??'[]'))}))},
   imports:{total:importTotal,outstanding:importOutstanding,byState:importCounts.results,jobs:importRows.results,limit:100,offset:0,truncated:importOutstanding>100},
   stripeWork:{total:workCounts?.total??0,uncertain:workCounts?.uncertain??0,limit:100,truncated:(workCounts?.total??0)>100,records:workRows.map(workRecord)},
+  pierWork:{total:pierCounts?.total??0,uncertain:pierCounts?.uncertain??0,limit:100,truncated:(pierCounts?.total??0)>100,records:pierRows.map(pierWorkRecord)},
   storage:{usedBytes:database.sizeBytes,source:'D1 query metadata size_after'},
  }
 }

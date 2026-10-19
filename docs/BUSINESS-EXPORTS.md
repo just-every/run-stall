@@ -74,3 +74,5 @@ fetched to fill gaps. This is a business-data download, not an installation
 backup or an import/restore package; use installation portability for restoration.
 
 Orders retain their original `shippingCents` (zero for historical orders without a charge). Current paid shipping is an owner-configured flat US charge passed to Stripe as a shipping option; it is separate from inventory lines. The Pier stock order contains merchandise only, so its channel payment evidence records the merchandise allocation of the verified Stripe charge, with the same intent reference. Stall retains the gross charge and shipping separately. This allocation is not processor settlement or a second payment.
+
+`pier-work` exports the original command/order IDs, command kind, Pier installation/customer, commercial provider correlation, status, attempt count, UTC attempt/observation times, provider result ID and safe error code. Complete business JSON includes the same `pierWork` records. It excludes intent fingerprints, payloads and credentials. These are historical observations, not proof of delivery; older orders may predate the journal.

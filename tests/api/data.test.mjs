@@ -8,7 +8,7 @@ import { stripeEdge, deliverWebhook, publish, purchase } from './network.mjs'
 import { readCsv } from './csv-reader.mjs'
 const state=h=>h.api('/api/stall/state')
 
-test('BASE-001: native owner data doors preserve commerce and custody, exclude authority and fence erasure',async t=>{
+test('BASE-001 / INTEGRATION-001: native owner data doors preserve commerce and custody, exclude authority and fence erasure',async t=>{
  const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret='whsec_'+randomBytes(32).toString('hex'),stripeKey='sk_test_'+randomBytes(32).toString('hex')
  const h=await installation({outboundService:edge.handle})
  let destination
@@ -91,7 +91,7 @@ test('BASE-001: native owner data doors preserve commerce and custody, exclude a
    const member=await h.signIn('staff@example.test')
    await h.api('/api/stall/portability/exports',{}, {as:member,status:403})
    await h.api('/api/stall/portability/exports',{}, {as:'',headers:{authorization:`Bearer ${grant.token}`},status:403})
-   for(const kind of ['products','customers','orders','lines','payments','refunds','shipments','reconciliation','records']) {
+   for(const kind of ['products','customers','orders','lines','payments','refunds','shipments','reconciliation','stripe-work','pier-work','records']) {
     await h.api('/api/stall/exports/'+kind,undefined,{as:'',status:401})
     await h.api('/api/stall/exports/'+kind,undefined,{as:member,status:403})
     await h.api('/api/stall/exports/'+kind,undefined,{as:'',headers:{authorization:`Bearer ${grant.token}`},status:403})

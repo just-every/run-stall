@@ -5,6 +5,7 @@ import { demoEffect } from '../modules/demo/index.mjs'
 import { demoPier } from './demo/providers'
 import { paymentsReady } from './stripe'
 import { shippingCharge } from './shipping-charge'
+import { pierWrite } from './pier-work'
 const SCALE=1000000n
 export function decimal(value:string):bigint {
  if(typeof value!=='string'||!/^\d{1,10}(\.\d{1,6})?$/.test(value)) fail('PIER_RESPONSE','Pier returned an invalid stock quantity.',502)
@@ -58,14 +59,20 @@ export async function catalogue(env:Bindings) {
  return {items,shippingCents,observedAt:new Date().toISOString(),checkoutReady:paymentsReady(env)}
 }
 export function assertOriginalPier(env:Bindings,order:Order) { if(pierOrigin(env)!==order.pierOrigin||env.PIER_CUSTOMER_ID!==order.pierCustomerId) fail('PIER_CHANGED','Reconnect the original Pier installation and shop customer before reconciling this order.') }
+async function commandWork(env:Bindings,o:Order,command:Parameters<typeof pierWrite>[2],providerCorrelation:string) {
+ assertOriginalPier(env,o)
+ return pierWrite(env,{orderId:o.id,pierOrigin:o.pierOrigin,pierCustomerId:o.pierCustomerId,providerCorrelation},command,
+  async original=>(await call(env,'/api/pier/commands',original)).result,
+  async ()=>{ assertOriginalPier(env,o);const state=await pierState(env);if(!Array.isArray(state.orders)||!Array.isArray(state.shipments)) fail('PIER_RESPONSE','Pier recovery requires a readable current order and shipment state.',502) })
+}
 export async function reserveOrder(env:Bindings,o:Order) {
  assertOriginalPier(env,o)
- const result=(await call(env,'/api/pier/commands',{commandId:`stall-reserve-${o.id}`,type:'order.create',payload:{customerId:o.pierCustomerId,channel:'stall',currency:o.currency.toUpperCase(),lines:o.lines.map(l=>({itemId:l.itemId,quantity:String(l.quantity),price:(l.unitCents/100).toFixed(2)}))}})).result
+ const result=await commandWork(env,o,{commandId:`stall-reserve-${o.id}`,type:'order.create',payload:{customerId:o.pierCustomerId,channel:'stall',currency:o.currency.toUpperCase(),lines:o.lines.map(l=>({itemId:l.itemId,quantity:String(l.quantity),price:(l.unitCents/100).toFixed(2)}))}},o.id)
  if(typeof result?.id!=='string') fail('PIER_RESPONSE','Pier did not return the reserved order. Reconcile the same order to recover it.',502)
  // Pier's order contains merchandise only. Allocate that portion of the verified
  // charge to it; the separate shipping charge and gross payment remain in Stall.
  const merchandiseCents=o.lines.reduce((sum,line)=>sum+line.quantity*line.unitCents,0)
- if(o.payment) await call(env,'/api/pier/commands',{commandId:`stall-payment-${o.id}`,type:'order.channelPayment',payload:{orderId:result.id,payment:{provider:'stripe',reference:o.payment.intentId,amount:(merchandiseCents/100).toFixed(2),currency:o.currency.toUpperCase(),paidAt:o.payment.paidAt,orderReference:o.id}}})
+ if(o.payment) await commandWork(env,o,{commandId:`stall-payment-${o.id}`,type:'order.channelPayment',payload:{orderId:result.id,payment:{provider:'stripe',reference:o.payment.intentId,amount:(merchandiseCents/100).toFixed(2),currency:o.currency.toUpperCase(),paidAt:o.payment.paidAt,orderReference:o.id}}},o.payment.intentId)
  return result
 }
 export function fullyReserved(result:any,lines:Line[]) {
@@ -82,5 +89,5 @@ export async function dispatchOrder(env:Bindings,o:Order) {
   if(typeof line?.id!=='string') fail('PIER_RESPONSE','Pier order line is missing. Reconcile this order first.',502)
   return {orderLineId:line.id,quantity:String(l.quantity)}
  })
- return (await call(env,'/api/pier/commands',{commandId:`stall-ship-${o.shipment.id}`,type:'dispatch.create',payload:{orderId:o.reservation.id,shipmentReference:o.shipment.reference,lines}})).result
+ return commandWork(env,o,{commandId:`stall-ship-${o.shipment.id}`,type:'dispatch.create',payload:{orderId:o.reservation.id,shipmentReference:o.shipment.reference,lines}},o.reservation.id)
 }

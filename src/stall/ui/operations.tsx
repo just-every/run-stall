@@ -3,6 +3,7 @@ import type { operationsSnapshot } from '../operations'
 import { request, errorMessage } from './api'
 import { Notice, Section, RecordDetail } from './primitives'
 import { humanLabel, shortId, When } from './presentation'
+import { PierWorkHistory } from './pier-work-history'
 
 type Snapshot = Awaited<ReturnType<typeof operationsSnapshot>>
 export function Operations() {
@@ -35,6 +36,7 @@ export function Operations() {
     <p className="st-small">Prepared work has not reached Stripe and can make its first request once configuration is fixed. Each operation claims at most one network write. A response observed means Stripe returned its reference; it does not mean the customer paid or a refund succeeded. Uncertain recovery reads the original operation and never sends a replacement. Older operations may have no attempt record.</p>
     {data.stripeWork.records.length ? <ul className="st-stack">{data.stripeWork.records.map(work => <li key={work.id}><a href={`#orders/${encodeURIComponent(work.orderId)}`}>Order {shortId(work.orderId)}</a> · {work.kind === 'checkout' ? 'Checkout' : 'Refund'} · {humanLabel(work.status)} · {work.attempts} write attempt(s) · first checked <When at={work.attemptedAt} />{work.observedAt && <> · observed <When at={work.observedAt} /></>}{work.providerId && <p className="st-reference">{work.providerId}</p>}{work.errorCode && <p className="st-small">{work.errorCode}. Reconcile from the order after checking the original Stripe account.</p>}</li>)}</ul> : <p>No Stripe write attempt recorded yet.</p>}
     {data.stripeWork.truncated && <Notice>Showing the latest {data.stripeWork.limit} of {data.stripeWork.total} operations. Download the Stripe operations CSV or complete business JSON for the full history.</Notice>}</div>}
+   {data.pierWork && <PierWorkHistory data={data.pierWork} />}
    {data.imports && <div><h3>Import jobs · {data.imports.outstanding} unfinished</h3><p>{data.imports.total} retained jobs. <a href="#move-in">Open the import journal</a> to inspect, resume or undo a reviewed job.</p>
     {data.imports.jobs.map(job => <p key={job.id}>Job {shortId(job.id)} · {humanLabel(job.state)} · {job.checkpoint}/{job.total}{job.hasError ? ' · Inspect its recorded error in the journal' : ''}</p>)}
     {data.imports.truncated && <Notice>Showing {data.imports.limit} of {data.imports.outstanding} unfinished imports.</Notice>}</div>}
