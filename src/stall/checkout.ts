@@ -18,7 +18,7 @@ export async function checkout(env:Bindings,p:any) {
  }).sort((a:any,b:any)=>a.sku.localeCompare(b.sku))
  const checkoutKey=await digest(key),requestDigest=await digest(JSON.stringify({customerEmail,lines:selection,expectedTotalCents:p.expectedTotalCents??null}))
  let row=await env.DB.prepare("SELECT id FROM st_orders WHERE json_extract(value_json,'$.checkoutKey')=?").bind(checkoutKey).first<any>()
- let order:Order
+ let order:Order,allowCreate=false
  if(row) {
   order=await readOrder(env.DB,row.id)
   if(order.requestDigest!==requestDigest||order.erasedAt) fail('IDEMPOTENCY','This checkout key belongs to a different or erased purchase. Start a new checkout.')
@@ -39,7 +39,7 @@ export async function checkout(env:Bindings,p:any) {
   const id=crypto.randomUUID(),revision=crypto.randomUUID()
   order={id,revision,customerEmail,lines,totalCents,shippingCents,currency:shopCurrency,status:'checkout_pending',createdAt:new Date().toISOString(),requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,refunds:[]}
   // Unique checkout key prevents two orders even if concurrent requests observed no row.
-  try { await env.DB.batch([env.DB.prepare('INSERT INTO st_orders VALUES(?,?,?)').bind(id,JSON.stringify(order),revision),systemAudit(env.DB,id,'checkout.prepared','customer')]) }
+  try { await env.DB.batch([env.DB.prepare('INSERT INTO st_orders VALUES(?,?,?)').bind(id,JSON.stringify(order),revision),systemAudit(env.DB,id,'checkout.prepared','customer')]);allowCreate=true }
   catch(error) {
    const winner=await env.DB.prepare("SELECT id FROM st_orders WHERE json_extract(value_json,'$.checkoutKey')=?").bind(checkoutKey).first<any>()
    if(!winner) throw error
@@ -50,8 +50,12 @@ export async function checkout(env:Bindings,p:any) {
  if(order.payment) return {orderId:order.id,url:'/order?checkout=success&orderId='+encodeURIComponent(order.id),status:order.status}
  if(!order.checkout) {
   if(order.erasedAt||!order.customerEmail) fail('ERASED','This customer record was erased.')
-  const session=await createCheckout(env,order)
+  const session=await createCheckout(env,order,allowCreate)
   validateSession(order,session)
+  if(!allowCreate&&session.payment_status==='paid') {
+   order=await paidSession(env,order,session.id)
+   return {orderId:order.id,url:'/order?checkout=success&orderId='+encodeURIComponent(order.id),status:order.status}
+  }
   let link:URL;try { link=new URL(session.url) }catch { return fail('STRIPE_RESPONSE','Stripe did not return a hosted checkout link.',502) }
   if(link.protocol!=='https:'||link.hostname!=='checkout.stripe.com') fail('STRIPE_RESPONSE','Stripe returned an invalid checkout link.',502)
   order=await readOrder(env.DB,order.id)

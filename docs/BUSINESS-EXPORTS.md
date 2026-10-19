@@ -20,12 +20,13 @@ Supported kinds:
 | `refunds` | Every refund including drafts, pending, failed and canceled attempts, with line quantities, refund kind, explicit tax treatment/accounting category and approval evidence. Shipping and goodwill refunds have empty line arrays. |
 | `shipments` | Every locally recorded draft or shipment, including observed partial dispatches and retained tracking. |
 | `reconciliation` | Per-order local payment/refund totals and checkout, intent, reservation and shipment references/status. |
-| `records` | JSON containing all supported product and order commercial fields, current/pending product drafts, derived customers and reconciliation; order lines/payments/refunds/shipments are nested under each order. |
+| `stripe-work` | Retained Stripe operation/order references, kind, claimed-write count, prepared/uncertain/response-observed status, timestamps, safe error code and observed provider ID. No intent hash or payload. |
+| `records` | JSON containing all supported product and order commercial fields, current/pending product drafts, derived customers, reconciliation and commercial-only `stripeWork` attempt/observation history; order lines/payments/refunds/shipments are nested under each order. |
 
 There is no row limit or pagination truncation. Export reads all current product
 and order rows using the store readers. It is a current local read, not a
 transactionally frozen historical snapshot: concurrent edits can occur between
-the two reads. Large exports must fit the Worker's available memory/response
+these reads. Large exports must fit the Worker's available memory/response
 limits; failures are errors, never a deliberately shortened download. JSON uses
 the `stall-business-export-v1` schema label and an export timestamp.
 
@@ -57,7 +58,7 @@ It is not provider settlement, fee, payout, bank or tax reconciliation.
 
 The JSON whitelist includes retained shipping addresses, business/provider IDs,
 product/refund/shipment approvals, reservation quantities and dispatch tracking.
-It excludes request digests, checkout idempotency keys and hosted checkout URLs,
+Stripe work includes operation/order IDs, kind, status, claimed-write count, times, safe error code and observed provider ID. It excludes its internal commercial-intent hash. It excludes request digests, checkout idempotency keys and hosted checkout URLs,
 authentication/session material, integration credentials, API keys, webhook
 secrets, raw provider payloads, event digests, import journals and security audit
 records. Reservation line fields are limited to ID, item ID, quantity, price,

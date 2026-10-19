@@ -22,9 +22,17 @@ export function stripeEdge({forward}={}) {
    return new Response(await response.arrayBuffer(),{status:response.status,headers:Object.fromEntries(response.headers)});
   }
   assert.match(request.headers.get('authorization'),/^Bearer /);
-  calls.push({path:url.pathname,method:request.method});
+  calls.push({path:url.pathname,method:request.method,query:url.search});
   if(request.method==='GET') {
    if(url.pathname==='/v1/balance') return Response.json({object:'balance',available:[],pending:[]});
+   if(['/v1/checkout/sessions','/v1/refunds'].includes(url.pathname)) {
+    let values=[...(url.pathname==='/v1/refunds'?refunds:sessions).values()].reverse();
+    if(url.searchParams.has('payment_intent'))values=values.filter(value=>value.payment_intent===url.searchParams.get('payment_intent'));
+    if(url.searchParams.has('created[gte]'))values=values.filter(value=>value.created>=Number(url.searchParams.get('created[gte]')));
+    if(url.searchParams.has('starting_after')){const at=values.findIndex(value=>value.id===url.searchParams.get('starting_after'));assert.ok(at>=0);values=values.slice(at+1);}
+    const limit=Number(url.searchParams.get('limit')??10);
+    return Response.json({object:'list',has_more:values.length>limit,data:values.slice(0,limit)});
+   }
    const id=decodeURIComponent(url.pathname.split('/').at(-1));
    const value=sessions.get(id)??refunds.get(id);
    return value?Response.json(value):Response.json({error:'missing'},{status:404});
@@ -45,7 +53,7 @@ export function stripeEdge({forward}={}) {
    }
    total+=Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]')??0);
    const id='cs_test_'+randomUUID().replaceAll('-','');
-   value={id,object:'checkout.session',mode:'payment',client_reference_id:form.get('client_reference_id'),metadata:{stall_order_id:form.get('metadata[stall_order_id]')},amount_total:total,total_details:{amount_shipping:Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]')??0)},currency:'usd',status:'open',payment_status:'unpaid',payment_intent:null,url:'https://checkout.stripe.com/c/pay/'+id};
+   value={id,created:Math.floor(Date.now()/1000),object:'checkout.session',mode:'payment',client_reference_id:form.get('client_reference_id'),metadata:{stall_order_id:form.get('metadata[stall_order_id]')},amount_total:total,total_details:{amount_shipping:Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]')??0)},currency:'usd',status:'open',payment_status:'unpaid',payment_intent:null,url:'https://checkout.stripe.com/c/pay/'+id};
    sessions.set(id,value);
   } else if(url.pathname==='/v1/refunds') {
    const intent=form.get('payment_intent'),amount=Number(form.get('amount'));
@@ -54,7 +62,7 @@ export function stripeEdge({forward}={}) {
    const existing=[...refunds.values()].filter(r=>r.payment_intent===intent&&r.status!=='failed').reduce((n,r)=>n+r.amount,0);
    assert.ok(existing+amount<=paid.amount_total);
    const id='re_'+randomUUID().replaceAll('-','');
-   value={id,object:'refund',payment_intent:intent,amount,currency:'usd',metadata:{stall_order_id:form.get('metadata[stall_order_id]'),stall_refund_id:form.get('metadata[stall_refund_id]')},status:'succeeded'};
+   value={id,created:Math.floor(Date.now()/1000),object:'refund',payment_intent:intent,amount,currency:'usd',metadata:{stall_order_id:form.get('metadata[stall_order_id]'),stall_refund_id:form.get('metadata[stall_refund_id]')},status:'succeeded'};
    refunds.set(id,value);
   } else assert.fail('Unexpected Stripe API request '+url.pathname);
   writes.set(key,{body:form.toString(),value});

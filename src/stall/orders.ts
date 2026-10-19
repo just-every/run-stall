@@ -7,6 +7,8 @@ import { finishShipment } from './fulfilment'
 import { observeShipment } from './shipment-sync'
 import { finishRefund } from './refunds'
 import { checkoutSession,validateSession } from './stripe'
+import { originalCheckout } from './stripe-recovery'
+import { observedStripeWork } from './integration-work'
 export async function reconcileOrder(env:Bindings,actor:Actor,p:any) {
  requirePerson(actor)
  let order=await readOrder(env.DB,text(p.orderId,'Order'))
@@ -14,9 +16,9 @@ export async function reconcileOrder(env:Bindings,actor:Actor,p:any) {
  order=await observeShipment(env,actor,order)
  if(!order.payment) {
   const id=order.checkout?.id??(p.checkoutSessionId?text(p.checkoutSessionId,'Stripe session ID'):undefined)
-  if(!id) fail('STRIPE_RECOVERY','Find this order’s existing Checkout Session in Stripe and supply its ID to reconcile.')
-  const session=await checkoutSession(env,id)
+  const session=id?await checkoutSession(env,id):await originalCheckout(env,order)
   validateSession(order,session)
+  await observedStripeWork(env.DB,`stall-checkout-${order.id}`,session.id)
   if(session.payment_status!=='paid') {
    if(!order.checkout&&typeof session.url==='string') {
     const link=new URL(session.url)
@@ -25,7 +27,7 @@ export async function reconcileOrder(env:Bindings,actor:Actor,p:any) {
    }
    return order
   }
-  order=await paidSession(env,order,id,actor)
+  order=await paidSession(env,order,session.id,actor)
  } else if(!order.shipment||order.shipment.status==='draft') order=await reservePaid(env,order,actor)
  if(order.shipment?.status==='pending') order=await finishShipment(env,actor,order)
  for(const refund of order.refunds.filter(r=>r.status==='pending')) {

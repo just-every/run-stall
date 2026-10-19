@@ -4,6 +4,7 @@ import { createRefund,retrieveRefund } from './stripe'
 import { readOrder,saveOrder } from './store'
 import { refundValue } from './refund-values'
 import { exactRevision,liveApproval } from './fulfilment'
+import { observedStripeWork } from './integration-work'
 function refundResult(order:Order,r:Refund,result:any):Refund {
  if(typeof result?.id!=='string'||!/^re_[A-Za-z0-9_]+$/.test(result.id)||result.object!=='refund'||result.amount!==r.amountCents||result.currency!==shopCurrency||result.payment_intent!==order.payment?.intentId||result.metadata?.stall_order_id!==order.id||result.metadata?.stall_refund_id!==r.id||(r.stripeId&&r.stripeId!==result.id)||!['pending','requires_action','succeeded','failed','canceled'].includes(result.status)) fail('REFUND_MISMATCH','Stripe refund does not match this approved refund.',502)
  return {...r,stripeId:result.id,status:result.status==='requires_action'?'pending':result.status}
@@ -22,6 +23,7 @@ export async function refundCommand(env:Bindings,actor:Actor,type:string,p:any) 
  let refund=p.refundId?order.refunds.find(r=>r.id===p.refundId):order.refunds.at(-1)
  if(!refund) fail('REFUND','Prepare and review a refund first.')
  if(['succeeded','failed','canceled'].includes(refund.status)) return order
+ const allowCreate=refund.status==='draft'
  if(refund.status==='draft') {
   exactRevision(order,p)
   refund={...refund,status:'pending',approval:approval(actor,order.revision),startedAt:new Date().toISOString()}
@@ -33,11 +35,12 @@ export async function refundCommand(env:Bindings,actor:Actor,type:string,p:any) 
    order=await saveOrder(env,{...order,refunds:order.refunds.map(r=>r.id===refund!.id?refund!:r)},'refund.reapproved',actor)
   }
  }
- return finishRefund(env,actor,order,refund)
+ return finishRefund(env,actor,order,refund,undefined,allowCreate)
 }
-export async function finishRefund(env:Bindings,actor:Actor,order:Order,r:Refund,recoveredStripeId?:string) {
+export async function finishRefund(env:Bindings,actor:Actor,order:Order,r:Refund,recoveredStripeId?:string,allowCreate=false) {
  await liveApproval(env,actor,r.approval)
- const result=r.stripeId||recoveredStripeId?await retrieveRefund(env,r.stripeId??recoveredStripeId!):await createRefund(env,order,r)
+ const result=r.stripeId||recoveredStripeId?await retrieveRefund(env,r.stripeId??recoveredStripeId!):await createRefund(env,order,r,allowCreate)
  const next=refundResult(order,r,result)
+ await observedStripeWork(env.DB,`stall-refund-${r.id}`,next.stripeId!)
  return saveOrder(env,{...order,refunds:order.refunds.map(x=>x.id===r.id?next:x)},`refund.${next.status}`,actor)
 }

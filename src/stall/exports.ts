@@ -1,7 +1,8 @@
 import { fail, shopCurrency, type Approval, type Order, type ProductValue } from './model'
 import { orders, products } from './store'
+import { stripeWork,workRecord } from './integration-work'
 
-const kinds = ['products', 'customers', 'orders', 'lines', 'payments', 'refunds', 'shipments', 'reconciliation', 'records'] as const
+const kinds = ['products', 'customers', 'orders', 'lines', 'payments', 'refunds', 'shipments', 'reconciliation', 'stripe-work', 'records'] as const
 type Row = Record<string, unknown>
 // Never spread stored/provider objects: only these commercial fields may leave.
 function fields(value: any, names: string[]): Row {
@@ -75,6 +76,7 @@ const columns: Record<string, string[]> = {
  payments: ['orderId', 'sessionId', 'intentId', 'paidAt', 'amountCents', 'currency'],
  refunds: ['orderId', 'id', 'kind', 'taxTreatment', 'accountingCategory', 'amountCents', 'currency', 'reason', 'status', 'preparedBy', 'approval', 'startedAt', 'stripeId', 'lines'],
  shipments: ['orderId', 'id', 'reference', 'status', 'preparedBy', 'approval', 'pierShipmentId', 'dispatches'],
+ 'stripe-work': ['id', 'orderId', 'kind', 'status', 'attempts', 'attemptedAt', 'observedAt', 'providerId', 'errorCode'],
  reconciliation: ['orderId', 'currency', 'status', 'totalCents', 'paidCents', 'succeededRefundCents', 'pendingRefundCents', 'netRecordedCents', 'checkoutSessionId', 'paymentIntentId', 'reservationId', 'shipmentStatus', 'pendingRefundIds'],
 }
 function cell(value: unknown): string {
@@ -87,22 +89,24 @@ function cell(value: unknown): string {
 /** Local business data only. The HTTP caller must authorize the human owner. */
 export async function businessExport(db: D1Database, kind: string): Promise<Response> {
  if (!(kinds as readonly string[]).includes(kind)) fail('EXPORT_KIND', `Choose an export: ${kinds.join(', ')}.`, 400)
- const [catalogue, history] = await Promise.all([products(db), orders(db)])
+ const [catalogue, history, work] = await Promise.all([products(db), orders(db), stripeWork(db)])
  const productRecords = catalogue.map(product => ({ id: product.id, revision: product.revision,
   value: { ...productValue(product.value), ...(product.value.draft ? { draft: productValue(product.value.draft) } : {}) } }))
  const orderRecords = history.map(commercialOrder)
  const customerRecords = customers(history), reconciliationRecords = history.map(reconciliation)
+ const workRecords = work.map(value => ({ ...workRecord(value), attemptedAt: utc(value.attemptedAt), observedAt: value.observedAt ? utc(value.observedAt) : null }))
  const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff',
   'content-type': kind === 'records' ? 'application/json; charset=utf-8' : 'text/csv; charset=utf-8',
   'content-disposition': `attachment; filename="stall-${kind}.${kind === 'records' ? 'json' : 'csv'}"` }
  if (kind === 'records') return new Response(JSON.stringify({ schema: 'stall-business-export-v1', exportedAt: new Date().toISOString(),
-  currency: shopCurrency, products: productRecords, customers: customerRecords, orders: orderRecords, reconciliation: reconciliationRecords }, null, 2), { headers })
+  currency: shopCurrency, products: productRecords, customers: customerRecords, orders: orderRecords, reconciliation: reconciliationRecords, stripeWork: workRecords }, null, 2), { headers })
  let rows: Row[]
  switch (kind) {
   case 'products': rows = productRecords.flatMap(product => [
    { id: product.id, revision: product.revision, state: 'current', currency: shopCurrency, ...product.value },
    ...(product.value.draft ? [{ id: product.id, revision: product.revision, state: 'draft', currency: shopCurrency, ...product.value.draft }] : []),
   ]); break
+  case 'stripe-work': rows = workRecords; break
   case 'customers': rows = customerRecords; break
   case 'orders': rows = orderRecords; break
   case 'lines': rows = history.flatMap(order => order.lines.map((line, index) => ({ orderId: order.id, lineNumber: index + 1,

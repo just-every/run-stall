@@ -2,6 +2,8 @@ import type { Bindings } from '../auth.server'
 import { fail,shopCountry,shopCurrency,type Order,type Refund } from './model'
 import { demoEffect } from '../modules/demo/index.mjs'
 import { demoStripe } from './demo/providers'
+import { stripeWrite } from './integration-work'
+import { originalCheckout,originalRefund } from './stripe-recovery'
 // A shop on the owner's computer cannot receive Stripe's webhooks (Stripe reaches only
 // public addresses), so it confirms each payment by asking Stripe instead
 // (payments.ts confirmFromStripe). An online shop keeps signed webhooks.
@@ -16,13 +18,12 @@ async function request(env:Bindings,path:string,form?:URLSearchParams,key?:strin
  let response:Response
  try { response=await fetch('https://api.stripe.com/v1'+path,{method:form?'POST':'GET',redirect:'manual',signal:AbortSignal.timeout(15000),headers:{authorization:`Bearer ${env.STRIPE_SECRET_KEY}`,'Stripe-Version':'2025-06-30.basil',...(form?{'content-type':'application/x-www-form-urlencoded'}:{}),...(key?{'Idempotency-Key':key}:{})},...(form?{body:form.toString()}:{})}) }
  catch { return fail('STRIPE_UNAVAILABLE','Stripe did not answer. The operation is saved; retry or reconcile the same order.',503) }
- if(!response.ok) fail('STRIPE_UNAVAILABLE','Stripe refused this operation. Check the payment dashboard, then reconcile the same order.',503)
+ if(!response.ok) fail('STRIPE_UNAVAILABLE','Stripe did not confirm this operation. Its result may be unknown. Check the original payment dashboard, then reconcile the same order.',503)
  return response.json()
 }
 // Stripe may discard idempotency keys after 24 hours. Never blindly repeat an unknown write after that window.
 function writeWindow(at:string) { if(Date.now()-Date.parse(at)>23*3600000) fail('STRIPE_RECOVERY','This unresolved operation is outside the safe retry window. Recover its existing Stripe ID in the dashboard before continuing.',409) }
-export async function createCheckout(env:Bindings,o:Order) {
- writeWindow(o.createdAt)
+export async function createCheckout(env:Bindings,o:Order,allowCreate=false) {
  const form=new URLSearchParams({mode:'payment',customer_email:o.customerEmail!,client_reference_id:o.id,'metadata[stall_order_id]':o.id,'payment_intent_data[metadata][stall_order_id]':o.id,success_url:env.AUTH_ORIGIN+'/order?checkout=success&orderId='+encodeURIComponent(o.id),cancel_url:env.AUTH_ORIGIN+'/order?checkout=cancelled&orderId='+encodeURIComponent(o.id),'shipping_address_collection[allowed_countries][0]':shopCountry})
  o.lines.forEach((l,i)=>{form.set(`line_items[${i}][quantity]`,String(l.quantity));form.set(`line_items[${i}][price_data][currency]`,shopCurrency);form.set(`line_items[${i}][price_data][unit_amount]`,String(l.unitCents));form.set(`line_items[${i}][price_data][product_data][name]`,l.name)})
  const shippingCents=o.shippingCents??0
@@ -32,12 +33,11 @@ export async function createCheckout(env:Bindings,o:Order) {
   form.set('shipping_options[0][shipping_rate_data][fixed_amount][currency]',shopCurrency)
   form.set('shipping_options[0][shipping_rate_data][display_name]','Domestic shipping')
  }
- return stripe(env,'/checkout/sessions',form,`stall-checkout-${o.id}`)
+ return stripeWrite(env,{id:`stall-checkout-${o.id}`,orderId:o.id,kind:'checkout',value:{lines:o.lines,totalCents:o.totalCents,shippingCents:o.shippingCents??0,currency:o.currency}},()=>stripe(env,'/checkout/sessions',form,`stall-checkout-${o.id}`),id=>originalCheckout(env,o,id),allowCreate,()=>{writeWindow(o.createdAt);if(!env.STRIPE_SECRET_KEY)fail('STRIPE_UNAVAILABLE','Connect Stripe before sending this saved operation.',503)})
 }
 export const checkoutSession=(env:Bindings,id:string)=>stripe(env,'/checkout/sessions/'+encodeURIComponent(id))
-export async function createRefund(env:Bindings,o:Order,r:Refund) {
- writeWindow(r.startedAt!)
- return stripe(env,'/refunds',new URLSearchParams({payment_intent:o.payment!.intentId,amount:String(r.amountCents),'metadata[stall_order_id]':o.id,'metadata[stall_refund_id]':r.id}),`stall-refund-${r.id}`)
+export async function createRefund(env:Bindings,o:Order,r:Refund,allowCreate=false) {
+ return stripeWrite(env,{id:`stall-refund-${r.id}`,orderId:o.id,kind:'refund',value:{intentId:o.payment!.intentId,amountCents:r.amountCents,currency:o.currency}},()=>stripe(env,'/refunds',new URLSearchParams({payment_intent:o.payment!.intentId,amount:String(r.amountCents),'metadata[stall_order_id]':o.id,'metadata[stall_refund_id]':r.id}),`stall-refund-${r.id}`),id=>originalRefund(env,o,r,id),allowCreate,()=>{writeWindow(r.startedAt!);if(!env.STRIPE_SECRET_KEY)fail('STRIPE_UNAVAILABLE','Connect Stripe before sending this saved operation.',503)})
 }
 export const retrieveRefund=(env:Bindings,id:string)=>stripe(env,'/refunds/'+encodeURIComponent(id))
 export function validateSession(o:Order,s:any,paid=false) {

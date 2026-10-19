@@ -42,7 +42,8 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "pnpm run test:browser"
+        "pnpm run test:browser",
+        "node tests/ui/integration-journey.mjs"
       ]
     },
     {

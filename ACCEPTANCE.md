@@ -260,7 +260,7 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
 - **INTEGRATION-001 — Owned connections and recoverable external work.** **partial** — Revoke/rotate an account during queued work, lose successful responses at each provider edge and restart the worker. Inspect pending/uncertain work, reconcile by original reference, and prove no new effect identity or secret appears in UI, logs, exports or restored authority.
 
-  Current evidence: `src/stall/orders.ts`; `src/stall/stripe.ts`; `src/stall/pier.ts`; `src/stall/portability-policy.mjs`; `tests/api/commerce.test.mjs`. Stripe/Pier deterministic effects and manual reconciliation exist; generalized connection controls, secret custody and durable jobs for all target providers are absent or unverified.
+  Current evidence: `src/stall/orders.ts`; `src/stall/stripe.ts`; `src/stall/pier.ts`; `src/stall/portability-policy.mjs`; `src/stall/integration-work.ts`; `src/stall/stripe-recovery.ts`; `tests/api/operations.test.mjs`; `tests/ui/integration-journey.mjs`. Stripe checkout/refund intent persists as prepared before an atomic at-most-one network-write claim; known-unsent work resumes its first send after owner reconnection, while uncertain results recover by read-only original-reference lookup, including after archive restore and beyond the idempotency window. Settings shows historical observations, and business CSV/JSON/archive retain commercial-only work records. Pier deterministic effects, encrypted owner-managed connections and exact approvals remain. Per-provider account binding, Pier attempt history/mapping previews and broader target-provider jobs/recovery remain unproven; this clause stays partial.
 
 - **SECURITY-001 — Guarded native commerce doors.** **done** — Call private state, product commands, imports and exports anonymously/as a member; attempt cross-origin browser mutation and an agent approval; revoke the grant and repeat. All fail without the prohibited write or private response, while public catalog and valid checkout remain usable.
 
@@ -344,4 +344,4 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
 Provider credentials, approvals and original idempotency references must stay local and private. No current proof claims live provider acceptance, inbox receipt, physical delivery, WCAG conformance, load capacity or operating cost. The target requires those measurements as applicable rather than excluding their features. No test or contract check may be weakened to make these documents pass.
 
-Target clause totals: **11 done / 29 partial / 37 missing** (77 total).
+Target clause totals: **13 done / 28 partial / 36 missing** (77 total).

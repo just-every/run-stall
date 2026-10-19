@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto'
 import { installation, archive, restore } from './harness.mjs'
 import { pierInstallation } from './pier.mjs'
 import { stripeEdge, publish, purchase, deliverWebhook } from './network.mjs'
+import { readCsv } from './csv-reader.mjs'
 
 // Only provider network faults are faked. Both applications use their real Workers/databases.
 test('OPS-001: diagnose providers and scheduler, restore outstanding work, reconcile original effects', async () => {
@@ -89,4 +90,142 @@ test('OPS-001: diagnose providers and scheduler, restore outstanding work, recon
   assert.equal(final.providers.stripe.lastObservation.status, 'ready')
   assert.equal((await pier.api('/api/pier/state')).shipments.length, 1)
  } finally { await destination?.close(); await h.close(); await pier.close() }
+})
+
+// INTEGRATION-001 hard slice: durable intent survives response loss and archive
+// recovery. The fake is only Stripe's paid network boundary; Pier is real.
+test('INTEGRATION-001: uncertain Stripe writes recover by original reference without any replacement, including after restore', async () => {
+ const pier = await pierInstallation(), edge = stripeEdge({ forward: pier.forward }), secret = randomBytes(32).toString('hex')
+ const bindings = { ...pier.bindings, STRIPE_SECRET_KEY: 'test-network-edge', STRIPE_WEBHOOK_SECRET: secret }
+ let lookup = 'normal', destination, disconnected, mutations = [], claims = []
+ const h = await installation({ bindings, outboundService: async request => {
+  const url = new URL(request.url)
+  if (url.hostname === 'api.stripe.com' && request.method === 'POST') {
+   // The public request must persist its attempt before crossing the network.
+   const rows = (await h.db.prepare('SELECT * FROM st_stripe_work').all()).results
+   claims.push(rows.some(row => row.status === 'uncertain' && row.attempts === 1))
+   mutations.push(url.pathname)
+  }
+  if (url.hostname === 'api.stripe.com' && request.method === 'GET' && url.pathname === '/v1/checkout/sessions') {
+   if (lookup === 'down') return Response.json({ error: 'unavailable' }, { status: 503 })
+   if (lookup === 'empty') return Response.json({ object: 'list', data: [], has_more: false })
+   if (lookup === 'ambiguous') {const original = [...edge.sessions.values()][0];return Response.json({ object: 'list', data: [original, { ...original, id: 'cs_duplicate' }], has_more: false })}
+   if (lookup === 'bounded') return Response.json({ object: 'list', data: [{ id: 'cs_page_' + (url.searchParams.get('starting_after') ?? 'first') }], has_more: true })
+  }
+  return edge.handle(request)
+ } })
+ try {
+  await publish(h, 'MUG-BLUE', 'Blue ceramic mug', 2450)
+  const input = { customerEmail: 'customer@example.test', lines: [{ sku: 'MUG-BLUE', quantity: 1 }], idempotencyKey: crypto.randomUUID() }
+  edge.loseNextCheckoutResponse()
+  await h.api('/api/stall/checkout', input, { as: '', status: 503 })
+  assert.equal(edge.sessions.size, 1)
+  const initial = await h.api('/api/stall/operations')
+  assert.equal(initial.stripeWork.uncertain, 1)
+  const work = initial.stripeWork.records[0]
+  assert.equal(work.kind, 'checkout'); assert.equal(work.status, 'uncertain'); assert.equal(work.attempts, 1)
+  assert.equal(work.providerId, null)
+  for (const mode of ['down', 'empty', 'ambiguous', 'bounded']) {
+   lookup = mode
+   const before = mutations.length
+   await h.api('/api/stall/checkout', input, { as: '', status: mode === 'down' ? 503 : 409 })
+   assert.equal(mutations.length, before, `${mode} lookup must never authorize another write`)
+  }
+  lookup = 'normal'
+  const original = [...edge.sessions.values()][0]
+  // Match lies beyond the first provider page; unrelated operations never match.
+  for (let i = 0; i < 101; i++) edge.sessions.set('cs_other_' + i, { ...original, id: 'cs_other_' + i, client_reference_id: 'another-order', metadata: { stall_order_id: 'another-order' } })
+  const recovered = await h.api('/api/stall/checkout', input, { as: '' })
+  const session = [...edge.sessions.values()][0]
+  assert.equal(recovered.orderId, work.orderId); assert.equal(recovered.url, session.url)
+  await h.api('/api/stall/checkout', { ...input, lines: [{ sku: 'MUG-BLUE', quantity: 2 }] }, { as: '', status: 409 })
+  assert.equal(mutations.length, 1)
+  assert.equal((await h.api('/api/stall/operations')).stripeWork.records[0].providerId, session.id)
+  assert.equal((await deliverWebhook(h, secret, edge.pay(session.id))).response.status, 200)
+  let value = (await h.api('/api/stall/state')).orders.find(order => order.id === work.orderId)
+  value = await h.command('shipment.prepare', { orderId: value.id, revision: value.revision, reference: 'USPS ORIGINAL' })
+  value = await h.command('shipment.approve', { orderId: value.id, revision: value.revision })
+  value = await h.command('refund.prepare', { orderId: value.id, revision: value.revision, kind: 'goodwill', amountCents: 500, reason: 'Late parcel' })
+  edge.loseNextRefundResponse()
+  await h.command('refund.approve', { orderId: value.id, revision: value.revision }, { status: 503 })
+  assert.equal(edge.refunds.size, 1)
+  assert.equal((await h.api('/api/stall/operations')).stripeWork.uncertain, 1)
+  // Recovery remains read-only beyond Stripe's idempotency retention window.
+  const stored = JSON.parse((await h.db.prepare('SELECT value_json FROM st_orders WHERE id=?').bind(value.id).first()).value_json)
+  stored.refunds[0].startedAt = new Date(Date.now() - 48 * 3600000).toISOString()
+  await h.db.prepare('UPDATE st_orders SET value_json=? WHERE id=?').bind(JSON.stringify(stored), value.id).run()
+  const saved = await archive(h)
+  destination = await installation({ bindings, outboundService: edge.handle })
+  await restore(destination, saved)
+  assert.equal((await destination.api('/api/stall/operations')).stripeWork.uncertain, 1)
+  value = (await destination.api('/api/stall/state')).orders.find(order => order.id === value.id)
+  const before = edge.calls.filter(call => call.method === 'POST').length
+  value = await destination.command('refund.approve', { orderId: value.id, revision: value.revision })
+  assert.equal(value.refunds[0].status, 'succeeded')
+  assert.equal(value.refunds[0].stripeId, [...edge.refunds.keys()][0])
+  assert.equal(edge.calls.filter(call => call.method === 'POST').length, before)
+  assert.equal(edge.refunds.size, 1)
+  assert.ok(edge.calls.some(call => call.path === '/v1/refunds' && call.method === 'GET' && new URLSearchParams(call.query).get('payment_intent') === session.payment_intent))
+  const final = await destination.api('/api/stall/operations')
+  assert.equal(final.stripeWork.uncertain, 0)
+  assert.ok(final.stripeWork.records.every(record => record.attempts === 1 && record.providerId && record.status === 'response_observed'))
+  const exported = await (await destination.request('/api/stall/exports/records')).json()
+  assert.equal(exported.stripeWork.length, 2)
+  const csv = readCsv(await (await destination.request('/api/stall/exports/stripe-work')).text())
+  assert.deepEqual(csv.map(row => row.providerId).sort(), final.stripeWork.records.map(row => row.providerId).sort())
+  assert.ok(csv.every(row => row.attempts === '1' && row.status === 'response_observed'))
+  assert.deepEqual(exported.stripeWork, final.stripeWork.records)
+  const serialized = JSON.stringify(final.stripeWork) + JSON.stringify(exported.stripeWork)
+  for (const forbidden of [bindings.STRIPE_SECRET_KEY, bindings.PIER_SESSION, secret, input.customerEmail, 'intentHash']) assert.ok(!serialized.includes(forbidden))
+  assert.ok(claims.length === 2 && claims.every(Boolean))
+  // A verified webhook can also observe a lost checkout response, without replay.
+  edge.loseNextCheckoutResponse()
+  await h.api('/api/stall/checkout', { ...input, idempotencyKey: crypto.randomUUID() }, { as: '', status: 503 })
+  const lost = [...edge.sessions.values()].at(-1)
+  assert.equal((await h.api('/api/stall/operations')).stripeWork.uncertain, 2) // original refund remains uncertain on the source
+  assert.equal((await deliverWebhook(h, secret, edge.pay(lost.id))).response.status, 200)
+  const observed = (await h.api('/api/stall/operations')).stripeWork.records.find(record => record.providerId === lost.id)
+  assert.equal(observed.status, 'response_observed')
+  assert.equal(edge.calls.filter(call => call.path === '/v1/checkout/sessions' && call.method === 'POST').length, 2)
+  const paidInput = { ...input, idempotencyKey: crypto.randomUUID() }
+  edge.loseNextCheckoutResponse()
+  await h.api('/api/stall/checkout', paidInput, { as: '', status: 503 })
+  const paidWithoutWebhook = edge.pay([...edge.sessions.keys()].at(-1))
+  paidWithoutWebhook.url = null // Stripe no longer offers a payable URL after completion.
+  const receipt = await h.api('/api/stall/checkout', paidInput, { as: '' })
+  assert.equal(receipt.orderId, paidWithoutWebhook.client_reference_id)
+  assert.equal(receipt.status, 'reserved')
+  assert.ok(receipt.url.startsWith('/order?checkout=success&orderId='))
+  assert.equal(edge.calls.filter(call => call.path === '/v1/checkout/sessions' && call.method === 'POST').length, 3)
+  // A known-unsent operation survives disconnect/reconnect without becoming a
+  // replacement for uncertain work. All changes use owner connection doors.
+  disconnected = await installation({ bindings: pier.bindings, outboundService: edge.handle })
+  const connect = () => disconnected.command('connection.stripe', { secretKey: 'sk_test_' + randomBytes(16).toString('hex'), webhookSecret: 'whsec_' + randomBytes(16).toString('hex') })
+  await connect()
+  await publish(disconnected, 'MUG-BLUE', 'Blue ceramic mug', 2450)
+  const next = await purchase(disconnected, edge, { skus: ['MUG-BLUE'] })
+  edge.pay(next.session.id)
+  let unsent = await disconnected.command('order.reconcile', { orderId: next.orderId })
+  unsent = await disconnected.command('shipment.prepare', { orderId: unsent.id, revision: unsent.revision, reference: 'USPS UNSENT' })
+  unsent = await disconnected.command('shipment.approve', { orderId: unsent.id, revision: unsent.revision })
+  unsent = await disconnected.command('refund.prepare', { orderId: unsent.id, revision: unsent.revision, kind: 'goodwill', amountCents: 200, reason: 'Late delivery' })
+  await disconnected.command('connection.remove', { name: 'stripe' })
+  const beforeUnsent = edge.calls.filter(call => call.method === 'POST').length
+  await disconnected.command('refund.approve', { orderId: unsent.id, revision: unsent.revision }, { status: 503 })
+  assert.equal(edge.calls.filter(call => call.method === 'POST').length, beforeUnsent)
+  const prepared = (await disconnected.api('/api/stall/operations')).stripeWork.records.find(record => record.kind === 'refund')
+  assert.equal(prepared.status, 'prepared'); assert.equal(prepared.attempts, 0)
+  await connect()
+  unsent = await disconnected.command('order.reconcile', { orderId: unsent.id })
+  assert.equal(unsent.refunds[0].status, 'succeeded')
+  assert.equal(edge.calls.filter(call => call.method === 'POST').length, beforeUnsent + 1)
+  const sent = (await disconnected.api('/api/stall/operations')).stripeWork.records.find(record => record.kind === 'refund')
+  assert.equal(sent.id, prepared.id); assert.equal(sent.attempts, 1)
+  const concurrentInput = { ...input, idempotencyKey: crypto.randomUUID() }
+  const beforeConcurrent = edge.calls.filter(call => call.path === '/v1/checkout/sessions' && call.method === 'POST').length
+  const replies = await Promise.all([1, 2].map(() => h.request('/api/stall/checkout', { method: 'POST', body: concurrentInput, as: '' })))
+  assert.ok(replies.some(response => response.ok), 'the original purchase must not be fenced out by its duplicate')
+  assert.ok(replies.every(response => response.ok || response.status === 409))
+  assert.equal(edge.calls.filter(call => call.path === '/v1/checkout/sessions' && call.method === 'POST').length, beforeConcurrent + 1)
+ } finally { await disconnected?.close(); await destination?.close(); await h.close(); await pier.close() }
 })

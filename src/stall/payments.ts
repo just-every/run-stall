@@ -5,11 +5,13 @@ import { checkoutSession,signedEvent,validateSession } from './stripe'
 import { readOrder,saveOrder } from './store'
 import { startPaymentCheck,completePaymentCheck } from './operations'
 import { observeShipment } from './shipment-sync'
+import { observedStripeWork } from './integration-work'
 import { fail,Problem,type Actor,type Order } from './model'
 export async function paidSession(env:Bindings,order:Order,id:string,actor?:Actor) {
  if(actor) await live(env,actor)
  const session=await checkoutSession(env,id)
  validateSession(order,session,true)
+ await observedStripeWork(env.DB,`stall-checkout-${order.id}`,session.id)
  if(!order.payment) {
   // Store only the delivery fields the shop needs. Stripe holds the card and full payment record.
   const details=session.collected_information?.shipping_details

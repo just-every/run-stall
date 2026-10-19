@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Notice, Section } from './primitives'
 import { errorMessage } from './api'
 
-const downloads = { products: 'Products', customers: 'Customers', orders: 'Orders', lines: 'Order lines', payments: 'Payments', refunds: 'Refunds', shipments: 'Shipments', reconciliation: 'Reconciliation', records: 'All business records (JSON)' }
+const downloads = { products: 'Products', customers: 'Customers', orders: 'Orders', lines: 'Order lines', payments: 'Payments', refunds: 'Refunds', shipments: 'Shipments', reconciliation: 'Reconciliation', 'stripe-work': 'Stripe operations', records: 'All business records (JSON)' }
 
 export function BusinessExports() {
   const lock = useRef(false), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('')
