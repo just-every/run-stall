@@ -61,7 +61,7 @@ async function preparePreservedUndo(db: D1Database, destination: string, effects
   };
 }
 export function productTargets(reversing = false, review?: { plan: ImportPlan; jobId: string }, preserveUndo = false): D1TargetAdapter {
-  const beforeImages = new Map(review?.plan.entries.filter(entry => !entry.erased).map(entry => [entry.source.sourceId,
+  const beforeImages = new Map(review?.plan.entries.filter(entry => !entry.erased && entry.effects.some(effect => effect.targetKind === 'product')).map(entry => [entry.source.sourceId,
     (entry.source.payload as unknown as { previous: TargetRow | null }).previous]) ?? []);
   return {
     async read(db, destination, kind, id) {

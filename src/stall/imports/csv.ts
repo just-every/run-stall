@@ -5,22 +5,32 @@ import { boundedText, importError, stableId, validateProductValue } from './vali
 export const productCSVHeaders = ['Handle', 'Title', 'Body (HTML)', 'Variant SKU', 'Variant Price', 'Published'] as const;
 export const defaultProductNamespace = 'shopify-products';
 export const legacyProductMappingVersion = 'stall-shopify-products-v1';
-export const productImportMappingVersion = 'stall-shopify-products-v2';
-export const supportedProductMappings = [legacyProductMappingVersion, productImportMappingVersion] as const;
+export const preservedProductMappingVersion = 'stall-shopify-products-v2';
+export const productImportMappingVersion = 'stall-shopify-products-v3';
+export const supportedProductMappings = [legacyProductMappingVersion, preservedProductMappingVersion, productImportMappingVersion] as const;
 export const productImportDestination = 'stall-products';
-function parseCSV(input: string): string[][] {
-  const rows: string[][] = [];
+type CSVRow = { cells: string[]; row: number };
+function parseCSV(input: string, preserveEmptyFields = false): CSVRow[] {
+  const rows: CSVRow[] = [];
   let row: string[] = [], cell = '', quoted = false, closed = false;
+  let line = 1, rowStart = 1;
   const finishCell = () => { row.push(cell); cell = ''; closed = false; };
-  const finishRow = () => { finishCell(); if (row.some(Boolean)) rows.push(row); row = []; if (rows.length > 201) importError('CSV_ROWS', 'Supply at most 200 products.'); };
+  const finishRow = () => {
+    const explicitFields = row.length > 0 || closed;
+    finishCell();
+    if (row.some(Boolean) || (preserveEmptyFields && explicitFields)) rows.push({ cells: row, row: rowStart });
+    row = [];
+    if (rows.length > 201) importError('CSV_ROWS', 'Supply at most 200 products.');
+  };
   for (let n = input.startsWith('\uFEFF') ? 1 : 0; n < input.length; n++) {
     const ch = input[n];
+    if (ch === '\r' || (ch === '\n' && input[n - 1] !== '\r')) line++;
     if (quoted) {
       if (ch === '"' && input[n + 1] === '"') { cell += '"'; n++; }
       else if (ch === '"') { quoted = false; closed = true; }
       else cell += ch;
     } else if (ch === ',') finishCell();
-    else if (ch === '\r' || ch === '\n') { if (ch === '\r' && input[n + 1] === '\n') n++; finishRow(); }
+    else if (ch === '\r' || ch === '\n') { if (ch === '\r' && input[n + 1] === '\n') n++; finishRow(); rowStart = line; }
     else if (ch === '"' && !cell && !closed) quoted = true;
     else if (ch === '"' || closed) importError('CSV_QUOTES', 'A quoted field must end at a separator or line ending.');
     else cell += ch;
@@ -36,28 +46,53 @@ function priceCents(value: string): number {
   if (!Number.isSafeInteger(cents) || cents < 1) importError('CSV_PRICE', 'Variant Price must be positive and fit safely in cents.');
   return cents;
 }
-export function productImportSource(csv: string, namespace = defaultProductNamespace): SourceBundle {
+// Ambiguous source identities refuse the entire file even when another value
+// in one of those rows is invalid. Only syntactically valid identities count.
+function checkSourceIdentities(rows: CSVRow[]) {
+  const skus = new Set<string>(), handles = new Set<string>();
+  for (const { cells, row } of rows) {
+    if (cells.length !== productCSVHeaders.length) importError('CSV_COLUMNS', `CSV row ${row} must have six columns.`);
+    const handle = cells[0], sku = cells[3];
+    if ((/^[A-Za-z0-9-]{1,160}$/.test(handle) && handles.has(handle)) ||
+        (/^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/.test(sku) && skus.has(sku)))
+      importError('CSV_VARIANTS', 'Use one row per unique Handle and SKU. Multi-variant and image continuation rows are not supported.');
+    if (/^[A-Za-z0-9-]{1,160}$/.test(handle)) handles.add(handle);
+    if (/^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/.test(sku)) skus.add(sku);
+  }
+}
+const rowValueErrors = new Set(['PRODUCT_FIELD', 'PRODUCT_ID', 'PRODUCT_VALUE', 'PRODUCT_DESCRIPTION', 'PRODUCT_PRICE', 'PRODUCT_PUBLICATION', 'CSV_HANDLE', 'CSV_PRICE', 'CSV_PUBLISHED']);
+export function productImportSource(csv: string, namespace = defaultProductNamespace, mappingVersion: string = productImportMappingVersion): SourceBundle {
   stableId(namespace, 'namespace');
+  if (!supportedProductMappings.some(version => version === mappingVersion)) importError('IMPORT_MAPPING', 'Unsupported product import mapping version.');
+  const preserveRejected = mappingVersion === productImportMappingVersion;
   if (typeof csv !== 'string' || csv.length > 256 * 1024) importError('CSV_SIZE', 'CSV must be UTF-8 text of at most 256 KiB.');
   const bytes = Buffer.from(csv, 'utf8');
   if (bytes.length > 256 * 1024 || bytes.toString('utf8') !== csv) importError('CSV_SIZE', 'CSV must be valid UTF-8 text of at most 256 KiB.');
-  const rows = parseCSV(csv);
-  const headers = rows.shift();
+  const rows = parseCSV(csv, preserveRejected);
+  const headers = rows.shift()?.cells;
   if (headers?.length !== productCSVHeaders.length || productCSVHeaders.some((header, i) => header !== headers[i])) importError('CSV_HEADERS', `Use these exact headers in order: ${productCSVHeaders.join(',')}`);
   if (!rows.length) importError('CSV_EMPTY', 'Supply at least one product.');
+  if (preserveRejected) checkSourceIdentities(rows);
   const skus = new Set<string>(), handles = new Set<string>();
   const hash = sha256(bytes), artifact = 'shopify-products.csv';
-  const records = rows.map((cells, index) => {
-    if (cells.length !== productCSVHeaders.length) importError('CSV_COLUMNS', `CSV row ${index + 2} must have six columns.`);
+  const records: SourceBundle['records'] = rows.map(({ cells, row }, index) => {
+    const sourceRow = preserveRejected ? row : index + 2;
+    if (cells.length !== productCSVHeaders.length) importError('CSV_COLUMNS', `CSV row ${sourceRow} must have six columns.`);
     const [handle, title, description, skuCell, price, published] = cells;
-    boundedText(handle, 'Handle', 160);
-    if (!/^[A-Za-z0-9-]+$/.test(handle)) importError('CSV_HANDLE', 'Handle must contain only letters, digits and dashes.');
-    const sku = stableId(skuCell);
-    if (skus.has(sku) || handles.has(handle)) importError('CSV_VARIANTS', 'Use one row per unique Handle and SKU. Multi-variant and image continuation rows are not supported.');
-    if (!/^(true|false)$/i.test(published)) importError('CSV_PUBLISHED', 'Published must be TRUE or FALSE; both import as unpublished drafts.');
-    skus.add(sku); handles.add(handle);
-    const value = validateProductValue({ sku, name: title, description: plainDescription(description), unitCents: priceCents(price), active: false });
-    return { namespace, kind: 'shopify-product', sourceId: sku, payload: value, payloadHash: sha256(canonicalJson(value)), artifactHash: hash, location: { artifact, row: index + 2 } };
+    try {
+      boundedText(handle, 'Handle', 160);
+      if (!/^[A-Za-z0-9-]+$/.test(handle)) importError('CSV_HANDLE', 'Handle must contain only letters, digits and dashes.');
+      const sku = stableId(skuCell);
+      if (skus.has(sku) || handles.has(handle)) importError('CSV_VARIANTS', 'Use one row per unique Handle and SKU. Multi-variant and image continuation rows are not supported.');
+      if (!/^(true|false)$/i.test(published)) importError('CSV_PUBLISHED', 'Published must be TRUE or FALSE; both import as unpublished drafts.');
+      skus.add(sku); handles.add(handle);
+      const value = validateProductValue({ sku, name: title, description: plainDescription(description), unitCents: priceCents(price), active: false });
+      return { namespace, kind: 'shopify-product', sourceId: sku, payload: value, payloadHash: sha256(canonicalJson(value)), artifactHash: hash, location: { artifact, row: sourceRow } };
+    } catch (error) {
+      if (!preserveRejected || !(error instanceof Error) || !('code' in error) || typeof error.code !== 'string' || !rowValueErrors.has(error.code)) throw error;
+      const payload = { rejection: error.message, fields: cells };
+      return { namespace, kind: 'shopify-product-rejected', sourceId: `csv-row-${sourceRow}`, payload, payloadHash: sha256(canonicalJson(payload)), artifactHash: hash, location: { artifact, row: sourceRow } };
+    }
   });
   return { records, diagnostics: [{ severity: 'warning', code: 'IMPORT_DRAFTS_ONLY', message: 'All imported products remain unpublished. A human must approve each product after Pier SKU validation.' }], artifacts: [{ name: artifact, sha256: hash, size: bytes.length, original: { status: 'available', base64: bytes.toString('base64') } }] };
 }

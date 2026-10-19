@@ -3,7 +3,7 @@ import type { ImportJob, RetainedOriginal } from '../../modules/import-kit/src/t
 import { shortId } from './presentation'
 import { Badge, Empty, RecordDetail } from './primitives'
 
-export interface Journal { job: ImportJob; originals: RetainedOriginal[]; undoReport: D1UndoReport }
+export interface Journal { job: ImportJob; originals: RetainedOriginal[]; undoReport: D1UndoReport; rejectedRows: { row: number; sourceId: string; reason: string }[] }
 
 export function ImportJournal({ jobs, journal, busy, onOpen, onUndo, onResume }: {
   jobs: ImportJob[]; journal: Journal | null; busy: boolean; onOpen: (id: string) => void; onUndo: (id: string) => void; onResume: () => void
@@ -21,11 +21,12 @@ export function ImportJournal({ jobs, journal, busy, onOpen, onUndo, onResume }:
       <div className="st-heading-row"><h3>Import {shortId(journal.job.id)}</h3><Badge value={journal.job.state} /></div>
       <p>{journal.job.checkpoint} / {journal.job.total} records processed · {journal.job.namespace}</p>
       {journal.job.error && <p role="alert">{journal.job.error}</p>}
+      {journal.rejectedRows.length > 0 && <section aria-label="Rejected CSV rows"><h3>Rejected CSV rows</h3><p>These reviewed rows were excluded; their original bytes remain in source custody.</p><ul>{journal.rejectedRows.map(entry => <li key={entry.row}>CSV row {entry.row}: {entry.reason}</li>)}</ul></section>}
       <RecordDetail value={journal.job} label="Job journal" />
       <RecordDetail value={journal.originals.map(original => ({ name: original.name, size: original.size, status: original.original.status, sha256: original.sha256 }))} label="Source custody" />
       {journal.undoReport.dispositions.length > 0 && <section aria-label="Product undo outcomes" className="st-stack">
         <h3>Product undo outcomes</h3>
-        <p className="st-small">{journal.undoReport.cursor} / {journal.job.total} product changes assessed. {journal.undoReport.nextOffset !== null && 'The detailed report below is paged; resume undo while work remains.'}</p>
+        <p className="st-small">{journal.undoReport.cursor} product changes assessed. {journal.undoReport.nextOffset !== null && 'The detailed report below is paged; resume undo while work remains.'}</p>
         <ul>{journal.undoReport.dispositions.map(row => <li key={row.effectId}>
           <strong>{row.targetId} · {row.disposition === 'retained' ? 'Kept' : 'Reversed'}</strong>
           <p>{row.reason === 'edited' ? 'A later native edit or publication changed this product.' : row.reason === 'dependency' ? 'An existing record still needs this product.' : 'The untouched import change was reversed.'}</p>

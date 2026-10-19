@@ -15,6 +15,7 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
   const [applied, setApplied] = useState<ImportJob | null>(null)
   const [jobs, setJobs] = useState<ImportJob[]>([])
   const [journal, setJournal] = useState<Journal | null>(null)
+  const [excludeRejected, setExcludeRejected] = useState(false)
   const [undoId, setUndoId] = useState('')
   const [busy, setBusy] = useState(false)
   const lock = useRef(false)
@@ -29,11 +30,11 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
     finally { lock.current = false; setBusy(false) }
   }
   const input = { csv, ...(namespace.trim() ? { namespace: namespace.trim() } : {}) }
-  function changed() { setPreview(null); setApplied(null); setNotice('') }
-  async function dryRun() { setPreview(await request<Preview>('/api/stall/imports/preview', input)); setApplied(null) }
+  function changed() { setPreview(null); setApplied(null); setExcludeRejected(false); setNotice('') }
+  async function dryRun() { setPreview(await request<Preview>('/api/stall/imports/preview', input)); setApplied(null); setExcludeRejected(false) }
   async function apply() {
     if (!preview) return
-    const job = await request<ImportJob>('/api/stall/imports/apply', { ...input, fingerprint: preview.fingerprint })
+    const job = await request<ImportJob>('/api/stall/imports/apply', { ...input, fingerprint: preview.fingerprint, ...(excludeRejected ? { excludedRows } : {}) })
     setApplied(job)
     setNotice(job.state === 'completed' ? 'Import completed. Products are staged for review.' : `Import is ${humanLabel(job.state)}: ${job.checkpoint} / ${job.total}. Use Resume apply to continue the next batch.`)
     await list(); await reload()
@@ -51,13 +52,14 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
     if (!original || original.status !== 'retained') throw new Error('The original CSV is unavailable. This import cannot be resumed from its journal.')
     const bytes = Uint8Array.from(atob(original.base64), character => character.charCodeAt(0))
     const source = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-    const job = await request<ImportJob>('/api/stall/imports/apply', { csv: source, namespace: journal.job.namespace.replace(/^stall-shopify-products-v2:/, '').replace(/:[a-f0-9]{64}$/, ''), fingerprint: journal.job.fingerprint })
+    const job = await request<ImportJob>('/api/stall/imports/apply', { csv: source, namespace: journal.job.namespace.replace(/^stall-shopify-products-v[23]:/, '').replace(/:[a-f0-9]{64}$/, ''), fingerprint: journal.job.fingerprint, excludedRows: journal.rejectedRows.map(entry => entry.row) })
     setJournal(await request<Journal>(`/api/stall/imports/${encodeURIComponent(job.id)}`))
     setNotice(job.state === 'completed' ? 'Import completed.' : `Import is ${humanLabel(job.state)}: ${job.checkpoint} / ${job.total}. Resume again to continue.`)
     await list(); await reload()
   }
   const resume = applied && !['completed', 'undone', 'rolled_back', 'undoing'].includes(applied.state)
-  const canApply = preview && !preview.diagnostics.some(diagnostic => diagnostic.severity === 'error') && !applied
+  const excludedRows = preview?.plan.entries.filter(entry => entry.rejection).map(entry => entry.source.location.row!) ?? []
+  const canApply = preview && preview.counts.mapped > 0 && (!excludedRows.length || excludeRejected) && !preview.diagnostics.some(diagnostic => diagnostic.severity === 'error' && diagnostic.code !== 'REJECTED') && !applied
   return <Section id="move-in" title="Move in from Shopify">
     <p>Bring Shopify products into Stall as staged revisions. Imported products remain unpublished until a person approves them. Review a dry run before applying any changes.</p>
     {error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}
@@ -78,9 +80,10 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
       {preview && <>
       <dl className="st-counts">{Object.entries(preview.counts).filter(([, value]) => typeof value === 'number').map(([key, value]) => <div key={key}><dt>{humanLabel(key)}</dt><dd>{String(value)}</dd></div>)}</dl>
       {preview.diagnostics.length ? <ul className="st-diagnostics">{preview.diagnostics.map((diagnostic, index) => <li key={index}><strong>{humanLabel(diagnostic.severity)}: {humanLabel(diagnostic.code)}</strong><p>{diagnostic.message}</p>{diagnostic.location?.row && <small>CSV row {diagnostic.location.row}</small>}</li>)}</ul> : <p>No diagnostics reported.</p>}
+      {excludedRows.length > 0 && <label className="st-checkbox"><input type="checkbox" disabled={busy || !!applied} checked={excludeRejected} onChange={event => setExcludeRejected(event.target.checked)} />Exclude the {excludedRows.length} rejected CSV rows listed above; apply only the valid reviewed rows.</label>}
       <label>Reviewed fingerprint<input readOnly value={preview.fingerprint} className="st-mono" /></label>
       <RecordDetail value={preview.plan.entries.map(entry => ({ sourceId: entry.source.sourceId, effects: entry.effects, unmapped: entry.unmapped, rejection: entry.rejection }))} label="Review planned product changes" />
-      <p>Applying writes these product changes. Existing staged product details may be updated. Each request processes a bounded batch; resume until complete.</p>
+      <p>Applying writes these product changes. Existing staged product details may be updated. Rejected rows make no product changes and remain in the journal and original source. Each request processes a bounded batch; resume until complete.</p>
       <div className="st-actions"><button disabled={busy || (!canApply && !resume)} onClick={() => void act(apply)}>{resume ? 'Resume apply' : applied?.state === 'completed' ? 'Import completed' : 'Apply reviewed import'}</button></div>
       </>}
     </div>

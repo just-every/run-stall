@@ -1,6 +1,6 @@
 import type { D1Database, D1ImportContext, D1Sql } from '../../modules/import-kit/src/d1/index';
 import type { Actor } from '../model';
-import { productImportDestination, productImportMappingVersion, defaultProductNamespace } from './csv';
+import { productImportDestination, productImportMappingVersion, defaultProductNamespace, legacyProductMappingVersion } from './csv';
 import { productTargets } from './targets';
 import { importError } from './validation';
 export const productImportPrincipal = 'grant:stall-product-administration';
@@ -24,9 +24,9 @@ export function productImportContext(db: D1Database, actor: Actor, namespace = d
   importAuthority(actor);
   return {
     destination: productImportDestination, namespace, mappingVersion,
-    ...(mappingVersion === productImportMappingVersion ? { reversalPolicy: 'preserve-conflicts' as const } : {}),
+    ...(mappingVersion !== legacyProductMappingVersion ? { reversalPolicy: 'preserve-conflicts' as const } : {}),
     batchSize: 10, maxBatches: 1,
-    storage: { database: db, targets: productTargets(reversing, undefined, reversing && mappingVersion === productImportMappingVersion) },
+    storage: { database: db, targets: productTargets(reversing, undefined, reversing && mappingVersion !== legacyProductMappingVersion) },
     authorization: { principalId: productImportPrincipal, predicate: action => importAuthority(actor, !['read', 'plan'].includes(action)) },
   };
 }

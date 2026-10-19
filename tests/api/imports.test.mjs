@@ -77,13 +77,29 @@ test('Shopify move-in through the authenticated Stall API', async t => {
     });
     await t.test('BASE-001: hostile descriptions become plain text; malformed and unsupported source rows never write products', async () => {
       for (const csv of [
-        csvFor('BAD').replace('12.34', '12.345'),
-        csvFor('BAD').replace('12.34', '1e3'),
         csvFor('BAD').replace('Published\n', 'Published,Variant Inventory Qty\n'),
         csvFor('BAD') + 'bad,Another product,,BAD,9.99,FALSE\n',
         csvFor('BAD') + 'bad,Another variant,,OTHER-SKU,9.99,FALSE\n',
         csvFor('BAD').replace('<p>Product description</p>', '"Unclosed description'),
       ]) await h.api(`${base}/preview`, { csv }, { status: 409 });
+      for (const csv of [
+        csvFor('BAD').replace('12.34', '12.345'),
+        csvFor('BAD').replace('12.34', '1e3'),
+        csvFor('BAD', ''),
+        csvFor('BAD').replace(',BAD,', ',BAD SKU,'),
+        csvFor('BAD', 'A product', 'MAYBE'),
+      ]) {
+        const preview = await h.api(`${base}/preview`, { csv });
+        assert.equal(preview.counts.rejected, 1);
+        assert.equal(preview.counts.effects, 0);
+        assert.ok(preview.plan.entries.every(entry => entry.effects.length === 0));
+        const rejected = preview.diagnostics.filter(item => item.code === 'REJECTED');
+        assert.equal(rejected.length, 1);
+        assert.equal(rejected[0].location.row, 2);
+        await h.api(`${base}/apply`, { csv, fingerprint: preview.fingerprint }, { status: 409 });
+        await h.api(`${base}/apply`, { csv, fingerprint: preview.fingerprint, excludedRows: [2] }, { status: 409 });
+        assert.equal(await product(h, 'BAD'), null, 'an entirely rejected source never writes products');
+      }
       assert.equal(await product(h, 'BAD'), null);
       const hostile=csvFor('SAFE-TEXT').replace('<p>Product description</p>','<scr<b>ipt>globalThis.stallUnsafe=1</scr<b>ipt><p>Care &amp; use</p>&lt;img src=x onerror=alert(1)&gt;');
       await apply(h,hostile);
@@ -91,6 +107,72 @@ test('Shopify move-in through the authenticated Stall API', async t => {
       assert.equal(imported.value.description,'Care & use\n<img src=x onerror=alert(1)>');
       assert.equal(imported.value.active,false);
       assert.doesNotMatch(imported.value.description,/<script|stallUnsafe/i);
+    });
+    await t.test('CATALOG-002: exact rejected-row acknowledgement applies only valid rows with complete source custody', async () => {
+      const namespace = 'stall-catalog-mixed';
+      const csv = 'Handle,Title,Body (HTML),Variant SKU,Variant Price,Published\n'
+        + 'mixed-first,First valid,<p>First description</p>,csv-row-4,10.01,FALSE\n\n'
+        + 'mixed-price,Invalid price,<p>Rejected price</p>,MIXED-PRICE,12.345,FALSE\n'
+        + 'mixed-second,Second valid,<p>Second description</p>,MIXED-SECOND,29.99,FALSE\n'
+        + 'mixed-publication,Invalid publication,<p>Rejected publication</p>,MIXED-PUBLICATION,14.53,MAYBE\n';
+      const before = (await h.api('/api/stall/state')).products;
+      const jobsBefore = (await h.api(base)).jobs;
+      const preview = await h.api(`${base}/preview`, { csv, namespace });
+      assert.equal(preview.counts.input, 4);
+      assert.equal(preview.counts.rejected, 2);
+      assert.equal(preview.counts.mapped, 2);
+      assert.equal(preview.counts.effects, 2);
+      const rejected = preview.diagnostics.filter(item => item.code === 'REJECTED').sort((a, b) => a.location.row - b.location.row);
+      assert.deepEqual(rejected.map(item => item.location.row), [4, 6], 'diagnostics name physical CSV rows, including blank lines');
+      for (const row of [4, 6]) {
+        const entry = preview.plan.entries.find(item => item.source.location.row === row);
+        assert.ok(entry.rejection);
+        assert.deepEqual(entry.effects, []);
+        assert.ok(entry.source.sourceId);
+        assert.equal(rejected.find(item => item.location.row === row).sourceId, entry.source.sourceId);
+      }
+      assert.deepEqual((await h.api('/api/stall/state')).products, before, 'mixed dry-run is read-only');
+      assert.deepEqual((await h.api(base)).jobs, jobsBefore);
+      const body = { csv, namespace, fingerprint: preview.fingerprint, excludedRows: [4, 6] };
+      for (const excludedRows of [undefined, [], [4], [2, 6], [4, 6, 6], [4, 6, 7]]) {
+        await h.api(`${base}/apply`, { ...body, excludedRows }, { status: 409 });
+      }
+      await h.api(`${base}/apply`, { ...body, csv: csv.replace('First valid,', 'Changed source,') }, { status: 409 });
+      assert.deepEqual((await h.api('/api/stall/state')).products, before, 'refused acknowledgements and changed source write nothing');
+      assert.deepEqual((await h.api(base)).jobs, jobsBefore);
+      let job = await h.api(`${base}/apply`, body);
+      const id = job.id;
+      for (let request = 0; job.state === 'applying' && request < preview.counts.input; request++) {
+        job = await h.api(`${base}/apply`, body);
+        assert.equal(job.id, id);
+      }
+      assert.equal(job.state, 'completed');
+      const expected = [
+        { sku: 'csv-row-4', name: 'First valid', description: 'First description', unitCents: 1001, active: false },
+        { sku: 'MIXED-SECOND', name: 'Second valid', description: 'Second description', unitCents: 2999, active: false },
+      ];
+      const exported = (await h.api('/api/stall/exports/records')).products.filter(item => (item.id.startsWith('MIXED-') || item.id === 'csv-row-4'));
+      assert.deepEqual(exported.map(item => item.value).sort((a, b) => a.sku.localeCompare(b.sku)), expected);
+      const journal = await h.api(`${base}/${id}`);
+      assert.deepEqual(journal.rejectedRows.map(item => [item.row, item.sourceId]).sort((a, b) => a[0] - b[0]),
+        rejected.map(item => [item.location.row, item.sourceId]));
+      assert.match(journal.rejectedRows.find(item => item.row === 4).reason, /price|decimal/i);
+      assert.match(journal.rejectedRows.find(item => item.row === 6).reason, /published/i);
+      const originals = journal.originals.filter(item => item.original.status === 'retained');
+      assert.equal(originals.length, 1);
+      assert.equal(Buffer.from(originals[0].original.base64, 'base64').toString('utf8'), csv);
+      const attribution = async () => (await h.db.prepare('SELECT id,target_id,record_json FROM ik_provenance WHERE job_id=? ORDER BY target_id').bind(id).all()).results;
+      const attributed = await attribution();
+      assert.deepEqual(attributed.map(item => item.target_id).sort((a, b) => a.localeCompare(b)), expected.map(item => item.sku));
+      const applied = (await h.api('/api/stall/state')).products;
+      assert.deepEqual(await h.api(`${base}/apply`, body), job, 'same source, fingerprint and exclusions resume without duplicate work');
+      assert.deepEqual((await h.api('/api/stall/state')).products, applied);
+      assert.deepEqual(await attribution(), attributed);
+      assert.deepEqual((await h.api(`${base}/${id}`)).rejectedRows, journal.rejectedRows);
+      const report = await undo(h, job);
+      assert.deepEqual((await h.api('/api/stall/state')).products, before, 'undo removes both untouched valid effects and no other records');
+      assert.deepEqual(report.dispositions.map(item => [item.targetId, item.disposition]).sort((a, b) => a[0].localeCompare(b[0])),
+        expected.map(item => [item.sku, 'reversed']));
     });
     await t.test('native changes invalidate review and survive undo, including unchanged revision edits', async () => {
       const csv = csvFor('FENCED');
