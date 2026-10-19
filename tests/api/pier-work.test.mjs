@@ -7,7 +7,12 @@ import { stripeEdge, publish, purchase, deliverWebhook } from './network.mjs'
 import { readCsv } from './csv-reader.mjs'
 
 test('INTEGRATION-001: lost Pier command replies retain original work through owner key rotation, restore and reconciliation',async()=>{
- const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex')
+ const pier=await pierInstallation(),secret=randomBytes(32).toString('hex')
+ let stateUnavailable=false
+ const edge=stripeEdge({forward:async request=>{
+  if(stateUnavailable&&new URL(request.url).pathname==='/api/pier/state'&&request.method==='GET') return Response.json({error:'state unavailable'},{status:503})
+  return pier.forward(request)
+ }})
  const bindings={...pier.bindings,STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret}
  let h,destination,wrongCustomer
  try {
@@ -25,6 +30,14 @@ test('INTEGRATION-001: lost Pier command replies retain original work through ow
   assert.ok(reserve.errorCode)
   assert.equal((await pier.api('/api/pier/state')).orders.length,1)
 
+  // An older installation can have an effect but no local work journal.
+  // Its first recorded attempt must still observe state before replay.
+  await h.db.prepare('DELETE FROM st_pier_work WHERE id=?').bind(reserve.id).run()
+  const legacyCalls=edge.pierCalls.length
+  stateUnavailable=true
+  await h.command('order.reconcile',{orderId:bought.orderId},{status:503})
+  assert.equal(edge.pierCalls.length,legacyCalls,'missing legacy journal never permits replay without a successful original-state read')
+  stateUnavailable=false
   edge.loseNextPierResponse('order.channelPayment')
   await h.command('order.reconcile',{orderId:bought.orderId},{status:503})
   const before=await work(h),payment=before.find(row=>row.kind==='order.channelPayment')

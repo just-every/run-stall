@@ -41,7 +41,9 @@ export async function pierWrite(env:Bindings,intent:{orderId:string;pierOrigin:s
  if(!work||work.intentHash!==hash||work.orderId!==intent.orderId||work.kind!==command.type||work.pierOrigin!==intent.pierOrigin||work.pierCustomerId!==intent.pierCustomerId||work.providerCorrelation!==intent.providerCorrelation)
   fail('IDEMPOTENCY','This Pier command belongs to a different commercial intent.')
  try {
-  if(work.attempts>0) await observeBeforeReplay()
+  // A missing journal can belong to an older effect. Zero recorded attempts
+  // is not proof that Pier never received this deterministic command.
+  await observeBeforeReplay()
   // No network command runs until its attempt has committed. Response history
   // is monotonic even if a later attempt fails or concurrent replies overlap.
   await env.DB.prepare("UPDATE st_pier_work SET status=CASE WHEN status='prepared' THEN 'uncertain' ELSE status END,attempts=attempts+1,attempted_at=?,error_code=NULL WHERE id=?")
