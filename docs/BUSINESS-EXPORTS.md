@@ -21,6 +21,7 @@ Supported kinds:
 | `shipments` | Every locally recorded draft or shipment, including observed partial dispatches and retained tracking. |
 | `reconciliation` | Per-order local payment/refund totals and checkout, intent, reservation and shipment references/status. |
 | `stripe-work` | Retained Stripe operation/order references, kind, claimed-write count, prepared/uncertain/response-observed status, timestamps, safe error code and observed provider ID. No intent hash or payload. |
+| `pier-work` | Original command/order IDs and kind, Pier installation/customer, provider correlation, attempt count, status, timestamps, provider result and safe error code. No intent fingerprint, payload or credential. |
 | `records` | JSON containing all supported product and order commercial fields, current/pending product drafts, derived customers, reconciliation and commercial-only `stripeWork` attempt/observation history; order lines/payments/refunds/shipments are nested under each order. |
 
 There is no row limit or pagination truncation. Export reads all current product
