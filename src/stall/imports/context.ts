@@ -20,12 +20,13 @@ export async function authorizeProductImport(db: D1Database, actor: Actor, human
   const row = await db.prepare(`SELECT CASE WHEN (${authority.sql}) THEN 1 ELSE 0 END AS allowed`).bind(...authority.params!).first<{ allowed: number }>();
   if (row?.allowed !== 1) importError('FORBIDDEN', 'A current owner or admin session or preview credential is required.');
 }
-export function productImportContext(db: D1Database, actor: Actor, namespace = defaultProductNamespace, reversing = false): D1ImportContext {
+export function productImportContext(db: D1Database, actor: Actor, namespace = defaultProductNamespace, reversing = false, mappingVersion = productImportMappingVersion): D1ImportContext {
   importAuthority(actor);
   return {
-    destination: productImportDestination, namespace, mappingVersion: productImportMappingVersion,
+    destination: productImportDestination, namespace, mappingVersion,
+    ...(mappingVersion === productImportMappingVersion ? { reversalPolicy: 'preserve-conflicts' as const } : {}),
     batchSize: 10, maxBatches: 1,
-    storage: { database: db, targets: productTargets(reversing) },
+    storage: { database: db, targets: productTargets(reversing, undefined, reversing && mappingVersion === productImportMappingVersion) },
     authorization: { principalId: productImportPrincipal, predicate: action => importAuthority(actor, !['read', 'plan'].includes(action)) },
   };
 }

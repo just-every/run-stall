@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { installation } from './harness.mjs';
+import { pierInstallation } from './pier.mjs';
+import { stripeEdge, deliverWebhook, purchase } from './network.mjs';
 const base = '/api/stall/imports';
 const csvFor = (sku, title = 'A product', published = 'TRUE') => `Handle,Title,Body (HTML),Variant SKU,Variant Price,Published\n${sku.toLowerCase()},${title},<p>Product description</p>,${sku},12.34,${published}\n`;
 const product = async (h, sku) => {
@@ -14,6 +17,16 @@ async function apply(h, csv) {
   do { job = await h.api(`${base}/apply`, { csv, fingerprint: preview.fingerprint }); } while (job.state === 'applying');
   assert.equal(job.state, 'completed');
   return { preview, job };
+}
+async function undo(h, job, { bounded = false } = {}) {
+  let result;
+  for (let request = 0; request <= job.total; request++) {
+    result = await h.api(`${base}/${job.id}/undo`, {});
+    if (request === 0 && bounded) assert.equal(result.state, 'undoing', 'bulk undo yields before processing the whole catalogue');
+    if (result.state !== 'undoing') break;
+  }
+  assert.equal(result.state, 'undone');
+  return (await h.api(`${base}/${job.id}`)).undoReport;
 }
 test('Shopify move-in through the authenticated Stall API', async t => {
   const h = await installation();
@@ -79,7 +92,7 @@ test('Shopify move-in through the authenticated Stall API', async t => {
       assert.equal(imported.value.active,false);
       assert.doesNotMatch(imported.value.description,/<script|stallUnsafe/i);
     });
-    await t.test('native changes invalidate review and stop undo, including unchanged revision edits', async () => {
+    await t.test('native changes invalidate review and survive undo, including unchanged revision edits', async () => {
       const csv = csvFor('FENCED');
       const preview = await h.api(`${base}/preview`, { csv });
       await h.command('product.prepare', { sku: 'FENCED', name: 'Native product', description: '', unitCents: 1500, active: false });
@@ -90,8 +103,16 @@ test('Shopify move-in through the authenticated Stall API', async t => {
       assert.deepEqual(await product(h, 'FENCED'), before);
       const edited = await apply(h, csvFor('EDITED'));
       await h.db.prepare("UPDATE st_products SET value_json=json_set(value_json,'$.name','Native edit') WHERE id=?").bind('EDITED').run();
-      await h.api(`${base}/${edited.job.id}/undo`, {}, { status: 409 });
-      assert.equal((await product(h, 'EDITED')).value.name, 'Native edit');
+      const protectedRow = await product(h, 'EDITED');
+      const report = await undo(h, edited.job);
+      assert.deepEqual(await product(h, 'EDITED'), protectedRow);
+      const retained = report.dispositions.find(item => item.targetId === 'EDITED');
+      assert.equal(retained.disposition, 'retained');
+      assert.equal(retained.reason, 'edited');
+      assert.equal(retained.observed.revision, protectedRow.revision);
+      assert.notEqual(retained.expected.valueHash, retained.observed.valueHash);
+      assert.ok(retained.evidence.rule);
+      assert.deepEqual(retained.protectedBy, []);
       const staleCSV = csvFor('EDITED', 'Replacement');
       const stale = await h.api(`${base}/preview`, { csv: staleCSV });
       await h.db.prepare("UPDATE st_products SET value_json=json_set(value_json,'$.description','Another native edit') WHERE id=?").bind('EDITED').run();
@@ -178,23 +199,123 @@ test('Shopify move-in through the authenticated Stall API', async t => {
       await h.command('product.prepare', { sku: target.id, revision: target.revision,
         name: 'Later native edit', description: 'Must survive bulk undo', unitCents: 4567, active: false });
       const protectedRow = (await catalogue()).find(item => item.id === target.id);
-      await h.api(`${base}/${protectedJob.id}/undo`, {}, { status: 409 });
+      const report = await undo(h, protectedJob, { bounded: true });
       assert.deepEqual((await catalogue()).find(item => item.id === target.id), protectedRow,
-        'strict undo refusal preserves the later native draft and its revision');
+        'undo preserves the later native draft and its revision');
+      assert.deepEqual((await catalogue()).filter(item => item.id !== target.id), before.filter(item => item.id !== target.id),
+        'conflict-preserving undo still restores every untouched row');
+      assert.equal(report.total, rows.length);
+      for (const row of rows) {
+        const disposition = report.dispositions.find(item => item.targetId === row.sku);
+        assert.equal(disposition.disposition, row.sku === target.id ? 'retained' : 'reversed');
+        assert.equal(disposition.reason, row.sku === target.id ? 'edited' : 'unchanged');
+        assert.ok(disposition.evidence.rule);
+        assert.deepEqual(disposition.protectedBy, []);
+        if (row.sku === target.id) {
+          assert.equal(disposition.observed.revision, protectedRow.revision);
+          assert.deepEqual(disposition.observed.ownedValue.value, protectedRow.value);
+          assert.notEqual(disposition.observed.valueHash, disposition.expected.valueHash);
+        }
+      }
     });
     await t.test('publication and order references preserve catalogue rows against imports and undo', async () => {
       const { job } = await apply(h, csvFor('ORDERED'));
       // Test data represents an existing order: the import route must honour all
       // catalogue references regardless of which checkout/payment path made it.
       await h.db.prepare('INSERT INTO st_orders(id,value_json,revision) VALUES(?,?,?)').bind('existing-order', JSON.stringify({ checkoutKey: 'existing-checkout', lines: [{ sku: 'ORDERED' }] }), 'order-revision').run();
-      await h.api(`${base}/${job.id}/undo`, {}, { status: 409 });
+      const orderedBefore = await product(h, 'ORDERED');
+      const orderedReport = await undo(h, job);
+      assert.deepEqual(await product(h, 'ORDERED'), orderedBefore);
+      const ordered = orderedReport.dispositions.find(item => item.targetId === 'ORDERED');
+      assert.equal(ordered.disposition, 'retained');
+      assert.equal(ordered.reason, 'dependency');
+      assert.equal(ordered.observed.valueHash, ordered.expected.valueHash);
+      assert.ok(ordered.evidence.rule);
+      assert.ok(ordered.protectedBy.some(edge => edge.cause.table === 'st_orders' && edge.cause.recordId === 'existing-order'
+        && edge.cause.targetId === 'ORDERED' && edge.evidence.orderId === 'existing-order' && edge.evidence.sku === 'ORDERED'));
       await h.api(`${base}/preview`, { csv: csvFor('ORDERED', 'Replacement') }, { status: 409 });
       assert.ok(await product(h, 'ORDERED'));
       const published = await apply(h, csvFor('PUBLISHED'));
       await h.db.prepare("UPDATE st_products SET value_json=json_set(value_json,'$.active',json('true')) WHERE id=?").bind('PUBLISHED').run();
       await h.api(`${base}/preview`, { csv: csvFor('PUBLISHED', 'Replacement') }, { status: 409 });
-      await h.api(`${base}/${published.job.id}/undo`, {}, { status: 409 });
-      assert.equal((await product(h, 'PUBLISHED')).value.active, true);
+      const publishedBefore = await product(h, 'PUBLISHED');
+      const publishedReport = await undo(h, published.job);
+      assert.deepEqual(await product(h, 'PUBLISHED'), publishedBefore);
+      const retained = publishedReport.dispositions.find(item => item.targetId === 'PUBLISHED');
+      assert.equal(retained.disposition, 'retained');
+      assert.equal(retained.reason, 'edited');
+      assert.notEqual(retained.observed.valueHash, retained.expected.valueHash);
+      assert.ok(retained.protectedBy.some(edge => edge.cause.table === 'st_products' && edge.cause.recordId === 'PUBLISHED'
+        && edge.cause.field === 'active' && edge.evidence.sku === 'PUBLISHED'));
     });
   } finally { await h.close(); }
+});
+
+test('CATALOG-002: undo preserves a real paid order and its published product while reversing unused imports', async () => {
+  const pier = await pierInstallation();
+  const edge = stripeEdge({ forward: pier.forward });
+  const secret = randomBytes(32).toString('hex');
+  let h;
+  try {
+    h = await installation({ bindings: { ...pier.bindings, STRIPE_SECRET_KEY: 'test-network-edge', STRIPE_WEBHOOK_SECRET: secret }, outboundService: edge.handle });
+    const csv = await readFile(new URL('../../fixtures/shopify-products.csv', import.meta.url), 'utf8')
+      + 'unused-piece,Unused piece,<p>Never published or ordered</p>,UNUSED-PIECE,19.37,FALSE\n';
+    const { job } = await apply(h, csv);
+    const imported = (await h.api('/api/stall/state')).products.find(item => item.id === 'MUG-BLUE');
+    const draft = await h.command('product.prepare', { sku: imported.id, revision: imported.revision,
+      name: imported.value.name, description: imported.value.description, unitCents: imported.value.unitCents, active: true });
+    await h.command('product.approve', { sku: imported.id, revision: draft.revision });
+    const bought = await purchase(h, edge, { skus: ['MUG-BLUE'], quantities: [1], expectedTotalCents: 2450 });
+    const delivered = await deliverWebhook(h, secret, edge.pay(bought.session.id));
+    assert.equal(delivered.response.status, 200, JSON.stringify(delivered.value));
+    const before = await h.api('/api/stall/state');
+    const ordered = before.orders.find(item => item.id === bought.orderId);
+    assert.equal(ordered.status, 'reserved');
+    assert.equal(ordered.lines.length, 1);
+    assert.equal(ordered.lines[0].sku, 'MUG-BLUE');
+    assert.ok(ordered.payment.intentId);
+    assert.ok(ordered.reservation.id);
+    const stockBefore = await pier.api('/api/pier/state');
+    const stockOrder = stockBefore.orders.find(item => item.id === ordered.reservation.id);
+    assert.ok(stockOrder, 'the paid checkout creates an actual Pier order');
+    assert.equal(stockOrder.lines.length, 1);
+    assert.equal(stockOrder.lines[0].itemId, pier.items.find(item => item.sku === 'MUG-BLUE').id);
+    assert.equal(stockOrder.lines[0].reserved, '1');
+    const publicBefore = await h.api('/api/stall/catalogue', undefined, { as: '' });
+    assert.equal(publicBefore.items.find(item => item.sku === 'MUG-BLUE').available, '19');
+
+    const report = await undo(h, job);
+    const after = await h.api('/api/stall/state');
+    assert.deepEqual(after.products, before.products.filter(item => item.id === 'MUG-BLUE'),
+      'the published mug survives exactly; untouched towel and unused product are removed');
+    assert.deepEqual(after.orders, before.orders, 'undo preserves every paid order field and stock reference');
+    const stockAfter = await pier.api('/api/pier/state');
+    assert.deepEqual(stockAfter.orders, stockBefore.orders);
+    assert.deepEqual(stockAfter.reservations, stockBefore.reservations);
+    assert.deepEqual(stockAfter.positions, stockBefore.positions);
+    assert.deepEqual((await h.api('/api/stall/catalogue', undefined, { as: '' })).items, publicBefore.items);
+    assert.equal(report.total, 3);
+    const retained = report.dispositions.find(item => item.targetId === 'MUG-BLUE');
+    assert.equal(retained.disposition, 'retained');
+    assert.equal(retained.reason, 'edited');
+    assert.equal(retained.observed.revision, before.products.find(item => item.id === 'MUG-BLUE').revision);
+    assert.notEqual(retained.expected.valueHash, retained.observed.valueHash);
+    assert.ok(retained.evidence.rule);
+    assert.ok(retained.protectedBy.some(dependency => dependency.cause.table === 'st_orders'
+      && dependency.cause.recordId === bought.orderId && dependency.cause.targetId === 'MUG-BLUE'
+      && dependency.cause.field.includes('lines[') && dependency.evidence.orderId === bought.orderId
+      && dependency.evidence.sku === 'MUG-BLUE' && dependency.evidence.rule));
+    assert.ok(retained.protectedBy.some(dependency => dependency.cause.table === 'st_products'
+      && dependency.cause.recordId === 'MUG-BLUE' && dependency.cause.field === 'active'));
+    for (const sku of ['TOWEL-NAT', 'UNUSED-PIECE']) {
+      const reversed = report.dispositions.find(item => item.targetId === sku);
+      assert.equal(reversed.disposition, 'reversed');
+      assert.equal(reversed.reason, 'unchanged');
+      assert.deepEqual(reversed.protectedBy, []);
+    }
+    await h.api(`${base}/preview`, { csv: csvFor('MUG-BLUE', 'Replacement') }, { status: 409 });
+  } finally {
+    if (h) await h.close();
+    await pier.close();
+  }
 });

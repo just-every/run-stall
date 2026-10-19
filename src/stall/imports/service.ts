@@ -5,19 +5,24 @@ import {
 } from '../../modules/import-kit/src/d1/index';
 import { productImportContext, productImportPrincipal, authorizeProductImport } from './context';
 import type { Actor } from '../model';
-import { productImportDestination, productImportMappingVersion, productImportSource } from './csv';
+import { productImportDestination, productImportMappingVersion, productImportSource, supportedProductMappings, legacyProductMappingVersion } from './csv';
 import { importError, stableId, validateProductValue } from './validation';
 import { productTargets, orderDependencySQL } from './targets';
 import { stored } from '../../modules/import-kit/src/d1/jobs';
 
 export type ProductImportInput = { csv: string; namespace?: string; fingerprint?: string };
 
+function namespaceFor(source: ReturnType<typeof productImportSource>, mapping = productImportMappingVersion) {
+  const name = source.records[0].namespace, hash = source.artifacts[0].sha256;
+  return mapping === legacyProductMappingVersion ? `${name}:${hash}` : `${mapping}:${name}:${hash}`;
+}
+
 async function preparePlan(db: D1Database, actor: Actor, input: ProductImportInput) {
   await authorizeProductImport(db, actor);
   const source = productImportSource(input.csv, input.namespace);
   // A source identity names one immutable export. Product target IDs remain the
   // caller's stable, non-email IDs, permitting later exports to supersede them.
-  const namespace = `${source.records[0].namespace}:${source.artifacts[0].sha256}`;
+  const namespace = namespaceFor(source);
   const context = productImportContext(db, actor, namespace);
   const native = await context.storage.targets.list(db, context.destination);
   const existing = new Map(native.map(row => [row.targetId, row]));
@@ -54,12 +59,16 @@ export async function applyProductImport(db: D1Database, actor: Actor, input: Pr
   await authorizeProductImport(db, actor, true);
   if (typeof input.fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(input.fingerprint)) importError('IMPORT_APPROVAL', 'Supply the exact fingerprint approved after dry-run.');
   const source = productImportSource(input.csv, input.namespace);
-  const namespace = `${source.records[0].namespace}:${source.artifacts[0].sha256}`;
-  const context = productImportContext(db, actor, namespace);
+  const operationKey = `stall-product-import:${input.fingerprint}`;
+  const prior = await db.prepare('SELECT id,namespace,mapping_version FROM ik_jobs WHERE destination=? AND principal_id=? AND operation_key=?')
+    .bind(productImportDestination, productImportPrincipal, operationKey).first<{ id: string; namespace: string; mapping_version: string }>();
+  const mapping = prior?.mapping_version ?? productImportMappingVersion;
+  if (!(supportedProductMappings as readonly string[]).includes(mapping)) importError('IMPORT_MAPPING', 'This import mapping is not supported.');
+  const namespace = namespaceFor(source, mapping);
+  if (prior && prior.namespace !== namespace) importError('IMPORT_REVIEW_CHANGED', 'Resume with the exact retained source and namespace.');
+  const context = productImportContext(db, actor, namespace, false, mapping);
   context.reviewedFingerprint = input.fingerprint;
-  context.operationKey = `stall-product-import:${input.fingerprint}`;
-  const prior = await db.prepare('SELECT id FROM ik_jobs WHERE destination=? AND principal_id=? AND operation_key=?')
-    .bind(context.destination, productImportPrincipal, context.operationKey).first<{ id: string }>();
+  context.operationKey = operationKey;
   if (prior) {
     const retained = await stored(prior.id, context, 'apply');
     context.storage.targets = productTargets(false, { plan: retained.plan, jobId: prior.id });
@@ -78,19 +87,19 @@ export async function applyProductImport(db: D1Database, actor: Actor, input: Pr
 async function jobContext(db: D1Database, actor: Actor, id: string, reversing = false) {
   await authorizeProductImport(db, actor, reversing);
   stableId(id, 'jobId');
-  const row = await db.prepare('SELECT namespace FROM ik_jobs WHERE id=? AND destination=? AND mapping_version=? AND principal_id=?')
-    .bind(id, productImportDestination, productImportMappingVersion, productImportPrincipal).first<{ namespace: string }>();
+  const row = await db.prepare('SELECT namespace,mapping_version FROM ik_jobs WHERE id=? AND destination=? AND mapping_version IN (?,?) AND principal_id=?')
+    .bind(id, productImportDestination, ...supportedProductMappings, productImportPrincipal).first<{ namespace: string; mapping_version: string }>();
   if (!row) importError('IMPORT_JOB_NOT_FOUND', 'Import journal was not found or has been retired.');
-  return productImportContext(db, actor, row.namespace, reversing);
+  return productImportContext(db, actor, row.namespace, reversing, row.mapping_version);
 }
 
 export async function listProductImports(db: D1Database, actor: Actor, limit = 50) {
   await authorizeProductImport(db, actor);
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) importError('IMPORT_LIMIT', 'Journal limit must be from 1 through 100.');
-  const rows = await db.prepare('SELECT id,namespace FROM ik_jobs WHERE destination=? AND mapping_version=? AND principal_id=? ORDER BY rowid DESC LIMIT ?')
-    .bind(productImportDestination, productImportMappingVersion, productImportPrincipal, limit).all<{ id: string; namespace: string }>();
+  const rows = await db.prepare('SELECT id,namespace,mapping_version FROM ik_jobs WHERE destination=? AND mapping_version IN (?,?) AND principal_id=? ORDER BY rowid DESC LIMIT ?')
+    .bind(productImportDestination, ...supportedProductMappings, productImportPrincipal, limit).all<{ id: string; namespace: string; mapping_version: string }>();
   const jobs = [];
-  for (const row of rows.results) jobs.push(await readD1ImportJob(row.id, productImportContext(db, actor, row.namespace)));
+  for (const row of rows.results) jobs.push(await readD1ImportJob(row.id, productImportContext(db, actor, row.namespace, false, row.mapping_version)));
   await authorizeProductImport(db, actor);
   return jobs;
 }
@@ -99,7 +108,7 @@ export async function getProductImport(db: D1Database, actor: Actor, id: string)
   const context = await jobContext(db, actor, id);
   const job = await readD1ImportJob(id, context);
   const originals = await readD1ImportOriginals(id, context);
-  const undoReport = await readD1ImportUndoReport(id, context);
+  const undoReport = await readD1ImportUndoReport(id, context, { limit: 200 });
   return { job, originals, undoReport };
 }
 
@@ -107,7 +116,7 @@ export async function undoProductImport(db: D1Database, actor: Actor, id: string
   const context = await jobContext(db, actor, id, true);
   const dependency = await db.prepare(`SELECT 1 AS found FROM ik_provenance p WHERE p.job_id=? AND p.target_kind='product' AND p.reversed=0 AND EXISTS(SELECT 1 FROM st_orders o,json_each(o.value_json,'$.lines') l WHERE json_extract(l.value,'$.sku')=p.target_id) LIMIT 1`)
     .bind(id).first();
-  if (dependency) importError('IMPORT_ORDER_DEPENDENCY', 'An order refers to an imported SKU. Preserve that catalog reference and order history.');
+  if (dependency && context.mappingVersion === legacyProductMappingVersion) importError('IMPORT_ORDER_DEPENDENCY', 'An order refers to an imported SKU. Preserve that catalog reference and order history.');
   return undoD1Import(id, context);
 }
 

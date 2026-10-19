@@ -1,8 +1,9 @@
+import type { D1UndoReport } from '../../modules/import-kit/src/d1/undo-types'
 import type { ImportJob, RetainedOriginal } from '../../modules/import-kit/src/types'
 import { shortId } from './presentation'
 import { Badge, Empty, RecordDetail } from './primitives'
 
-export interface Journal { job: ImportJob; originals: RetainedOriginal[]; undoReport: unknown }
+export interface Journal { job: ImportJob; originals: RetainedOriginal[]; undoReport: D1UndoReport }
 
 export function ImportJournal({ jobs, journal, busy, onOpen, onUndo, onResume }: {
   jobs: ImportJob[]; journal: Journal | null; busy: boolean; onOpen: (id: string) => void; onUndo: (id: string) => void; onResume: () => void
@@ -22,6 +23,15 @@ export function ImportJournal({ jobs, journal, busy, onOpen, onUndo, onResume }:
       {journal.job.error && <p role="alert">{journal.job.error}</p>}
       <RecordDetail value={journal.job} label="Job journal" />
       <RecordDetail value={journal.originals.map(original => ({ name: original.name, size: original.size, status: original.original.status, sha256: original.sha256 }))} label="Source custody" />
+      {journal.undoReport.dispositions.length > 0 && <section aria-label="Product undo outcomes" className="st-stack">
+        <h3>Product undo outcomes</h3>
+        <p className="st-small">{journal.undoReport.cursor} / {journal.job.total} product changes assessed. {journal.undoReport.nextOffset !== null && 'The detailed report below is paged; resume undo while work remains.'}</p>
+        <ul>{journal.undoReport.dispositions.map(row => <li key={row.effectId}>
+          <strong>{row.targetId} · {row.disposition === 'retained' ? 'Kept' : 'Reversed'}</strong>
+          <p>{row.reason === 'edited' ? 'A later native edit or publication changed this product.' : row.reason === 'dependency' ? 'An existing record still needs this product.' : 'The untouched import change was reversed.'}</p>
+          {row.protectedBy.map((edge, index) => <p className="st-small" key={index}>Protected by {edge.cause.table === 'st_orders' ? 'order' : 'product'} {edge.cause.recordId}{edge.cause.field ? ` · ${edge.cause.field}` : ''}</p>)}
+        </li>)}</ul>
+      </section>}
       <RecordDetail value={journal.undoReport} label="Undo report" />
       {['queued', 'applying', 'failed'].includes(journal.job.state) && <>
         <p>Resume the next batch from this job’s retained CSV and reviewed fingerprint.</p>

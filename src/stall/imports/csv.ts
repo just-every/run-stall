@@ -4,7 +4,9 @@ import { canonicalJson, sha256, type SourceBundle } from '../../modules/import-k
 import { boundedText, importError, stableId, validateProductValue } from './validation';
 export const productCSVHeaders = ['Handle', 'Title', 'Body (HTML)', 'Variant SKU', 'Variant Price', 'Published'] as const;
 export const defaultProductNamespace = 'shopify-products';
-export const productImportMappingVersion = 'stall-shopify-products-v1';
+export const legacyProductMappingVersion = 'stall-shopify-products-v1';
+export const productImportMappingVersion = 'stall-shopify-products-v2';
+export const supportedProductMappings = [legacyProductMappingVersion, productImportMappingVersion] as const;
 export const productImportDestination = 'stall-products';
 function parseCSV(input: string): string[][] {
   const rows: string[][] = [];

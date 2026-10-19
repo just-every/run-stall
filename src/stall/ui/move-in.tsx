@@ -51,7 +51,7 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
     if (!original || original.status !== 'retained') throw new Error('The original CSV is unavailable. This import cannot be resumed from its journal.')
     const bytes = Uint8Array.from(atob(original.base64), character => character.charCodeAt(0))
     const source = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-    const job = await request<ImportJob>('/api/stall/imports/apply', { csv: source, namespace: journal.job.namespace.replace(/:[a-f0-9]{64}$/, ''), fingerprint: journal.job.fingerprint })
+    const job = await request<ImportJob>('/api/stall/imports/apply', { csv: source, namespace: journal.job.namespace.replace(/^stall-shopify-products-v2:/, '').replace(/:[a-f0-9]{64}$/, ''), fingerprint: journal.job.fingerprint })
     setJournal(await request<Journal>(`/api/stall/imports/${encodeURIComponent(job.id)}`))
     setNotice(job.state === 'completed' ? 'Import completed.' : `Import is ${humanLabel(job.state)}: ${job.checkpoint} / ${job.total}. Resume again to continue.`)
     await list(); await reload()
