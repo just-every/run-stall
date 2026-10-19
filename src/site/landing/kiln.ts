@@ -10,6 +10,8 @@ export const usd = (cents: number) => `${cents < 0 ? '−' : ''}$${(Math.abs(cen
 export const dollars = (cents: number) => usd(cents).replace('.00', '')
 /** A separator that never starts or ends a line: no-break spaces on both sides. */
 export const SEP = '\u00a0·\u00a0'
+/** Words that stay on one line together: their spaces become no-break spaces. */
+const nb = (words: string) => words.replaceAll(' ', '\u00a0')
 /** A record ID that never breaks at its hyphen (U+2011, the non-breaking hyphen): R‑0031, #4931‑R. */
 const nbId = (id: string) => id.replaceAll('-', '\u2011')
 
@@ -56,11 +58,12 @@ function ncOrder(lines: number, shipping: number) {
 export const checkout = { glaze: 'speckle' as Glaze, code: 'FIRSTFIRE', service: 'USPS Ground Advantage', taxLabel: 'Sales tax\u00a0·\u00a0NC 7.00%', held: '9:12', ...ncOrder(mugs.speckle.price, 685) }
 
 // 05 · Friday 10:43 PM: Dana R.'s cart, and the night's recovery figures.
+// A product name, a count with its words and a separator with its neighbours never break apart.
 export const danaCart = [
-  { time: '10:31 PM', text: 'Dana R.\u00a0·\u00a0Cobalt mug and Fog mug held', kind: 'step' },
-  { time: '10:41 PM', text: 'Hold expired\u00a0·\u00a0Cobalt back to 1 left', kind: 'alert' },
-  { time: '10:43 PM', text: 'Theo M. bought the last Cobalt\u00a0·\u00a0sold out', kind: 'done' },
-  { time: '11:00 PM', text: 'Note sent to Dana\u00a0·\u00a0Fog still in her cart', kind: 'done' },
+  { time: '10:31 PM', text: `${nb('Dana R.')}${SEP}${nb('Cobalt mug')} and ${nb('Fog mug held')}`, kind: 'step' },
+  { time: '10:41 PM', text: `Hold expired${SEP}Cobalt back ${nb('to 1 left')}`, kind: 'alert' },
+  { time: '10:43 PM', text: `${nb('Theo M.')} bought the last Cobalt${SEP}${nb('sold out')}`, kind: 'done' },
+  { time: '11:00 PM', text: `Note sent to Dana${SEP}Fog still in ${nb('her cart')}`, kind: 'done' },
 ] as const
 export const recovery = { left: 14, back: 6, cents: 26140 }
 
@@ -83,13 +86,15 @@ export const labelRun = { day: 'Sat, Oct\u00a017', count: 38, cents: 28165 }
 // the Fog mug (Cobalt is sold out) and the $4.00 difference back.
 const theo = labels[4]
 export const reship = { order: nbId(`${theo.order}-R`), label: 725, refund: mugs.cobalt.price - mugs.fog.price, claim: mugs.cobalt.price }
+// Each row is one line wherever the log is drawn at full size. Where a phone wraps a row, it breaks only between the
+// groups below: every "·" stays mid-line between its neighbours, and no amount, name or last word is left alone.
 export const agentLog = [
-  { time: '2:14 PM', text: 'UPS exception: damaged in transit', kind: 'alert' },
-  { time: '2:15 PM', text: `Checked stock: Cobalt sold out${SEP}Fog ${heroMug.left} left`, kind: 'step' },
-  { time: '2:16 PM', text: `Asked Theo: a Fog mug today and\u00a0${usd(reship.refund)} back, or a\u00a0${usd(mugs.cobalt.price)}\u00a0refund?`, kind: 'step' },
-  { time: '2:31 PM', text: 'Theo: Fog please!', kind: 'reply' },
-  { time: '2:32 PM', text: `You tapped Ship\u00a0it${SEP}replacement, ${usd(reship.refund)}\u00a0refund and\u00a0claim`, kind: 'you' },
-  { time: '2:33 PM', text: `Replacement #${reship.order}${SEP}USPS label ${usd(reship.label)}${SEP}shipped`, kind: 'done' },
+  { time: '2:14 PM', text: `UPS exception: ${nb('damaged in transit')}`, kind: 'alert' },
+  { time: '2:15 PM', text: `Checked stock: Cobalt ${nb('sold out')}${SEP}${nb(`Fog ${heroMug.left} left`)}`, kind: 'step' },
+  { time: '2:16 PM', text: `Asked Theo: ${nb('a Fog mug')} today ${nb(`and ${usd(reship.refund)} back,`)} ${nb(`or a ${usd(mugs.cobalt.price)} refund?`)}`, kind: 'step' },
+  { time: '2:31 PM', text: nb('Theo: Fog please!'), kind: 'reply' },
+  { time: '2:32 PM', text: `You tapped ${nb('Ship it')}${SEP}replacement, ${nb(`${usd(reship.refund)} refund`)} ${nb('and claim')}`, kind: 'you' },
+  { time: '2:33 PM', text: `${nb(`Replacement #${reship.order}`)}${SEP}USPS ${nb(`label ${usd(reship.label)}`)}${SEP}shipped`, kind: 'done' },
   { time: '2:34 PM', text: `UPS damage claim filed${SEP}${usd(reship.claim)}`, kind: 'done' },
 ] as const
 export const theoOrder = { order: theo.order, name: 'Theo M.', city: 'Austin TX 78704' }

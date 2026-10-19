@@ -9,7 +9,7 @@ export function SoldOut() {
     <Heading id="sold-out" eyebrow="Friday 10:43 PM · Sold out" title={<>Sold out.<br /> <span className="nowrap">Carts come back</span></>}>
       When a hold runs out, the mug goes back on sale and the shopper gets a note with what is still in stock.
     </Heading>
-    <Drawing className="sold-art" label={`Dana R.'s cart: ${danaCart.map(row => `${row.time} ${row.text}`).join('; ')}. ${chip.replaceAll('\u00a0', ' ')}. The note to Dana R.: Cobalt sold out, your Fog mug is still here, ${mugs.fog.name} ${dollars(mugs.fog.price)}, Back to your cart.`}>
+    <Drawing className="sold-art" label={`Dana R.'s cart: ${danaCart.map(row => `${row.time} ${row.text.replaceAll('\u00a0', ' ')}`).join('; ')}. ${chip.replaceAll('\u00a0', ' ')}. The note to Dana R.: Cobalt sold out, your Fog mug is still here, ${mugs.fog.name} ${dollars(mugs.fog.price)}, Back to your cart.`}>
       <div className="card cart">
         <p className="card-title">Cart{SEP}Dana R.</p>
         <ol className="timeline">{danaCart.map(row => <li key={row.time} className={row.kind}>

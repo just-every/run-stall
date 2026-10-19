@@ -143,16 +143,17 @@
   .card-title { font-size: 21px; }
 }
 
-/* Stacked sections read as one centred 760 px column, the drawing as wide as the words. Move in and the order agent
-   stay two-up down to 1000 px. */
+/* Stacked sections keep the column's left edge, as the two-up and full-width sections around them do, so every
+   eyebrow, heading and card starts on one line down the page. Their drawings are at most 760 px. Move in stays
+   two-up down to 1000 px; the order agent stacks from 1240 (styles/sections/agent.css). */
 @media (max-width: 1080px) {
-  .new-batch .column, .returns .column { max-width: calc(760px + 2 * var(--gutter)); }
+  .new-batch .batch-art, .returns .returns-art { width: 100%; max-width: 760px; }
 }
 @media (max-width: 999px) {
-  .move-in .column, .agent .column { max-width: calc(760px + 2 * var(--gutter)); }
+  .move-in .move-art { width: 100%; max-width: 760px; }
 }
 @media (max-width: 1180px) {
-  .sold-out .column { max-width: calc(760px + 2 * var(--gutter)); }
+  .sold-out .sold-art { width: 100%; max-width: 760px; }
 }
 
 /* Phones: one column, the art after the words, every painting cropped rather than shrunk. */
@@ -184,4 +185,10 @@
   .closing-sub { margin-top: 6px; font-size: 19px; }
   .closing .site-actions { margin-top: 24px; }
   .closing .hero-note { margin-top: 18px; }
+}
+/* The narrowest phones: every eyebrow tracks a little tighter, so the longest ("Tuesday 2:14 PM · The order agent")
+   stays on one line. */
+@media (max-width: 389px) {
+  .heading .eyebrow { letter-spacing: .18em; }
+  .eyebrow .seq { --seq-gap: 1.1em; }
 }

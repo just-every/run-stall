@@ -32,6 +32,15 @@
   .l-fix { font-size: 14px; }
   .printed { padding: 5px 11px; font-size: 14px; }
 }
+/* 961-1040: the panel and card give the table some of their padding and the table text steps down half a pixel, so
+   each Ship to name stays on one line ("Ana P., Asheville NC"); Rate keeps its 24 px of air. */
+@media (max-width: 1040px) and (min-width: 961px) {
+  .birch { padding: 22px 18px; }
+  .labels { padding: 20px 16px 0; }
+  .labels-foot { margin: 0 -16px; padding: 16px 22px; }
+  .label-cols, .label-row { grid-template-columns: 56px minmax(0, 1fr) 116px 52px 172px 70px 96px; padding: 0 6px; font-size: 14.5px; }
+  .label-row.fixed { margin: 0 -6px; padding: 10px 12px; }
+}
 /* Where Ship to is too narrow for Sam's corrected address on one line, the correction takes its own line under the
    row, from Ship to across to Rate. */
 @media (max-width: 1319px) and (min-width: 961px) {

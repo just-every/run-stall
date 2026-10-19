@@ -4,7 +4,7 @@
 .limit-icon { display: grid; place-items: center; width: 124px; height: 124px; border-radius: 50%; background: var(--tangerine-tint); }
 .limit-icon svg { width: 74px; height: 74px; fill: none; stroke: var(--tangerine-press); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .limit-copy h2 { font: 800 38px/1.1 var(--font-head); letter-spacing: -.035em; word-spacing: .06em; text-wrap: balance; }
-.limit-copy p { margin-top: 8px; font-size: 19px; color: var(--muted); }
+.limit-copy p { margin-top: 8px; font-size: 19px; color: var(--muted); text-wrap: balance; }
 .limit-link { white-space: nowrap; }
 @media (max-width: 860px) {
   .limit { grid-template-columns: 80px minmax(0, 1fr); row-gap: 16px; column-gap: 20px; padding: 22px; }

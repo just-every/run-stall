@@ -33,8 +33,9 @@
 .rma-rows div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--line-soft); }
 .rma-rows dt { color: #6b6f78; }
 .rma-rows dd { margin: 0; }
+/* The return card keeps enough width that neighbouring tracker labels stay at least 16 px apart. */
 @media (max-width: 1240px) and (min-width: 1081px) {
-  .returns-art .drawing { grid-template-columns: minmax(0, 500px) 64px minmax(0, 1fr); }
+  .returns-art .drawing { grid-template-columns: minmax(0, 460px) 56px minmax(0, 1fr); }
   .cork { padding: 44px; }
   .tracker li { font-size: 14.5px; }
   .tracker b { font-size: 14px; }
@@ -44,6 +45,7 @@
   .tracker { margin-left: 6px; margin-right: 6px; }
 }
 @media (max-width: 1319px) and (min-width: 1241px) {
+  .returns-art .drawing { grid-template-columns: minmax(0, 556px) 80px minmax(0, 1fr); }
   .tracker b { font-size: 14.5px; }
 }
 @media (max-width: 1080px) {
@@ -74,4 +76,13 @@
   .tracker .tick { width: 14px; height: 14px; }
   .rma-rows { margin-top: 18px; font-size: 14.5px; }
   .rma-rows div { grid-template-columns: 70px minmax(0, 1fr); gap: 8px; padding: 10px 0; }
+}
+/* The narrowest phones: labels a size down and the tracker across the card's full width, so "Label emailed" stays
+   at least 16 px from "Received". */
+@media (max-width: 420px) {
+  .tracker { margin-left: 0; margin-right: 0; }
+  .tracker b { font-size: 11px; letter-spacing: -.02em; }
+}
+@media (max-width: 380px) {
+  .rma { padding-left: 10px; padding-right: 10px; }
 }
