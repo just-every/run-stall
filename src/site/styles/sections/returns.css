@@ -23,7 +23,8 @@
 .refunded { padding: 7px 18px; border-radius: 999px; background: var(--green-tint); color: var(--green-ink); font-size: 15.5px; font-weight: 600; }
 .tracker { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 26px; text-align: center; }
 .tracker::before { content: ''; position: absolute; left: 12.5%; right: 12.5%; top: 16px; height: 3px; border-radius: 2px; background: var(--tangerine); }
-.tracker li { position: relative; display: grid; justify-items: center; gap: 2px; padding: 0 4px; font-size: 15.5px; }
+/* A label wider than its stop's column overflows both sides evenly, into the air beside its shorter neighbours. */
+.tracker li { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: unsafe center; gap: 2px; padding: 0 4px; font-size: 15.5px; }
 .tracker .stop { display: grid; place-items: center; width: 35px; height: 35px; margin-bottom: 8px; border-radius: 50%; background: var(--tangerine); color: #fff; box-shadow: 0 0 0 5px var(--surface); }
 .tracker .tick { width: 17px; height: 17px; }
 .tracker b { font-weight: 600; white-space: nowrap; }
@@ -36,6 +37,11 @@
   .returns-art .drawing { grid-template-columns: minmax(0, 500px) 64px minmax(0, 1fr); }
   .cork { padding: 44px; }
   .tracker li { font-size: 14.5px; }
+  .tracker b { font-size: 14px; }
+}
+/* Narrow stops: the tracker is inset so the outer labels, wider than their stops, keep the card's padding. */
+@media (max-width: 1240px) {
+  .tracker { margin-left: 6px; margin-right: 6px; }
 }
 @media (max-width: 1080px) {
   .returns .heading { display: block; }

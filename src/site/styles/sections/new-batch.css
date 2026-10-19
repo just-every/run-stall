@@ -45,7 +45,9 @@
   .channels b { width: 100%; margin: 0; }
   .channel { gap: 8px; }
   .channel .box { width: 22px; height: 22px; }
+  /* The publish time takes the row's width beside the clock; the Scheduled pill sits under it. */
   .schedule { flex-wrap: wrap; gap: 10px 12px; margin-top: 18px; padding: 14px; font-size: 15px; }
   .schedule .clock { width: 24px; height: 24px; }
-  .scheduled { padding: 7px 16px; }
+  .schedule > span.seq { flex: 1 1 calc(100% - 36px); }
+  .scheduled { margin-left: 36px; padding: 7px 16px; }
 }
