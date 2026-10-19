@@ -2,11 +2,13 @@ import { Actions, Dot } from '../../shell/Actions'
 import { Painting } from '../parts'
 import { theoOrder, reship } from '../kiln'
 
-// A Code 128-like run of bars from the order number: the same number always draws the same barcode.
+// A fine Code 128-like run of 46 bars from the order number, thin guard bars at each end: the same number always
+// draws the same barcode.
 function Barcode({ code }: { code: string }) {
-  const digits = [...code.replace(/\D/g, '').repeat(4)].map(Number)
+  const seed = [...code.replace(/\D/g, '')].map(Number)
+  const widths = [1, 1, ...Array.from({ length: 42 }, (_, i) => [1, 1.6, 2.4, 1][(seed[i % seed.length] + i * 7) % 4]), 1, 1]
   let x = 0
-  const bars = digits.flatMap((n, i) => { const w = 1 + (n % 3), gap = 1 + ((n + i) % 2), bar = <rect key={i} x={x} width={w} height="26" />; x += w + gap; return [bar] })
+  const bars = widths.map((w, i) => { const bar = <rect key={i} x={x} width={w} height="26" />; x += w + [1.4, 1, 2, 1.2][(i * 3 + seed[i % seed.length]) % 4]; return bar })
   return <svg className="barcode" viewBox={`0 0 ${x} 26`} preserveAspectRatio="none">{bars}</svg>
 }
 

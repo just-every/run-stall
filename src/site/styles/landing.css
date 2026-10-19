@@ -40,6 +40,13 @@
 .heading.centred .lede { max-width: 840px; margin-left: auto; margin-right: auto; }
 .drawing { position: relative; }
 .drawing p, .drawing li, .drawing .what { text-wrap: pretty; }
+/* Parts joined by " · " (parts.tsx Seq) wrap only between parts; each part carries its separator in front, and the
+   run is pulled left by one separator and clipped, so the separator of a part that starts a line is never seen. */
+.seq { display: block; overflow: hidden; --seq-gap: .8em; }
+.eyebrow .seq { --seq-gap: 1.5em; }
+.seq-in { display: flex; flex-wrap: wrap; margin-left: calc(-1 * var(--seq-gap)); }
+.seq-in > span { position: relative; min-width: 0; padding-left: var(--seq-gap); }
+.seq-in > span::before { content: var(--seq-mark, '·'); position: absolute; left: 0; width: var(--seq-gap); text-align: center; }
 
 /* The drawing pieces the sections share: white cards with a hairline and a soft shadow, small UI titles,
    the round marks, the tangerine tick and the mug photos. */
@@ -65,16 +72,13 @@
 .mug { display: block; overflow: hidden; background: #f1f1f3; }
 .mug img { width: 100%; height: 100%; object-fit: cover; }
 
-/* Interlude: the counter at full width, the badge over it. The plate is never drawn under 870 px wide, so the
-   reader's words stay 11 px or more; narrower screens crop it from the right. */
+/* Interlude: the counter at full width, the badge over it, its left end running cleanly off the page. The plate is
+   never drawn under 870 px wide, so the reader's words stay 11 px or more; narrower screens crop it from the right. */
 .interlude { position: relative; overflow: hidden; }
 /* The plate's empty white top and foot (70 px each on its 1536 x 1024 canvas) are cropped; the reader's words
    use the same crop. */
 .interlude-art { position: relative; width: max(100%, 870px); max-width: none; aspect-ratio: 1536 / 884; }
 .interlude-art picture, .interlude-art img { width: 100%; height: 100%; object-fit: cover; }
-.interlude::before, .interlude::after { content: ''; position: absolute; top: 0; bottom: 0; width: 6%; z-index: 1; pointer-events: none; }
-.interlude::before { left: 0; background: linear-gradient(90deg, var(--paper), transparent); }
-.interlude::after { right: 0; background: linear-gradient(270deg, var(--paper), transparent); }
 .reader { position: absolute; inset: 0; width: 100%; height: 100%; font-family: var(--font-body); }
 .reader-dot { fill: var(--tangerine); }
 .reader-tick { fill: none; stroke: #fff; stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; }
@@ -95,13 +99,21 @@
    the plate, on the label's slight tilt. */
 .parcel-label { position: absolute; left: 55.76%; top: 66.9%; width: 11.07%; height: 14.6%; padding: .6% .62% 0; display: flex; flex-direction: column; font: 500 max(11px, .72vw)/1.2 var(--font-body); color: #17181b; transform: rotate(.7deg); transform-origin: 0 0; }
 .parcel-label .service { padding-bottom: .3em; margin-bottom: .45em; border-bottom: 1px solid #b9b9b9; font: 700 1em/1.2 var(--font-head); letter-spacing: -.005em; text-transform: uppercase; white-space: nowrap; }
-.parcel-label .barcode { width: 100%; height: 22%; margin-top: auto; margin-bottom: 7%; fill: #111; }
+.parcel-label .barcode { width: 100%; height: 22%; margin-top: auto; margin-bottom: 7%; fill: #1a1a1a; }
+/* The plate's afternoon light on the printed label: brighter at its upper left, a warm shade toward the lower right. */
+.parcel-label::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(118deg, rgba(255, 252, 244, .1) 0, rgba(255, 252, 244, 0) 38%, rgba(150, 110, 60, .06) 70%, rgba(120, 82, 40, .14) 100%); mix-blend-mode: multiply; }
 .closing-copy { position: absolute; z-index: 2; left: 0; right: 0; top: 10.4%; text-align: center; }
 .closing h2 { padding-bottom: .12em; font: 800 clamp(36px, 4.86vw, 70px)/1 var(--font-head); letter-spacing: -.052em; word-spacing: .06em; }
 .closing-sub { margin-top: 10px; font-size: 32px; letter-spacing: -.02em; color: #15171b; }
 .closing .site-actions { justify-content: center; margin-top: 30px; }
 .closing .hero-note { margin-top: 26px; }
 
+/* Wide screens: the plate is scaled past its painting, so its edges fade into the page. */
+@media (min-width: 1920px) {
+  .interlude::before, .interlude::after { content: ''; position: absolute; top: 0; bottom: 0; width: 6%; z-index: 1; pointer-events: none; }
+  .interlude::before { left: 0; background: linear-gradient(90deg, var(--paper), transparent); }
+  .interlude::after { right: 0; background: linear-gradient(270deg, var(--paper), transparent); }
+}
 @media (max-width: 1400px) {
   .hero-art { width: min(915px, 58vw); }
   .hero h1 { font-size: 86px; }
@@ -131,9 +143,13 @@
   .card-title { font-size: 21px; }
 }
 
-/* Stacked sections read as one centred 760 px column, the drawing as wide as the words. */
+/* Stacked sections read as one centred 760 px column, the drawing as wide as the words. Move in and the order agent
+   stay two-up down to 1000 px. */
 @media (max-width: 1080px) {
-  .move-in .column, .new-batch .column, .agent .column, .returns .column { max-width: calc(760px + 2 * var(--gutter)); }
+  .new-batch .column, .returns .column { max-width: calc(760px + 2 * var(--gutter)); }
+}
+@media (max-width: 999px) {
+  .move-in .column, .agent .column { max-width: calc(760px + 2 * var(--gutter)); }
 }
 @media (max-width: 1180px) {
   .sold-out .column { max-width: calc(760px + 2 * var(--gutter)); }

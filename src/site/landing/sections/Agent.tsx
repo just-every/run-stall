@@ -1,4 +1,4 @@
-import { Drawing, Heading, Mark, Section } from '../parts'
+import { Drawing, Heading, Mark, Section, Seq } from '../parts'
 import { agentLog, SEP, theoOrder } from '../kiln'
 import '../../styles/sections/agent.css'
 
@@ -14,7 +14,7 @@ export function Agent() {
         <ol className="log-rows">{agentLog.map(row => <li key={row.time} className={row.kind}>
           <span className="time">{row.time}</span>
           <span className="node">{row.kind === 'alert' ? <Mark kind="alert" /> : row.kind === 'reply' ? <span className="avatar">T</span> : row.kind === 'step' ? <i /> : <Mark kind="done" />}</span>
-          <span className="what">{row.text}</span>
+          <span className="what"><Seq text={row.text} /></span>
         </li>)}</ol>
         <p className="card-foot">Stock, label, refund and claim recorded{SEP}4 records</p>
       </div>

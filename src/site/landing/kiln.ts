@@ -10,6 +10,8 @@ export const usd = (cents: number) => `${cents < 0 ? '−' : ''}$${(Math.abs(cen
 export const dollars = (cents: number) => usd(cents).replace('.00', '')
 /** A separator that never starts or ends a line: no-break spaces on both sides. */
 export const SEP = '\u00a0·\u00a0'
+/** A record ID that never breaks at its hyphen (U+2011, the non-breaking hyphen): R‑0031, #4931‑R. */
+const nbId = (id: string) => id.replaceAll('-', '\u2011')
 
 export const shop = { name: 'Fog & Clay', domain: 'fogandclay.com', shopify: 'fogandclay.myshopify.com' }
 
@@ -39,7 +41,7 @@ export const importFix = { noWeight: 4, setTo: '0.9 lb', took: '6 min 12 s' }
 export const moveInCommands = ['git clone https://github.com/just-every/run-stall.git stall', 'cd stall', 'rer install', 'rer setup', 'rer dev']
 
 // 03 · Friday, Oct 16, 9:40 PM: the batch is listed and scheduled.
-export const batch = { name: 'Kiln batch 12', channels: ['Online store', 'Google Shopping', 'Instagram'], publishes: 'Publishes Fri, Oct 16\u00a0·\u00a010:00 PM ET' }
+export const batch = { name: 'Kiln batch 12', channels: ['Online store', 'Google Shopping', 'Instagram'], publishes: `Publishes Fri, Oct\u00a016${SEP}10:00\u00a0PM\u00a0ET` }
 
 // 04 · Friday 10:00 PM: the drop opens. Opening-minute stock (a few mugs are
 // already in held checkouts), and Ana P.'s checkout, the drop's first order.
@@ -69,24 +71,24 @@ export const overnight = { orders: 38, ...ncOrder(mugs.fog.price + mugs.cobalt.p
 // 07 · Saturday, Oct 17, 8:00 AM: the label run. The drop's orders are numbered
 // from #4907 in the order they were paid; Theo's last Cobalt (10:43 PM) is #4931.
 export const labels = [
-  { order: 4907, to: 'Ana P., Asheville NC', items: 'Speckle mug', weight: '1.4 lb', service: 'USPS Ground Advantage', cents: 685 },
-  { order: 4912, to: 'June K., Portland OR', items: 'Fog mug', weight: '1.4 lb', service: 'USPS Ground Advantage', cents: 740 },
-  { order: 4918, to: 'Sam L., Brooklyn NY', items: 'Fog mug', weight: '1.4 lb', service: 'USPS Ground Advantage', cents: 710, fix: { was: '14 Elm St, Apt ?', now: 'Apt 3B\u00a0·\u00a0USPS verified' } },
-  { order: 4925, to: 'Maya R., Denver CO', items: 'Speckle mug × 3', weight: '4.1 lb', service: 'USPS Priority Mail', cents: 1295 },
-  { order: 4931, to: 'Theo M., Austin TX', items: 'Cobalt mug', weight: '1.4 lb', service: 'UPS Ground', cents: 912 },
+  { order: 4907, to: 'Ana P., Asheville\u00a0NC', items: 'Speckle mug', weight: '1.4 lb', service: 'USPS Ground Advantage', cents: 685 },
+  { order: 4912, to: 'June K., Portland\u00a0OR', items: 'Fog mug', weight: '1.4 lb', service: 'USPS Ground Advantage', cents: 740 },
+  { order: 4918, to: 'Sam L., Brooklyn\u00a0NY', items: 'Fog mug', weight: '1.4 lb', service: 'USPS Ground Advantage', cents: 710, fix: { was: '14 Elm St, Apt ?', now: 'Apt 3B\u00a0·\u00a0USPS verified' } },
+  { order: 4925, to: 'Maya R., Denver\u00a0CO', items: 'Speckle mug × 3', weight: '4.1 lb', service: 'USPS Priority Mail', cents: 1295 },
+  { order: 4931, to: 'Theo M., Austin\u00a0TX', items: 'Cobalt mug', weight: '1.4 lb', service: 'UPS Ground', cents: 912 },
 ]
-export const labelRun = { day: 'Sat, Oct 17', count: 38, cents: 28165 }
+export const labelRun = { day: 'Sat, Oct\u00a017', count: 38, cents: 28165 }
 
 // 08 · Tuesday, Oct 20, 2:14 PM: Theo's Cobalt arrives broken. The agent offers
 // the Fog mug (Cobalt is sold out) and the $4.00 difference back.
 const theo = labels[4]
-export const reship = { order: `${theo.order}-R`, label: 725, refund: mugs.cobalt.price - mugs.fog.price, claim: mugs.cobalt.price }
+export const reship = { order: nbId(`${theo.order}-R`), label: 725, refund: mugs.cobalt.price - mugs.fog.price, claim: mugs.cobalt.price }
 export const agentLog = [
   { time: '2:14 PM', text: 'UPS exception: damaged in transit', kind: 'alert' },
   { time: '2:15 PM', text: `Checked stock: Cobalt sold out${SEP}Fog ${heroMug.left} left`, kind: 'step' },
-  { time: '2:16 PM', text: `Asked Theo: a Fog mug today and ${usd(reship.refund)} back, or a ${usd(mugs.cobalt.price)} refund?`, kind: 'step' },
+  { time: '2:16 PM', text: `Asked Theo: a Fog mug today and\u00a0${usd(reship.refund)} back, or a\u00a0${usd(mugs.cobalt.price)}\u00a0refund?`, kind: 'step' },
   { time: '2:31 PM', text: 'Theo: Fog please!', kind: 'reply' },
-  { time: '2:32 PM', text: `You tapped Ship it${SEP}replacement + ${usd(reship.refund)} refund + claim`, kind: 'you' },
+  { time: '2:32 PM', text: `You tapped Ship\u00a0it${SEP}replacement, ${usd(reship.refund)}\u00a0refund and\u00a0claim`, kind: 'you' },
   { time: '2:33 PM', text: `Replacement #${reship.order}${SEP}USPS label ${usd(reship.label)}${SEP}shipped`, kind: 'done' },
   { time: '2:34 PM', text: `UPS damage claim filed${SEP}${usd(reship.claim)}`, kind: 'done' },
 ] as const
@@ -94,7 +96,7 @@ export const theoOrder = { order: theo.order, name: 'Theo M.', city: 'Austin TX 
 
 // 09 · June K.'s return: delivered Thursday, Oct 22; returned the next week.
 export const juneReturn = {
-  order: labels[1].order, delivered: 'Oct 22', reason: 'Changed my mind', card: 'Visa •• 1881', id: 'R-0031', refund: mugs.fog.price, stripe: 're_3Q8x',
+  order: labels[1].order, delivered: 'Oct 22', reason: 'Changed my mind', card: 'Visa •• 1881', id: nbId('R-0031'), refund: mugs.fog.price, stripe: 're_3Q8x',
   steps: [
     { title: 'Label emailed', detail: 'Oct 27' },
     { title: 'Received', detail: 'Oct 30' },

@@ -18,7 +18,11 @@
 .import-note.fixed { margin-top: 8px; background: #e9f6ee; }
 .import-bar { display: block; height: 11px; margin-top: 26px; border-radius: 999px; background: var(--tangerine); }
 .import .card-foot { margin-top: 14px; }
-@media (max-width: 1080px) {
+@media (max-width: 1180px) and (min-width: 1000px) {
+  .move-in .column { grid-template-columns: minmax(0, 1fr) minmax(0, 480px); }
+  .import { padding: 24px 24px 20px; }
+}
+@media (max-width: 999px) {
   .move-in .column { grid-template-columns: minmax(0, 1fr); }
   .move-copy { gap: 32px; }
 }

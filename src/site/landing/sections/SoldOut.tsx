@@ -1,4 +1,4 @@
-import { Drawing, Heading, Mark, Mug, Section } from '../parts'
+import { Drawing, Heading, Mark, Mug, Section, Seq } from '../parts'
 import { danaCart, dollars, mugs, recovery, SEP, usd } from '../kiln'
 import '../../styles/sections/sold-out.css'
 
@@ -21,7 +21,7 @@ export function SoldOut() {
       </div>
       <div className="card note">
         <p className="note-to">To: Dana R.</p>
-        <p className="note-subject">Cobalt sold out{SEP}your Fog mug is still here</p>
+        <p className="note-subject"><Seq text={`Cobalt sold out${SEP}your Fog mug is still here`} /></p>
         <div className="note-body">
           <Mug glaze="fog" className="note-mug" />
           <div><p>{mugs.fog.name}{SEP}{dollars(mugs.fog.price)}</p><span className="note-button">Back to your cart</span></div>

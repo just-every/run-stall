@@ -6,10 +6,12 @@ import type { ReactNode } from 'react'
 import { Dot } from '../shell/Actions'
 import { SEP, type Glaze } from './kiln'
 
-/** A section's words: the day-and-time eyebrow, the heading with its tangerine full stop, and the line under it. */
+/** A section's words: the day-and-time eyebrow, the heading with its tangerine full stop, and the line under it. A
+ * left-aligned eyebrow wraps between its parts; a centred one is short and set as one run. */
 export function Heading({ id, eyebrow, title, children, className = '' }: { id: string; eyebrow: string; title: ReactNode; children?: ReactNode; className?: string }) {
+  const centred = className.split(' ').includes('centred')
   return <div className={`heading ${className}`.trim()}>
-    <p className="eyebrow">{eyebrow.replaceAll(' · ', SEP)}</p>
+    <p className="eyebrow">{centred ? eyebrow.replaceAll(' · ', SEP) : <Seq parts={eyebrow.split(' · ')} />}</p>
     <h2 id={`${id}-title`}>{title}<Dot /></h2>
     {children ? <p className="lede">{children}</p> : null}
   </div>
@@ -22,6 +24,12 @@ export const Section = ({ id, className, children }: { id: string; className: st
 /** A drawing of a screen: the summary for screen readers, the drawing itself hidden from them. */
 export const Drawing = ({ label, className, children }: { label: string; className: string; children: ReactNode }) =>
   <div className={className} role="img" aria-label={label}><div className="drawing" aria-hidden="true">{children}</div></div>
+
+/** Parts joined by a separator (" · " unless a stylesheet sets another) that wrap only between parts. The separator in
+ * front of a part that starts a line is clipped (styles/landing.css .seq), so no line starts or ends with one. Text is
+ * split at SEP; `parts` takes styled pieces. */
+export const Seq = ({ text = '', parts = text.split(SEP), className = '' }: { text?: string; parts?: ReactNode[]; className?: string }) =>
+  <span className={`seq ${className}`.trim()}><span className="seq-in">{parts.map((part, i) => <span key={i}>{part}</span>)}</span></span>
 
 /** A painted band: AVIF, then WebP, at the widths public/site holds. */
 export function Painting({ name, widths, sizes, eager = false }: { name: string; widths: number[]; sizes: string; eager?: boolean }) {

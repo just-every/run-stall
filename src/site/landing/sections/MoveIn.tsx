@@ -3,6 +3,15 @@ import { Drawing, Heading, Lights, Mark, Section } from '../parts'
 import { importFix, imported, moveInCommands, shop } from '../kiln'
 import '../../styles/sections/move-in.css'
 
+/** A command's unbreakable runs: words break only at spaces and after `github.com/`, and the last word stays with
+ * the run before it, so no line ends with one word alone. Plain spaces, so the command copies as typed. */
+function commandParts(line: string) {
+  const parts = line.split(' ').flatMap((word, i) => word.split(/(?<=github\.com\/)/).map((text, j) => ({ text, before: j ? 'wbr' : i ? ' ' : '' })))
+  const last = parts.length > 1 && parts[parts.length - 1].before === ' ' ? parts.pop() : undefined
+  if (last) parts[parts.length - 1].text += ` ${last.text}`
+  return parts.map((part, k) => <Fragment key={k}>{part.before === 'wbr' ? <wbr /> : part.before}<span className="nowrap">{part.text}</span></Fragment>)
+}
+
 /** 02 · Sunday, move in: the Shopify import and the five lines that start Stall. */
 export function MoveIn() {
   return <Section id="move-in" className="move-in">
@@ -12,7 +21,7 @@ export function MoveIn() {
       </Heading>
       <figure className="terminal" aria-label="Start Stall on your own computer">
         <Lights />
-        <pre><code>{moveInCommands.map(line => <span className="line" key={line}><span className="prompt" aria-hidden="true">$ </span>{line.split(' ').map((word, i) => <Fragment key={i}>{i ? ' ' : ''}{word.split(/(?<=github\.com\/)/).map((part, j) => <Fragment key={j}>{j ? <wbr /> : null}<span className="nowrap">{part}</span></Fragment>)}</Fragment>)}</span>)}</code></pre>
+        <pre><code>{moveInCommands.map(line => <span className="line" key={line}><span className="prompt" aria-hidden="true">$ </span>{commandParts(line)}</span>)}</code></pre>
       </figure>
     </div>
     <Drawing className="move-art" label={`The import from ${shop.shopify}: ${imported.map(row => `${row.count.toLocaleString('en-US')} ${row.label.toLowerCase()}`).join(', ')}. ${importFix.noWeight} products had no weight and were set to ${importFix.setTo}. Imported in ${importFix.took}.`}>

@@ -1,18 +1,21 @@
-/* 07 · Packing day: the label run on a birch panel (the booth floor). Phones turn each row into a card. */
+/* 07 · Packing day: the label run on a birch panel (the booth floor; a seamless grain tile cut from mobile-07's own
+   birch, public/site/birch.*). Phones turn each row into a white card on the birch. */
 .packing .column { grid-template-columns: minmax(0, 1fr); row-gap: 30px; }
 .packing .heading .lede { max-width: none; }
-.birch { padding: 32px 46px; border-radius: 26px; background: repeating-linear-gradient(90deg, rgba(186, 140, 84, .06) 0 2px, transparent 2px 9px, rgba(186, 140, 84, .04) 9px 10px, transparent 10px 23px), linear-gradient(170deg, #f6e7cf, #efd9b8 60%, #f3e2c6); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), 0 28px 50px -34px rgba(150, 100, 40, .55); }
+.birch { padding: 32px 46px; border-radius: 26px; background: linear-gradient(170deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, 0) 55%, rgba(190, 140, 90, .08)), #f1dfc8 image-set(url('/site/birch.avif') type('image/avif'), url('/site/birch.webp') type('image/webp')) 0 0 / 480px 300px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), 0 28px 50px -34px rgba(150, 100, 40, .55); }
 .labels { padding: 24px 26px 0; overflow: hidden; }
 .labels-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 10px; }
 .print-all { padding: 12px 26px; border-radius: 999px; background: var(--tangerine-press); color: #fff; font-size: 17.5px; font-weight: 600; white-space: nowrap; }
 .label-table { margin-top: 20px; }
-.label-cols, .label-row { display: grid; grid-template-columns: 76px minmax(0, 1fr) 136px 64px 196px 64px 104px; align-items: center; column-gap: 14px; padding: 0 10px; }
+.label-cols, .label-row { display: grid; grid-template-columns: 76px minmax(0, 1fr) 136px 64px 196px 74px 104px; align-items: center; column-gap: 14px; padding: 0 10px; }
+/* Rate keeps at least 24 px of air after the longest service. */
+.label-cols > :nth-child(6), .l-rate { padding-left: 10px; }
 .label-cols { padding-bottom: 12px; border-bottom: 1px solid var(--line); font-size: 16px; color: #6b6f78; }
 .label-row { min-height: 54px; border-bottom: 1px solid var(--line-soft); font-size: 16.5px; color: #2b2e34; }
 .label-row.fixed { margin: 0 -8px; padding: 10px 18px; border-radius: 12px; background: #eef9f1; border-bottom: none; }
 .l-order { font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
 .l-to { display: grid; gap: 3px; }
-.l-fix { font-size: 15px; color: var(--green-ink); }
+.l-fix { font-size: 15px; color: var(--green-ink); --seq-mark: '→'; --seq-gap: 1.7em; }
 .l-fix .ok { white-space: nowrap; }
 .l-fix s { color: var(--danger); text-decoration: none; }
 .l-rate { font-variant-numeric: tabular-nums; }
@@ -24,15 +27,25 @@
 .sent .mark { width: 22px; height: 22px; }
 @media (max-width: 1240px) {
   .birch { padding: 28px; }
-  .label-cols, .label-row { grid-template-columns: 64px minmax(0, 1fr) 124px 56px 178px 58px 96px; column-gap: 10px; font-size: 15px; }
+  .label-cols, .label-row { grid-template-columns: 56px minmax(0, 1fr) 124px 56px 178px 72px 96px; column-gap: 10px; font-size: 15px; }
+  .label-cols > :nth-child(6), .l-rate { padding-left: 14px; }
   .l-fix { font-size: 14px; }
   .printed { padding: 5px 11px; font-size: 14px; }
+}
+/* Where Ship to is too narrow for Sam's corrected address on one line, the correction takes its own line under the
+   row, from Ship to across to Rate. */
+@media (max-width: 1319px) and (min-width: 961px) {
+  .label-row.fixed { grid-template-rows: auto auto; row-gap: 3px; }
+  .label-row.fixed .l-to { display: contents; }
+  .label-row.fixed > *, .label-row.fixed .l-name { grid-row: 1; }
+  .label-row.fixed .l-name { grid-column: 2; }
+  .label-row.fixed .l-fix { grid-row: 2; grid-column: 2 / 7; }
 }
 @media (max-width: 960px) {
   .label-cols { display: none; }
   .label-table { display: grid; gap: 12px; margin-top: 16px; }
-  .label-row, .label-row.fixed { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'order status' 'to to' 'items items' 'service service'; row-gap: 3px; margin: 0; padding: 16px 18px; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 10px 20px -18px rgba(20, 16, 12, .4); font-size: 15.5px; }
-  .label-row.fixed { border-color: #cdebd6; }
+  .label-row, .label-row.fixed { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'order status' 'to to' 'items items' 'service service'; row-gap: 3px; margin: 0; padding: 16px 18px; border: 1px solid rgba(150, 110, 60, .16); border-radius: 14px; background: var(--surface); box-shadow: 0 1px 2px rgba(60, 40, 20, .06), 0 12px 22px -16px rgba(60, 40, 20, .35); font-size: 15.5px; }
+  .label-row.fixed { border-color: #cdebd6; background: #eef9f1; }
   .l-order { grid-area: order; font: 800 24px/1.1 var(--font-head); letter-spacing: -.03em; }
   .printed { grid-area: status; }
   .l-to { grid-area: to; }
@@ -50,7 +63,7 @@
   .label-table { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
-  .birch { margin: 0 -6px; padding: 18px 14px 20px; border-radius: 20px; }
+  .birch { margin: 0 -6px; padding: 18px 14px 20px; border-radius: 20px; background-size: auto, 240px 150px; }
   .labels-head .card-title { font-size: 16.5px; }
   .print-all { padding: 9px 16px; font-size: 15px; }
   .label-row, .label-row.fixed { padding: 14px; font-size: 14.5px; }

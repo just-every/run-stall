@@ -1,4 +1,4 @@
-import { Clock, Drawing, Heading, Mug, Section, Tick } from '../parts'
+import { Clock, Drawing, Heading, Mug, Section, Seq, Tick } from '../parts'
 import { batch, glazes, mugs, usd } from '../kiln'
 import '../../styles/sections/new-batch.css'
 
@@ -16,7 +16,7 @@ export function NewBatch() {
           <span className="batch-weight">{mugs[g].weight}</span>
         </li>)}</ul>
         <div className="channels"><b>Channels</b>{batch.channels.map(channel => <span key={channel} className="channel"><span className="box"><Tick /></span>{channel}</span>)}</div>
-        <p className="schedule"><Clock /><span>{batch.publishes}</span><span className="scheduled">Scheduled</span></p>
+        <p className="schedule"><Clock /><Seq text={batch.publishes} /><span className="scheduled">Scheduled</span></p>
       </div>
     </Drawing>
     <Heading id="new-batch" eyebrow="Friday 9:40 PM · New batch" title={<>List it tonight.<br /> <span className="nowrap">Open at ten</span></>}>

@@ -1,13 +1,13 @@
-/* 08 · The order agent: copy left, the agent's log for Theo's order right. */
-.agent .column { grid-template-columns: minmax(0, 1fr) minmax(0, 600px); column-gap: 40px; }
+/* 08 · The order agent: copy left, the agent's log for Theo's order right, wide enough that each step is one line. */
+.agent .column { grid-template-columns: minmax(0, 1fr) minmax(0, 640px); column-gap: 40px; }
 .agent-art { position: relative; }
 .agent-art::before { content: ''; position: absolute; inset: -8% -10% -14% -20%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 106, 19, .1), transparent); pointer-events: none; }
 .log { padding: 28px 28px 24px; }
 .log-head { display: flex; align-items: center; gap: 16px; }
 .log-head .card-title { font-size: 22px; }
 .log-rows { position: relative; margin-top: 20px; }
-.log-rows::before { content: ''; position: absolute; left: 101px; top: 26px; bottom: 26px; width: 2px; background: #e1e1e5; }
-.log-rows li { display: grid; grid-template-columns: 70px 32px minmax(0, 1fr); align-items: center; column-gap: 12px; padding: 4px 0; font-size: 16px; }
+.log-rows::before { content: ''; position: absolute; left: 91px; top: 26px; bottom: 26px; width: 2px; background: #e1e1e5; }
+.log-rows li { display: grid; grid-template-columns: 60px 32px minmax(0, 1fr); align-items: center; column-gap: 12px; padding: 4px 0; font-size: 16px; }
 .log-rows .time { font: 500 14.5px var(--font-mono); color: #6b6f78; white-space: nowrap; }
 .log-rows .node { position: relative; display: grid; place-items: center; }
 .log-rows .node i { width: 14px; height: 14px; border-radius: 50%; background: #c9cad0; box-shadow: 0 0 0 4px var(--surface); }
@@ -17,11 +17,15 @@
 .log-rows .reply .what { justify-self: start; background: #f0f0f3; }
 .log-rows .you .what { background: var(--tangerine-tint); }
 .log .card-foot { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
-@media (max-width: 1240px) and (min-width: 1081px) {
+@media (max-width: 1240px) and (min-width: 1000px) {
   .agent .column { grid-template-columns: minmax(0, 1fr) minmax(0, 540px); }
   .log-rows li { font-size: 15px; }
 }
-@media (max-width: 1080px) {
+@media (max-width: 1080px) and (min-width: 1000px) {
+  .agent .column { grid-template-columns: minmax(0, 1fr) minmax(0, 500px); }
+  .log { padding: 24px 20px 20px; }
+}
+@media (max-width: 999px) {
   .agent .column { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 760px) {

@@ -34,7 +34,7 @@ export function Hero() {
     <div className="site-wrap hero-row">
       <div className="hero-copy">
         <h1 id="hero-title">Your stall<br /> never closes<Dot /></h1>
-        <p className="hero-sub">Stall puts your shop online: storefront and checkout, sales tax, labels and tracking, returns, and the carts people left behind.</p>
+        <p className="hero-sub">Stall puts your shop online: storefront and checkout, sales tax, labels and tracking, returns, and the carts people left{'\u00a0'}behind.</p>
         <p className="hero-alt">100% free, open source alternative to <strong>Shopify</strong>, <strong>Squarespace Commerce</strong> and <strong>BigCommerce</strong></p>
         <Actions />
         <p className="hero-note">Free and open source, MIT licensed.</p>

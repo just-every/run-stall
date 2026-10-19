@@ -1,4 +1,4 @@
-import { Drawing, Heading, Mark, Section } from '../parts'
+import { Drawing, Heading, Mark, Section, Seq } from '../parts'
 import { ledger, nexus, payout, salesTax, SEP, usd } from '../kiln'
 import '../../styles/sections/month-end.css'
 
@@ -13,14 +13,14 @@ export function MonthEnd() {
       <div className="card tax">
         <p className="tax-head"><span className="card-title">Sales tax{SEP}October</span><span className="due">Ready to file by {salesTax.due}</span></p>
         <p className="tax-row"><span className="state">{salesTax.state}<small>{salesTax.basis}</small></span><span>{salesTax.orders} orders</span><b>{usd(salesTax.cents)}</b></p>
-        <p className="nexus"><b>Nexus{SEP}last 12 months</b>{nexus.map(state => <span key={state}>{state}</span>)}<span>all under threshold</span></p>
+        <div className="nexus"><p><b>Nexus{SEP}last 12 months</b>{nexus.map(state => <span key={state}>{state}</span>)}<span>all under threshold</span></p></div>
       </div>
       <div className="card books">
         <p className="card-title">QuickBooks Online{SEP}October</p>
         <ul className="ledger">{ledger.map(row => <li key={row.label}><span>{row.label}</span><b>{usd(row.cents)}</b><span className="pill posted">Posted</span></li>)}</ul>
         <ul className="ledger match">
           <li className="unmatched"><span>Payout line</span><b>{usd(payout.cents)}</b><span className="pill">Unmatched</span></li>
-          <li className="matched"><span><Mark kind="ok" />{payout.matched}</span><span className="pill">Matched</span></li>
+          <li className="matched"><span><Mark kind="ok" /><Seq text={payout.matched} /></span><span className="pill">Matched</span></li>
         </ul>
         <p className="card-foot">{payout.posted}</p>
       </div>
