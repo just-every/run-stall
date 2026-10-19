@@ -3,6 +3,7 @@ import { digest,live } from './access'
 import { assertOriginalPier,fullyReserved,pierState,reserveOrder } from './pier'
 import { checkoutSession,signedEvent,validateSession } from './stripe'
 import { readOrder,saveOrder } from './store'
+import { startPaymentCheck,completePaymentCheck } from './operations'
 import { observeShipment } from './shipment-sync'
 import { fail,Problem,type Actor,type Order } from './model'
 export async function paidSession(env:Bindings,order:Order,id:string,actor?:Actor) {
@@ -74,13 +75,29 @@ export async function confirmReturn(env:Bindings,orderId:string) {
 /** The scheduled check (every minute, also under rer dev): orders still awaiting
  * payment from the last day, while their Checkout Sessions can still be paid. */
 export async function checkAwaitingPayments(env:Bindings) {
- if(!env.STRIPE_SECRET_KEY) return {checked:0,confirmed:0}
- const since=new Date(Date.now()-25*3600000).toISOString()
- const rows=(await env.DB.prepare("SELECT id FROM st_orders WHERE json_extract(value_json,'$.status')='awaiting_payment' AND json_extract(value_json,'$.createdAt')>? ORDER BY json_extract(value_json,'$.createdAt') LIMIT 20").bind(since).all<{id:string}>()).results
- let confirmed=0
- for(const row of rows) {
-  try { if((await confirmFromStripe(env,await readOrder(env.DB,row.id))).payment) confirmed++ }
-  catch(error) { if(!(error instanceof Problem)) throw error } // The order keeps its state; the next run or Reconcile retries.
+ const attempt=await startPaymentCheck(env)
+ const result:{checked:number;confirmed:number;failed:number;lastErrorCode?:string}={checked:0,confirmed:0,failed:0}
+ if(!env.STRIPE_SECRET_KEY) {
+  await completePaymentCheck(env,attempt,result,'not_configured')
+  return result
  }
- return {checked:rows.length,confirmed}
+ try {
+  const since=new Date(Date.now()-25*3600000).toISOString()
+  const rows=(await env.DB.prepare("SELECT id FROM st_orders WHERE json_extract(value_json,'$.status')='awaiting_payment' AND json_extract(value_json,'$.createdAt')>? ORDER BY json_extract(value_json,'$.createdAt') LIMIT 20").bind(since).all<{id:string}>()).results
+  for(const row of rows) {
+   result.checked++
+   try { if((await confirmFromStripe(env,await readOrder(env.DB,row.id))).payment) result.confirmed++ }
+   catch(error) {
+    result.failed++
+    result.lastErrorCode=error instanceof Problem&&/^[A-Z][A-Z0-9_]{0,79}$/.test(error.code)?error.code:'PAYMENT_CHECK_FAILED'
+    if(!(error instanceof Problem)) throw error
+   }
+  }
+  await completePaymentCheck(env,attempt,result,result.failed?'failed':'complete')
+  return result
+ } catch(error) {
+  if(!result.failed) { result.failed++;result.lastErrorCode='PAYMENT_CHECK_FAILED' }
+  await completePaymentCheck(env,attempt,result,'failed')
+  throw error
+ }
 }

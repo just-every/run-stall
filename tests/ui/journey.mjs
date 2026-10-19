@@ -25,7 +25,7 @@ function cleanup() {
   const results=await Promise.allSettled([...resources].map(resource=>resource.close()).concat(dev?[dev.stop()]:[]))
   const failures=results.filter(result=>result.status==='rejected').map(result=>result.reason)
   if(failures.length)throw new AggregateError(failures,'Owned resource cleanup did not finish; the test checkout was preserved.')
-  if(!journeyError?.preserveCheckout)await rm(scratch,{recursive:true,force:true})
+  if(!journeyError?.preserveCheckout)await rm(scratch,{recursive:true,force:true,maxRetries:3,retryDelay:100})
  })()
 }
 const interrupted=()=>{void cleanup().then(()=>process.exit(1),()=>process.exit(1))}
@@ -40,7 +40,8 @@ try {
  assert.equal((await fetch(site+'/run')).status,200)
  pier=await pierInstallation()
  const edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex')
- h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle})
+ let providersUnavailable=false
+ h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret},outboundService:request=>providersUnavailable?Response.json({error:'Provider unavailable'},{status:503}):edge.handle(request)})
  browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
  const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'}),page=await context.newPage()
  const errors=[];page.on('pageerror',error=>errors.push(error.message))
@@ -52,6 +53,7 @@ try {
   await route.fulfill({status:response.status,headers:{'content-type':response.headers.get('content-type')??'application/json',...(response.headers.get('content-disposition')?{'content-disposition':response.headers.get('content-disposition')}:{})},body:Buffer.from(await response.arrayBuffer())})
  })
  async function capture(name,selector) {
+  if(process.env.STALL_PROOF==='OPS-001'&&!name.startsWith('OPS-001'))return
   if(process.env.STALL_PROOF==='ORDER-003'&&!/^(ORDER-003|shop-review|order$|refund-approval)/.test(name))return
   for(const width of [1440,390]) {
    await page.setViewportSize({width,height:1000})
@@ -59,7 +61,7 @@ try {
    else await page.evaluate(()=>window.scrollTo(0,0))
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`page overflows at ${width}: ${name}`)
    await page.screenshot({path:resolve(evidence,`${name}-${width}.png`)})
-   if(name.endsWith('terminal')||['order','products','settings','move-in-preview','empty','home','shop-review','checkout-return'].includes(name))await page.screenshot({path:resolve(evidence,`${name}-full-${width}.png`),fullPage:true})
+   if(name.startsWith('OPS-001')||name.endsWith('terminal')||['order','products','settings','move-in-preview','empty','home','shop-review','checkout-return'].includes(name))await page.screenshot({path:resolve(evidence,`${name}-full-${width}.png`),fullPage:true})
   }
   await page.setViewportSize({width:1440,height:1000})
  }
@@ -104,6 +106,19 @@ try {
  await page.waitForFunction(()=>!document.querySelector('form[aria-label="Shipping charge"] button:disabled'))
  assert.equal((await h.api('/api/stall/state')).shippingCents,625)
  await capture('ORDER-003-shipping-setting',page.getByRole('form',{name:'Shipping charge'}))
+ const operations=page.locator('#operations')
+ await operations.getByText('Not checked',{exact:false}).first().waitFor()
+ await operations.getByRole('button',{name:'Check providers now',exact:true}).click()
+ await operations.getByText('Last observed Ready',{exact:false}).first().waitFor()
+ await operations.getByText('Storage, request limits and costs',{exact:true}).click()
+ await capture('OPS-001-healthy',operations)
+ providersUnavailable=true
+ await operations.getByRole('button',{name:'Check providers now',exact:true}).click()
+ await operations.getByText('Last observed Unavailable',{exact:false}).first().waitFor()
+ await capture('OPS-001-unavailable',operations)
+ providersUnavailable=false
+ await operations.getByRole('button',{name:'Check providers now',exact:true}).click()
+ await operations.getByText('Last observed Ready',{exact:false}).first().waitFor()
  await page.getByRole('link',{name:'Products',exact:true}).click()
  await page.getByText('Bring your products into Stall',{exact:true}).waitFor()
  await capture('desk-empty')
@@ -150,7 +165,18 @@ try {
  await page.getByRole('button',{name:'Pay $48.75 with Stripe',exact:true}).click()
  await payment
  const session=[...edge.sessions.values()][0];assert.ok(session)
+ // OPS-001: observe a real failed minute check, then recover its original paid session.
+ providersUnavailable=true
+ assert.equal((await (await h.mf.getWorker()).scheduled({scheduledTime:new Date(),cron:'* * * * *'})).outcome,'ok')
+ await page.goto(origin+'/app#settings')
+ await page.locator('#operations').getByText('Last run: Failed',{exact:false}).waitFor()
+ await capture('OPS-001-scheduler-failed','#operations')
+ providersUnavailable=false
  const paid=edge.pay(session.id)
+ assert.equal((await (await h.mf.getWorker()).scheduled({scheduledTime:new Date(),cron:'* * * * *'})).outcome,'ok')
+ await page.locator('#operations').getByRole('button',{name:'Refresh operations',exact:true}).click()
+ await page.locator('#operations').getByText('Last run: Complete',{exact:false}).waitFor()
+ await capture('OPS-001-scheduler-recovered','#operations')
  assert.equal((await deliverWebhook(h,secret,paid)).response.status,200)
  await page.goto(origin+'/order?checkout=success')
  await capture('checkout-return')
@@ -171,7 +197,14 @@ try {
  await page.getByRole('button',{name:'Prepare refund',exact:true}).click()
  await page.getByRole('button',{name:/Approve \$24.50 refund/}).waitFor()
  await capture('refund-approval',page.getByRole('button',{name:/Approve \$24.50 refund/}))
+ edge.loseNextRefundResponse()
  await page.getByRole('button',{name:/Approve \$24.50 refund/}).click()
+ await page.getByRole('button',{name:'Reconcile',exact:true}).waitFor()
+ await page.getByRole('link',{name:'Settings',exact:true}).click()
+ await page.locator('#operations').getByRole('heading',{name:'Outstanding commerce work · 1',exact:true}).waitFor()
+ await capture('OPS-001-uncertain-refund','#operations')
+ await page.locator('#operations').getByRole('link',{name:/^Order /}).first().click()
+ await page.getByRole('button',{name:'Reconcile',exact:true}).click()
  // Completed work leaves Needs action. Open its truthful terminal record.
  await page.getByRole('button',{name:'Refunds',exact:true}).click()
  await page.locator('#orders .st-order-id').first().click()
@@ -215,6 +248,8 @@ try {
  await page.getByRole('heading',{name:'Activity & reconciliation',exact:true}).waitFor()
  await capture('activity')
  await page.getByRole('link',{name:'Settings',exact:true}).click()
+ await page.locator('#operations').getByText('No outstanding commerce work.',{exact:true}).waitFor()
+ await capture('OPS-001-terminal','#operations')
  // EXPORT-001: use the merchant download door, including its ready status.
  const businessDownload=page.waitForEvent('download')
  await page.locator('#business-exports').getByRole('button',{name:'Orders',exact:true}).click()
@@ -272,6 +307,7 @@ try {
  assert.deepEqual(errors,[])
  await dev.assertRunning()
  console.log(`Run site linked pages: ${[...visited].join(', ')}`)
+ console.log('OPS-001 browser journey passed: real read-only provider observations, unavailable diagnosis, limits and empty terminal backlog at 1440/390.');
  console.log('ORDER-003 browser journey passed: shipping configuration, paid checkout, item/shipping/goodwill approval and terminal records at 1440/390.');
  console.log('BASE-001 browser journey passed: move-in, product approvals, customer checkout, shipping, refund, backup/restore, credentials and erasure at 1440 and 390.')
  }catch(error){journeyError=error;throw error}
