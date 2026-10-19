@@ -40,8 +40,11 @@
   .tracker b { font-size: 14px; }
 }
 /* Narrow stops: the tracker is inset so the outer labels, wider than their stops, keep the card's padding. */
-@media (max-width: 1240px) {
+@media (max-width: 1319px) {
   .tracker { margin-left: 6px; margin-right: 6px; }
+}
+@media (max-width: 1319px) and (min-width: 1241px) {
+  .tracker b { font-size: 14.5px; }
 }
 @media (max-width: 1080px) {
   .returns .heading { display: block; }
