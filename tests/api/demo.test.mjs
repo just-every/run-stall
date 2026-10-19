@@ -12,6 +12,7 @@ test('DEMO-001: a lived-in demo seeds once and commerce/invitations send nothing
  try {
   const state=await h.api('/api/stall/state')
   assert.deepEqual(state.connections,{pier:true,stripe:true,webhook:true})
+  assert.equal(state.shipmentSync.error,undefined,'the demo stock provider must return coherent shipment lines')
   assert.equal(state.products.length,15)
   assert.ok(state.products.some(p=>p.value.active))
   assert.ok(state.products.some(p=>p.value.draft))

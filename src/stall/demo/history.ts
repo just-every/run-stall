@@ -108,7 +108,7 @@ export async function history(now: Date, staff: Staff, pier: PierState) {
     const approved = later(prepared, 25), approval: Approval = { by: approver.id, version: approver.version, at: approved, revision: await revision() }
     happened(approver.id, 'shipment.approved', approved)
     const p = pier.orders.find(o => o.id === order.reservation!.id)!
-    const dispatch: PierShipment = { id: `pier-shipment-${pier.shipments.length + 1}`, orderId: p.id, reference: shipment.reference, lines: lines.map(l => ({ itemId: l.itemId, quantity: String(l.quantity) })) }
+    const dispatch: PierShipment = { id: `pier-shipment-${pier.shipments.length + 1}`, orderId: p.id, reference: shipment.reference, createdAt: later(approved, 1), lines: lines.map(l => ({ orderLineId: p.lines.find(line => line.itemId === l.itemId)!.id, itemId: l.itemId, quantity: String(l.quantity) })) }
     for (const line of p.lines) line.dispatched = line.reserved
     pier.shipments.push(dispatch); pier.commands[`stall-ship-${shipment.id}`] = dispatch
     order = { ...order, status: 'shipped', shipment: { ...shipment, status: 'shipped', approval, pierShipmentId: dispatch.id } }

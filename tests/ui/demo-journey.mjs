@@ -56,6 +56,7 @@ test('DEMO-001: the built homepage opens the hosted demo; a hosted visitor buys 
    assert.deepEqual(await response.body(),await readFile(resolve('dist/client','.'+path)),`hosted ${path} differs from this commit's build`)
   }
   const before=await api('/api/stall/state')
+  assert.equal(before.shipmentSync.error,undefined,'the simulated stock desk must reconcile every sample shipment')
   assert.ok(before.products.some(p=>p.value.draft))
   for(const status of ['checkout_pending','paid','awaiting_payment','reserved','shipped','shortfall'])assert.ok(before.orders.some(o=>o.status===status))
   assert.ok(before.audit.some(a=>a.actor.startsWith('agent:')))

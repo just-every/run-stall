@@ -13,7 +13,7 @@ export const demoStripeKey = 'stall-demo-stripe'
 
 export type PierLine = { id: string; itemId: string; quantity: string; reserved: string; cancelled: string; dispatched: string }
 export type PierOrder = { id: string; reference: string; customerId: string; channel: string; total: string | null; channelPayment?: ChannelPayment; lines: PierLine[] }
-export type PierShipment = { id: string; orderId: string; reference: string; lines: { itemId: string; quantity: string }[] }
+export type PierShipment = { id: string; orderId: string; reference: string; createdAt: string; lines: { orderLineId: string; itemId: string; quantity: string }[] }
 export type PierState = {
  items: { id: string; sku: string; name: string; archived: boolean }[]
  locations: { id: string; name: string; kind: string }[]
@@ -69,10 +69,10 @@ export async function demoPier(db: D1Database, path: string, body?: any): Promis
    const source = order.lines.find(l => l.id === line.orderLineId)
    if (!source || Number(line.quantity) > Number(source.reserved) - Number(source.dispatched)) return null
    source.dispatched = String(Number(source.dispatched) + Number(line.quantity))
-   return { itemId: source.itemId, quantity: line.quantity }
+   return { orderLineId: source.id, itemId: source.itemId, quantity: line.quantity }
   })
   if (lines.includes(null)) return { ok: false }
-  result = { id: `pier-shipment-${state.shipments.length + 1}`, orderId: order.id, reference: String(body.payload.shipmentReference), lines }
+  result = { id: `pier-shipment-${state.shipments.length + 1}`, orderId: order.id, reference: String(body.payload.shipmentReference), createdAt: new Date().toISOString(), lines }
   state.shipments.push(result)
  } else return { ok: false }
  state.commands[body.commandId] = result
