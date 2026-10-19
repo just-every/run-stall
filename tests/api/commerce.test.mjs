@@ -33,6 +33,11 @@ test('OPEN-001: an owned installation publishes 200 products, adds 10 staff and 
   assert.equal(result.orders.length,1000);
   assert.equal(stock.payments.size,1000);
   assert.equal(edge.sessions.size,1000);
+  // EXPORT-001: the public download retains the entire supported volume.
+  const exported=await h.api('/api/stall/exports/records');
+  assert.equal(exported.products.length,200);
+  assert.equal(exported.orders.length,1000);
+  assert.equal(exported.reconciliation.length,1000);
   for(const row of result.orders) {
    assert.equal(row.status,'reserved');
    assert.equal(row.totalCents,expected.get(row.id));

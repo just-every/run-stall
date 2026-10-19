@@ -10,6 +10,7 @@ import { chromium } from '@playwright/test'
 import { installation } from '../api/harness.mjs'
 import { pierInstallation } from '../api/pier.mjs'
 import { stripeEdge, deliverWebhook } from '../api/network.mjs'
+import { readCsv } from '../api/csv-reader.mjs'
 const exec=promisify(execFile),rer=resolve('node_modules/@runeditrun/rer/global/rer.mjs')
 const hostileDescription='Hand-thrown stoneware. <script>window.stallUnsafe=1</script><img src=https://unsafe.example.test/pixel onerror=alert(1)>';
 const evidence=resolve(process.env.STALL_SCREENSHOTS??'test-results/browser')
@@ -174,6 +175,17 @@ try {
  await page.getByRole('heading',{name:'Activity & reconciliation',exact:true}).waitFor()
  await capture('activity')
  await page.getByRole('link',{name:'Settings',exact:true}).click()
+ // EXPORT-001: use the merchant download door, including its ready status.
+ const businessDownload=page.waitForEvent('download')
+ await page.locator('#business-exports').getByRole('button',{name:'Orders',exact:true}).click()
+ const businessFile=await businessDownload
+ assert.equal(businessFile.suggestedFilename(),'stall-orders.csv')
+ const exportedOrders=readCsv(await readFile(await businessFile.path(),'utf8'))
+ assert.equal(exportedOrders.length,1)
+ assert.equal(exportedOrders[0].totalCents,'4250')
+ assert.equal(JSON.parse(exportedOrders[0].refunds)[0].status,'succeeded')
+ await page.locator('#business-exports [role=status]').waitFor()
+ await capture('EXPORT-001-business-download','#business-exports')
  await page.getByRole('button',{name:'Create agent credential',exact:true}).click()
  await page.getByLabel('Private agent credential').waitFor()
  await page.getByRole('button',{name:'Hide credential',exact:true}).click()

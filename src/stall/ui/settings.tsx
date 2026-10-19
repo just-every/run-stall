@@ -6,6 +6,7 @@ import { Portability } from './portability'
 import { AgentCredential } from './agent-credential'
 import { CustomerErasure } from './data'
 import { ConnectPier, ConnectStripe } from './connect-forms'
+import { BusinessExports } from './business-exports'
 
 const providerRows: Record<string, [string, string]> = { pier: ['Pier stock', 'Catalog stock, reservations and shipping'], stripe: ['Stripe checkout', 'Hosted checkout and refunds on your Stripe account'], webhook: ['Payment confirmations', 'Signed Stripe webhooks'] }
 /** Each connection's name and job. A shop on this computer confirms payments by asking Stripe. */
@@ -22,6 +23,6 @@ export function Settings({ state, owner, busy, run, reload }: { state: State; ow
       <ProviderLinks />
     </Section>
     <Section title="Your account"><div className="st-row"><p>{state.people[state.actor.id] ?? state.actor.email}<small>{state.actor.email} · {state.actor.role}</small></p><a className="st-button st-secondary" href="/auth/settings/identity">Account settings</a></div></Section>
-    {owner && <><AgentCredential /><Portability reload={reload} /><CustomerErasure busy={busy} run={run} /></>}
+    {owner && <><AgentCredential /><BusinessExports /><Portability reload={reload} /><CustomerErasure busy={busy} run={run} /></>}
   </div>
 }

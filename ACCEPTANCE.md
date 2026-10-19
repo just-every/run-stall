@@ -46,7 +46,7 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
 - **CATALOG-002 — Bulk catalog operations and portable files.** **partial** — Upload a mixed valid/invalid catalog file, inspect a read-only preview, apply the reviewed rows, resume an interrupted batch, export them and undo untouched changes. Edit/purchase an imported SKU first and verify undo reports the protected row rather than overwriting it. Bulk-edit on-hand quantities in the grid and by an inventory CSV, once with store-managed stock and once with Pier connected, and verify each change appears once in the stock authority's history with a matching reference.
 
-  Current evidence: `src/stall/imports/service.ts`; `src/stall/imports/targets.ts`; `tests/api/imports.test.mjs`. Reviewed, journaled, reversible six-column Shopify product CSV import exists; broad schemas, bulk editing, quantity and inventory-CSV updates and product CSV export are absent.
+  Current evidence: `src/stall/imports/service.ts`; `src/stall/imports/targets.ts`; `tests/api/imports.test.mjs`. Reviewed, journaled, reversible six-column Shopify product CSV import exists; broad schemas, bulk editing, quantity and inventory-CSV updates are absent. EXPORT-001 now exports supported current/pending product fields as documented CSV/JSON.
 
 - **STOCK-001 — Live availability through Pier or another stock system.** **partial** — Connect Pier, publish variants across two locations, make an external stock change and verify public availability. Adjust a variant's on-hand quantity from the product editor, the bulk editor and an inventory CSV and verify each adjustment lands once in Pier with matching references. Repeat both via the documented alternate adapter; test backorder refusal/allowed lead time, stale stock and duplicate reservation events with matching stock-provider references. Set a safety stock of 2 on a variant with 5 on hand and verify the storefront sells exactly 3 before showing it sold out.
 
@@ -236,9 +236,9 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: `src/stall/imports/targets.ts`. No implementation found: the only import target is products; review import, mapping and rendering are absent.
 
-- **EXPORT-001 — Business CSVs and complete merchant exit.** **partial** — Export a populated shop through the desk/API and open its product/customer/order/payment CSVs and complete archive in an independent reader. Reconcile records and exact totals, verify explicit bounds/exclusions and refuse an unauthorized export.
+- **EXPORT-001 — Business CSVs and complete merchant exit.** **done** — Export a populated shop through the desk/API and open its product/customer/order/payment CSVs and complete archive in an independent reader. Reconcile records and exact totals, verify explicit bounds/exclusions and refuse an unauthorized export.
 
-  Current evidence: `src/stall/tools.ts`; `src/stall/portability-policy.mjs`; `tests/api/data.test.mjs`. Complete supported commercial archives exist; business CSVs and new target-object exports are absent.
+  Current evidence: `src/stall/exports.ts`; `src/stall/tools.ts`; `src/stall/ui/business-exports.tsx`; `docs/BUSINESS-EXPORTS.md`; `tests/api/data.test.mjs`; `tests/api/commerce.test.mjs`. Owner-only downloads cover every current product/draft, unerased customer contact, order/line, payment/refund, shipment and reconciliation record in eight CSVs and whitelisted JSON, alongside the complete restore archive. Named EXPORT-001 HTTP tests independently read CSVs, reconcile exact totals, refuse unauthorized callers, exclude credentials/erased contacts and retain 200 products/1,000 orders without truncation. Formats, UTC/original currency, spreadsheet safety, resource bounds and absent record kinds are explicit; future record clauses inherit export before shipping (ct, 19 Oct).
 
 ### Roles, integrations and dependable operations
 
@@ -290,7 +290,7 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: `src/stall/imports/description.ts`; `src/stall/portability-policy.mjs`; `tests/api/imports.test.mjs`; `tests/api/data.test.mjs`; `tests/api/commerce.test.mjs`; `tests/ui/journey.mjs`. Named BASE-001 import/data/browser journeys exercise hostile imported/native descriptions as plain text, unsupported input, private saved connections, credential exclusion from state/archives, inactive receiving authority, retained audit and erasure fencing, alongside native direct-door authorization and exact agent approvals. Current supported doors conform; rich content/media/new providers must meet the same rules when their clauses ship, as ct clarified on 19 October.
 
-- **OPEN-001 — Free and open source under the MIT license.** **done** — Verify the repository's `LICENSE` is the MIT license and `package.json` declares MIT. Install from the public source with no account or key from Stall's authors, publish 200 products, add 10 staff and take 1,000 test-mode orders with no payment, license, cap or upgrade prompt and no fee added by Stall to any order. Begin enabling Stripe and a shipping provider and verify each names its provider and pricing before activation.
+- **OPEN-001 — Free and open source under the MIT license.** **done** — Verify the repository's `LICENSE` is the MIT license and `package.json` declares MIT. Install from the public source with no account or key from Stall's authors, publish 200 products, add 10 staff and take 1,000 test-mode orders with no payment, license, cap or upgrade prompt and no fee added by Stall to any order. Begin enabling each supported provider (Stripe and Pier today) and verify its name and pricing before activation; repeat this journey when PAY-001, SHIP-001/002, MAIL-001, MARKET-001, ACCOUNT-001 or EXTEND-001 adds a provider.
 
   Current evidence: `LICENSE`; `package.json`; `src/stall/ui/connect-forms.tsx`; `tests/api/commerce.test.mjs`; `tests/ui/journey.mjs`. MIT source/package, fresh public-clone install and named OPEN-001 HTTP journey: 200 published products, 10 signed-in staff and 1,000 paid/reserved USD orders with exact totals and no author fee/destination. Settings names Stripe/Pier and links processing, license and hosting pricing before saving; postage is explicitly separate. The no-gate and provider-disclosure requirements continue to apply when future capabilities/providers ship; no absent shipping-label connector is claimed.
 
@@ -344,4 +344,4 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
 Provider credentials, approvals and original idempotency references must stay local and private. No current proof claims live provider acceptance, inbox receipt, physical delivery, WCAG conformance, load capacity or operating cost. The target requires those measurements as applicable rather than excluding their features. No test or contract check may be weakened to make these documents pass.
 
-Target clause totals: **10 done / 30 partial / 37 missing** (77 total).
+Target clause totals: **11 done / 29 partial / 37 missing** (77 total).
