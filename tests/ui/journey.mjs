@@ -93,7 +93,7 @@ try {
  await page.goto(site+'/docs/products')
  await capture('CATALOG-001-guide',page.getByRole('heading',{name:'Optional product details',exact:true}))
  await page.goto(site+'/contract')
- await capture('CATALOG-001-contract',page.getByText(/Current metadata semantics:/).first())
+ await capture('CATALOG-001-contract',page.getByRole('row').filter({hasText:'Products, variants and media'}))
  await page.goto(origin);await capture('lobby')
  await page.route('**/signin', async route => { const response = await h.request('/signin', { as: '' }); await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: await response.text() }) });
  await page.goto(origin+'/signin');await page.getByRole('heading',{name:'Sign in to Stall'}).waitFor();await capture('signin')
