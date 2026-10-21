@@ -129,7 +129,7 @@ try {
  await page.getByRole('group', { name: 'Color' }).getByRole('button', { name: 'Red', exact: true }).click()
  await page.locator('.st-pdp-price', { hasText: '$26.00' }).waitFor()
  assert.ok((await page.locator('.st-pdp-price').innerText()).includes('$35.00'))
- assert.equal(await hero.getAttribute('alt'), 'Back of the tee', 'the variant shows its own image')
+ await page.locator('.st-gallery > img[alt="Back of the tee"]').waitFor() // the variant shows its own image
  await page.getByText('S chest 92 cm · M chest 98 cm', { exact: true }).waitFor()
  await page.getByLabel(/^Engraving/).fill('x'.repeat(21))
  await page.getByText('21/20 characters — too long').waitFor()
