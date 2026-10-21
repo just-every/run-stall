@@ -93,3 +93,9 @@ export async function purchase(h,edge,{skus=['MUG-BLUE','TOWEL-NAT'],email='cust
  assert.ok(session);
  return {...value,session,key};
 }
+/** Send raw bytes to a door that takes a file body (the harness's request helper sends JSON). */
+export function sendFile(h,path,bytes,type,{as=h.cookie,origin=h.origin,method='POST'}={}) {
+ return h.mf.dispatchFetch(h.origin+path,{method,redirect:'manual',headers:{host:new URL(h.origin).host,'content-type':type,...(origin?{origin}:{}),...(as?{cookie:as}:{})},body:bytes});
+}
+export const png=(size=64,fill=1)=>Buffer.concat([Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]),Buffer.alloc(size,fill)]);
+export const pdf=(size=64)=>Buffer.concat([Buffer.from('%PDF-1.4\n'),Buffer.alloc(size,32)]);

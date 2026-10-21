@@ -1,8 +1,8 @@
 // Test-only stock-provider network boundary for OPEN-001's uncapped volume
 // journey. The real Pier integration remains in commerce.test.mjs's first test.
 import assert from 'node:assert/strict';
-export function volumeStock() {
- const items=Array.from({length:200},(_,i)=>({id:`item-${i}`,sku:`MAKER-${i}`,archived:false}));
+export function volumeStock(skus=Array.from({length:200},(_,i)=>`MAKER-${i}`)) {
+ const items=skus.map((sku,i)=>({id:`item-${i}`,sku,archived:false}));
  const orders=new Map(),payments=new Map();
  async function forward(request) {
   const url=new URL(request.url);

@@ -4,7 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { installation, archive, restore } from './harness.mjs'
 import { pierInstallation } from './pier.mjs'
-import { stripeEdge, deliverWebhook, publish, purchase } from './network.mjs'
+import { stripeEdge, deliverWebhook, publish, purchase, sendFile, png, pdf } from './network.mjs'
 import { readCsv } from './csv-reader.mjs'
 const state=h=>h.api('/api/stall/state')
 
@@ -319,5 +319,87 @@ test('CATALOG-001: exact approved metadata stays private until publication, rend
   await h.command('product.approve',{sku:source.id,revision:cleared.revision})
   const unblocked=await h.api('/api/stall/imports/preview',{csv})
   assert.equal(unblocked.counts.mapped,1)
+ } finally {await destination?.close();await h?.close();await pier.close()}
+})
+
+test('CATALOG-001: personalization is validated, priced and carried to the order, packing slip, confirmation, exports and erasure',async()=>{
+ const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex')
+ let h,destination
+ try {
+  h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle})
+  const fields=[{key:'engraving',label:'Engraving',type:'text',maxLength:20,addOnCents:500},{key:'artwork',label:'Artwork',type:'file',fileTypes:['png','pdf'],maxBytes:2000},{key:'glaze',label:'Glaze',type:'choice',choices:['Matte','Gloss'],required:true}]
+  const payload={sku:'MUG-BLUE',name:'Glazed mug',description:'Cobalt glaze',unitCents:2450,active:true,details:{personalization:fields}}
+  for(const invalid of [[{...fields[0],maxLength:0}],[{...fields[1],fileTypes:['exe']}],[{...fields[1],maxBytes:700001}],[{...fields[2],choices:['Only']}],[{...fields[0],addOnCents:-1}],[fields[0],fields[0]],[{key:'x',label:'X',type:'photo'}]])
+   await h.command('product.prepare',{...payload,details:{personalization:invalid}},{status:400})
+  const prepared=await h.command('product.prepare',payload)
+  await h.command('product.approve',{sku:'MUG-BLUE',revision:prepared.revision})
+  const shop=await h.api('/api/stall/catalogue',undefined,{as:''})
+  assert.deepEqual(shop.items[0].personalization,fields)
+  const artwork=(name='logo.png',bytes=png(500),type='image/png',opts)=>sendFile(h,`/api/stall/personalization/upload?sku=MUG-BLUE&field=artwork&name=${encodeURIComponent(name)}`,bytes,type,{as:'',...opts})
+  for(const [name,bytes,type,opts,status] of [['a.txt',Buffer.from('plain'),'text/plain',{},415],['a.pdf',png(),'application/pdf',{},415],['a.jpg',Buffer.from([0xff,0xd8,0xff,0xe0,1,2,3]),'image/jpeg',{},415],['big.png',png(2001),'image/png',{},413],['logo.png',png(),'image/png',{origin:'https://elsewhere.test'},403],['empty.png',Buffer.alloc(0),'image/png',{},400]])
+   assert.equal((await artwork(name,bytes,type,opts)).status,status,name)
+  assert.equal((await sendFile(h,'/api/stall/personalization/upload?sku=MUG-BLUE&field=engraving',png(),'image/png',{as:''})).status,404)
+  assert.equal((await sendFile(h,'/api/stall/personalization/upload?sku=TOWEL-NAT&field=artwork',png(),'image/png',{as:''})).status,404)
+  const upload=await (await artwork()).json(),other=await (await artwork('proof.pdf',pdf(),'application/pdf')).json()
+  assert.equal(upload.name,'logo.png')
+  const answers={engraving:'Happy 40th, Sam',artwork:upload.fileId,glaze:'Matte'}
+  const check=(personalization,opts={})=>h.api('/api/stall/catalogue/validate',{sku:'MUG-BLUE',quantity:2,personalization},{as:'',...opts})
+  for(const bad of [{...answers,engraving:'x'.repeat(21)},{...answers,engraving:'line\nbreak'},{...answers,stamp:'new'},{...answers,glaze:'Neon'},{engraving:'Only text'},{...answers,artwork:randomUUID()},{...answers,engraving:7}])
+   assert.equal((await check(bad,{status:400})).error.code,'PERSONALIZATION')
+  await check(answers,{status:403,headers:{origin:'https://elsewhere.test'}})
+  const priced=await check(answers)
+  assert.deepEqual([priced.unitCents,priced.addOnCents,priced.lineTotalCents],[2950,500,5900])
+  assert.deepEqual(priced.personalization.map(a=>[a.label,a.value,a.addOnCents]),[['Engraving','Happy 40th, Sam',500],['Artwork','logo.png',0],['Glaze','Matte',0]])
+  const buy=(personalization,email)=>h.api('/api/stall/checkout',{customerEmail:email,lines:[{sku:'MUG-BLUE',quantity:2,personalization}],idempotencyKey:randomUUID()},{as:''})
+  const total=2*2950+shop.shippingCents
+  assert.equal((await h.api('/api/stall/checkout',{customerEmail:'sam@example.test',lines:[{sku:'MUG-BLUE',quantity:2,personalization:answers}],expectedTotalCents:2*2450+shop.shippingCents,idempotencyKey:randomUUID()},{as:'',status:409})).error.code,'PRICE_CHANGED')
+  const bought=await h.api('/api/stall/checkout',{customerEmail:'sam@example.test',lines:[{sku:'MUG-BLUE',quantity:2,personalization:answers}],expectedTotalCents:total,idempotencyKey:randomUUID()},{as:''})
+  const session=[...edge.sessions.values()].find(value=>value.client_reference_id===bought.orderId)
+  assert.equal(session.amount_total,total)
+  assert.equal((await h.api('/api/stall/checkout',{customerEmail:'sam@example.test',lines:[{sku:'MUG-BLUE',quantity:1,personalization:answers}],idempotencyKey:randomUUID()},{as:'',status:400})).error.code,'PERSONALIZATION','a claimed file cannot be reused')
+  assert.equal((await deliverWebhook(h,secret,edge.pay(session.id))).response.status,200)
+  let placed=(await state(h)).orders.find(value=>value.id===bought.orderId)
+  assert.deepEqual([placed.status,placed.totalCents,placed.lines[0].unitCents,placed.lines[0].addOnCents,placed.confirmation.status],['reserved',total,2950,500,'sent'])
+  assert.deepEqual(placed.lines[0].personalization.map(a=>[a.key,a.value,a.addOnCents]),[['engraving','Happy 40th, Sam',500],['artwork','logo.png',0],['glaze','Matte',0]])
+  const mail=h.messages.findLast(message=>JSON.stringify(message.to).includes('sam@example.test'))
+  for(const part of ['2 × Glazed mug','Engraving: Happy 40th, Sam (+$5.00 each)','Artwork: logo.png','Glaze: Matte',`Total: $${(total/100).toFixed(2)}`]) assert.ok(mail.text.includes(part),part)
+  assert.equal(h.messages.filter(message=>JSON.stringify(message.to).includes('sam@example.test')).length,1)
+  // The staff packing slip shows every selection with its add-on price and a private link to the file.
+  const slip=await h.request('/api/stall/packing-slip?orderId='+bought.orderId)
+  const html=await slip.text()
+  assert.equal(slip.status,200);assert.match(slip.headers.get('content-type'),/text\/html/)
+  for(const part of ['Happy 40th, Sam','+$5.00 each',`/api/stall/uploads/${upload.fileId}`,'Matte','MUG-BLUE']) assert.ok(html.includes(part),part)
+  assert.equal((await h.request('/api/stall/packing-slip?orderId='+bought.orderId,{as:''})).status,401)
+  // A second order proves hostile engraving text stays inert in mail and on the slip.
+  const hostile=await buy({engraving:'A&B <i>x</i>',glaze:'Gloss'},'maker@example.test')
+  assert.equal((await deliverWebhook(h,secret,edge.pay([...edge.sessions.values()].find(value=>value.client_reference_id===hostile.orderId).id))).response.status,200)
+  const hostileHtml=await (await h.request('/api/stall/packing-slip?orderId='+hostile.orderId)).text()
+  assert.ok(hostileHtml.includes('A&#38;B &#60;i&#62;x&#60;/i&#62;')&&!hostileHtml.includes('<i>x'))
+  // Private file: staff only, and only once an order has claimed it.
+  const stored=await h.request('/api/stall/uploads/'+upload.fileId)
+  assert.equal(stored.status,200);assert.match(stored.headers.get('content-disposition'),/attachment/)
+  assert.deepEqual(Buffer.from(await stored.arrayBuffer()),png(500))
+  assert.equal((await h.request('/api/stall/uploads/'+upload.fileId,{as:''})).status,401)
+  assert.equal((await h.request('/api/stall/uploads/'+other.fileId)).status,404)
+  assert.ok(!JSON.stringify(await h.api('/api/stall/catalogue',undefined,{as:''})).includes(upload.fileId))
+  // Exports and archives carry the personalization; the private file travels in the archive.
+  const rows=readCsv(await (await h.request('/api/stall/exports/lines')).text()).find(row=>row.orderId===bought.orderId)
+  assert.equal(JSON.parse(rows.personalization)[0].value,'Happy 40th, Sam');assert.equal(rows.addOnCents,'500')
+  const records=await h.api('/api/stall/exports/records')
+  assert.equal(records.orders.find(value=>value.id===bought.orderId).lines[0].personalization[1].value,'logo.png')
+  assert.ok(!JSON.stringify(records).includes(upload.fileId))
+  const saved=await archive(h)
+  destination=await installation()
+  await restore(destination,saved)
+  assert.deepEqual(Buffer.from(await (await destination.request('/api/stall/uploads/'+upload.fileId)).arrayBuffer()),png(500))
+  // Erasure removes the customer's file but keeps the commercial line and its price.
+  let shipping=(await state(h)).orders.find(value=>value.id===bought.orderId)
+  shipping=await h.command('shipment.prepare',{orderId:shipping.id,revision:shipping.revision,reference:'AU-TRACK-2001'})
+  await h.command('shipment.approve',{orderId:shipping.id,revision:shipping.revision})
+  await h.command('customer.erase',{email:'sam@example.test',confirm:'ERASE'})
+  assert.equal((await h.request('/api/stall/uploads/'+upload.fileId)).status,404)
+  placed=(await state(h)).orders.find(value=>value.id===bought.orderId)
+  assert.deepEqual([placed.customerEmail,placed.lines[0].unitCents,placed.lines[0].personalization[1].value,placed.lines[0].personalization[1].fileId,placed.lines[0].personalization[0].value],[null,2950,'Erased with customer files',undefined,'Happy 40th, Sam'])
+  assert.ok(!JSON.stringify(await archive(h)).includes(Buffer.from(png(500)).toString('base64')))
  } finally {await destination?.close();await h?.close();await pier.close()}
 })

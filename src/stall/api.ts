@@ -37,7 +37,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   const env=base.RER_DEMO==='1'?base:await withConnections(base)
   if(path==='/api/stall/webhook'&&request.method==='POST') return json(await webhook(request,env))
   if(path==='/api/stall/catalogue'&&request.method==='GET') return json(await catalogue(env))
-  if(path.startsWith('/api/stall/media/')&&request.method==='GET') return mediaResponse(env,request,decodeURIComponent(path.slice(17)))
+  if(path.startsWith('/api/stall/media/')&&request.method==='GET') return await mediaResponse(env,request,decodeURIComponent(path.slice(17)))
   if(path==='/api/stall/personalization/upload'&&request.method==='POST') return json(await uploadPersonalization(env,request))
   if(path==='/api/stall/catalogue/validate'&&request.method==='POST') {
    if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own product page.',403)
@@ -55,8 +55,8 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   requireSupplier(actor)
   if(!['GET','HEAD'].includes(request.method)&&request.headers.get('origin')!==env.AUTH_ORIGIN&&(!actor.agent||request.headers.has('origin'))) fail('ORIGIN','Use this installation’s own page to change records.',403)
   if(path==='/api/stall/media'&&request.method==='POST') return json(await uploadMedia(env,actor,request))
-  if(path.startsWith('/api/stall/uploads/')&&request.method==='GET') { requirePerson(actor);return uploadResponse(env,decodeURIComponent(path.slice(19))) }
-  if(path==='/api/stall/packing-slip'&&request.method==='GET') { requirePerson(actor);return packingSlip(env.DB,text(new URL(request.url).searchParams.get('orderId'),'Order')) }
+  if(path.startsWith('/api/stall/uploads/')&&request.method==='GET') { requirePerson(actor);return await uploadResponse(env,decodeURIComponent(path.slice(19))) }
+  if(path==='/api/stall/packing-slip'&&request.method==='GET') { requirePerson(actor);return await packingSlip(env.DB,text(new URL(request.url).searchParams.get('orderId'),'Order')) }
   if(path==='/api/stall/operations'&&request.method==='GET') {
    requirePerson(actor);await live(env,actor)
    return json(await operationsSnapshot(env))

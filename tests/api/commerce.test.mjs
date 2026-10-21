@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import { randomBytes,randomUUID } from 'node:crypto';
 import { installation,archive,restore } from './harness.mjs';
 import { pierInstallation } from './pier.mjs';
-import { stripeEdge,deliverWebhook,publish,purchase } from './network.mjs';
+import { stripeEdge,deliverWebhook,publish,purchase,sendFile,png } from './network.mjs';
 import { volumeStock } from './volume-stock.mjs';
+import { readCsv } from './csv-reader.mjs';
 const state=h=>h.api('/api/stall/state');
 const order=async(h,id)=>(await state(h)).orders.find(o=>o.id===id);
 async function reviseProduct(h,sku,name,unitCents) {
@@ -541,5 +542,93 @@ test('ORDER-001: time zones and revision-checked staff assignments survive trans
   await destination.command('order.assign',{...payload,revision:restored.orders.find(o=>o.id===original.id).revision},{status:400});
   await destination.api('/api/stall/state',undefined,{as:member,status:401});
   assert.equal(edge.sessions.size,2);
+ }finally{if(destination)await destination.close();await h.close()}
+});
+
+test('CATALOG-001: variants, galleries, handles and listing states sell the exact variant and keep immutable order history',async()=>{
+ const stock=volumeStock(['TEE-S-RED','TEE-M-RED','TEE-M-BLUE','HAT-1','TEE-XL']),edge=stripeEdge({forward:stock.forward}),secret=randomBytes(32).toString('hex');
+ const h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'test-stock-network-edge',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle});
+ let destination;
+ try {
+  const upload=async(bytes,type,opts)=>sendFile(h,'/api/stall/media',bytes,type,opts);
+  const front=await (await upload(png(80,1),'image/png')).json(),back=await (await upload(png(90,2),'image/png')).json();
+  assert.equal(front.kind,'image');
+  const member=await h.signIn('catalog-member@example.test');
+  for(const [bytes,type,opts,status] of [[Buffer.from('not an image'),'image/png',{},415],[png(),'image/jpeg',{},415],[png(700001),'image/png',{},413],[png(),'image/png',{as:''},401],[png(),'image/png',{as:member},403],[png(),'image/png',{origin:'https://elsewhere.test'},403]])
+   assert.equal((await upload(bytes,type,opts)).status,status);
+  const details={costCents:900,weightGrams:200,dimensionsMm:{length:300,width:200,height:20},taxCategory:'apparel',hsCode:'610910',countryOfOrigin:'PT',customsDescription:'Cotton t-shirt',handle:'linen-tee',compareAtCents:3500,categories:['Tops'],tags:['summer','cotton'],attributes:[{name:'Material',value:'Organic cotton'}],
+   customFields:[{key:'size_chart',label:'Size chart',type:'text',value:'S chest 92 cm · M chest 98 cm'}],media:[{id:front.id,kind:'image',alt:'Front of the tee'},{id:back.id,kind:'image',alt:'Back of the tee'}],
+   options:[{name:'Size',values:['S','M']},{name:'Color',values:['Red','Blue']}],
+   variants:[{sku:'TEE-S-RED',options:{Size:'S',Color:'Red'}},{sku:'TEE-M-RED',options:{Size:'M',Color:'Red'},unitCents:2600,weightGrams:210,mediaId:back.id},{sku:'TEE-M-BLUE',options:{Size:'M',Color:'Blue'},customsDescription:'Blue cotton t-shirt'}]};
+  const payload={sku:'TEE',name:'Linen tee',description:'Soft and light',unitCents:2500,active:true,details};
+  const variants=details.variants;
+  for(const invalid of [
+   {...details,variants:[{...variants[0],options:{Size:'XL',Color:'Red'}}]},{...details,variants:[variants[0],{...variants[0],sku:'OTHER'}]},{...details,variants:[variants[0],{...variants[1],sku:'TEE-S-RED'}]},
+   {...details,variants:[{...variants[0],options:{Size:'S'}}]},{...details,handle:'Linen Tee'},{...details,media:[{id:front.id,kind:'image',alt:''}]},{...details,variants:[{...variants[0],mediaId:randomUUID()}]},
+   {...details,options:undefined,variants:undefined,personalization:[{key:'x',label:'X',type:'file',fileTypes:['exe'],maxBytes:100}]},{...details,secret:'x'},
+  ]) await h.command('product.prepare',{...payload,details:invalid},{status:400});
+  await h.command('product.prepare',{...payload,details:{...details,compareAtCents:2500}},{status:400});
+  await h.command('product.prepare',{...payload,details:{...details,media:[{id:randomUUID(),kind:'image',alt:'Missing'}],variants:variants.map(({mediaId,...rest})=>rest)}},{status:409});
+  const prepared=await h.command('product.prepare',payload);
+  assert.deepEqual((await h.api('/api/stall/catalogue',undefined,{as:''})).items,[]);
+  assert.equal((await h.request('/api/stall/media/'+front.id,{as:''})).status,404);
+  assert.equal((await h.request('/api/stall/media/'+front.id)).status,200,'staff preview an unpublished file');
+  await h.command('product.prepare',{sku:'MISSING-PIER',name:'No stock',description:'',unitCents:100,active:true,details:{options:[{name:'Size',values:['S']}],variants:[{sku:'NOT-IN-PIER',options:{Size:'S'}}]}});
+  await h.command('product.approve',{sku:'MISSING-PIER',revision:(await state(h)).products.find(p=>p.id==='MISSING-PIER').revision},{status:409});
+  const published=await h.command('product.approve',{sku:'TEE',revision:prepared.revision});
+  assert.deepEqual(published.value.details,details);
+  const shop=await h.api('/api/stall/catalogue',undefined,{as:''});
+  assert.deepEqual(shop.items.map(item=>[item.sku,item.name,item.unitCents,item.compareAtCents]),[['TEE-S-RED','Linen tee — S / Red',2500,3500],['TEE-M-RED','Linen tee — M / Red',2600,3500],['TEE-M-BLUE','Linen tee — M / Blue',2500,3500]]);
+  const page=shop.products.find(product=>product.sku==='TEE');
+  assert.deepEqual([page.handle,page.categories,page.tags,page.attributes,page.options.length,page.customFields[0].label],['linen-tee',['Tops'],['summer','cotton'],[{name:'Material',value:'Organic cotton'}],2,'Size chart']);
+  assert.deepEqual(page.media.map(item=>[item.alt,item.url]),[['Front of the tee','/api/stall/media/'+front.id],['Back of the tee','/api/stall/media/'+back.id]]);
+  assert.equal(shop.items[1].variant.mediaId,back.id);
+  for(const field of ['costCents','taxCategory','hsCode','weightGrams','customsDescription']) assert.ok(!JSON.stringify(shop).includes(field));
+  const file=await h.request('/api/stall/media/'+front.id,{as:''});
+  assert.equal(file.status,200);assert.equal(file.headers.get('content-type'),'image/png');assert.equal(file.headers.get('x-content-type-options'),'nosniff');
+  assert.deepEqual(Buffer.from(await file.arrayBuffer()),png(80,1));
+  // Another product may not take this product's SKU or handle.
+  await h.command('product.prepare',{sku:'TEE-M-BLUE',name:'Clash',description:'',unitCents:100,active:true},{status:409});
+  await h.command('product.prepare',{sku:'OTHER-TEE',name:'Clash',description:'',unitCents:100,active:true,details:{handle:'linen-tee'}},{status:409});
+  // Buy two exact variants; the order records each selection at the price paid.
+  const total=2600+2500+shop.shippingCents;
+  const bought=await purchase(h,edge,{skus:['TEE-M-RED','TEE-S-RED'],quantities:[1,1],expectedTotalCents:total});
+  assert.equal((await deliverWebhook(h,secret,edge.pay(bought.session.id))).response.status,200);
+  const lines=(await order(h,bought.orderId)).lines;
+  assert.deepEqual(lines.map(line=>[line.sku,line.name,line.productSku,line.variant,line.unitCents]),[['TEE-M-RED','Linen tee — M / Red','TEE',{Size:'M',Color:'Red'},2600],['TEE-S-RED','Linen tee — S / Red','TEE',{Size:'S',Color:'Red'},2500]]);
+  // Change the current price, then archive one variant: history keeps what was bought.
+  const revised=await h.command('product.prepare',{...payload,revision:published.revision,unitCents:3000,details:{...details,compareAtCents:4000,variants:[{...variants[0],archived:true},{...variants[1],unitCents:3200},variants[2]]}});
+  await h.command('product.approve',{sku:'TEE',revision:revised.revision});
+  const after=await h.api('/api/stall/catalogue',undefined,{as:''});
+  assert.deepEqual(after.items.map(item=>[item.sku,item.unitCents]),[['TEE-M-RED',3200],['TEE-M-BLUE',3000]]);
+  await h.command('order.reconcile',{orderId:bought.orderId});
+  assert.deepEqual((await order(h,bought.orderId)).lines.map(line=>[line.sku,line.unitCents,line.description]),[['TEE-M-RED',2600,'Soft and light'],['TEE-S-RED',2500,'Soft and light']]);
+  assert.equal((await h.api('/api/stall/checkout',{customerEmail:'late@example.test',lines:[{sku:'TEE-S-RED',quantity:1}],idempotencyKey:randomUUID()},{as:'',status:409})).error.code,'PRODUCT');
+  // Exports and archives carry variants, media references and the purchased selection.
+  const exported=await h.api('/api/stall/exports/records');
+  assert.equal(exported.products.find(p=>p.id==='TEE').value.details.variants.length,3);
+  assert.equal(exported.orders[0].lines[0].variant.Size,'M');
+  assert.match(readCsv(await (await h.request('/api/stall/exports/lines')).text())[0].variant,/Size/);
+  destination=await installation();
+  await restore(destination,await archive(h));
+  assert.deepEqual((await destination.api('/api/stall/exports/records')).products,exported.products);
+  assert.deepEqual(Buffer.from(await (await destination.request('/api/stall/media/'+front.id,{as:''})).arrayBuffer()),png(80,1));
+  // Scheduling: invisible until its time, then live without another approval; archive withdraws it.
+  const soon=new Date(Date.now()+2500).toISOString();
+  await h.command('product.prepare',{sku:'HAT-1',name:'Wool hat',description:'Warm',unitCents:1800,active:false,publishAt:soon},{status:400});
+  const hat=await h.command('product.prepare',{sku:'HAT-1',name:'Wool hat',description:'Warm',unitCents:1800,active:true,publishAt:soon});
+  const scheduled=await h.command('product.approve',{sku:'HAT-1',revision:hat.revision});
+  assert.equal(scheduled.value.publishAt,soon);
+  assert.ok(!(await h.api('/api/stall/catalogue',undefined,{as:''})).items.some(item=>item.sku==='HAT-1'));
+  await new Promise(resolve=>setTimeout(resolve,2600));
+  assert.ok((await h.api('/api/stall/catalogue',undefined,{as:''})).items.some(item=>item.sku==='HAT-1'));
+  const retired=await h.command('product.prepare',{sku:'HAT-1',name:'Wool hat',description:'Warm',unitCents:1800,archived:true,revision:scheduled.revision});
+  await h.command('product.approve',{sku:'HAT-1',revision:retired.revision});
+  assert.ok(!(await h.api('/api/stall/catalogue',undefined,{as:''})).items.some(item=>item.sku==='HAT-1'));
+  const archivedTee=await h.command('product.prepare',{sku:'TEE',revision:(await state(h)).products.find(p=>p.id==='TEE').revision,name:'Linen tee',description:'Soft and light',unitCents:3000,archived:true});
+  await h.command('product.approve',{sku:'TEE',revision:archivedTee.revision});
+  assert.deepEqual((await h.api('/api/stall/catalogue',undefined,{as:''})).items,[]);
+  assert.equal((await h.request('/api/stall/media/'+front.id,{as:''})).status,404);
+  assert.equal((await order(h,bought.orderId)).lines[0].name,'Linen tee — M / Red');
  }finally{if(destination)await destination.close();await h.close()}
 });
