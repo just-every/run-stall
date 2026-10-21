@@ -104,6 +104,16 @@ try {
  assert.equal(await page.getByRole('link',{name:'Stripe pricing',exact:true}).getAttribute('href'),'https://stripe.com/pricing')
  assert.ok(await page.getByRole('form',{name:'Connect Pier'}).getByRole('link',{name:'Cloudflare hosting pricing'}).count())
  await capture('OPEN-001-provider-costs','#connections')
+ // ORDER-001: invalid settings retain the input; saved zones drive the whole desk.
+ await page.getByLabel('Time zone',{exact:true}).fill('Mars/Crater')
+ await page.getByRole('button',{name:'Save time zone',exact:true}).click()
+ await page.getByText('Choose a supported IANA time zone, such as America/Chicago.',{exact:true}).waitFor()
+ assert.equal(await page.getByLabel('Time zone',{exact:true}).inputValue(),'Mars/Crater')
+ await page.getByLabel('Time zone',{exact:true}).fill('Pacific/Auckland')
+ await page.getByRole('button',{name:'Save time zone',exact:true}).click()
+ await page.waitForFunction(()=>!document.querySelector('form[aria-label="Shop time zone"] button:disabled'))
+ assert.equal((await h.api('/api/stall/state')).timeZone,'Pacific/Auckland')
+ await capture('ORDER-001-time-zone',page.getByRole('form',{name:'Shop time zone'}))
  await page.getByLabel('Domestic shipping · USD',{exact:true}).fill('6.25')
  await page.getByRole('button',{name:'Save shipping charge',exact:true}).click()
  await page.waitForFunction(()=>!document.querySelector('form[aria-label="Shipping charge"] button:disabled'))
@@ -187,6 +197,21 @@ try {
  await page.locator('#orders .st-order-id').first().waitFor()
  await capture('home')
  await page.locator('#orders .st-order-id').first().click()
+ // Assign a real active teammate through the desk; reload proves persistence.
+ const teammateCookie=await h.signIn('packer@example.test')
+ const teammate=(await h.api('/auth/session',undefined,{as:teammateCookie})).operator
+ await page.getByRole('button',{name:'Refresh shop',exact:true}).click()
+ await page.getByLabel('Assign to',{exact:true}).selectOption(teammate.id)
+ await page.getByRole('button',{name:'Save assignment',exact:true}).click()
+ await page.getByText('Trade buyer. Assignment does not change access permissions.',{exact:true}).waitFor()
+ await page.reload()
+ await page.locator('#orders .st-order-id').first().click()
+ assert.equal(await page.getByLabel('Assign to',{exact:true}).inputValue(),teammate.id)
+ await page.getByText('Assignment history',{exact:true}).click()
+ await capture('ORDER-001-assignment',page.getByRole('form',{name:'Order assignment'}))
+ const savedOrder=(await h.api('/api/stall/state')).orders[0]
+ const expectedTime=new Intl.DateTimeFormat('en-US',{timeZone:'Pacific/Auckland',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}).format(new Date(savedOrder.createdAt))
+ await page.getByText('Ordered '+expectedTime,{exact:true}).waitFor()
  await page.getByLabel('Shipping reference').fill('USPS 9400 1000 0000 0000 0000 01')
  await page.getByRole('button',{name:'Prepare shipping for approval',exact:true}).click()
  await page.getByRole('button',{name:/Approve shipping · revision/}).waitFor()
@@ -291,6 +316,8 @@ try {
  await page.getByRole('button',{name:'Restore reviewed archive',exact:true}).click()
  await page.getByText('Archive restored. Review provider connections before taking orders.',{exact:true}).waitFor()
  assert.equal((await h.api('/api/stall/state')).orders[0].refunds[0].status,'succeeded')
+ assert.equal((await h.api('/api/stall/state')).timeZone,'Pacific/Auckland')
+ assert.equal((await h.api('/api/stall/state')).orders[0].assignments[0].assigneeId,teammate.id)
  await capture('data-restored','#portability')
  // Keep the restored transport alive until browser routes have drained.
  h=original

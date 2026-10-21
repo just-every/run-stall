@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes,randomUUID } from 'node:crypto';
-import { installation } from './harness.mjs';
+import { installation,archive,restore } from './harness.mjs';
 import { pierInstallation } from './pier.mjs';
 import { stripeEdge,deliverWebhook,publish,purchase } from './network.mjs';
 import { volumeStock } from './volume-stock.mjs';
@@ -341,4 +341,63 @@ test('AGENT-001: agents prepare exact product, shipment and refund drafts; only 
   await h.command('product.prepare',{sku:'EXPIRED',name:'Must not exist',description:'',unitCents:100,active:false},{...expired,status:401});
   assert.ok(!(await state(h)).products.some(p=>p.id==='EXPIRED'));
  }finally {await h.close();await pier.close();}
+});
+
+// ORDER-001 adds responsibility and local presentation without changing commercial facts.
+test('ORDER-001: time zones and revision-checked staff assignments survive transfer without granting authority',async()=>{
+ const stock=volumeStock(),edge=stripeEdge({forward:stock.forward}),secret=randomBytes(32).toString('hex');
+ const h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'test-stock-network-edge',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle});
+ let destination;
+ try {
+  const member=await h.signIn('packer@example.test');
+  const staff=(await h.api('/auth/session',undefined,{as:member})).operator;
+  const owner=(await state(h)).actor;
+  await h.command('shop.configure',{timeZone:'Pacific/Auckland'});
+  assert.equal((await state(h)).timeZone,'Pacific/Auckland');
+  await h.command('shop.configure',{timeZone:'Mars/Crater'},{status:400});
+  await h.command('shop.configure',{timeZone:'+09:00'},{status:400});
+  await h.command('shop.configure',{timeZone:'Europe/London'},{as:member,status:403});
+  assert.equal((await state(h)).timeZone,'Pacific/Auckland');
+  await publish(h,stock.items[0].sku,'A handmade ceramic bowl',3000);
+  const bought=await purchase(h,edge,{skus:[stock.items[0].sku],quantities:[1]});
+  assert.equal((await deliverWebhook(h,secret,edge.pay(bought.session.id))).response.status,200);
+  const original=await order(h,bought.orderId),payload={orderId:original.id,revision:original.revision,assigneeId:staff.id};
+  await h.command('order.assign',payload,{as:'',status:401});
+  await h.command('order.assign',payload,{as:member,status:403});
+  const grant=await h.api('/api/stall/agent-token',{});
+  await h.command('order.assign',payload,{as:'',headers:{authorization:'Bearer '+grant.token},status:403});
+  await h.command('shop.configure',{timeZone:'UTC'},{as:'',headers:{authorization:'Bearer '+grant.token},status:403});
+  await h.command('order.assign',{...payload,assigneeId:'missing-staff'},{status:400});
+  const assigned=await h.command('order.assign',payload);
+  assert.equal(assigned.assignments[0].assigneeId,staff.id);
+  assert.equal(assigned.assignments[0].by,owner.id);
+  assert.ok(Number.isFinite(Date.parse(assigned.assignments[0].at)));
+  assert.deepEqual(assigned.lines,original.lines);
+  assert.deepEqual(assigned.payment,original.payment);
+  assert.deepEqual(assigned.reservation,original.reservation);
+  assert.equal(assigned.totalCents,original.totalCents);
+  await h.command('order.assign',{...payload,assigneeId:null},{status:409});
+  // Assignment does not give a member private reads or any approval authority.
+  await h.api('/api/stall/state',undefined,{as:member,status:403});
+  const unchanged=await h.command('order.assign',{...payload,revision:assigned.revision});
+  assert.deepEqual(unchanged.assignments,assigned.assignments);
+  const cleared=await h.command('order.assign',{...payload,revision:assigned.revision,assigneeId:null});
+  assert.deepEqual(cleared.assignments.map(a=>a.assigneeId),[staff.id,null]);
+  const saved=await h.command('order.assign',{...payload,revision:cleared.revision});
+  const exported=await h.api('/api/stall/exports/records');
+  assert.equal(exported.timeZone,'Pacific/Auckland');
+  assert.deepEqual(exported.orders[0].assignments,saved.assignments);
+  const logs=(await state(h)).audit.filter(a=>a.action==='order.assigned');
+  assert.equal(logs.length,3);
+  assert.ok(logs.every(a=>a.actor===owner.id&&a.subject===original.id&&Number.isFinite(Date.parse(a.at))));
+  destination=await installation();
+  await restore(destination,await archive(h));
+  const restored=await state(destination);
+  assert.equal(restored.timeZone,'Pacific/Auckland');
+  assert.deepEqual(restored.orders[0].assignments,saved.assignments);
+  assert.equal(restored.staff[staff.id],undefined);
+  await destination.command('order.assign',{...payload,revision:restored.orders[0].revision},{status:400});
+  await destination.api('/api/stall/state',undefined,{as:member,status:401});
+  assert.equal(edge.sessions.size,1);
+ }finally{if(destination)await destination.close();await h.close()}
 });

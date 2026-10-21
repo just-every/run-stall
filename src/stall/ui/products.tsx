@@ -6,7 +6,7 @@ import { HydrationUnit } from '../../base/hydration/unit'
 import type { Product, ProductValue, Run, State } from './types'
 import { money } from './api'
 import { Badge, Empty } from './primitives'
-import { businessTime, shortDate, shortId, shortTime, usePerson, When } from './presentation'
+import { shortId, useBusinessTime, usePerson, When } from './presentation'
 import { Icon } from './icons'
 import { BulkProducts } from './bulk-products'
 
@@ -33,6 +33,7 @@ function Editor({ editing, busy, run, done }: { editing: Product | null; busy: b
 }
 
 function ProductPanel({ product, preparedBy, busy, run, canApprove, onEdit }: { product: Product; preparedBy?: { actor: string; at: string }; busy: boolean; run: Run; canApprove: boolean; onEdit: () => void }) {
+  const { shortTime } = useBusinessTime()
   const person = usePerson(), draft = product.value.draft, agent = !!preparedBy?.actor.startsWith('agent:')
   return <div className="st-panel-body st-product">
     <div className="st-panel-head"><h2>{product.value.name}</h2><Badge value={statusOf(product)} /></div>
@@ -53,6 +54,7 @@ function ProductPanel({ product, preparedBy, busy, run, canApprove, onEdit }: { 
 
 /** `focus` is a SKU from a link (#products/<sku>). */
 export function ProductsView({ products, audit, focus, query, busy, run, canApprove, reload }: { products: Product[]; audit: State['audit']; focus?: string; query: string; busy: boolean; run: Run; canApprove: boolean; reload: () => Promise<void> }) {
+  const { businessTime, shortDate } = useBusinessTime()
   const [bulk, setBulk] = useState(false)
   const [tab, setTab] = useState<typeof productTabs[number][0]>('all'), [selectedId, setSelectedId] = useState(focus ?? ''), [editing, setEditing] = useState<Product | 'new' | null>(null)
   const panel = useRef<HTMLElement>(null)

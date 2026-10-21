@@ -9,6 +9,8 @@ import { ConnectPier, ConnectStripe } from './connect-forms'
 import { Operations } from './operations'
 import { BusinessExports } from './business-exports'
 import { ShippingCharge } from './shipping-charge'
+import { ShopTimeZone } from './time-zone'
+import { defaultTimeZone } from './presentation'
 import { ProviderBoundaries } from './provider-boundaries'
 
 const providerRows: Record<string, [string, string]> = { pier: ['Pier stock', 'Catalog stock, reservations and shipping'], stripe: ['Stripe checkout', 'Hosted checkout and refunds on your Stripe account'], webhook: ['Payment confirmations', 'Signed Stripe webhooks'] }
@@ -25,6 +27,7 @@ export function Settings({ state, owner, busy, run, reload }: { state: State; ow
       {owner && <><ProviderBoundaries /><ConnectPier state={state} busy={busy} run={run} /><ConnectStripe state={state} busy={busy} run={run} /></>}
       <ProviderLinks />
     </Section>
+    {!state.actor.agent && <ShopTimeZone timeZone={state.timeZone ?? defaultTimeZone} busy={busy} run={run} />}
     {owner && <ShippingCharge shippingCents={state.shippingCents ?? 0} busy={busy} run={run} />}
     <Operations />
     <Section title="Your account"><div className="st-row"><p>{state.people[state.actor.id] ?? state.actor.email}<small>{state.actor.email} · {state.actor.role}</small></p><a className="st-button st-secondary" href="/auth/settings/identity">Account settings</a></div></Section>

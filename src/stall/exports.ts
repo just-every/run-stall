@@ -1,5 +1,6 @@
 import { fail, shopCurrency, type Approval, type Order, type ProductValue } from './model'
 import { orders, products } from './store'
+import { businessTimeZone } from './preferences'
 import { stripeWork,workRecord } from './integration-work'
 import { pierWork,pierWorkRecord,pierWorkFields } from './pier-work'
 
@@ -29,6 +30,7 @@ function commercialOrder(order: Order) {
   id: order.id, revision: order.revision, customerEmail: order.customerEmail,
   totalCents: order.totalCents, shippingCents: order.shippingCents ?? 0, currency: order.currency, status: order.status,
   pierOrigin: order.pierOrigin, pierCustomerId: order.pierCustomerId,
+  assignments: order.assignments?.map(change=>({...fields(change,['id','assigneeId','by']),at:utc(change.at)})),
   createdAt: utc(order.createdAt), erasedAt: utc(order.erasedAt),
   shippingDetails: shipping ? { name: shipping.name, address: fields(shipping.address, ['line1', 'line2', 'city', 'state', 'postal_code', 'country']) } : undefined,
   checkout: order.checkout ? fields(order.checkout, ['id']) : undefined,
@@ -72,7 +74,7 @@ function reconciliation(order: Order) {
 const columns: Record<string, string[]> = {
  products: ['id', 'revision', 'state', 'sku', 'name', 'description', 'unitCents', 'currency', 'active', 'approval'],
  customers: ['email', 'orderCount', 'firstOrderAt', 'lastOrderAt', 'orderIds', 'currency', 'paidCents', 'refundedCents'],
- orders: ['id', 'revision', 'customerEmail', 'status', 'createdAt', 'erasedAt', 'totalCents', 'shippingCents', 'currency', 'shippingDetails', 'checkout', 'payment', 'reservation', 'shipment', 'refunds'],
+ orders: ['assignments', 'id', 'revision', 'customerEmail', 'status', 'createdAt', 'erasedAt', 'totalCents', 'shippingCents', 'currency', 'shippingDetails', 'checkout', 'payment', 'reservation', 'shipment', 'refunds'],
  lines: ['orderId', 'lineNumber', 'sku', 'name', 'itemId', 'quantity', 'unitCents', 'lineTotalCents', 'currency'],
  payments: ['orderId', 'sessionId', 'intentId', 'paidAt', 'amountCents', 'currency'],
  refunds: ['orderId', 'id', 'kind', 'taxTreatment', 'accountingCategory', 'amountCents', 'currency', 'reason', 'status', 'preparedBy', 'approval', 'startedAt', 'stripeId', 'lines'],
@@ -102,7 +104,7 @@ export async function businessExport(db: D1Database, kind: string): Promise<Resp
   'content-type': kind === 'records' ? 'application/json; charset=utf-8' : 'text/csv; charset=utf-8',
   'content-disposition': `attachment; filename="stall-${kind}.${kind === 'records' ? 'json' : 'csv'}"` }
  if (kind === 'records') return new Response(JSON.stringify({ schema: 'stall-business-export-v1', exportedAt: new Date().toISOString(),
-  currency: shopCurrency, products: productRecords, customers: customerRecords, orders: orderRecords, reconciliation: reconciliationRecords, stripeWork: workRecords, pierWork: pierRecords }, null, 2), { headers })
+  currency: shopCurrency, timeZone: await businessTimeZone(db), products: productRecords, customers: customerRecords, orders: orderRecords, reconciliation: reconciliationRecords, stripeWork: workRecords, pierWork: pierRecords }, null, 2), { headers })
  let rows: Row[]
  switch (kind) {
   case 'products': rows = productRecords.flatMap(product => [

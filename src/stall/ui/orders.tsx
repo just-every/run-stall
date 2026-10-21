@@ -6,7 +6,7 @@ import { HydrationUnit } from '../../base/hydration/unit'
 import type { Order, Run, State } from './types'
 import { money } from './api'
 import { Badge, Empty, Notice } from './primitives'
-import { businessTime, businessTimeZone, placeLine, shortId, timeZoneLabel, whenLabel, When } from './presentation'
+import { placeLine, shortId, useBusinessTime, When } from './presentation'
 import { agentDrafted, carrierOf, fulfilmentPill, itemCount, matches, needs, orderTabs, paymentPill, type OrderTab } from './order-status'
 import { OrderPanel } from './order-panel'
 import { Readiness } from './readiness'
@@ -20,6 +20,7 @@ const newest = (a: Order, b: Order) => b.createdAt.localeCompare(a.createdAt)
 const EmailLines = ({ email }: { email: string }) => { const at = email.indexOf('@'); return at < 0 ? <>{email}</> : <>{email.slice(0, at + 1)}<wbr />{email.slice(at + 1)}</> }
 
 function OrderRow({ order, selected, now, onSelect }: { order: Order; selected: boolean; now: number; onSelect: () => void }) {
+  const { businessTime, timeZoneLabel, whenLabel } = useBusinessTime()
   const [payment, paymentTone] = paymentPill(order), [fulfilment, fulfilmentTone] = fulfilmentPill(order), flagged = needs(order) !== null
   return <tr className={selected ? 'is-selected' : undefined} onClick={onSelect}>
     <td data-label="Order"><button className="st-order-id" aria-pressed={selected} onClick={event => { event.stopPropagation(); onSelect() }}>{flagged && <span className="st-flag" title="Needs a person" aria-hidden="true" />}<span className="st-sr-only">Order </span>{shortId(order.id)}</button></td>
@@ -35,6 +36,7 @@ function OrderRow({ order, selected, now, onSelect }: { order: Order; selected: 
 
 /** `focus` is an order id from a link (#orders/<id>), opened in the tab that holds it. */
 export function OrdersView({ state, focus, query, busy, run, canApprove, refresh }: { state: State; focus?: string; query: string; busy: boolean; run: Run; canApprove: boolean; refresh: () => void }) {
+  const { timeZone } = useBusinessTime()
   const { orders, audit } = state
   const tabFor = (id?: string) => { const order = orders.find(order => order.id === id); return order ? needs(order) ? 'needs' : 'all' : orders.some(order => needs(order)) ? 'needs' : 'all' }
   const [tab, setTab] = useState<OrderTab>(() => tabFor(focus))
@@ -60,7 +62,7 @@ export function OrdersView({ state, focus, query, busy, run, canApprove, refresh
   return <div className={`st-orders-layout${selected || !orders.length ? '' : ' is-single'}`} id="orders">
     <HydrationUnit><section className="st-orders" aria-labelledby="orders-title">
       <div className="st-view-head"><h1 id="orders-title">Orders</h1><button className="st-secondary" disabled={busy} onClick={refresh}>Refresh shop</button></div>
-      <p className="st-small">Times: {businessTimeZone}. {state.shipmentSync?.checkedAt && <>Shipping checked with Pier <When at={state.shipmentSync.checkedAt} />.</>}</p>
+      <p className="st-small">Times: {timeZone}. {state.shipmentSync?.checkedAt && <>Shipping checked with Pier <When at={state.shipmentSync.checkedAt} />.</>}</p>
       {state.shipmentSync?.error && <Notice error>Shipping could not be refreshed: {state.shipmentSync.error} Showing the last recorded shipment state.</Notice>}
       <nav className="st-tabs" aria-label="Order status">{orderTabs.map(item => { const count = item.counted ? orders.filter(item.keep).length : 0; return <button key={item.id} aria-current={tab === item.id ? 'true' : undefined} onClick={() => { setTab(item.id); setSelectedId('') }}>{item.label}{!!count && <span className="st-tab-count">{count}</span>}</button> })}</nav>
       {!orders.length ? <Empty><h3>No orders yet</h3><p>Orders placed through the public shop appear here. Payment is verified by Stripe before stock is reserved.</p></Empty>
@@ -71,7 +73,7 @@ export function OrdersView({ state, focus, query, busy, run, canApprove, refresh
         </table></div>}
     </section></HydrationUnit>
     {selected && <HydrationUnit><aside className="st-order-panel" ref={panel} aria-label={`Order ${shortId(selected.id)}`}>
-      <OrderPanel key={selected.id} order={selected} busy={busy} run={run} canApprove={canApprove}
+      <OrderPanel key={selected.id} order={selected} staff={state.staff ?? {}} busy={busy} run={run} canApprove={canApprove}
         previous={position > 0 ? () => select(shown[position - 1], false) : undefined}
         next={position >= 0 && position < shown.length - 1 ? () => select(shown[position + 1], false) : undefined}
         footer={<p className="st-agent-line"><Icon name="agent" /><span>Shop agent prepared work on {agentOrders} order{agentOrders === 1 ? '' : 's'} this week, <strong>{waiting ? `${waiting} need${waiting === 1 ? 's' : ''} you.` : 'nothing needs you.'}</strong></span></p>} />

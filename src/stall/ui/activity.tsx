@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react'
 import type { State } from './types'
 import { Empty, Section } from './primitives'
-import { ago, businessTime, clockTime, humanLabel, initials, shortId } from './presentation'
+import { ago, humanLabel, initials, shortId, useBusinessTime } from './presentation'
 import { Icon } from './icons'
 
 const pageSize = 50
@@ -14,6 +14,7 @@ const toneOf = (action: string): Tone => /failed|refused/.test(action) ? 'bad' :
 const partyOf = (action: string, actor: string) => actor === 'stripe' && action.startsWith('stock.') ? 'pier' : actor
 
 export function Activity({ state, query }: { state: State; query: string }) {
+  const { businessTime, clockTime } = useBusinessTime()
   const [shown, setShown] = useState(pageSize), [now, setNow] = useState(() => Date.now())
   useEffect(() => setNow(Date.now()), [state.audit])
   const actor = (id: string) => state.people[id] ?? (id === 'stripe' ? 'Stripe' : id === 'pier' ? 'Pier' : id === 'customer' ? 'Customer' : id.startsWith('agent:') ? 'Shop agent' : 'Shop operator')

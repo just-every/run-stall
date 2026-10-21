@@ -10,7 +10,7 @@ import { Activity } from './activity'
 import { Settings } from './settings'
 import { DeskShell, recordOf, viewOf, type DeskView } from './shell'
 import { needs, orderTabs } from './order-status'
-import { People } from './presentation'
+import { defaultTimeZone, People, TimeZone } from './presentation'
 
 const searchLabel: Partial<Record<DeskView, string>> = { orders: 'Search orders, customers, items', products: 'Search products or SKUs', history: 'Search activity, records or people' }
 const titles: Record<DeskView, string> = { orders: 'Orders', products: 'Products', 'move-in': 'Move in', history: 'Activity', settings: 'Settings' }
@@ -38,12 +38,12 @@ export function ShopDesk() {
   const actor = state && { name: state.people[state.actor.id] ?? state.actor.email, email: state.actor.email, role: state.actor.role }
   return <DeskShell view={view} counts={{ orders: open }} host={host} actor={actor ?? undefined} search={label ? { label, value: query, onChange: setQuery } : undefined}>
     <HydrationUnit><div className="st-messages" aria-live="polite">{loading && <p role="status" className="st-loading">Loading your shop…</p>}{error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}</div></HydrationUnit>
-    {state ? <People.Provider value={state.people}>
+    {state ? <TimeZone.Provider value={state.timeZone ?? defaultTimeZone}><People.Provider value={state.people}>
       {view === 'orders' && <OrdersView state={state} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} refresh={() => { setError(''); void reload().catch(error => setError(errorMessage(error))) }} />}
       {view === 'products' && <ProductsView products={state.products} audit={state.audit} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} reload={reload} />}
       {view === 'move-in' && (canApprove ? <MoveIn reload={reload} /> : <Section title="Move in from Shopify"><p>Only an owner or administrator can import products.</p></Section>)}
       {view === 'history' && <Activity state={state} query={query} />}
       {view === 'settings' && <Settings state={state} owner={owner} busy={busy} run={run} reload={reload} />}
-    </People.Provider> : !loading && <Section title="Shop desk unavailable"><p>Sign in with your operator account to manage this shop. If you are already signed in, resolve the error above and refresh.</p><a href="/signin?returnTo=%2Fapp">Sign in</a></Section>}
+    </People.Provider></TimeZone.Provider> : !loading && <Section title="Shop desk unavailable"><p>Sign in with your operator account to manage this shop. If you are already signed in, resolve the error above and refresh.</p><a href="/signin?returnTo=%2Fapp">Sign in</a></Section>}
   </DeskShell>
 }
