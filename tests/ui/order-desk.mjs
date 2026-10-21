@@ -9,6 +9,12 @@ export async function orderDeskJourney({page,h,edge,secret,origin,evidence}) {
   for(const width of [1440,390]) {
    await page.setViewportSize({width,height:1000})
    await locator.scrollIntoViewIfNeeded()
+   if(width===390) {
+    for(const row of await page.locator('#orders tbody tr').all()) {
+     const rects=await row.locator('td:nth-child(4),td:nth-child(6),td:nth-child(7)').evaluateAll(cells=>cells.map(cell=>{const r=cell.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom}}))
+     for(let a=0;a<rects.length;a++)for(let b=a+1;b<rects.length;b++)assert.ok(rects[a].right<=rects[b].x+1||rects[b].right<=rects[a].x+1||rects[a].bottom<=rects[b].y+1||rects[b].bottom<=rects[a].y+1,`${name}: mobile row fields overlap`)
+    }
+   }
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name} overflows at ${width}`)
    await page.screenshot({path:resolve(evidence,`ORDER-001a-${name}-${width}.png`),fullPage:true})
   }

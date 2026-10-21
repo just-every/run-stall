@@ -28,10 +28,10 @@ function OrderRow({ order, selected, now, onSelect }: { order: Order; selected: 
   return <tr className={selected ? 'is-selected' : undefined} onClick={onSelect}>
     <td data-label="Order"><button className="st-order-id" aria-pressed={selected} onClick={event => { event.stopPropagation(); onSelect() }}>{flagged && <span className="st-flag" title="Needs a person" aria-hidden="true" />}<span className="st-sr-only">Order </span>{shortId(order.id)}</button></td>
     <td data-label="Time" className="st-muted-cell"><time dateTime={order.createdAt} title={businessTime(order.createdAt)}>{whenLabel(order.createdAt, now)}<small>{timeZoneLabel(order.createdAt)}</small></time></td>
-    <td data-label="Customer" className="st-customer"><span className="st-customer-name">{order.shippingDetails?.name ?? (order.customerEmail ? <EmailLines email={order.customerEmail} /> : 'Customer details erased')}</span><small>{placeLine(order.shippingDetails?.address) || (order.shippingDetails ? '' : order.customerEmail ? 'No address yet' : '')}</small></td>
+    <td data-label="Customer" className="st-customer"><span className="st-customer-name">{order.shippingDetails?.name ?? (order.customerEmail ? <EmailLines email={order.customerEmail} /> : 'Customer details erased')}</span><small>{placeLine(order.shippingDetails?.address) || (order.shippingDetails ? '' : order.customerEmail ? 'No address yet' : '')}</small>{order.payment?.source==='staff'&&<small>{staffPaymentLabel}</small>}</td>
     <td data-label="Items" className="st-muted-cell">{itemCount(order)}</td>
     <td data-label="Total" className="st-num st-money">{money(order.totalCents)}</td>
-    <td data-label="Payment"><Badge value={payment} tone={paymentTone}>{payment}</Badge>{order.payment?.source==='staff'&&<small>{staffPaymentLabel}</small>}</td>
+    <td data-label="Payment"><Badge value={payment} tone={paymentTone}>{payment}</Badge></td>
     <td data-label="Fulfillment">{fulfilment === '—' ? '—' : <Badge value={fulfilment} tone={fulfilmentTone}>{fulfilment}</Badge>}</td>
     <td data-label="Shipping" className={`st-ship-cell${order.shipment ? '' : ' is-empty'}`} title={order.shipment?.reference}>{order.shipment ? carrierOf(order.shipment.reference) : '—'}</td>
   </tr>
