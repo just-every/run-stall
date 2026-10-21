@@ -35,7 +35,9 @@ export async function reservePaid(env:Bindings,order:Order,actor?:Actor):Promise
  } else result=await reserveOrder(env,order)
  if(typeof result?.id!=='string'||typeof result?.reference!=='string'||!Array.isArray(result?.lines)) fail('PIER_RESPONSE','Pier returned an incomplete reservation. Reconcile this order.',502)
  const full=fullyReserved(result,order.lines)
- return saveOrder(env,{...order,reservation:{id:result.id,reference:result.reference,lines:result.lines},status:full?'reserved':'shortfall'},full?'stock.reserved':'stock.shortfall',actor)
+ const reservation={id:result.id,reference:result.reference,lines:result.lines},status=full?'reserved' as const:'shortfall' as const
+ if(order.status===status&&JSON.stringify(order.reservation)===JSON.stringify(reservation)) return order
+ return saveOrder(env,{...order,reservation,status},full?'stock.reserved':'stock.shortfall',actor)
 }
 export async function webhook(request:Request,env:Bindings) {
  const {event,body}=await signedEvent(request,env)
