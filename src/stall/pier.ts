@@ -6,7 +6,6 @@ import { listingEntries } from './listing-view'
 import { demoEffect } from '../modules/demo/index.mjs'
 import { demoPier } from './demo/providers'
 import { paymentsReady } from './stripe'
-import { shippingCharge } from './shipping-charge'
 import { pierWrite } from './pier-work'
 const SCALE=1000000n
 export function decimal(value:string):bigint {
@@ -45,9 +44,8 @@ async function call(env:Bindings,path:string,body?:unknown):Promise<any> {
 export const pierState=(env:Bindings)=>call(env,'/api/pier/state')
 export async function catalogue(env:Bindings) {
  const now=Date.now(),listings=(await products(env.DB)).filter(p=>listingState(p.value,now)==='published')
- const shippingCents=await shippingCharge(env.DB)
  // An unpublished shop has no stock promises to ask Pier about.
- if(!listings.length) return {items:[],products:[],shippingCents,observedAt:new Date().toISOString(),checkoutReady:false}
+ if(!listings.length) return {items:[],products:[],observedAt:new Date().toISOString(),checkoutReady:false}
  const state=await pierState(env)
  if(!Array.isArray(state.items)||!Array.isArray(state.locations)||!Array.isArray(state.positions)||!Array.isArray(state.parties)) fail('PIER_RESPONSE','Pier stock response is incomplete.',502)
  if(!state.parties.some((p:any)=>p.id===env.PIER_CUSTOMER_ID&&p.kind==='customer')) fail('PIER_CUSTOMER','Select an existing Pier customer for shop orders.',503)
@@ -58,7 +56,7 @@ export async function catalogue(env:Bindings) {
   return {itemId:item.id as string,available:format(state.positions.filter((x:any)=>x.itemId===item.id&&x.status==='sellable'&&bins.has(x.locationId)).reduce((sum:bigint,x:any)=>sum+decimal(x.available),0n))}
  }
  const entries=listings.map(p=>listingEntries(p.value,stock)).filter(entry=>entry.items.length)
- return {items:entries.flatMap(entry=>entry.items),products:entries.map(entry=>entry.product),shippingCents,observedAt:new Date().toISOString(),checkoutReady:paymentsReady(env)}
+ return {items:entries.flatMap(entry=>entry.items),products:entries.map(entry=>entry.product),observedAt:new Date().toISOString(),checkoutReady:paymentsReady(env)}
 }
 export function assertOriginalPier(env:Bindings,order:Order) { if(pierOrigin(env)!==order.pierOrigin||env.PIER_CUSTOMER_ID!==order.pierCustomerId) fail('PIER_CHANGED','Reconnect the original Pier installation and shop customer before reconciling this order.') }
 async function commandWork(env:Bindings,o:Order,command:Parameters<typeof pierWrite>[2],providerCorrelation:string) {

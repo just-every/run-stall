@@ -28,7 +28,7 @@ export function Settings({ state, owner, busy, run, reload }: { state: State; ow
       <ProviderLinks />
     </Section>
     {!state.actor.agent && <ShopTimeZone timeZone={state.timeZone ?? defaultTimeZone} busy={busy} run={run} />}
-    {owner && <ShippingCharge shippingCents={state.shippingCents ?? 0} busy={busy} run={run} />}
+    {owner && (state.shippingCents == null ? <Section title="Shipping charge"><p>Shipping is priced by profiles. <a href="#shipping">Edit shipping profiles</a>.</p></Section> : <ShippingCharge shippingCents={state.shippingCents} busy={busy} run={run} />)}
     <Operations />
     <Section title="Your account"><div className="st-row"><p>{state.people[state.actor.id] ?? state.actor.email}<small>{state.actor.email} · {state.actor.role}</small></p><a className="st-button st-secondary" href="/auth/settings/identity">Account settings</a></div></Section>
     {owner && <><AgentCredential /><BusinessExports /><Portability reload={reload} /><CustomerErasure busy={busy} run={run} /></>}

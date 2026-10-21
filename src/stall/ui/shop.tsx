@@ -8,17 +8,18 @@ import { useDiscovery } from './discovery'
 import { Facets, NoResults, Pager, ResultsBar, SearchBox } from './discovery-views'
 import { FooterMenu } from './menus'
 import { readBasket, writeBasket, type BasketLine } from './basket'
+import { ShippingChoice, useShippingQuote, zipOf } from './shipping-options'
 export interface Media { id: string; kind: 'image' | 'video'; alt: string; url: string }
 export interface PersonalizationField { key: string; label: string; required?: boolean; addOnCents?: number; type: 'text' | 'choice' | 'file'; maxLength?: number; choices?: string[]; fileTypes?: string[]; maxBytes?: number }
 export interface Item { sku: string; productSku?: string; name: string; description?: string; unitCents: number; compareAtCents?: number; available: string; active?: boolean; customFields?: CustomField[]; variant?: { label: string; options: Record<string, string>; mediaId?: string }; personalization?: PersonalizationField[] }
 export interface ShopProduct { sku: string; handle: string; name: string; description?: string; customFields?: CustomField[]; categories?: string[]; tags?: string[]; attributes?: { name: string; value: string }[]; media?: Media[]; options?: { name: string; values: string[] }[]; personalization?: PersonalizationField[]; skus: string[] }
-export interface Catalogue { shippingCents: number; items: Item[]; products: ShopProduct[]; observedAt?: string; checkoutReady: boolean }
+export interface Catalogue { items: Item[]; products: ShopProduct[]; observedAt?: string; checkoutReady: boolean }
 const plain = (product: ShopProduct) => !product.options?.length && !product.personalization?.length
 type Extras = Record<string, Pick<BasketLine, 'personalization' | 'addOnCents' | 'detail'>>
 export function Shop() {
   const [catalogue, setCatalogue] = useState<Catalogue | null>(null)
   const [quantities, setQuantities] = useState<Record<string, string>>({}), [extras, setExtras] = useState<Extras>({}), [stored, setStored] = useState(false)
-  const [email, setEmail] = useState(''), [review, setReview] = useState(false)
+  const [email, setEmail] = useState(''), [review, setReview] = useState(false), [zip, setZip] = useState('')
   const [error, setError] = useState(''), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true)
   const key = useRef(''), lock = useRef(false)
   const browse = useDiscovery()
@@ -36,18 +37,19 @@ export function Shop() {
   const shown = browse.result ? browse.result.order.flatMap(sku => catalogue?.products.filter(product => product.sku === sku) ?? []) : catalogue?.products ?? []
   const chosen = items.filter(item => Number(quantities[item.sku]) > 0)
   const subtotal = chosen.reduce((sum, item) => sum + (item.unitCents + (extras[item.sku]?.addOnCents ?? 0)) * Number(quantities[item.sku]), 0)
-  const shipping = chosen.length ? catalogue?.shippingCents ?? 0 : 0
+  const options = useShippingQuote(chosen.map(item => ({ sku: item.sku, quantity: Number(quantities[item.sku]), ...(extras[item.sku]?.personalization ? { personalization: extras[item.sku].personalization } : {}) })), zip)
+  const service = options.chosen, shipping = chosen.length ? service?.cents ?? 0 : 0
   const total = subtotal + shipping
   const invalid = items.some(item => quantities[item.sku] && (!Number.isSafeInteger(Number(quantities[item.sku])) || Number(quantities[item.sku]) < 0 || Number(quantities[item.sku]) > Number(item.available)))
   function changed() { setReview(false); key.current = ''; setError('') }
   async function checkout(event: FormEvent) {
     event.preventDefault()
-    if (lock.current || !chosen.length || invalid) return
+    if (lock.current || !chosen.length || invalid || !service) return
     if (!review) { setReview(true); return }
     lock.current = true; setBusy(true); setError('')
     key.current ||= crypto.randomUUID()
     try {
-      const result = await request<{ url: string }>('/api/stall/checkout', { customerEmail: email.trim(), lines: chosen.map(item => ({ sku: item.sku, quantity: Number(quantities[item.sku]), ...(extras[item.sku]?.personalization ? { personalization: extras[item.sku].personalization } : {}) })), expectedTotalCents: total, idempotencyKey: key.current })
+      const result = await request<{ url: string }>('/api/stall/checkout', { customerEmail: email.trim(), lines: chosen.map(item => ({ sku: item.sku, quantity: Number(quantities[item.sku]), ...(extras[item.sku]?.personalization ? { personalization: extras[item.sku].personalization } : {}) })), expectedTotalCents: total, shipping: { service: service!.code, ...(zipOf(zip) ? { postalCode: zipOf(zip) } : {}), quote: service!.quote }, idempotencyKey: key.current })
       const url = new URL(result.url, window.location.origin)
       if (!(url.protocol === 'https:' && url.hostname === 'checkout.stripe.com') && !(url.origin === window.location.origin && url.pathname === '/order')) throw new Error('The payment provider did not return a valid hosted Stripe checkout. Contact the shop.')
       window.location.assign(url.href)
@@ -83,10 +85,10 @@ export function Shop() {
         {invalid && <Notice error>Choose whole quantities within the available stock.</Notice>}
         <div className="st-checkout st-stack"><h3>{review ? 'Review your order' : 'Your order'}</h3><label>Email for your order<input required type="email" autoComplete="email" maxLength={254} value={email} disabled={busy} onChange={event => { changed(); setEmail(event.target.value) }} /></label>
           {chosen.length ? <ul className="st-lines">{chosen.map(item => <li key={item.sku}><span>{item.name} × {quantities[item.sku]}{extras[item.sku]?.detail?.map(line => <small key={line} className="st-line-detail">{line}</small>)}{extras[item.sku] && <button type="button" className="st-link" disabled={busy} onClick={() => { changed(); setQuantities(current => ({ ...current, [item.sku]: '0' })); setExtras(current => { const { [item.sku]: _gone, ...rest } = current; return rest }) }}>Remove<span className="st-sr-only"> {item.name}</span></button>}</span><strong>{money((item.unitCents + (extras[item.sku]?.addOnCents ?? 0)) * Number(quantities[item.sku]))}</strong></li>)}</ul> : <p>Choose a quantity above to start your order.</p>}
-          <div className="st-row"><span>Product subtotal</span><strong>{money(subtotal)}</strong></div><div className="st-row"><span>Domestic shipping</span><strong>{money(shipping)}</strong></div>
-          <div className="st-total"><span>Total · USD</span><strong>{money(total)}</strong></div><p className="st-small">This total includes the products and domestic shipping. Payment opens on Stripe’s secure hosted checkout. Your order is confirmed after payment is verified.</p>
+          <div className="st-row"><span>Product subtotal</span><strong>{money(subtotal)}</strong></div><ShippingChoice state={options} zip={zip} setZip={value => { changed(); setZip(value) }} busy={busy} /><div className="st-row"><span>{service?.name ?? 'Shipping'}</span><strong>{service ? money(shipping) : 'Choose an option'}</strong></div>
+          <div className="st-total"><span>Total · USD</span><strong>{money(total)}</strong></div><p className="st-small">This total includes the products and the shipping option you chose. Payment opens on Stripe’s secure hosted checkout. Your order is confirmed after payment is verified.</p>
           {review && <Notice>Check these quantities, your email and the exact total before continuing.</Notice>}
-          <div className="st-actions"><button disabled={busy || loading || !catalogue?.checkoutReady || !chosen.length || invalid}>{busy ? 'Opening Stripe…' : review ? `Pay ${money(total)} with Stripe` : 'Review order'}</button>{review && <button type="button" className="st-secondary" disabled={busy} onClick={() => setReview(false)}>Edit order</button>}</div>
+          <div className="st-actions"><button disabled={busy || loading || options.loading || !service || !catalogue?.checkoutReady || !chosen.length || invalid}>{busy ? 'Opening Stripe…' : review ? `Pay ${money(total)} with Stripe` : 'Review order'}</button>{review && <button type="button" className="st-secondary" disabled={busy} onClick={() => setReview(false)}>Edit order</button>}</div>
         </div>
       </form>}
     </Section>

@@ -11,7 +11,7 @@ import { reconcileOrder } from './orders'
 import { checkout } from './checkout'
 import { uploadMedia,mediaResponse } from './media'
 import { uploadPersonalization,uploadResponse } from './personalization'
-import { validateLine } from './order-selection'
+import { priceLines,selectLines,validateLine } from './order-selection'
 import { packingSlip } from './packing-slip'
 import { collectionCommand,collections } from './collections'
 import { merchandising,merchandisingCommand } from './merchandising'
@@ -21,7 +21,9 @@ import { menuLinks } from './menu-links'
 import { checkAwaitingPayments,confirmReturn,webhook } from './payments'
 import { localShop,rawBody } from './stripe'
 import { operationsSnapshot,probeProviders } from './operations'
-import { configureShipping,shippingCharge } from './shipping-charge'
+import { configureShipping,generalFlatCents } from './shipping-charge'
+import { assignCommand,assignableSkus,placeCommand,profileCommand,shippingAssignments,shippingPlaces,shippingProfiles } from './shipping-profiles'
+import { postalCodeOf,quoteShipping } from './shipping-quote'
 import { businessTimeZone,configureShop } from './preferences'
 import { orderNoteCommand } from './order-notes'
 import { createManualOrder } from './manual-orders'
@@ -34,6 +36,14 @@ function agentRecord({notes,tags,manualPayment,...record}:any) { return {...reco
 async function discoverySource(env:Bindings):Promise<Source> {
  const [stock,saved,config]=await Promise.all([catalogue(env),collections(env.DB),merchandising(env.DB)])
  return {products:stock.products,items:stock.items,collections:saved,config:config.value}
+}
+async function shippingState(db:D1Database) {
+ const [profiles,places,assignments,known]=await Promise.all([shippingProfiles(db),shippingPlaces(db),shippingAssignments(db),assignableSkus(db)])
+ return {profiles,places,assignments,skus:[...known].map(([sku,item])=>({sku,...item}))}
+}
+/** The shopper's shipping options for a basket and ZIP code, priced from current published lines. */
+async function shippingQuote(env:Bindings,p:any) {
+ return quoteShipping(env.DB,await priceLines(env,selectLines(p.lines)),postalCodeOf(p.postalCode))
 }
 const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}})
 async function body(request:Request):Promise<any> { try { const value=JSON.parse(await rawBody(request,100000));if(!value||typeof value!=='object'||Array.isArray(value)) fail('INPUT','A JSON object is required.',400);return value }catch(e) { if(e instanceof Problem) throw e;return fail('INPUT','Invalid JSON request.',400) } }
@@ -59,6 +69,10 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    return json(result)
   }
   if(path==='/api/stall/discover/suggest'&&request.method==='GET') return json({suggestions:suggest(await discoverySource(env),(new URL(request.url).searchParams.get('q')??'').slice(0,100))})
+  if(path==='/api/stall/shipping/quote'&&request.method==='POST') {
+   if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own checkout page.',403)
+   return json(await shippingQuote(env,await body(request)))
+  }
   if(path==='/api/stall/checkout'&&request.method==='POST') {
    if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own checkout page.',403)
    return json(await checkout(env,await body(request)))
@@ -87,7 +101,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    const shipping=await refreshShipments(env,actor,history)
    const historyChanged=shipping.orders.some((order,index)=>order.revision!==history[index].revision)
    const events=historyChanged?(await env.DB.prepare('SELECT * FROM st_audit ORDER BY rowid DESC LIMIT 200').all()).results:logs.results
-   return json({timeZone:await businessTimeZone(env.DB),staff:Object.fromEntries(people.results.filter(person=>person.status==='active').map(person=>[person.id,person.name||person.email])),people:Object.fromEntries(people.results.map(person=>[person.id,person.name||person.email])),actor,products:selected,merchandising:{collections:await collections(env.DB),config:await merchandising(env.DB)},shippingCents:await shippingCharge(env.DB),...shipping,orders:actor.agent?shipping.orders.map(agentRecord):shipping.orders,audit:events,connections:{pier:pierConfigured(env),stripe:Boolean(env.STRIPE_SECRET_KEY),webhook:Boolean(env.STRIPE_WEBHOOK_SECRET)||(localShop(env)&&Boolean(env.STRIPE_SECRET_KEY))},connectionDetails:await connectionDetails(base,env)})
+   return json({timeZone:await businessTimeZone(env.DB),staff:Object.fromEntries(people.results.filter(person=>person.status==='active').map(person=>[person.id,person.name||person.email])),people:Object.fromEntries(people.results.map(person=>[person.id,person.name||person.email])),actor,products:selected,merchandising:{collections:await collections(env.DB),config:await merchandising(env.DB)},shippingCents:await generalFlatCents(env.DB),shipping:await shippingState(env.DB),...shipping,orders:actor.agent?shipping.orders.map(agentRecord):shipping.orders,audit:events,connections:{pier:pierConfigured(env),stripe:Boolean(env.STRIPE_SECRET_KEY),webhook:Boolean(env.STRIPE_WEBHOOK_SECRET)||(localShop(env)&&Boolean(env.STRIPE_SECRET_KEY))},connectionDetails:await connectionDetails(base,env)})
   }
   if(path==='/api/stall/orders'&&request.method==='GET') { requirePerson(actor);return json(await searchOrders(env.DB,new URL(request.url).searchParams)) }
   if(path==='/api/stall/orders/history'&&request.method==='GET') { requirePerson(actor);return json(await orderHistory(env.DB,text(new URL(request.url).searchParams.get('orderId'),'Order'))) }
@@ -121,6 +135,9 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    else if(type==='order.manual') result=await createManualOrder(env,actor,payload)
    else if(type==='order.assign') result=await assignOrder(env,actor,payload)
    else if(type==='shipping.configure') result=await configureShipping(env,actor,payload)
+   else if(['shipping.profile.save','shipping.profile.delete'].includes(type)) result=await profileCommand(env,actor,type,payload)
+   else if(type==='shipping.place') result=await placeCommand(env,actor,payload)
+   else if(type==='shipping.assign') result=await assignCommand(env,actor,payload)
    else if(['collection.save','collection.delete'].includes(type)) result=await collectionCommand(env,actor,type,payload)
    else if(['menu.save','search.synonyms','search.pin'].includes(type)) result=await merchandisingCommand(env,actor,type,payload)
    else if(type==='customer.erase') result=await eraseCustomer(env,actor,payload)

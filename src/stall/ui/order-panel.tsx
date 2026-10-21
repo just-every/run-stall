@@ -72,7 +72,8 @@ export function OrderPanel({ order, staff, busy, run, canApprove, owner, previou
     </section>
     <p className="st-small">{order.payment && order.confirmation && (order.confirmation.status === 'sent' ? `Confirmation email sent ${shortTime(order.confirmation.at)}. ` : `Confirmation email was not sent (${shortTime(order.confirmation.at)}); check Settings → mail. `)}<a href={`/api/stall/packing-slip?orderId=${encodeURIComponent(order.id)}`} target="_blank" rel="noreferrer">Open packing slip<span className="st-sr-only"> for order {shortId(order.id)} (new tab)</span></a></p>
     <section className="st-panel-block st-sums">
-      <p><span>Shipping charged</span><span>{money(order.shippingCents ?? 0)}</span></p>
+      <p><span>Shipping charged{order.shipping ? ` · ${order.shipping.service.name}` : ''}</span><span>{money(order.shippingCents ?? 0)}</span></p>
+      {order.shipping && <p className="st-small">{[order.shipping.postalCode && `Quoted for ZIP ${order.shipping.postalCode}`, `Profiles: ${order.shipping.profiles.map(profile => `${profile.name} (revision ${shortId(profile.revision)})`).join(', ')}`, order.shipping.place?.address && `Pickup: ${order.shipping.place.name}, ${order.shipping.place.address}`].filter(Boolean).join(' · ')}</p>}
       <p><span>Order total · USD</span><strong>{money(order.totalCents)}</strong></p>
       <p><span>Payment</span><span>{order.payment?.source==='staff' ? `Recorded ${shortTime(order.payment.paidAt)}` : order.payment ? `Paid ${shortTime(order.payment.paidAt)} · Stripe` : humanLabel(order.status)}</span></p>
       {order.payment?.source==='staff'&&<p className="st-small">{staffPaymentLabel}</p>}

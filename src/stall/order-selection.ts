@@ -1,6 +1,7 @@
 import { catalogue,decimal } from './pier'
 import { fail,integer,text,type Line } from './model'
 import { personalize } from './personalization'
+import { chooseShipping } from './shipping-quote'
 import type { Bindings } from '../auth.server'
 
 export type Selected={sku:string;quantity:number;personalization?:Record<string,string>}
@@ -14,8 +15,8 @@ export function selectLines(input:any):Selected[] {
  }).sort((a,b)=>a.sku.localeCompare(b.sku))
 }
 
-/** Both retail doors snapshot the same published prices, stock and shipping. */
-export async function priceSelection(env:Bindings,selection:Selected[],expectedTotalCents:unknown) {
+/** The published price, stock and personalization of each chosen line. */
+export async function priceLines(env:Bindings,selection:Selected[]) {
  const stock=await catalogue(env)
  const lines:Line[]=[]
  for(const line of selection) {
@@ -26,15 +27,22 @@ export async function priceSelection(env:Bindings,selection:Selected[],expectedT
   const personalization=await personalize(env,product.personalization,line.sku,line.personalization),addOnCents=personalization.reduce((sum,answer)=>sum+answer.addOnCents,0)
   lines.push({sku:line.sku,quantity:line.quantity,itemId:product.itemId,name:product.name,description:product.description,unitCents:product.unitCents+addOnCents,...(product.productSku!==line.sku?{productSku:product.productSku}:{}),...(product.variant?{variant:product.variant.options}:{}),...(personalization.length?{personalization,addOnCents}:{})})
  }
- const shippingCents=stock.shippingCents,totalCents=lines.reduce((sum,line)=>sum+line.quantity*line.unitCents,0)+shippingCents
+ return lines
+}
+
+/** Both retail doors snapshot the same published prices, stock and the chosen shipping service. */
+export async function priceSelection(env:Bindings,selection:Selected[],expectedTotalCents:unknown,shippingChoice?:unknown) {
+ const lines=await priceLines(env,selection)
+ const {service,shipping}=await chooseShipping(env.DB,lines,shippingChoice)
+ const shippingCents=service.cents,totalCents=lines.reduce((sum,line)=>sum+line.quantity*line.unitCents,0)+shippingCents
  integer(totalCents,'Order total cents',50,99999999)
  if(expectedTotalCents!==undefined&&integer(expectedTotalCents,'Reviewed total cents',50,99999999)!==totalCents) fail('PRICE_CHANGED','A product price or shipping charge changed. Refresh the shop and review the total before paying.')
- return {lines,shippingCents,totalCents}
+ return {lines,shippingCents,totalCents,shipping}
 }
 
 /** The shopper's pre-basket check: the exact line and add-on price the shop will charge, or the reason it will not. */
 export async function validateLine(env:Bindings,p:any) {
  const [selected]=selectLines([{sku:p.sku,quantity:p.quantity??1,personalization:p.personalization}])
- const [line]=(await priceSelection(env,[selected],undefined)).lines
+ const [line]=await priceLines(env,[selected])
  return {sku:line.sku,name:line.name,quantity:line.quantity,unitCents:line.unitCents,addOnCents:line.addOnCents??0,personalization:(line.personalization??[]).map(({label,value,addOnCents})=>({label,value,addOnCents})),lineTotalCents:line.quantity*line.unitCents}
 }

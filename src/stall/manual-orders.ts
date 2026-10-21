@@ -30,7 +30,7 @@ export async function createManualOrder(env:Bindings,actor:import('./model').Act
  const receivedOn=receivedDate(p.receivedOn,await businessTimeZone(env.DB)),amountCents=integer(p.amountCents,'Payment amount cents',50,99999999)
  if(amountCents!==expectedTotalCents) fail('PAYMENT_AMOUNT','Record exactly the reviewed order total.',400)
  const reference=p.reference?text(p.reference,'Payment reference',500):undefined
- const checkoutKey=await digest('manual:'+key),requestDigest=await digest(JSON.stringify({selection,customerEmail,shippingDetails,expectedTotalCents,method:p.method,receivedOn,amountCents,reference}))
+ const checkoutKey=await digest('manual:'+key),requestDigest=await digest(JSON.stringify({selection,customerEmail,shippingDetails,expectedTotalCents,method:p.method,receivedOn,amountCents,reference,...(p.shipping!==undefined?{shipping:p.shipping}:{})}))
  const resume=async(id:string)=>{
   const order=await readOrder(env.DB,id)
   if(order.requestDigest!==requestDigest||order.erasedAt||order.channel!=='manual') fail('IDEMPOTENCY','This key already records a different or erased sale. Review the existing order.')
@@ -40,7 +40,7 @@ export async function createManualOrder(env:Bindings,actor:import('./model').Act
  let order:Order
  if(existing) order=await resume(existing.id)
  else {
-  const priced=await priceSelection(env,selection,expectedTotalCents),at=new Date().toISOString()
+  const priced=await priceSelection(env,selection,expectedTotalCents,{...(p.shipping&&typeof p.shipping==='object'?p.shipping:{}),postalCode:shippingDetails.address.postal_code}),at=new Date().toISOString()
   if(priced.lines.some(line=>line.personalization?.some(answer=>answer.fileId))) fail('PERSONALIZATION','A file upload can be attached only through the shop’s own checkout.',400)
   const manualPayment:ManualPayment={label:staffPaymentLabel,method:p.method,amountCents,receivedOn,...(reference?{reference}:{}),by:actorLabel(actor),at}
   order={id:crypto.randomUUID(),revision:crypto.randomUUID(),channel:'manual',customerEmail,shippingDetails,...priced,currency:shopCurrency,status:'paid',createdAt:at,requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,payment:{source:'staff',label:staffPaymentLabel,paidAt:at},manualPayment,taxTreatment:'no_tax_recorded',refunds:[]}

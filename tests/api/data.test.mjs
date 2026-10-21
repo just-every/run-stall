@@ -351,8 +351,8 @@ test('CATALOG-001: personalization is validated, priced and carried to the order
   assert.deepEqual([priced.unitCents,priced.addOnCents,priced.lineTotalCents],[2950,500,5900])
   assert.deepEqual(priced.personalization.map(a=>[a.label,a.value,a.addOnCents]),[['Engraving','Happy 40th, Sam',500],['Artwork','logo.png',0],['Glaze','Matte',0]])
   const buy=(personalization,email)=>h.api('/api/stall/checkout',{customerEmail:email,lines:[{sku:'MUG-BLUE',quantity:2,personalization}],idempotencyKey:randomUUID()},{as:''})
-  const total=2*2950+shop.shippingCents
-  assert.equal((await h.api('/api/stall/checkout',{customerEmail:'sam@example.test',lines:[{sku:'MUG-BLUE',quantity:2,personalization:answers}],expectedTotalCents:2*2450+shop.shippingCents,idempotencyKey:randomUUID()},{as:'',status:409})).error.code,'PRICE_CHANGED')
+  const shipCents=(await h.api('/api/stall/state')).shippingCents,total=2*2950+shipCents
+  assert.equal((await h.api('/api/stall/checkout',{customerEmail:'sam@example.test',lines:[{sku:'MUG-BLUE',quantity:2,personalization:answers}],expectedTotalCents:2*2450+shipCents,idempotencyKey:randomUUID()},{as:'',status:409})).error.code,'PRICE_CHANGED')
   const bought=await h.api('/api/stall/checkout',{customerEmail:'sam@example.test',lines:[{sku:'MUG-BLUE',quantity:2,personalization:answers}],expectedTotalCents:total,idempotencyKey:randomUUID()},{as:''})
   const session=[...edge.sessions.values()].find(value=>value.client_reference_id===bought.orderId)
   assert.equal(session.amount_total,total)

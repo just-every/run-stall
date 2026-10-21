@@ -7,6 +7,7 @@ import { ProductsView } from './products'
 import { OrdersView } from './orders'
 import { MoveIn } from './move-in'
 import { MerchandisingView } from './merchandising'
+import { ShippingView } from './shipping'
 import { Activity } from './activity'
 import { Settings } from './settings'
 import { DeskShell, recordOf, viewOf, type DeskView } from './shell'
@@ -14,7 +15,7 @@ import { needs, orderTabs } from './order-status'
 import { defaultTimeZone, People, TimeZone } from './presentation'
 
 const searchLabel: Partial<Record<DeskView, string>> = { orders: 'Search orders, customers, items', products: 'Search products or SKUs', history: 'Search activity, records or people' }
-const titles: Record<DeskView, string> = { orders: 'Orders', products: 'Products', shopfront: 'Collections & search', 'move-in': 'Move in', history: 'Activity', settings: 'Settings' }
+const titles: Record<DeskView, string> = { orders: 'Orders', products: 'Products', shopfront: 'Collections & search', shipping: 'Shipping', 'move-in': 'Move in', history: 'Activity', settings: 'Settings' }
 
 export function ShopDesk() {
   const [state, setState] = useState<State | null>(null), [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true)
@@ -41,8 +42,9 @@ export function ShopDesk() {
     <HydrationUnit><div className="st-messages" aria-live="polite">{loading && <p role="status" className="st-loading">Loading your shop…</p>}{error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}</div></HydrationUnit>
     {state ? <TimeZone.Provider value={state.timeZone ?? defaultTimeZone}><People.Provider value={state.people}>
       {view === 'orders' && <OrdersView state={state} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} refresh={() => { setError(''); void reload().catch(error => setError(errorMessage(error))) }} />}
-      {view === 'products' && <ProductsView products={state.products} audit={state.audit} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} reload={reload} />}
+      {view === 'products' && <ProductsView products={state.products} audit={state.audit} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} reload={reload} shipping={state.shipping} />}
       {view === 'shopfront' && state.merchandising && <MerchandisingView data={state.merchandising} products={state.products} busy={busy} run={run} canApprove={canApprove} />}
+      {view === 'shipping' && state.shipping && (canApprove ? <ShippingView data={state.shipping} busy={busy} run={run} reload={reload} /> : <Section title="Shipping"><p>Only an owner or administrator can change shipping profiles.</p></Section>)}
       {view === 'move-in' && (canApprove ? <MoveIn reload={reload} /> : <Section title="Move in from Shopify"><p>Only an owner or administrator can import products.</p></Section>)}
       {view === 'history' && <Activity state={state} query={query} />}
       {view === 'settings' && <Settings state={state} owner={owner} busy={busy} run={run} reload={reload} />}

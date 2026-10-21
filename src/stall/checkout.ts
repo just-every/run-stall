@@ -11,7 +11,7 @@ export async function checkout(env:Bindings,p:any) {
  if(!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(key)) fail('INPUT','Use a fresh random UUID for each checkout and retain it when retrying.',400)
  const customerEmail=email(p.customerEmail)
  const selection=selectLines(p.lines)
- const checkoutKey=await digest(key),requestDigest=await digest(JSON.stringify({customerEmail,lines:selection,expectedTotalCents:p.expectedTotalCents??null}))
+ const checkoutKey=await digest(key),requestDigest=await digest(JSON.stringify({customerEmail,lines:selection,expectedTotalCents:p.expectedTotalCents??null,...(p.shipping!==undefined?{shipping:p.shipping}:{})}))
  let row=await env.DB.prepare("SELECT id FROM st_orders WHERE json_extract(value_json,'$.checkoutKey')=?").bind(checkoutKey).first<any>()
  let order:Order,allowCreate=false
  if(row) {
@@ -19,9 +19,9 @@ export async function checkout(env:Bindings,p:any) {
   if(order.requestDigest!==requestDigest||order.erasedAt) fail('IDEMPOTENCY','This checkout key belongs to a different or erased purchase. Start a new checkout.')
  } else {
   if(!paymentsReady(env)) fail('STRIPE_UNAVAILABLE','Connect Stripe on Settings before accepting payments.',503)
-  const {lines,shippingCents,totalCents}=await priceSelection(env,selection,p.expectedTotalCents)
+  const {lines,shippingCents,totalCents,shipping}=await priceSelection(env,selection,p.expectedTotalCents,p.shipping)
   const id=crypto.randomUUID(),revision=crypto.randomUUID()
-  order={id,revision,customerEmail,lines,totalCents,shippingCents,currency:shopCurrency,status:'checkout_pending',createdAt:new Date().toISOString(),requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,refunds:[]}
+  order={id,revision,customerEmail,lines,totalCents,shippingCents,shipping,currency:shopCurrency,status:'checkout_pending',createdAt:new Date().toISOString(),requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,refunds:[]}
   // Unique checkout key prevents two orders even if concurrent requests observed no row.
   const files=lines.flatMap(line=>line.personalization?.flatMap(answer=>answer.fileId?[answer.fileId]:[])??[])
   try { await env.DB.batch([env.DB.prepare('INSERT INTO st_orders VALUES(?,?,?)').bind(id,JSON.stringify(order),revision),systemAudit(env.DB,id,'checkout.prepared','customer'),...files.map(file=>env.DB.prepare('UPDATE st_uploads SET order_id=? WHERE id=? AND order_id IS NULL').bind(id,file)),env.DB.prepare('INSERT INTO st_guard(value) SELECT CASE WHEN (SELECT COUNT(*) FROM st_uploads WHERE order_id=?)=? THEN 1 ELSE 0 END').bind(id,files.length),env.DB.prepare('DELETE FROM st_guard')]);allowCreate=true }

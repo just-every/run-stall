@@ -3,7 +3,8 @@
 // revision the shop agent prepared carries the Agent note, as orders do.
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { HydrationUnit } from '../../base/hydration/unit'
-import type { Product, ProductValue, Run, State } from './types'
+import type { Product, ProductValue, Run, ShippingState, State } from './types'
+import { ProductShipping } from './shipping-assign'
 import { money } from './api'
 import { Badge, Empty, Notice } from './primitives'
 import { ProductDetailsEditor, ProductDetailsView, useProductDetails } from './product-details'
@@ -45,7 +46,7 @@ function Editor({ editing, busy, run, done }: { editing: Product | null; busy: b
   </form>
 }
 
-function ProductPanel({ product, preparedBy, busy, run, canApprove, onEdit }: { product: Product; preparedBy?: { actor: string; at: string }; busy: boolean; run: Run; canApprove: boolean; onEdit: () => void }) {
+function ProductPanel({ product, preparedBy, busy, run, canApprove, onEdit, shipping, reload }: { shipping?: ShippingState; reload: () => Promise<void>; product: Product; preparedBy?: { actor: string; at: string }; busy: boolean; run: Run; canApprove: boolean; onEdit: () => void }) {
   const { shortTime } = useBusinessTime()
   const person = usePerson(), draft = product.value.draft, agent = !!preparedBy?.actor.startsWith('agent:')
   return <div className="st-panel-body st-product">
@@ -54,6 +55,7 @@ function ProductPanel({ product, preparedBy, busy, run, canApprove, onEdit }: { 
     <section className="st-panel-block st-sums"><p><span>Unit price · USD</span><strong>{money(product.value.unitCents)}</strong></p></section>
     {product.value.description && <section className="st-panel-block"><div className="st-row"><h3>Description</h3><button className="st-link st-edit-link" disabled={busy} onClick={onEdit}>Edit<span className="st-sr-only"> description</span></button></div><p>{product.value.description}</p></section>}
     <section className="st-panel-block"><h3>Current product details</h3><ProductDetailsView details={product.value.details} /><h4>Shop listing</h4><ListingView details={product.value.details} />{product.value.publishAt && <p className="st-small">Scheduled to go live {shortTime(product.value.publishAt)}</p>}</section>
+    {shipping && canApprove && <ProductShipping sku={product.id} variants={(product.value.details?.variants ?? []).map(variant => variant.sku)} data={shipping} reload={reload} />}
     {product.value.approval && <section className="st-panel-block"><h3>Published</h3><p className="st-small">Published by {person(product.value.approval.by)} · <When at={product.value.approval.at} /> · revision {shortId(product.value.approval.revision)}</p></section>}
     {draft && <div className="st-note"><Icon name="spark" /><div>
       <h3>{agent ? 'Agent note' : `Revision ${shortId(product.revision)} for approval`}</h3>
@@ -68,7 +70,7 @@ function ProductPanel({ product, preparedBy, busy, run, canApprove, onEdit }: { 
 }
 
 /** `focus` is a SKU from a link (#products/<sku>). */
-export function ProductsView({ products, audit, focus, query, busy, run, canApprove, reload }: { products: Product[]; audit: State['audit']; focus?: string; query: string; busy: boolean; run: Run; canApprove: boolean; reload: () => Promise<void> }) {
+export function ProductsView({ products, audit, focus, query, busy, run, canApprove, reload, shipping }: { shipping?: ShippingState; products: Product[]; audit: State['audit']; focus?: string; query: string; busy: boolean; run: Run; canApprove: boolean; reload: () => Promise<void> }) {
   const { businessTime, shortDate } = useBusinessTime()
   const [bulk, setBulk] = useState(false)
   const [tab, setTab] = useState<typeof productTabs[number][0]>('all'), [selectedId, setSelectedId] = useState(focus ?? ''), [editing, setEditing] = useState<Product | 'new' | null>(null)
@@ -101,7 +103,7 @@ export function ProductsView({ products, audit, focus, query, busy, run, canAppr
     </section></HydrationUnit>
     {(editing || selected) && <HydrationUnit><aside className="st-order-panel" ref={panel} aria-label={editing === 'new' ? 'Prepare a product' : `Product ${selected?.id}`}>
       {editing ? <Editor key={editing === 'new' ? 'new' : editing.id} editing={editing === 'new' ? null : editing} busy={busy} run={run} done={() => setEditing(null)} />
-        : selected && <ProductPanel product={selected} preparedBy={selected.value.draft ? preparedBy(selected.id) : undefined} busy={busy} run={run} canApprove={canApprove} onEdit={() => setEditing(selected)} />}
+        : selected && <ProductPanel product={selected} preparedBy={selected.value.draft ? preparedBy(selected.id) : undefined} busy={busy} run={run} canApprove={canApprove} onEdit={() => setEditing(selected)} shipping={shipping} reload={reload} />}
     </aside></HydrationUnit>}
   </div>
 }

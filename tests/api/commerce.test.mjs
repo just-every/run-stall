@@ -170,7 +170,7 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
    await h.command('shipping.configure',{shippingCents:625},{as:admin,status:403});
    await h.command('shipping.configure',{shippingCents:6.25},{status:400});
    await h.command('shipping.configure',{shippingCents:625});
-   assert.equal((await h.api('/api/stall/catalogue',undefined,{as:''})).shippingCents,625);
+   assert.equal((await state(h)).shippingCents,625);
    await h.api('/api/stall/checkout',{customerEmail:'late@example.test',lines:[{sku:'MUG-BLUE',quantity:1}],expectedTotalCents:2450,idempotencyKey:randomUUID()},{as:'',status:409});
    const bought=await purchase(h,edge,{email:'late@example.test',expectedTotalCents:4875});
    assert.equal(bought.session.amount_total,4875);
@@ -591,7 +591,7 @@ test('CATALOG-001: variants, galleries, handles and listing states sell the exac
   await h.command('product.prepare',{sku:'TEE-M-BLUE',name:'Clash',description:'',unitCents:100,active:true},{status:409});
   await h.command('product.prepare',{sku:'OTHER-TEE',name:'Clash',description:'',unitCents:100,active:true,details:{handle:'linen-tee'}},{status:409});
   // Buy two exact variants; the order records each selection at the price paid.
-  const total=2600+2500+shop.shippingCents;
+  const total=2600+2500+(await state(h)).shippingCents;
   const bought=await purchase(h,edge,{skus:['TEE-M-RED','TEE-S-RED'],quantities:[1,1],expectedTotalCents:total});
   assert.equal((await deliverWebhook(h,secret,edge.pay(bought.session.id))).response.status,200);
   const lines=(await order(h,bought.orderId)).lines;

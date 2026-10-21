@@ -7,6 +7,7 @@ import { pierWork,pierWorkRecord,pierWorkFields } from './pier-work'
 import { collections } from './collections'
 import { merchandising } from './merchandising'
 import { searchReport } from './search-report'
+import { shippingAssignments, shippingPlaces, shippingProfiles } from './shipping-profiles'
 
 const kinds = ['products', 'customers', 'orders', 'lines', 'payments', 'refunds', 'shipments', 'reconciliation', 'stripe-work', 'pier-work', 'records'] as const
 type Row = Record<string, unknown>
@@ -34,7 +35,7 @@ function commercialOrder(order: Order) {
   id: order.id, revision: order.revision, customerEmail: order.customerEmail, channel: order.channel ?? 'online', taxTreatment: order.taxTreatment,
   notes: order.notes?.map(note=>({...note,at:utc(note.at)})), tags: order.tags,
   manualPayment: order.manualPayment ? {...order.manualPayment,at:utc(order.manualPayment.at)} : undefined,
-  totalCents: order.totalCents, shippingCents: order.shippingCents ?? 0, currency: order.currency, status: order.status,
+  totalCents: order.totalCents, shippingCents: order.shippingCents ?? 0, shipping: order.shipping, currency: order.currency, status: order.status,
   pierOrigin: order.pierOrigin, pierCustomerId: order.pierCustomerId,
   assignments: order.assignments?.map(change=>({...fields(change,['id','assigneeId','by']),at:utc(change.at)})),
   createdAt: utc(order.createdAt), erasedAt: utc(order.erasedAt),
@@ -80,7 +81,7 @@ function reconciliation(order: Order) {
 const columns: Record<string, string[]> = {
  products: ['id', 'revision', 'state', 'sku', 'name', 'description', 'unitCents', 'currency', 'active', 'publishAt', 'archived', 'approval', 'details'],
  customers: ['email', 'orderCount', 'firstOrderAt', 'lastOrderAt', 'orderIds', 'currency', 'paidCents', 'refundedCents'],
- orders: ['notes', 'tags', 'channel', 'manualPayment', 'taxTreatment', 'assignments', 'id', 'revision', 'customerEmail', 'status', 'createdAt', 'erasedAt', 'totalCents', 'shippingCents', 'currency', 'shippingDetails', 'checkout', 'payment', 'reservation', 'shipment', 'refunds'],
+ orders: ['notes', 'tags', 'channel', 'manualPayment', 'taxTreatment', 'assignments', 'id', 'revision', 'customerEmail', 'status', 'createdAt', 'erasedAt', 'totalCents', 'shippingCents', 'shipping', 'currency', 'shippingDetails', 'checkout', 'payment', 'reservation', 'shipment', 'refunds'],
  lines: ['orderId', 'lineNumber', 'sku', 'productSku', 'name', 'variant', 'personalization', 'description', 'itemId', 'quantity', 'unitCents', 'addOnCents', 'lineTotalCents', 'currency'],
  payments: ['source', 'method', 'receivedOn', 'reference', 'recordedBy', 'label', 'orderId', 'sessionId', 'intentId', 'paidAt', 'amountCents', 'currency'],
  refunds: ['source', 'label', 'orderId', 'id', 'kind', 'taxTreatment', 'accountingCategory', 'amountCents', 'currency', 'reason', 'status', 'preparedBy', 'approval', 'startedAt', 'stripeId', 'lines'],
@@ -110,7 +111,7 @@ export async function businessExport(db: D1Database, kind: string): Promise<Resp
   'content-type': kind === 'records' ? 'application/json; charset=utf-8' : 'text/csv; charset=utf-8',
   'content-disposition': `attachment; filename="stall-${kind}.${kind === 'records' ? 'json' : 'csv'}"` }
  if (kind === 'records') return new Response(JSON.stringify({ schema: 'stall-business-export-v1', exportedAt: new Date().toISOString(),
-  currency: shopCurrency, timeZone: await businessTimeZone(db), collections: (await collections(db)).map(entry => ({ id: entry.id, revision: entry.revision, value: entry.value })), merchandising: (await merchandising(db)).value, searchTerms: (await searchReport(db)).top, products: productRecords, customers: customerRecords, orders: orderRecords, reconciliation: reconciliationRecords, stripeWork: workRecords, pierWork: pierRecords }, null, 2), { headers })
+  currency: shopCurrency, timeZone: await businessTimeZone(db), shipping: { profiles: await shippingProfiles(db), places: await shippingPlaces(db), assignments: await shippingAssignments(db) }, collections: (await collections(db)).map(entry => ({ id: entry.id, revision: entry.revision, value: entry.value })), merchandising: (await merchandising(db)).value, searchTerms: (await searchReport(db)).top, products: productRecords, customers: customerRecords, orders: orderRecords, reconciliation: reconciliationRecords, stripeWork: workRecords, pierWork: pierRecords }, null, 2), { headers })
  let rows: Row[]
  switch (kind) {
   case 'products': rows = productRecords.flatMap(product => [
