@@ -294,3 +294,10 @@
   .st-note { margin-left: 0; margin-right: 0; }
   .st-panel-actions { margin: 0; }
 }
+
+/* Order filters: one wrapping row, labels beside their controls. */
+.st-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 6px 0 10px; }
+.st-filters label { color: var(--muted); font-size: 13px; }
+.st-filters .st-check { display: inline-flex; align-items: center; gap: 6px; color: var(--body); }
+.st-filters small { flex-basis: 100%; color: var(--muted); }
+.st-history { margin: 6px 0; padding-left: 18px; font-size: 13px; }

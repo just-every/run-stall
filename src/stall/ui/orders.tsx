@@ -11,6 +11,7 @@ import { agentDrafted, carrierOf, fulfilmentPill, itemCount, matches, needs, ord
 import { OrderPanel } from './order-panel'
 import { Readiness } from './readiness'
 import { Icon } from './icons'
+import { noFilters, OrderFilterBar, useFilteredIds, type OrderFilters } from './order-filters'
 
 const urgency = ['Shortfall', 'Refund failed', 'Refund draft', 'Shipping draft', 'Not reserved']
 const rank = (order: Order) => { if (agentDrafted(order)) return -1; const need = needs(order); const at = need ? urgency.indexOf(need) : -1; return at < 0 ? urgency.length : at }
@@ -40,15 +41,16 @@ export function OrdersView({ state, focus, query, busy, run, canApprove, refresh
   const { orders, audit } = state
   const tabFor = (id?: string) => { const order = orders.find(order => order.id === id); return order ? needs(order) ? 'needs' : 'all' : orders.some(order => needs(order)) ? 'needs' : 'all' }
   const [tab, setTab] = useState<OrderTab>(() => tabFor(focus))
-  const [selectedId, setSelectedId] = useState(focus ?? ''), [now, setNow] = useState(() => Date.now())
+  const [selectedId, setSelectedId] = useState(focus ?? ''), [now, setNow] = useState(() => Date.now()), [filters, setFilters] = useState<OrderFilters>(noFilters)
+  const found = useFilteredIds(filters, orders)
   const panel = useRef<HTMLElement>(null)
   useEffect(() => setNow(Date.now()), [orders])
   useEffect(() => { if (focus && orders.some(order => order.id === focus)) { setTab(tabFor(focus)); setSelectedId(focus) } }, [focus])
   const shown = useMemo(() => {
     const keep = orderTabs.find(item => item.id === tab)!.keep
-    const list = orders.filter(order => keep(order) && matches(order, query)).sort(newest)
+    const list = orders.filter(order => keep(order) && matches(order, query) && (!found.ids || found.ids.has(order.id))).sort(newest)
     return tab === 'needs' ? list.sort((a, b) => rank(a) - rank(b) || newest(a, b)) : list
-  }, [orders, tab, query])
+  }, [orders, tab, query, found.ids])
   const selected = orders.find(order => order.id === selectedId) ?? shown[0]
   const position = selected ? shown.indexOf(selected) : -1
   function select(order: Order | undefined, reveal = true) {
@@ -64,9 +66,11 @@ export function OrdersView({ state, focus, query, busy, run, canApprove, refresh
       <div className="st-view-head"><h1 id="orders-title">Orders</h1><button className="st-secondary" disabled={busy} onClick={refresh}>Refresh shop</button></div>
       <p className="st-small">Times: {timeZone}. {state.shipmentSync?.checkedAt && <>Shipping checked with Pier <When at={state.shipmentSync.checkedAt} />.</>}</p>
       {state.shipmentSync?.error && <Notice error>Shipping could not be refreshed: {state.shipmentSync.error} Showing the last recorded shipment state.</Notice>}
+      <OrderFilterBar filters={filters} skus={[...new Set(orders.flatMap(order => order.lines.map(line => line.sku)))].sort()} timeZone={timeZone} change={setFilters} />
+      {found.error && <Notice error>{found.error}</Notice>}
       <nav className="st-tabs" aria-label="Order status">{orderTabs.map(item => { const count = item.counted ? orders.filter(item.keep).length : 0; return <button key={item.id} aria-current={tab === item.id ? 'true' : undefined} onClick={() => { setTab(item.id); setSelectedId('') }}>{item.label}{!!count && <span className="st-tab-count">{count}</span>}</button> })}</nav>
       {!orders.length ? <Empty><h3>No orders yet</h3><p>Orders placed through the public shop appear here. Payment is verified by Stripe before stock is reserved.</p></Empty>
-        : !shown.length ? <p className="st-none">{query ? `No orders match “${query}”.` : `No orders in ${orderTabs.find(item => item.id === tab)!.label}.`}</p>
+        : !shown.length ? <p className="st-none">{query ? `No orders match “${query}”.` : filters.from || filters.to || filters.sku || filters.overdue ? 'No orders match these filters.' : `No orders in ${orderTabs.find(item => item.id === tab)!.label}.`}</p>
         : <div className="st-table-wrap"><table className="st-order-table"><caption className="st-sr-only">Orders</caption>
           <thead><tr><th scope="col">Order</th><th scope="col">Time</th><th scope="col">Customer</th><th scope="col">Items</th><th scope="col" className="st-num">Total</th><th scope="col">Payment</th><th scope="col">Fulfillment</th><th scope="col">Shipping</th></tr></thead>
           <tbody>{shown.map(order => <OrderRow key={order.id} order={order} now={now} selected={order === selected} onSelect={() => select(order)} />)}</tbody>

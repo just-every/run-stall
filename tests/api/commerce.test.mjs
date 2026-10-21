@@ -238,6 +238,13 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
    assert.notEqual(value.status,'shipped');
    assert.equal(value.shipment.status,'partial');
    assert.equal(value.shipment.dispatches[0].id,first.id);
+   // ORDER-001: a partly shipped order is overdue only once Pier's latest dispatch is over 7 days old.
+   const overdue=async()=>(await h.api('/api/stall/orders?overdue=partial')).orders.map(o=>o.id);
+   const aged=ms=>h.db.prepare("UPDATE st_orders SET value_json=json_set(value_json,'$.shipment.dispatches[0].shippedAt',?) WHERE id=?").bind(new Date(Date.now()-ms).toISOString(),value.id).run();
+   assert.deepEqual(await overdue(),[]);
+   await aged(7*86400000-3600000);assert.deepEqual(await overdue(),[]);
+   await aged(7*86400000+3600000);assert.deepEqual(await overdue(),[value.id]);
+   assert.deepEqual((await h.api('/api/stall/orders?overdue=partial&status=shipped')).orders,[]);
    const refused=await h.command('shipment.prepare',{orderId:value.id,revision:value.revision,reference:'DO-NOT-SHIP-TWICE'},{status:409});
    assert.equal(refused.error.code,'PART_ALREADY_SHIPPED');
    const second=await pier.command('dispatch.create',{orderId:native.id,shipmentReference:'WAREHOUSE-TWO',lines:[{orderLineId:native.lines[1].id,quantity:'1'}]});
@@ -384,9 +391,36 @@ test('ORDER-001: time zones and revision-checked staff assignments survive trans
   const cleared=await h.command('order.assign',{...payload,revision:assigned.revision,assigneeId:null});
   assert.deepEqual(cleared.assignments.map(a=>a.assigneeId),[staff.id,null]);
   const saved=await h.command('order.assign',{...payload,revision:cleared.revision});
+  // ORDER-001 search: filters combine, and dates are the saved zone's inclusive calendar days.
+  await publish(h,stock.items[1].sku,'A second handmade piece',3200);
+  const second=await purchase(h,edge,{skus:[stock.items[1].sku],quantities:[1],email:'later@example.test'});
+  assert.equal((await deliverWebhook(h,secret,edge.pay(second.session.id))).response.status,200);
+  const find=async(query,opts)=>(await h.api('/api/stall/orders?'+query,undefined,opts)).orders?.map(o=>o.id);
+  await h.db.prepare("UPDATE st_orders SET value_json=json_set(value_json,'$.createdAt','2026-03-01T11:30:00.000Z') WHERE id=?").bind(original.id).run();
+  assert.deepEqual(await find('from=2026-03-02&to=2026-03-02'),[original.id]);
+  assert.deepEqual(await find('to=2026-03-01'),[]);
+  await h.db.prepare("UPDATE st_orders SET value_json=json_set(value_json,'$.createdAt','2026-03-01T10:59:59.000Z') WHERE id=?").bind(original.id).run();
+  assert.deepEqual(await find('to=2026-03-01'),[original.id]);
+  assert.deepEqual(await find('from=2026-03-02&to=2026-03-02'),[]);
+  assert.deepEqual(await find(`sku=${stock.items[1].sku}`),[second.orderId]);
+  assert.deepEqual(await find('customer=LATER@example'),[second.orderId]);
+  assert.deepEqual(await find(`status=reserved&sku=${stock.items[0].sku}&to=2026-03-01`),[original.id]);
+  assert.deepEqual(await find('status=shipped'),[]);
+  assert.equal((await find('')).length,2);
+  await find('from=2026-02-30',{status:400});await find('from=2026-03-03&to=2026-03-02',{status:400});await find('status=bogus',{status:400});await find('overdue=yes',{status:400});
+  await find('',{as:member,status:403});await find('',{as:'',status:401});
+  // The order's one history lists every audited action and the provider references it keeps.
+  const history=await h.api('/api/stall/orders/history?orderId='+original.id);
+  assert.ok(history.events.some(e=>e.action==='payment.confirmed'&&e.actor==='stripe'));
+  assert.equal(history.events.filter(e=>e.action==='order.assigned'&&e.actor===owner.id).length,3);
+  assert.equal(history.references.payment.sessionId,original.payment.sessionId);
+  assert.equal(history.references.reservation,original.reservation.reference);
+  assert.ok(history.events.every(e=>Number.isFinite(Date.parse(e.at))));
+  await h.api('/api/stall/orders/history?orderId='+original.id,undefined,{as:member,status:403});
+  await h.api('/api/stall/orders/history?orderId=missing',undefined,{status:404});
   const exported=await h.api('/api/stall/exports/records');
   assert.equal(exported.timeZone,'Pacific/Auckland');
-  assert.deepEqual(exported.orders[0].assignments,saved.assignments);
+  assert.deepEqual(exported.orders.find(o=>o.id===original.id).assignments,saved.assignments);
   const logs=(await state(h)).audit.filter(a=>a.action==='order.assigned');
   assert.equal(logs.length,3);
   assert.ok(logs.every(a=>a.actor===owner.id&&a.subject===original.id&&Number.isFinite(Date.parse(a.at))));
@@ -394,10 +428,10 @@ test('ORDER-001: time zones and revision-checked staff assignments survive trans
   await restore(destination,await archive(h));
   const restored=await state(destination);
   assert.equal(restored.timeZone,'Pacific/Auckland');
-  assert.deepEqual(restored.orders[0].assignments,saved.assignments);
+  assert.deepEqual(restored.orders.find(o=>o.id===original.id).assignments,saved.assignments);
   assert.equal(restored.staff[staff.id],undefined);
-  await destination.command('order.assign',{...payload,revision:restored.orders[0].revision},{status:400});
+  await destination.command('order.assign',{...payload,revision:restored.orders.find(o=>o.id===original.id).revision},{status:400});
   await destination.api('/api/stall/state',undefined,{as:member,status:401});
-  assert.equal(edge.sessions.size,1);
+  assert.equal(edge.sessions.size,2);
  }finally{if(destination)await destination.close();await h.close()}
 });

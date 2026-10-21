@@ -13,6 +13,7 @@ import { RecoverForm, ShipForm } from './order-forms'
 import { RefundForm, refundDescription } from './refund-form'
 import { Icon } from './icons'
 import { OrderAssignment } from './order-assignment'
+import { OrderHistory } from './order-history'
 
 type Editing = 'shipment' | 'refund' | null
 
@@ -84,6 +85,7 @@ export function OrderPanel({ order, staff, busy, run, canApprove, previous, next
     {order.refunds.filter(refund => refund.status !== 'draft').map(refund => <section key={refund.id} className="st-panel-block"><div className="st-row"><h3>Refund · {money(refund.amountCents)}</h3><Badge value={refund.status} /></div><p className="st-small">{refundDescription(refund, order)} · {refund.reason}</p><p className="st-small">Prepared by {person(refund.preparedBy)}</p><ApprovalRecord approval={refund.approval} /></section>)}
     <NextStep order={order} busy={busy} run={run} canApprove={canApprove} editing={editing} edit={setEditing} />
     {canApprove && <OrderAssignment order={order} staff={staff} busy={busy} run={run} />}
+    {canApprove && <OrderHistory orderId={order.id} revision={order.revision} />}
     {footer}
     <details className="st-more"><summary>More actions</summary>
       {!!order.payment && <details><summary>Prepare a refund</summary><RefundForm order={order} busy={busy} run={run} /></details>}

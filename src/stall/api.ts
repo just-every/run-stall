@@ -15,6 +15,7 @@ import { operationsSnapshot,probeProviders } from './operations'
 import { configureShipping,shippingCharge } from './shipping-charge'
 import { businessTimeZone,configureShop } from './preferences'
 import { assignOrder } from './order-assignment'
+import { orderHistory,searchOrders } from './order-search'
 import { eraseCustomer } from './erasure'
 import { connectionCommand,connectionDetails,withConnections } from './connections'
 const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}})
@@ -54,6 +55,8 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    const events=historyChanged?(await env.DB.prepare('SELECT * FROM st_audit ORDER BY rowid DESC LIMIT 200').all()).results:logs.results
    return json({timeZone:await businessTimeZone(env.DB),staff:Object.fromEntries(people.results.filter(person=>person.status==='active').map(person=>[person.id,person.name||person.email])),people:Object.fromEntries(people.results.map(person=>[person.id,person.name||person.email])),actor,products:selected,shippingCents:await shippingCharge(env.DB),...shipping,audit:events,connections:{pier:pierConfigured(env),stripe:Boolean(env.STRIPE_SECRET_KEY),webhook:Boolean(env.STRIPE_WEBHOOK_SECRET)||(localShop(env)&&Boolean(env.STRIPE_SECRET_KEY))},connectionDetails:await connectionDetails(base,env)})
   }
+  if(path==='/api/stall/orders'&&request.method==='GET') return json(await searchOrders(env.DB,new URL(request.url).searchParams))
+  if(path==='/api/stall/orders/history'&&request.method==='GET') return json(await orderHistory(env.DB,text(new URL(request.url).searchParams.get('orderId'),'Order')))
   if(path==='/api/stall/agent-token'&&request.method==='POST') {
    requirePerson(actor)
    if(actor.role!=='owner') fail('FORBIDDEN','Only the human owner may grant personal agent access.',403)
