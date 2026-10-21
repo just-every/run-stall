@@ -85,6 +85,10 @@ try {
  for(const width of [1440,390]) {await page.setViewportSize({width,height:1000});await page.screenshot({path:resolve(evidence,`landing-full-${width}.png`),fullPage:true})}
  await page.goto(site+'/run');await capture('run')
  await page.goto(site+'/docs');await capture('docs')
+ for(const [slug,heading] of [['getting-started','Business time'],['orders','Orders, shipping and refunds'],['commands','Agent commands, approvals and recovery']]) {
+  await page.goto(site+'/docs/'+slug)
+  await capture('ORDER-001-guide-'+slug,page.getByRole('heading',{name:heading,exact:true}))
+ }
  await page.goto(origin);await capture('lobby')
  await page.route('**/signin', async route => { const response = await h.request('/signin', { as: '' }); await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: await response.text() }) });
  await page.goto(origin+'/signin');await page.getByRole('heading',{name:'Sign in to Stall'}).waitFor();await capture('signin')

@@ -2,7 +2,7 @@
 
 Open **Shop desk → Orders** as an owner or administrator. **Needs action** lists the orders waiting on a person (a stock shortfall, a shipping or refund draft to approve, a payment to reconcile); **All** lists every order. Select an order: its panel shows the customer's details, purchased lines, exact USD total, payment and current state, with the next step and its approval. Approvals apply to the saved revision you reviewed. If the order changes during review, refresh and review it again.
 
-Order, payment, approval and shipment times show their time-zone abbreviation. The Orders page names the shop's business time zone, America/Chicago, so a Pier warehouse using another zone can show a different local time for the same moment.
+Order, payment, approval and shipment times show their time-zone abbreviation. The Orders page names the shop's saved business time zone (initially America/Chicago), so a Pier warehouse using another zone can show a different local time for the same moment.
 
 ## Follow payment and stock
 
@@ -56,3 +56,7 @@ If Stripe completed an operation but its result was lost, inspect that operation
 Keep the same order and provider operation. Creating a replacement to recover a timeout can create another payment or stock effect. Keep the original Stripe account and Pier origin for existing orders. For API recovery and retry limits, see [Commands and recovery](COMMANDS.md) and [Connections](CONNECTIONS.md).
 
 Agents may prepare shipping and refund drafts. A signed-in person approves shipping and refunds and performs reconciliation.
+
+An owner or administrator can select the business time zone in Settings → Shop time zone. Timestamps remain UTC in storage and exports; the desk uses the selected IANA zone and the offset at the event, including daylight saving time.
+
+On an order, choose active staff under Responsible staff and save the assignment. Unassign there to remove the current responsibility. Assignment history keeps who changed it and when; a stale order must be refreshed before saving. Assignment gives no additional access. Archives and business exports retain this history, while a restored installation keeps its own people and permissions.

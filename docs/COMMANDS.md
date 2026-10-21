@@ -10,6 +10,8 @@ Use `POST /api/stall/commands` with JSON `{ "type": "…", "payload": { … } }`
 | `shipment.approve` | `orderId,revision` | Person approves, then dispatches the original Pier reservation. |
 | `refund.prepare` | `orderId,lines:[{sku,quantity}],reason` | Prepare an exact partial refund, bounded by unrefunded paid quantities. |
 | `refund.approve` | `orderId,revision` | Person approves the amount and lines, then requests the Stripe refund once. |
+| `shop.configure` | `timeZone` | Person saves a canonical IANA time zone for business displays; timestamp fields remain UTC. |
+| `order.assign` | `orderId,revision,assigneeId` | Person assigns active staff, or passes null to unassign. Responsibility is revision-checked and grants no access; history is retained. |
 | `order.reconcile` | `orderId` | Person resumes or refreshes the same payment, reservation, shipping or refund effect. |
 | `customer.erase` | `email,confirm:"ERASE"` | Owner erases shipped customers' contact details and fences earlier backups. |
 

@@ -50,9 +50,11 @@ Before relying on the installation, [save a private backup](BACKUP-RESTORE.md). 
 
 ## Business time
 
-Stall displays shop activity and approvals in US Central time (America/Chicago), including
-the time zone beside each time. Set `businessTimeZone` in
-`src/stall/ui/presentation.tsx` to the IANA time zone for your business.
+Stall initially displays shop activity and approvals in US Central time
+(America/Chicago), including the time zone beside each time. In Settings → Shop
+time zone, an owner or administrator can save the IANA zone for the business.
+Original timestamps and exports remain UTC; display offsets follow the event's
+daylight-saving rules.
 
 ## Invited people in local development
 
