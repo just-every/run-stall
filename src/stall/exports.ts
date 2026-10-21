@@ -45,7 +45,7 @@ function commercialOrder(order: Order) {
    dispatches: shipment.dispatches?.map(dispatch => ({ ...fields(dispatch, ['id', 'reference', 'deliveryStatus']), shippedAt: utc(dispatch.shippedAt),
     tracking: dispatch.tracking.map(tracking => fields(tracking, ['carton', 'trackingCode', 'trackingUrl'])) })) } : undefined,
   refunds: order.refunds.map(refund => ({ ...fields(refund, ['id', 'kind', 'taxTreatment', 'accountingCategory', 'amountCents', 'reason', 'status', 'preparedBy', 'stripeId', 'source']),
-   approval: approved(refund.approval), startedAt: utc(refund.startedAt), lines: refund.lines.map(line => fields(line, ['sku', 'quantity'])) })),
+   ...(refund.source==='staff'?{label:'Refund recorded by staff; Stall moved no money'}:{}), approval: approved(refund.approval), startedAt: utc(refund.startedAt), lines: refund.lines.map(line => fields(line, ['sku', 'quantity'])) })),
  }
 }
 function customers(history: Order[]): Row[] {
@@ -80,7 +80,7 @@ const columns: Record<string, string[]> = {
  orders: ['notes', 'tags', 'channel', 'manualPayment', 'taxTreatment', 'assignments', 'id', 'revision', 'customerEmail', 'status', 'createdAt', 'erasedAt', 'totalCents', 'shippingCents', 'currency', 'shippingDetails', 'checkout', 'payment', 'reservation', 'shipment', 'refunds'],
  lines: ['orderId', 'lineNumber', 'sku', 'name', 'description', 'itemId', 'quantity', 'unitCents', 'lineTotalCents', 'currency'],
  payments: ['source', 'method', 'receivedOn', 'reference', 'recordedBy', 'label', 'orderId', 'sessionId', 'intentId', 'paidAt', 'amountCents', 'currency'],
- refunds: ['source', 'orderId', 'id', 'kind', 'taxTreatment', 'accountingCategory', 'amountCents', 'currency', 'reason', 'status', 'preparedBy', 'approval', 'startedAt', 'stripeId', 'lines'],
+ refunds: ['source', 'label', 'orderId', 'id', 'kind', 'taxTreatment', 'accountingCategory', 'amountCents', 'currency', 'reason', 'status', 'preparedBy', 'approval', 'startedAt', 'stripeId', 'lines'],
  shipments: ['orderId', 'id', 'reference', 'status', 'preparedBy', 'approval', 'pierShipmentId', 'dispatches'],
  'pier-work': [...pierWorkFields],
  'stripe-work': ['id', 'orderId', 'kind', 'status', 'attempts', 'attemptedAt', 'observedAt', 'providerId', 'errorCode'],

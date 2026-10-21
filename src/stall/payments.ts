@@ -65,6 +65,7 @@ export async function confirmFromStripe(env:Bindings,order:Order):Promise<Order>
 /** The customer's return from Stripe: confirm the payment by asking Stripe. */
 export async function confirmReturn(env:Bindings,orderId:string) {
  let order=await readOrder(env.DB,orderId)
+ if(order.payment?.source==='staff') fail('NOT_FOUND','This is not a storefront checkout.',404)
  try { order=await confirmFromStripe(env,order) }
  catch(error) {
   // Payment may be recorded while Pier is unreachable; the order then waits for Reconcile.

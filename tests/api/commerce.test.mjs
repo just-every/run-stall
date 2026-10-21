@@ -7,6 +7,11 @@ import { stripeEdge,deliverWebhook,publish,purchase } from './network.mjs';
 import { volumeStock } from './volume-stock.mjs';
 const state=h=>h.api('/api/stall/state');
 const order=async(h,id)=>(await state(h)).orders.find(o=>o.id===id);
+async function reviseProduct(h,sku,name,unitCents) {
+ const previous=(await state(h)).products.find(product=>product.id===sku);
+ const draft=await h.command('product.prepare',{sku,revision:previous.revision,name,unitCents,description:previous.value.description,active:true});
+ return h.command('product.approve',{sku,revision:draft.revision});
+}
 test('OPEN-001: an owned installation publishes 200 products, adds 10 staff and takes 1000 paid orders without author fees or gates',async()=>{
  const stock=volumeStock(),edge=stripeEdge({forward:stock.forward}),secret=randomBytes(32).toString('hex');
  const h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'test-stock-network-edge',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle});
@@ -238,7 +243,7 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
   await t.test('manual paid sales reserve once, preserve commercial truth and record reviewed refunds without moving money',async()=>{
    const owner=(await state(h)).actor,member=await h.signIn('synthetic-stall-201@example.test'),admin=await h.signIn('synthetic-stall-202@example.test','admin');
    const grant=await h.api('/api/stall/agent-token',{}),agent={as:'',headers:{authorization:'Bearer '+grant.token}};
-   await publish(h,'MUG-BLUE','Current mug for paid sales',2450);
+   await reviseProduct(h,'MUG-BLUE','Current mug for paid sales',2450);
    await h.command('shipping.configure',{shippingCents:625});
    const payload={idempotencyKey:randomUUID(),customerEmail:'synthetic-stall-203@example.test',name:'Ana Ruiz',address:{line1:'12 Cedar Lane',line2:'Apt 2',city:'Austin',state:'TX',postal_code:'78702',country:'US'},lines:[{sku:'MUG-BLUE',quantity:1}],expectedTotalCents:3075,amountCents:3075,method:'check',receivedOn:'2026-10-20',reference:'synthetic-stall-204'};
    for(const opts of [{as:'',status:401},{as:member,status:403},{...agent,status:403}])await h.command('order.manual',payload,opts);
@@ -250,6 +255,7 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
    assert.equal((await pier.api('/api/pier/state')).orders.length,before.orders.length+1);
    let value=await h.command('order.manual',payload,{as:admin});
    assert.equal(value.status,'reserved');assert.equal(value.payment.source,'staff');assert.equal(value.payment.intentId,undefined);assert.equal(value.payment.sessionId,undefined);
+   await h.api('/api/stall/checkout/confirm',{orderId:value.id},{as:'',status:404});
    assert.equal(value.manualPayment.method,'check');assert.equal(value.manualPayment.amountCents,value.totalCents);assert.equal(value.manualPayment.reference,payload.reference);assert.equal(value.taxTreatment,'no_tax_recorded');assert.equal(value.channel,'manual');
    assert.ok(value.manualPayment.by);assert.ok(value.manualPayment.at.endsWith('Z'));
    assert.equal((await h.command('order.manual',payload)).id,value.id);
@@ -270,7 +276,7 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
    assert.equal(value.notes,undefined);assert.equal(value.tags,undefined);
    value=await h.command('shipment.approve',{orderId:value.id,revision:value.revision});
    assert.equal(value.status,'shipped');
-   await publish(h,'MUG-BLUE','New catalog name and price',2600);
+   await reviseProduct(h,'MUG-BLUE','New catalog name and price',2600);
    assert.deepEqual(value.lines,original.lines);assert.deepEqual(value.shippingDetails,original.shippingDetails);assert.equal(value.totalCents,original.totalCents);assert.equal(value.reservation.id,original.reservation.id);
    value=await h.command('refund.prepare',{orderId:value.id,revision:value.revision,lines:[{sku:'MUG-BLUE',quantity:1}],reason:'Recorded return; no money moved'});
    await h.command('refund.approve',{orderId:value.id,revision:'stale'},{status:409});
@@ -293,7 +299,7 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
    // Public catalogues and checkout responses never contain staff annotations.
    assert.ok(!JSON.stringify(await h.api('/api/stall/catalogue',undefined,{as:''})).includes('synthetic-stall-205'));
    assert.equal(owner.role,'owner');
-   await publish(h,'MUG-BLUE','Blue ceramic mug',2450);
+   await reviseProduct(h,'MUG-BLUE','Blue ceramic mug',2450);
   });
   await t.test('warehouse dispatches refresh into Stall without a second dispatch; partial work stays unfinished',async()=>{
    const bought=await purchase(h,edge,{email:'warehouse@example.test'});
@@ -443,6 +449,14 @@ test('ORDER-001: time zones and revision-checked staff assignments survive trans
   await publish(h,stock.items[0].sku,'A handmade ceramic bowl',3000);
   const bought=await purchase(h,edge,{skus:[stock.items[0].sku],quantities:[1]});
   assert.equal((await deliverWebhook(h,secret,edge.pay(bought.session.id))).response.status,200);
+  const paidSnapshot=await order(h,bought.orderId);
+  // Later provider address and catalog edits cannot rewrite the purchased snapshot.
+  edge.sessions.get(bought.session.id).collected_information.shipping_details.address.line1='Changed in provider account';
+  await reviseProduct(h,stock.items[0].sku,'Changed catalog name',3300);
+  await h.command('order.reconcile',{orderId:bought.orderId});
+  const afterChanges=await order(h,bought.orderId);
+  assert.deepEqual(afterChanges.shippingDetails,paidSnapshot.shippingDetails);assert.deepEqual(afterChanges.lines,paidSnapshot.lines);
+  assert.deepEqual(afterChanges.payment,paidSnapshot.payment);assert.deepEqual(afterChanges.reservation,paidSnapshot.reservation);assert.equal(afterChanges.totalCents,paidSnapshot.totalCents);
   const original=await order(h,bought.orderId),payload={orderId:original.id,revision:original.revision,assigneeId:staff.id};
   await h.command('order.assign',payload,{as:'',status:401});
   await h.command('order.assign',payload,{as:member,status:403});

@@ -16,7 +16,7 @@ Supported kinds:
 | `customers` | Contact email and order history derived from locally retained, unerased orders; order IDs, first/last order time and recorded paid/refunded totals. |
 | `orders` | Every order, including incomplete checkouts, with retained delivery details and nested local payment, reservation, shipment and refund records. |
 | `lines` | Every purchased line, its order ID, one-based line number, original SKU/name/description (when retained)/item ID, quantity and prices. |
-| `payments` | Locally confirmed payments, Stripe session/intent references, confirmation time and recorded order amount. |
+| `payments` | Locally confirmed Stripe payments or explicitly staff-recorded payments, with source, method, received date, optional reference, recorded author and label. Stripe payments retain their session/intent references. Staff records have no processor reference. |
 | `refunds` | Every refund including drafts, pending, failed and canceled attempts, with line quantities, refund kind, explicit tax treatment/accounting category and approval evidence. Shipping and goodwill refunds have empty line arrays. |
 | `shipments` | Every locally recorded draft or shipment, including observed partial dispatches and retained tracking. |
 | `reconciliation` | Per-order local payment/refund totals and checkout, intent, reservation and shipment references/status. |
@@ -52,7 +52,7 @@ preserves original text without spreadsheet escaping.
 Customer rows are derived contacts, not registered accounts or an independent
 customer book. No marketing consent or lawful basis is inferred. Erased contact
 details are not reconstructed; their opaque order/financial history remains.
-Customer paid totals include only orders with local payment confirmation, and
+Customer paid totals include orders with local payment confirmation or a labelled staff record, and
 refunded totals only succeeded refunds. Reconciliation's `netRecordedCents` is
 confirmed order money minus succeeded refunds; pending refunds are separate.
 It is not provider settlement, fee, payout, bank or tax reconciliation.
@@ -89,3 +89,5 @@ millimeter dimensions, tax category, HS code, country of origin and typed custom
 fields. JSON records carry the same object under each current/prepared value.
 These are merchant facts with the editor's validation, not provider verification.
 Purchased descriptions are retained for new checkouts; older orders may omit them.
+
+ORDER-001a: orders include internal notes with their authors/UTC times and redaction evidence, tags, channel, manual-payment facts and explicit `no_tax_recorded`. CSV nested cells and complete JSON retain them. Staff payments and refunds carry their unverified/recorded labels; a succeeded recorded refund is a staff record, not processor settlement. Customer erasure retains note ID/author/time with “Erased with customer contact”, drops redaction text/reasons and tags, and removes manual payment references. Archives preserve the same result.
