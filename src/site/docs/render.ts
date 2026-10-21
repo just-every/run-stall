@@ -15,6 +15,7 @@ const slug = (value: string) => plain(value).toLowerCase().replace(/[^\p{L}\p{M}
 const ORDER: { file: string; section: string }[] = [
   { file: 'GETTING-STARTED', section: 'Start' },
   { file: 'PRODUCTS', section: 'Run your shop' },
+  { file: 'SHOPFRONT', section: 'Run your shop' },
   { file: 'ORDERS', section: 'Run your shop' },
   { file: 'CONNECTIONS', section: 'Run your shop' },
   { file: 'MOVE-IN', section: 'Move in' },

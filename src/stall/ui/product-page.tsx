@@ -46,7 +46,7 @@ export function ProductPage() {
       <p className="st-pdp-price" aria-live="polite">{item ? <><strong>{money(unit)}</strong>{item.compareAtCents && <s><span className="st-sr-only">Was </span>{money(item.compareAtCents)}</s>}</> : options.length ? <span>Choose {options.map(option => option.name.toLowerCase()).join(' and ')} to see the price.</span> : null}</p>
       <p>{product.description}</p>
       {options.map(option => <fieldset className="st-options" key={option.name}><legend>{option.name}</legend><div className="st-option-values">{option.values.map(value => {
-        const offered = stocked.some(entry => entry.variant?.options[option.name] === value)
+        const offered = stocked.some(entry => entry.variant?.options[option.name] === value && Object.entries(picked).every(([name, chosen]) => name === option.name || entry.variant!.options[name] === chosen))
         return <button type="button" key={value} className="st-option" aria-pressed={picked[option.name] === value} disabled={!offered} onClick={() => { setPicked(current => ({ ...current, [option.name]: value })); setAdded('') }}>{value}{!offered && <span className="st-sr-only"> unavailable</span>}</button>
       })}</div></fieldset>)}
       {options.length > 0 && Object.keys(picked).length === options.length && !item && <Notice error>This combination is not available. Choose another.</Notice>}

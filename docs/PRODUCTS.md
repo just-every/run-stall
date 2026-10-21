@@ -29,7 +29,7 @@ fact in the prepared revision before publishing. Leaving an optional field blank
 clears it when that revision is approved. A failed prepare keeps the form input.
 
 Product CSV/JSON business exports and installation archives include current and
-prepared details. The six-column Shopify import and staged bulk grid cannot carry
+prepared details, variants, media files, personalization settings and each order line's variant and answers. The six-column Shopify import and staged bulk grid cannot carry
 these richer fields: they refuse a SKU with current or prepared metadata instead
 of dropping it. Edit that SKU through Products, or use the reviewed
 [Stall Details CSV extension](MOVE-IN.md#optional-stall-details-extension) to replace
@@ -39,6 +39,20 @@ publication remains a separate approval.
 New purchases keep the description, name and price from checkout even after a
 later listing change. Older orders without a saved description do not infer one
 from today's product.
+
+## Variants, images, categories and personalization
+
+In the editor, **Shop listing** holds the product's page address (handle), compare-at price, categories, tags, attributes and customs description. A handle uses lowercase letters, digits and single hyphens, such as `linen-tee`; the product page is `/shop/<handle>`, and if you leave it blank Stall derives it from the SKU. A compare-at price must be higher than the price. Categories, tags and attributes (for example Material: Organic cotton) appear on the product page and drive the shop's filters; products join **collections** through the Collections & search screen (see the [shopfront guide](SHOPFRONT.md)).
+
+**Images and videos** are uploaded from the editor: PNG, JPEG, GIF or WebP images and MP4 or WebM videos of up to 700 KB each. Stall reads each file's own bytes, so a file whose content does not match its type is refused. Every file needs alt text; the first image leads the gallery. A file is public only while a published listing shows it, and staff can preview any file.
+
+**Options and variants.** Add up to three options (for example Size and Color) and generate their combinations. Each variant has its own SKU, which must exist in Pier before you publish, and may override the product price and compare-at price and carry its own cost, weight, dimensions, HS code, country of origin, customs description and image. Availability is each variant's own Pier availability; stock modes other than Pier are the stock clauses' work. Archiving a variant removes it from the shop but keeps every past order line.
+
+**Personalization.** Add up to five fields: text with a character limit (for example engraving, 20 characters), a choice list, or a file upload limited to the types you select (PNG, JPG, PDF) and a size of at most 700 KB. Any field can be required and can add a price (for example +$5.00 per item). Shoppers' answers are checked against these fields before **Add to basket** and again at checkout; the add-on price is added to the line, shown in the basket, order, packing slip and confirmation email, and exported. An uploaded file is stored privately: only a signed-in owner or administrator can download it from the order, and erasing the customer's contact (Settings) deletes the file while keeping the order line and its price.
+
+**Scheduling and archiving.** A product is a draft until you approve it, then published; set **Publish at** to approve a listing that goes live by itself at that time (the shop checks the time on every request), or **Archive this product** to withdraw it while keeping its order history. Orders keep the name, description, variant, personalization and price at checkout.
+
+An order's **Open packing slip** link prints what to pick and pack, including each variant, personalization and a link to the private file. When payment is verified Stall sends the buyer one plain-text order confirmation through your configured mail provider; the order records whether it was sent. Durable delivery and bounce tracking arrive with the transactional mail work.
 
 ## Change a listing
 

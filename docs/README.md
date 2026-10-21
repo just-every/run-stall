@@ -6,6 +6,7 @@ Stall is a shop of your own for a US maker or small shop whose stock lives in Pi
 | --- | --- |
 | [Getting started](GETTING-STARTED.md) | Run locally, finish setup, connect providers and take your first test order. |
 | [Products](PRODUCTS.md) | Prepare a product, publish the reviewed revision and change a listing. |
+| [Collections, menus and search](SHOPFRONT.md) | Group products, build menus, tune search and read the search report. |
 | [Orders, shipping and refunds](ORDERS.md) | Follow payment and stock, approve shipping, refund a line and recover pending work. |
 | [Move in from Shopify](MOVE-IN.md) | Prepare the supported CSV, review and apply an import, resume or undo it. |
 | [Backup and restore](BACKUP-RESTORE.md) | Download an archive, restore into an empty installation and handle customer erasure. |
