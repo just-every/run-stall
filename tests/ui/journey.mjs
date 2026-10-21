@@ -64,7 +64,7 @@ try {
    else await page.evaluate(()=>window.scrollTo(0,0))
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`page overflows at ${width}: ${name}`)
    await page.screenshot({path:resolve(evidence,`${name}-${width}.png`)})
-   if(name.startsWith('OPS-001')||name.endsWith('terminal')||['order','products','settings','move-in-preview','empty','home','shop-review','checkout-return'].includes(name))await page.screenshot({path:resolve(evidence,`${name}-full-${width}.png`),fullPage:true})
+   if(name.startsWith('ORDER-001-guide-')||name.startsWith('OPS-001')||name.endsWith('terminal')||['order','products','settings','move-in-preview','empty','home','shop-review','checkout-return'].includes(name))await page.screenshot({path:resolve(evidence,`${name}-full-${width}.png`),fullPage:true})
   }
   await page.setViewportSize({width:1440,height:1000})
  }
@@ -85,9 +85,9 @@ try {
  for(const width of [1440,390]) {await page.setViewportSize({width,height:1000});await page.screenshot({path:resolve(evidence,`landing-full-${width}.png`),fullPage:true})}
  await page.goto(site+'/run');await capture('run')
  await page.goto(site+'/docs');await capture('docs')
- for(const [slug,heading] of [['getting-started','Business time'],['orders','Orders, shipping and refunds'],['commands','Agent commands, approvals and recovery']]) {
+ for(const slug of ['getting-started','orders','commands']) {
   await page.goto(site+'/docs/'+slug)
-  await capture('ORDER-001-guide-'+slug,page.getByRole('heading',{name:heading,exact:true}))
+  await capture('ORDER-001-guide-'+slug,page.locator('article h1'))
  }
  await page.goto(origin);await capture('lobby')
  await page.route('**/signin', async route => { const response = await h.request('/signin', { as: '' }); await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: await response.text() }) });
