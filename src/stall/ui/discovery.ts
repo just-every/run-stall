@@ -14,10 +14,10 @@ export const isBrowseKey = (key: string) => browseKeys.includes(key) || key.star
 /** The browse part of the address, without other parameters. */
 export const browseParams = (search: string) => { const all = new URLSearchParams(search), kept = new URLSearchParams(); all.forEach((value, key) => { if (isBrowseKey(key)) kept.append(key, value) }); return kept }
 export function useDiscovery() {
-  const [search, setSearch] = useState(''), [result, setResult] = useState<Discovery | null>(null), [problem, setProblem] = useState(''), [busy, setBusy] = useState(false)
+  const [search, setSearch] = useState<string | null>(null), [result, setResult] = useState<Discovery | null>(null), [problem, setProblem] = useState(''), [busy, setBusy] = useState(false)
   const report = useRef(true), latest = useRef(0)
   useEffect(() => { setSearch(location.search); const back = () => { report.current = true; setSearch(location.search) }; addEventListener('popstate', back); return () => removeEventListener('popstate', back) }, [])
-  const params = browseParams(search)
+  const params = browseParams(search ?? '')
   const load = useCallback(async () => {
     const mine = ++latest.current, query = browseParams(location.search)
     if (report.current && query.get('q')) query.set('report', '1')
@@ -27,7 +27,7 @@ export function useDiscovery() {
     catch (error) { if (mine === latest.current) setProblem(errorMessage(error)) }
     finally { if (mine === latest.current) setBusy(false) }
   }, [])
-  useEffect(() => { if (search !== '' || result === null) void load() }, [search, load])
+  useEffect(() => { if (search !== null) void load() }, [search, load])
   /** Change the browse state: `edit` updates a copy of the current parameters. A new search term is reported once. */
   function go(edit: (next: URLSearchParams) => void) {
     const next = browseParams(location.search), before = next.get('q')
