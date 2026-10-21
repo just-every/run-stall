@@ -12,7 +12,7 @@ export function confirmationText(order: Order) {
   '', `Shipping: ${usd(order.shippingCents ?? 0)}`, `Total: ${usd(order.totalCents)}`].join('\n')
 }
 export async function sendConfirmation(env: Bindings, order: Order): Promise<Order> {
- if (order.confirmation || order.erasedAt || !order.customerEmail) return order
+ if (order.confirmation?.status === 'sent' || order.erasedAt || !order.customerEmail) return order
  let status: 'sent' | 'failed' = 'failed'
  try {
   const sender = operatorMail(env)
