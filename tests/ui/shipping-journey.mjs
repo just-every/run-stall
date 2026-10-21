@@ -90,7 +90,7 @@ try {
  await page.getByRole('button', { name: 'Products', exact: true }).click()
  await page.getByLabel('Select DESK-A', { exact: true }).check()
  await page.getByLabel('Select DESK-B', { exact: true }).check()
- await page.getByLabel('Move the selected items to', { exact: true }).selectOption({ label: 'Oversized' })
+ await page.getByLabel(/^Move the selected items to/).selectOption({ label: 'Oversized' })
  await page.getByRole('button', { name: 'Review assignment (2)', exact: true }).click()
  await page.getByText('Review exact changes').waitFor()
  await capture('assign-review', page.locator('[aria-label="Reviewed assignment changes"]'))

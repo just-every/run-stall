@@ -39,7 +39,7 @@ export async function eraseCustomer(env: Bindings, actor: Actor, payload: any) {
     'id',json_extract(note.value,'$.id'),'by',json_extract(note.value,'$.by'),
     'at',json_extract(note.value,'$.at'),'text','Erased with customer contact'))
     FROM json_each(st_orders.value_json,'$.notes') note))),
-   '$.shippingDetails','$.tags','$.manualPayment.reference'),revision=lower(hex(randomblob(16)))
+   '$.shippingDetails','$.tags','$.manualPayment.reference','$.shipping.postalCode','$.shipping.quote'),revision=lower(hex(randomblob(16)))
    WHERE json_extract(value_json,'$.customerEmail')=?`).bind(erasedAt, address),
   audit(env.DB, actor, crypto.randomUUID(), 'customer.email-erased'),
  ])
