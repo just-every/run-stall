@@ -18,7 +18,7 @@ await mkdir(evidence,{recursive:true})
 const scratch=await mkdtemp(join(tmpdir(),'stall-browser-')),checkout=join(scratch,'run-stall')
 const rerHome=join(scratch,'rer-home')
 await mkdir(rerHome)
-let browser,h,pier,restored,original,dev,cleaning,journeyError
+let browser,page,h,pier,restored,original,dev,cleaning,journeyError
 function cleanup() {
  return cleaning??=(async()=>{
   const resources=new Set([browser,restored,h,original,pier].filter(Boolean))
@@ -46,7 +46,7 @@ try {
  let providersUnavailable=false
  h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret},outboundService:request=>providersUnavailable?Response.json({error:'Provider unavailable'},{status:503}):edge.handle(request)})
  browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
- const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'}),page=await context.newPage()
+ const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'});page=await context.newPage()
  const errors=[];page.on('pageerror',error=>errors.push(error.message))
  // This test transport directs browser API requests to the real migrated
  // Worker and native owner session. The application contains no fixture path.
@@ -404,7 +404,14 @@ try {
  console.log('OPS-001 browser journey passed: real read-only provider observations, unavailable diagnosis, limits and empty terminal backlog at 1440/390.');
  console.log('ORDER-003 browser journey passed: shipping configuration, paid checkout, item/shipping/goodwill approval and terminal records at 1440/390.');
  console.log('BASE-001 browser journey passed: move-in, product approvals, customer checkout, shipping, refund, backup/restore, credentials and erasure at 1440 and 390.')
- }catch(error){journeyError=error;throw error}
+ }catch(error){
+  journeyError=error
+  if(page&&!page.isClosed()) {
+   await page.screenshot({path:resolve(evidence,'failure.png'),fullPage:true}).catch(()=>{})
+   console.error('Journey failure state:',JSON.stringify({editor:await page.locator('#product-editor').count(),alerts:await page.getByRole('alert').allTextContents()}))
+  }
+  throw error
+ }
  finally {
  try{await finishCleanup(cleanup,journeyError)}finally{for(const signal of ['SIGINT','SIGTERM'])process.off(signal,interrupted)}
 }
