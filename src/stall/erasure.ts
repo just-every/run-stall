@@ -1,7 +1,7 @@
 import type { Bindings } from '../auth.server'
 import { createPortability } from '@runeditrun/rer/modules/portability'
 import { portabilityPolicy } from './portability-policy.mjs'
-import { audit, commit } from './access'
+import { audit, changed, commit } from './access'
 import { email, fail, requirePerson, type Actor } from './model'
 
 // Financial and stock history survives under opaque order IDs. The customer's
@@ -19,7 +19,16 @@ export async function eraseCustomer(env: Bindings, actor: Actor, payload: any) {
  if (pending) fail('PENDING_EFFECT', 'Ship the order and resolve pending refund effects before erasing customer details.')
  const portability = await createPortability({ db: env.DB, policy: portabilityPolicy })
  const erasedAt = new Date().toISOString()
+ // Customer-uploaded files leave with the contact; the order line keeps only that a file was erased.
+ const withFiles = (await env.DB.prepare("SELECT id,value_json,revision FROM st_orders WHERE json_extract(value_json,'$.customerEmail')=? AND EXISTS(SELECT 1 FROM st_uploads WHERE order_id=st_orders.id)").bind(address).all<{ id: string; value_json: string; revision: string }>()).results
+ const scrubbed = withFiles.flatMap(row => {
+  const order = JSON.parse(row.value_json)
+  for (const line of order.lines) for (const answer of line.personalization ?? []) if (answer.fileId) { answer.value = 'Erased with customer files'; delete answer.fileId; delete answer.fileName }
+  return [env.DB.prepare('UPDATE st_orders SET value_json=?,revision=? WHERE id=? AND revision=?').bind(JSON.stringify(order), crypto.randomUUID(), row.id, row.revision), changed(env.DB)]
+ })
  await commit(env.DB, actor, [
+  ...scrubbed,
+  env.DB.prepare("DELETE FROM st_uploads WHERE order_id IN (SELECT id FROM st_orders WHERE json_extract(value_json,'$.customerEmail')=?)").bind(address),
   ...await portability.invalidateTransfersStatements(),
   ...await portability.redactionStatements(),
   // Rebuild annotations from their attribution fields only: even a redaction

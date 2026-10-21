@@ -4,10 +4,11 @@ export class Problem extends Error {
 }
 export function fail(code:string,message:string,status=409):never { throw new Problem(code,message,status) }
 export type Actor={id:string;email:string;role:string;version:number;sessionId?:string;agent:boolean;grantId?:string}
-export type ProductValue={details?:ProductDetails;sku:string;name:string;description:string;unitCents:number;active:boolean;draft?:Omit<ProductValue,'draft'>;approval?:Approval}
+export type ProductValue={details?:ProductDetails;publishAt?:string;archived?:true;sku:string;name:string;description:string;unitCents:number;active:boolean;draft?:Omit<ProductValue,'draft'>;approval?:Approval}
 export type Product={id:string;value:ProductValue;revision:string}
 export type Approval={by:string;version:number;at:string;revision:string}
-export type Line={description?:string;sku:string;name:string;itemId:string;quantity:number;unitCents:number}
+export type Personalized={key:string;label:string;type:'text'|'choice'|'file';value:string;addOnCents:number;fileId?:string;fileName?:string}
+export type Line={productSku?:string;variant?:Record<string,string>;personalization?:Personalized[];addOnCents?:number;description?:string;sku:string;name:string;itemId:string;quantity:number;unitCents:number}
 export type RefundKind='lines'|'shipping'|'goodwill'
 export type Refund={kind?:RefundKind;taxTreatment?:'no_tax_recorded';accountingCategory?:'merchandise'|'shipping'|'goodwill';id:string;lines:{sku:string;quantity:number}[];amountCents:number;reason:string;status:'draft'|'pending'|'succeeded'|'failed'|'canceled';preparedBy:string;approval?:Approval;startedAt?:string;stripeId?:string;source?:'staff';label?:string}
 export type PierDispatch={id:string;reference:string;shippedAt?:string;deliveryStatus?:string;tracking:{carton?:number;trackingCode?:string;trackingUrl?:string}[]}
@@ -19,7 +20,7 @@ export type Assignment={id:string;assigneeId:string|null;by:string;at:string}
 export type OrderNote={id:string;text:string;by:string;at:string;redaction?:{by:string;at:string;reason:string}}
 export type ManualPayment={label:string;method:'cash'|'check'|'bank_transfer'|'other';amountCents:number;receivedOn:string;reference?:string;by:string;at:string}
 export type Payment={source?:'stripe';sessionId:string;intentId:string;paidAt:string}|{source:'staff';label:string;sessionId?:never;intentId?:never;paidAt:string}
-export type Order={notes?:OrderNote[];tags?:string[];channel?:'online'|'manual';manualPayment?:ManualPayment;taxTreatment?:'no_tax_recorded';assignments?:Assignment[];id:string;revision:string;customerEmail:string|null;erasedAt?:string;lines:Line[];totalCents:number;shippingCents?:number;currency:typeof shopCurrency;status:'checkout_pending'|'awaiting_payment'|'paid'|'shortfall'|'reserved'|'shipped';createdAt:string;shippingDetails?:{name:string;address:{line1:string;line2:string;city:string;state:string;postal_code:string;country:string}};requestDigest:string;checkoutKey:string;pierOrigin:string;pierCustomerId:string;checkout?:{id:string;url:string};payment?:Payment;reservation?:{id:string;reference:string;lines:any[]};shipment?:Shipment;refunds:Refund[]}
+export type Order={confirmation?:{status:'sent'|'failed';at:string};notes?:OrderNote[];tags?:string[];channel?:'online'|'manual';manualPayment?:ManualPayment;taxTreatment?:'no_tax_recorded';assignments?:Assignment[];id:string;revision:string;customerEmail:string|null;erasedAt?:string;lines:Line[];totalCents:number;shippingCents?:number;currency:typeof shopCurrency;status:'checkout_pending'|'awaiting_payment'|'paid'|'shortfall'|'reserved'|'shipped';createdAt:string;shippingDetails?:{name:string;address:{line1:string;line2:string;city:string;state:string;postal_code:string;country:string}};requestDigest:string;checkoutKey:string;pierOrigin:string;pierCustomerId:string;checkout?:{id:string;url:string};payment?:Payment;reservation?:{id:string;reference:string;lines:any[]};shipment?:Shipment;refunds:Refund[]}
 export const text=(v:unknown,name:string,limit=160):string=>typeof v==='string'&&v.trim()&&v.length<=limit?v.trim():fail('INPUT',`${name} is required (at most ${limit} characters).`,400)
 export const integer=(v:unknown,name:string,min=0,max=100000000):number=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=min&&v<=max?v:fail('INPUT',`${name} must be a whole number between ${min} and ${max}.`,400)
 export const supplier=(a:Actor)=>['owner','admin'].includes(a.role)

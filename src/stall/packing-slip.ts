@@ -1,0 +1,11 @@
+import { readOrder } from './store'
+
+const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => `&#${char.charCodeAt(0)};`)
+/** The staff-printable slip: what to pick and pack, with each variant and every personalization (and its private file link). */
+export async function packingSlip(db: D1Database, orderId: string): Promise<Response> {
+ const order = await readOrder(db, orderId), to = order.shippingDetails
+ const usd = (cents: number) => `$${(cents / 100).toFixed(2)}`
+ const rows = order.lines.map(line => `<tr><td>${esc(line.sku)}</td><td>${esc(line.name)}${(line.variant ? [Object.entries(line.variant).map(([n, v]) => `${n}: ${v}`).join(', ')] : []).map(detail => `<br><small>${esc(detail)}</small>`).join('')}${(line.personalization ?? []).map(answer => `<br><small>${esc(answer.label)}: ${answer.fileId ? `<a href="/api/stall/uploads/${esc(answer.fileId)}">${esc(answer.value)}</a>` : esc(answer.value)}${answer.addOnCents ? ` (+${usd(answer.addOnCents)} each)` : ''}</small>`).join('')}</td><td>${line.quantity}</td><td>${usd(line.unitCents)}</td></tr>`).join('')
+ const html = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Packing slip ${esc(order.id.slice(0, 8))}</title><style>body{font:16px/1.5 system-ui,sans-serif;margin:2rem;max-width:60rem}table{border-collapse:collapse;width:100%}td,th{border:1px solid #888;padding:.4rem;text-align:left}small{color:#333}@media print{a{color:inherit}}</style><h1>Packing slip</h1><p>Order ${esc(order.id)} · ${esc(order.createdAt.slice(0, 10))}</p>${to ? `<p>Ship to:<br>${esc(to.name)}<br>${esc(to.address.line1)}${to.address.line2 ? `<br>${esc(to.address.line2)}` : ''}<br>${esc(to.address.city)}, ${esc(to.address.state)} ${esc(to.address.postal_code)}<br>${esc(to.address.country)}</p>` : '<p>No shipping address recorded.</p>'}<table><caption class="sr">Items to pack</caption><thead><tr><th scope="col">SKU</th><th scope="col">Item</th><th scope="col">Qty</th><th scope="col">Unit price</th></tr></thead><tbody>${rows}</tbody></table>`
+ return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; img-src 'none'" } })
+}

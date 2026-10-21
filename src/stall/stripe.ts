@@ -25,7 +25,7 @@ async function request(env:Bindings,path:string,form?:URLSearchParams,key?:strin
 function writeWindow(at:string) { if(Date.now()-Date.parse(at)>23*3600000) fail('STRIPE_RECOVERY','This unresolved operation is outside the safe retry window. Recover its existing Stripe ID in the dashboard before continuing.',409) }
 export async function createCheckout(env:Bindings,o:Order,allowCreate=false) {
  const form=new URLSearchParams({mode:'payment',customer_email:o.customerEmail!,client_reference_id:o.id,'metadata[stall_order_id]':o.id,'payment_intent_data[metadata][stall_order_id]':o.id,success_url:env.AUTH_ORIGIN+'/order?checkout=success&orderId='+encodeURIComponent(o.id),cancel_url:env.AUTH_ORIGIN+'/order?checkout=cancelled&orderId='+encodeURIComponent(o.id),'shipping_address_collection[allowed_countries][0]':shopCountry})
- o.lines.forEach((l,i)=>{form.set(`line_items[${i}][quantity]`,String(l.quantity));form.set(`line_items[${i}][price_data][currency]`,shopCurrency);form.set(`line_items[${i}][price_data][unit_amount]`,String(l.unitCents));form.set(`line_items[${i}][price_data][product_data][name]`,l.name)})
+ o.lines.forEach((l,i)=>{form.set(`line_items[${i}][quantity]`,String(l.quantity));form.set(`line_items[${i}][price_data][currency]`,shopCurrency);form.set(`line_items[${i}][price_data][unit_amount]`,String(l.unitCents));form.set(`line_items[${i}][price_data][product_data][name]`,l.name);if(l.personalization?.length)form.set(`line_items[${i}][price_data][product_data][description]`,l.personalization.map(a=>`${a.label}: ${a.value}`).join('; ').slice(0,500))})
  const shippingCents=o.shippingCents??0
  if(shippingCents>0) {
   form.set('shipping_options[0][shipping_rate_data][type]','fixed_amount')

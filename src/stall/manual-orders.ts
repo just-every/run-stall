@@ -41,6 +41,7 @@ export async function createManualOrder(env:Bindings,actor:import('./model').Act
  if(existing) order=await resume(existing.id)
  else {
   const priced=await priceSelection(env,selection,expectedTotalCents),at=new Date().toISOString()
+  if(priced.lines.some(line=>line.personalization?.some(answer=>answer.fileId))) fail('PERSONALIZATION','A file upload can be attached only through the shop’s own checkout.',400)
   const manualPayment:ManualPayment={label:staffPaymentLabel,method:p.method,amountCents,receivedOn,...(reference?{reference}:{}),by:actorLabel(actor),at}
   order={id:crypto.randomUUID(),revision:crypto.randomUUID(),channel:'manual',customerEmail,shippingDetails,...priced,currency:shopCurrency,status:'paid',createdAt:at,requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,payment:{source:'staff',label:staffPaymentLabel,paidAt:at},manualPayment,taxTreatment:'no_tax_recorded',refunds:[]}
   try { await commit(env.DB,actor,[env.DB.prepare('INSERT INTO st_orders VALUES(?,?,?)').bind(order.id,JSON.stringify(order),order.revision),audit(env.DB,actor,order.id,'order.manual-created'),audit(env.DB,actor,order.id,'payment.staff-recorded')]) }

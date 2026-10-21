@@ -13,6 +13,7 @@ import { stallResponse, stallScheduled } from './stall/api'
 import { toolsResponse } from './stall/tools'
 import { databaseReadiness } from './stall/operations'
 import { seedDemo } from './demo'
+import { unknownProductPage } from './stall/shop-pages'
 
 const api = new Hono<{ Bindings: Bindings }>()
 api.get('/health', async (context) => {
@@ -45,7 +46,10 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (state) return state
     const lobby = await lobbyResponse(request, runtimeBindings(env), identity)
     if (lobby) return lobby
-    return rejectedResponse(request, await dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request))))
+    return rejectedResponse(request, await dispatch(request, () => api.fetch(request, env, execution), async () => {
+      const document = noTransform(await start.fetch(request))
+      return await unknownProductPage(request, runtimeBindings(env)) ? new Response(document.body, { status: 404, headers: document.headers }) : document
+    }))
   },
   // Every minute: confirm Checkout payments Stripe has taken but no webhook reported.
   async scheduled(_event, env, execution) { execution.waitUntil(stallScheduled(env)) },

@@ -6,6 +6,7 @@ import { readOrder,saveOrder } from './store'
 import { startPaymentCheck,completePaymentCheck } from './operations'
 import { observeShipment } from './shipment-sync'
 import { observedStripeWork } from './integration-work'
+import { lineDetail,sendConfirmation } from './order-mail'
 import { fail,Problem,type Actor,type Order } from './model'
 export async function paidSession(env:Bindings,order:Order,id:string,actor?:Actor) {
  if(actor) await live(env,actor)
@@ -18,6 +19,7 @@ export async function paidSession(env:Bindings,order:Order,id:string,actor?:Acto
   const shippingDetails=details?.name&&details?.address?{name:String(details.name),address:{line1:details.address.line1??'',line2:details.address.line2??'',city:details.address.city??'',state:details.address.state??'',postal_code:details.address.postal_code??'',country:details.address.country??''}}:undefined
   order=await saveOrder(env,{...order,...(shippingDetails?{shippingDetails}:{}),payment:{sessionId:session.id,intentId:session.payment_intent,paidAt:new Date().toISOString()},status:'paid'},'payment.confirmed',actor)
  }
+ order=await sendConfirmation(env,order)
  return reservePaid(env,order,actor)
 }
 export async function reservePaid(env:Bindings,order:Order,actor?:Actor):Promise<Order> {
@@ -75,7 +77,7 @@ export async function confirmReturn(env:Bindings,orderId:string) {
   order=await readOrder(env.DB,orderId)
   if(!order.payment) throw error
  }
- return {status:order.payment?'paid':'awaiting_payment'}
+ return {status:order.payment?'paid':'awaiting_payment',summary:{lines:order.lines.map(line=>({name:line.name,quantity:line.quantity,unitCents:line.unitCents,detail:lineDetail(line)})),shippingCents:order.shippingCents??0,totalCents:order.totalCents}}
 }
 /** The scheduled check (every minute, also under rer dev): orders still awaiting
  * payment from the last day, while their Checkout Sessions can still be paid. */

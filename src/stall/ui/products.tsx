@@ -7,24 +7,27 @@ import type { Product, ProductValue, Run, State } from './types'
 import { money } from './api'
 import { Badge, Empty, Notice } from './primitives'
 import { ProductDetailsEditor, ProductDetailsView, useProductDetails } from './product-details'
+import { ListingEditor, ListingView, useListing } from './listing-editor'
+import { listingState } from '../listing'
 import { shortId, useBusinessTime, usePerson, When } from './presentation'
 import { Icon } from './icons'
 import { BulkProducts } from './bulk-products'
 
 const blank: ProductValue = { sku: '', name: '', description: '', unitCents: 0, active: true }
-const statusOf = (product: Product) => product.value.approval ? product.value.active ? 'Published' : 'Inactive' : 'Staged'
-const productTabs = [['all', 'All'], ['Published', 'Published'], ['Staged', 'Staged'], ['Inactive', 'Inactive'], ['draft', 'Awaiting approval']] as const
+const statusOf = (product: Product) => { const state = listingState(product.value); return state === 'archived' ? 'Archived' : state === 'scheduled' ? 'Scheduled' : !product.value.approval ? 'Staged' : state === 'published' ? 'Published' : 'Inactive' }
+const productTabs = [['all', 'All'], ['Published', 'Published'], ['Scheduled', 'Scheduled'], ['Staged', 'Staged'], ['Inactive', 'Inactive'], ['Archived', 'Archived'], ['draft', 'Awaiting approval']] as const
 
 function Editor({ editing, busy, run, done }: { editing: Product | null; busy: boolean; run: Run; done: () => void }) {
   const start = editing ? editing.value.draft ?? editing.value : blank
-  const [value, setValue] = useState<ProductValue>({ sku: start.sku, name: start.name, description: start.description, unitCents: start.unitCents, active: start.active }), [price, setPrice] = useState(editing ? (start.unitCents / 100).toFixed(2) : '')
+  const [value, setValue] = useState<ProductValue>({ sku: start.sku, name: start.name, description: start.description, unitCents: start.unitCents, active: start.active })
+  const [publishAt, setPublishAt] = useState(start.publishAt ? start.publishAt.slice(0, 16) : ''), [archived, setArchived] = useState(!!start.archived), listing = useListing(start.details), [price, setPrice] = useState(editing ? (start.unitCents / 100).toFixed(2) : '')
   const details = useProductDetails(start.details), [detailsError, setDetailsError] = useState('')
   const cents = Math.round(Number(price) * 100), validPrice = /^\d+(\.\d{1,2})?$/.test(price) && Number.isSafeInteger(cents) && cents > 0
   async function prepare(event: FormEvent) {
     event.preventDefault()
     setDetailsError('')
     try {
-      if (validPrice && await run('product.prepare', { ...value, details: details.read(), unitCents: cents, ...(editing ? { revision: editing.revision } : {}) })) done()
+      if (validPrice && await run('product.prepare', { ...value, active: archived ? false : value.active, archived, publishAt: publishAt ? new Date(publishAt).toISOString() : null, details: { ...details.read(), ...listing.read() }, unitCents: cents, ...(editing ? { revision: editing.revision } : {}) })) done()
     } catch (error) { setDetailsError(error instanceof Error ? error.message : 'Review the product details.') }
   }
   return <form id="product-editor" className="st-stack st-editor" onSubmit={event => void prepare(event)}>
@@ -33,8 +36,11 @@ function Editor({ editing, busy, run, done }: { editing: Product | null; busy: b
     <label>Product name<input required maxLength={200} value={value.name} disabled={busy} onChange={event => setValue({ ...value, name: event.target.value })} /></label>
     <label>Description<textarea rows={4} value={value.description} disabled={busy} maxLength={4000} onChange={event => setValue({ ...value, description: event.target.value })} /></label>
     <ProductDetailsEditor input={details} busy={busy} />
+    <ListingEditor input={listing} sku={value.sku} busy={busy} />
     {detailsError && <Notice error>{detailsError}</Notice>}
-    <label className="st-checkbox"><input type="checkbox" checked={value.active} disabled={busy} onChange={event => setValue({ ...value, active: event.target.checked })} />Available for publication</label>
+    <label className="st-checkbox"><input type="checkbox" checked={value.active && !archived} disabled={busy || archived} onChange={event => setValue({ ...value, active: event.target.checked })} />Available for publication</label>
+    <label>Publish at (optional, your browser’s time)<input type="datetime-local" value={publishAt} disabled={busy || archived || !value.active} onChange={event => setPublishAt(event.target.value)} /><small>Leave blank to go live when you approve. A scheduled product appears by itself at that time.</small></label>
+    <label className="st-checkbox"><input type="checkbox" checked={archived} disabled={busy} onChange={event => { setArchived(event.target.checked); if (event.target.checked) setPublishAt('') }} />Archive this product (it leaves the shop and keeps its order history)</label>
     <div className="st-actions"><button disabled={busy || !validPrice}>Prepare revision</button><button className="st-secondary" type="button" disabled={busy} onClick={done}>Cancel edit</button></div>
   </form>
 }
@@ -47,14 +53,14 @@ function ProductPanel({ product, preparedBy, busy, run, canApprove, onEdit }: { 
     <p className="st-small">{product.id} · revision {shortId(product.revision)}</p>
     <section className="st-panel-block st-sums"><p><span>Unit price · USD</span><strong>{money(product.value.unitCents)}</strong></p></section>
     {product.value.description && <section className="st-panel-block"><div className="st-row"><h3>Description</h3><button className="st-link st-edit-link" disabled={busy} onClick={onEdit}>Edit<span className="st-sr-only"> description</span></button></div><p>{product.value.description}</p></section>}
-    <section className="st-panel-block"><h3>Current product details</h3><ProductDetailsView details={product.value.details} /></section>
+    <section className="st-panel-block"><h3>Current product details</h3><ProductDetailsView details={product.value.details} /><h4>Shop listing</h4><ListingView details={product.value.details} />{product.value.publishAt && <p className="st-small">Scheduled to go live {shortTime(product.value.publishAt)}</p>}</section>
     {product.value.approval && <section className="st-panel-block"><h3>Published</h3><p className="st-small">Published by {person(product.value.approval.by)} · <When at={product.value.approval.at} /> · revision {shortId(product.value.approval.revision)}</p></section>}
     {draft && <div className="st-note"><Icon name="spark" /><div>
       <h3>{agent ? 'Agent note' : `Revision ${shortId(product.revision)} for approval`}</h3>
       {preparedBy && <p>Revision {shortId(product.revision)} prepared by {person(preparedBy.actor)} · {shortTime(preparedBy.at)}</p>}
       <p><strong>{draft.name}</strong> · {money(draft.unitCents)} · {draft.active ? 'Active' : 'Inactive'}</p>
       {draft.description && <p>{draft.description}</p>}
-      <h4>Prepared product details</h4><ProductDetailsView details={draft.details} />
+      <h4>Prepared product details</h4><ProductDetailsView details={draft.details} /><h4>Prepared shop listing</h4><ListingView details={draft.details} />{draft.publishAt && <p className="st-small">Will go live {shortTime(draft.publishAt)}</p>}{draft.archived && <p className="st-small">Approving archives this product.</p>}
       <p className="st-small">Approving publishes these exact details.</p>
     </div></div>}
     <div className="st-actions st-panel-actions">{draft && canApprove && <button disabled={busy} onClick={() => void run('product.approve', { sku: product.id, revision: product.revision })}>Approve & publish revision {shortId(product.revision)}</button>}<button className="st-secondary" disabled={busy} onClick={onEdit}>Edit<span className="st-sr-only"> product</span></button></div>

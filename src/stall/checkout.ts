@@ -23,7 +23,8 @@ export async function checkout(env:Bindings,p:any) {
   const id=crypto.randomUUID(),revision=crypto.randomUUID()
   order={id,revision,customerEmail,lines,totalCents,shippingCents,currency:shopCurrency,status:'checkout_pending',createdAt:new Date().toISOString(),requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,refunds:[]}
   // Unique checkout key prevents two orders even if concurrent requests observed no row.
-  try { await env.DB.batch([env.DB.prepare('INSERT INTO st_orders VALUES(?,?,?)').bind(id,JSON.stringify(order),revision),systemAudit(env.DB,id,'checkout.prepared','customer')]);allowCreate=true }
+  const files=lines.flatMap(line=>line.personalization?.flatMap(answer=>answer.fileId?[answer.fileId]:[])??[])
+  try { await env.DB.batch([env.DB.prepare('INSERT INTO st_orders VALUES(?,?,?)').bind(id,JSON.stringify(order),revision),systemAudit(env.DB,id,'checkout.prepared','customer'),...files.map(file=>env.DB.prepare('UPDATE st_uploads SET order_id=? WHERE id=? AND order_id IS NULL').bind(id,file)),env.DB.prepare('INSERT INTO st_guard(value) SELECT CASE WHEN (SELECT COUNT(*) FROM st_uploads WHERE order_id=?)=? THEN 1 ELSE 0 END').bind(id,files.length),env.DB.prepare('DELETE FROM st_guard')]);allowCreate=true }
   catch(error) {
    const winner=await env.DB.prepare("SELECT id FROM st_orders WHERE json_extract(value_json,'$.checkoutKey')=?").bind(checkoutKey).first<any>()
    if(!winner) throw error

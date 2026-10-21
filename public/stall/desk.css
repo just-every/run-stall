@@ -301,3 +301,10 @@
 .st-filters .st-check { display: inline-flex; align-items: center; gap: 6px; color: var(--body); }
 .st-filters small { flex-basis: 100%; color: var(--muted); }
 .st-history { margin: 6px 0; padding-left: 18px; font-size: 13px; }
+
+/* Catalog listing editor */
+.st-media-row { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px 12px; align-items: center; }
+.st-media-row img, .st-media-video { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; background: var(--line); display: grid; place-items: center; }
+.st-media-row .st-actions { grid-column: 1 / -1; flex-wrap: wrap; }
+.st-variant { border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+.st-field-error { color: var(--error, #b42318); }

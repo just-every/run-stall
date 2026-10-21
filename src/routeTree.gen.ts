@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as OrderRouteImport } from './routes/order'
 import { Route as ShopRouteImport } from './routes/shop'
+import { Route as ShopHandleRouteImport } from './routes/shop_.$handle'
 
 const AppRoute = AppRouteImport.update({
   id: '/app',
@@ -28,35 +29,44 @@ const ShopRoute = ShopRouteImport.update({
   path: '/shop',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShopHandleRoute = ShopHandleRouteImport.update({
+  id: '/shop_/$handle',
+  path: '/shop/$handle',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/app': typeof AppRoute
   '/order': typeof OrderRoute
   '/shop': typeof ShopRoute
+  '/shop/$handle': typeof ShopHandleRoute
 }
 export interface FileRoutesByTo {
   '/app': typeof AppRoute
   '/order': typeof OrderRoute
   '/shop': typeof ShopRoute
+  '/shop/$handle': typeof ShopHandleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/app': typeof AppRoute
   '/order': typeof OrderRoute
   '/shop': typeof ShopRoute
+  '/shop_/$handle': typeof ShopHandleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/app' | '/order' | '/shop'
+  fullPaths: '/app' | '/order' | '/shop' | '/shop/$handle'
   fileRoutesByTo: FileRoutesByTo
-  to: '/app' | '/order' | '/shop'
-  id: '__root__' | '/app' | '/order' | '/shop'
+  to: '/app' | '/order' | '/shop' | '/shop/$handle'
+  id: '__root__' | '/app' | '/order' | '/shop' | '/shop_/$handle'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRoute
   OrderRoute: typeof OrderRoute
   ShopRoute: typeof ShopRoute
+  ShopHandleRoute: typeof ShopHandleRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +92,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShopRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shop_/$handle': {
+      id: '/shop_/$handle'
+      path: '/shop/$handle'
+      fullPath: '/shop/$handle'
+      preLoaderRoute: typeof ShopHandleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRoute,
   OrderRoute: OrderRoute,
   ShopRoute: ShopRoute,
+  ShopHandleRoute: ShopHandleRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
