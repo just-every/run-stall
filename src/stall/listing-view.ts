@@ -14,7 +14,7 @@ export function listingEntries(value: Omit<ProductValue, 'draft'>, stock: (sku: 
    ...(details?.personalization ? { personalization: details.personalization } : {}), ...held }]
  })
  const media = details?.media?.map(item => ({ ...item, url: `/api/stall/media/${item.id}` }))
- const product = { sku: value.sku, handle: handleOf(value), name: value.name, description: value.description, ...(details?.customFields ? { customFields: details.customFields } : {}),
+ const product = { sku: value.sku, handle: handleOf(value), ...(value.approval ? { listedAt: value.approval.at } : {}), name: value.name, description: value.description, ...(details?.customFields ? { customFields: details.customFields } : {}),
   ...(details?.categories ? { categories: details.categories } : {}), ...(details?.tags ? { tags: details.tags } : {}), ...(details?.attributes ? { attributes: details.attributes } : {}),
   ...(media ? { media } : {}), ...(details?.options ? { options: details.options } : {}), ...(details?.personalization ? { personalization: details.personalization } : {}), skus: items.map(item => item.sku) }
  return { items, product }

@@ -3,11 +3,11 @@
 import assert from 'node:assert/strict';
 export function volumeStock(skus=Array.from({length:200},(_,i)=>`MAKER-${i}`)) {
  const items=skus.map((sku,i)=>({id:`item-${i}`,sku,archived:false}));
- const orders=new Map(),payments=new Map();
+ const orders=new Map(),payments=new Map(),available=new Map();
  async function forward(request) {
   const url=new URL(request.url);
   assert.equal(url.origin,'https://stock.example.test');
-  if(request.method==='GET'&&url.pathname==='/api/pier/state') return Response.json({items,locations:[{id:'shelf',kind:'bin'}],parties:[{id:'shop',kind:'customer'}],positions:items.map(item=>({itemId:item.id,locationId:'shelf',status:'sellable',available:'10000'})),orders:[...orders.values()],shipments:[]});
+  if(request.method==='GET'&&url.pathname==='/api/pier/state') return Response.json({items,locations:[{id:'shelf',kind:'bin'}],parties:[{id:'shop',kind:'customer'}],positions:items.map(item=>({itemId:item.id,locationId:'shelf',status:'sellable',available:available.get(item.sku)??'10000'})),orders:[...orders.values()],shipments:[]});
   assert.equal(url.pathname,'/api/pier/commands');
   const {type,payload,commandId}=await request.json();
   if(type==='order.create') {
@@ -18,5 +18,5 @@ export function volumeStock(skus=Array.from({length:200},(_,i)=>`MAKER-${i}`)) {
   payments.set(commandId,payload.payment);
   return Response.json({result:orders.get(payload.orderId)});
  }
- return {items,orders,payments,forward};
+ return {items,orders,payments,forward,setAvailable:(sku,quantity)=>available.set(sku,quantity)};
 }

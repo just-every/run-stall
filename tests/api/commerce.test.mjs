@@ -632,3 +632,131 @@ test('CATALOG-001: variants, galleries, handles and listing states sell the exac
   assert.equal((await order(h,bought.orderId)).lines[0].name,'Linen tee — M / Red');
  }finally{if(destination)await destination.close();await h.close()}
 });
+
+test('STORE-002: collections, menus, search, filters, synonyms and pins agree with the published sellable catalog',async()=>{
+ const bulk=Array.from({length:25},(_,i)=>`BULK-${String(i).padStart(2,'0')}`);
+ const skus=['TSH-1','HAT-1','MUG-1','BAG-1','HOOD-S-BLK','HOOD-M-BLK','HOOD-M-GRY','SECRET-1',...bulk];
+ const stock=volumeStock(skus),edge=stripeEdge({forward:stock.forward});
+ const h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'test-stock-network-edge',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:randomBytes(32).toString('hex')},outboundService:edge.handle});
+ let destination;
+ try {
+  const put=async(sku,name,unitCents,details,description='')=>{const draft=await h.command('product.prepare',{sku,name,description,unitCents,active:true,details});return h.command('product.approve',{sku,revision:draft.revision})};
+  const material=value=>({name:'Material',value});
+  await put('TSH-1','Linen t-shirt',2500,{handle:'linen-t-shirt',categories:['Tops'],tags:['summer'],attributes:[material('Cotton')]},'Light summer top');
+  await put('HAT-1','Wool beanie',1800,{categories:['Accessories'],tags:['winter'],attributes:[material('Wool')]});
+  await put('MUG-1','Ceramic mug',2200,{categories:['Home'],attributes:[material('Ceramic')]},'Hand glazed');
+  await put('BAG-1','Cotton tote bag',3000,{categories:['Accessories'],tags:['summer'],attributes:[material('Cotton')]});
+  await put('HOODIE','Fleece hoodie',5000,{categories:['Tops'],attributes:[material('Cotton')],options:[{name:'Size',values:['S','M']},{name:'Color',values:['Black','Grey']}],
+   variants:[{sku:'HOOD-S-BLK',options:{Size:'S',Color:'Black'}},{sku:'HOOD-M-BLK',options:{Size:'M',Color:'Black'},unitCents:5500},{sku:'HOOD-M-GRY',options:{Size:'M',Color:'Grey'},unitCents:5500}]});
+  for(const sku of bulk) await put(sku,`Bulk item ${sku.slice(-2)}`,1000+Number(sku.slice(-2)),{categories:['Bulk']});
+  const secret=await h.command('product.prepare',{sku:'SECRET-1',name:'Secret prototype',description:'',unitCents:900,active:true});
+  const find=async(query='',opts={})=>h.api('/api/stall/discover'+(query?'?'+query:''),undefined,{as:'',...opts});
+  const names=async query=>{const result=await find(query),catalogue=await h.api('/api/stall/catalogue',undefined,{as:''});return result.order.map(sku=>catalogue.products.find(product=>product.sku===sku).name)};
+  let all=await find();
+  assert.equal(all.total,30,'unpublished and unstocked products stay out of the catalog');
+  assert.equal(all.order.length,24);assert.equal(all.pages,2);
+  assert.equal((await find('page=2')).order.length,6);
+  assert.ok(!JSON.stringify(all).includes('Secret'));
+  // Collections: a hand-picked list and rule-based sets.
+  const rejected=[{handle:'Bad Handle',title:'x',kind:'manual',skus:[]},{handle:'gifts',title:'Gifts',kind:'manual',skus:['NOPE-1']},{handle:'gifts',title:'Gifts',kind:'rule',rules:[]},{handle:'gifts',title:'Gifts',kind:'rule',rules:[{field:'colour',value:'x'}]}];
+  for(const payload of rejected) await h.command('collection.save',{description:'',...payload},{status:400});
+  const gifts=await h.command('collection.save',{handle:'gifts',title:'Gifts under the tree',description:'Small things people keep.',kind:'manual',skus:['MUG-1','HAT-1']});
+  await h.command('collection.save',{handle:'cotton',title:'Cotton goods',description:'',kind:'rule',match:'all',rules:[{field:'attribute',name:'Material',value:'cotton'}]});
+  await h.command('collection.save',{handle:'under-25',title:'Under $25',description:'',kind:'rule',rules:[{field:'price_max',cents:2500}],sort:'price-desc'});
+  await h.command('collection.save',{handle:'gifts',title:'Again',description:'',kind:'manual',skus:[]},{status:409});
+  await h.command('collection.save',{handle:'draft-list',title:'Not yet',description:'',kind:'manual',skus:['TSH-1'],published:false});
+  assert.deepEqual(await names('collection=gifts'),['Ceramic mug','Wool beanie'],'a manual collection keeps its merchant order');
+  const gift=await find('collection=gifts');
+  assert.deepEqual([gift.total,gift.collection.title,gift.collection.description],[2,'Gifts under the tree','Small things people keep.']);
+  assert.deepEqual((await names('collection=cotton')).sort(),['Cotton tote bag','Fleece hoodie','Linen t-shirt']);
+  assert.equal((await find('collection=draft-list')).total,0,'an unpublished collection is not browsable');
+  assert.ok(!all.facets.collections.some(entry=>entry.handle==='draft-list'));
+  assert.deepEqual((await names('collection=under-25')).slice(0,3),['Linen t-shirt','Ceramic mug','Wool beanie'],'a collection can set its own sort');
+  // Filters combine; counts, facets and totals agree.
+  all=await find();
+  assert.deepEqual(all.facets.collections.map(entry=>[entry.handle,entry.count]),[['cotton',3],['gifts',2],['under-25',28]]);
+  assert.deepEqual(all.facets.categories.slice(0,3).map(entry=>[entry.value,entry.count]),[['Bulk',25],['Accessories',2],['Tops',2]]);
+  assert.deepEqual(all.facets.options.map(group=>[group.name,group.values.map(entry=>[entry.value,entry.count])]),[['Color',[['Black',1],['Grey',1]]],['Size',[['M',1],['S',1]]]]);
+  const combined=await find('collection=cotton&category=Tops&option.Size=M&option.Color=Grey&min=50&max=60');
+  assert.deepEqual([combined.total,combined.order],[1,['HOODIE']]);
+  assert.deepEqual((await find('option.Size=S&option.Color=Grey')).order,[],'options must hold for one variant together');
+  assert.equal((await find('category=Tops&category=Home')).total,3);
+  assert.equal((await find('min=20&max=26')).total,2);
+  assert.equal((await find('attr.Material=Wool')).total,1);
+  const prices=await find('collection=cotton&sort=price-asc'),priceDesc=await find('collection=cotton&sort=price-desc');
+  assert.deepEqual(priceDesc.order,prices.order.slice().reverse());
+  assert.deepEqual((await find('sort=name')).order.slice(0,2),['BULK-00','BULK-01']);
+  // Publication and stock changes reach the public results at once.
+  stock.setAvailable('HAT-1','0');
+  assert.equal((await find('available=1')).total,29);assert.equal((await find()).total,30,'sold out stays listed');
+  assert.deepEqual((await find('collection=gifts')).facets.available,{inStock:1,all:2});
+  const hat=(await state(h)).products.find(product=>product.id==='MUG-1');
+  const withdrawn=await h.command('product.prepare',{sku:'MUG-1',revision:hat.revision,name:'Ceramic mug',description:'Hand glazed',unitCents:2200,active:false});
+  await h.command('product.approve',{sku:'MUG-1',revision:withdrawn.revision});
+  assert.deepEqual([(await find()).total,(await find('collection=gifts')).total,(await find('category=Home')).total],[29,1,0]);
+  assert.ok(!(await find('q=mug')).order.length);
+  // Search: names, SKUs, variant SKUs, attributes, case and prefixes.
+  assert.deepEqual(await names('q=LINEN'),['Linen t-shirt']);
+  assert.deepEqual(await names('q=lin'),['Linen t-shirt']);
+  assert.deepEqual(await names('q=tsh-1'),['Linen t-shirt']);
+  assert.deepEqual(await names('q=hood-m-gry'),['Fleece hoodie']);
+  assert.deepEqual((await names('q=wool')),['Wool beanie']);
+  assert.deepEqual((await names('q=cotton')).sort(),['Cotton tote bag','Fleece hoodie','Linen t-shirt']);
+  assert.deepEqual(await names('q=cotton&category=Accessories'),['Cotton tote bag']);
+  // No results: a useful state, and the query is reported.
+  const nothing=await find('q=zzzz&report=1');
+  assert.deepEqual([nothing.total,nothing.order,nothing.noResults.query],[0,[],'zzzz']);
+  assert.ok(nothing.noResults.suggestions.collections.length&&nothing.noResults.suggestions.categories.length);
+  assert.equal((await find('q=tee')).total,0);
+  await find('q=zzzz&report=1');await find('q=Linen&report=1');await find('q=linen&page=1');
+  // Synonyms change results.
+  await h.command('search.synonyms',{groups:[['tee']]},{status:400});
+  await h.command('search.synonyms',{groups:[['tee','t-shirt'],['t-shirt','top']]},{status:400});
+  const synonyms=await h.command('search.synonyms',{groups:[['tee','t-shirt','tshirt']]});
+  assert.deepEqual(await names('q=tee'),['Linen t-shirt']);
+  assert.deepEqual(await names('q=tshirt'),['Linen t-shirt']);
+  await h.command('search.synonyms',{groups:[],revision:'stale'},{status:409});
+  // Pinned and boosted products change the order for their query only.
+  const before=await names('q=cotton');
+  const first=await h.command('search.pin',{pins:[{query:'cotton',pinned:['HAT-1']}]});
+  await h.command('search.pin',{pins:[{query:'cotton',pinned:['HAT-1']}]},{status:409});
+  const pinned=await h.command('search.pin',{pins:[{query:'Cotton',pinned:['HAT-1'],boosted:['BAG-1']}],revision:first.revision});
+  const after=await names('q=cotton');
+  assert.deepEqual([after[0],after[1]],['Wool beanie','Cotton tote bag']);assert.notDeepEqual(after,before);
+  assert.deepEqual(await names('q=wool'),['Wool beanie']);
+  await h.command('search.pin',{pins:[{query:'x',pinned:['NOPE']}],revision:pinned.revision},{status:400});
+  // Predictive suggestions only offer published, sellable things.
+  const suggestions=(await h.api('/api/stall/discover/suggest?q=lin',undefined,{as:''})).suggestions;
+  assert.deepEqual(suggestions[0],{kind:'product',label:'Linen t-shirt',href:'/shop/linen-t-shirt'});
+  assert.ok((await h.api('/api/stall/discover/suggest?q=gif',undefined,{as:''})).suggestions.some(entry=>entry.kind==='collection'&&entry.href==='/shop?collection=gifts'));
+  assert.deepEqual((await h.api('/api/stall/discover/suggest?q=secret',undefined,{as:''})).suggestions,[]);
+  assert.ok((await h.api('/api/stall/discover/suggest?q=t-sh',undefined,{as:''})).suggestions.length);
+  // Menus link only to what is published.
+  await h.command('menu.save',{name:'main',items:[{label:'javascript',to:{type:'link',href:'javascript:alert(1)'}}]},{status:400});
+  await h.command('menu.save',{name:'main',items:[{label:'Nested',to:{type:'link',href:'/shop'},children:[{label:'Deep',to:{type:'link',href:'/shop'},children:[{label:'Deeper',to:{type:'link',href:'/shop'}}]}]}]},{status:400});
+  await h.command('menu.save',{name:'main',items:[{label:'Gifts',to:{type:'collection',handle:'gifts'}},{label:'Shirt',to:{type:'product',handle:'linen-t-shirt'}},{label:'Draft',to:{type:'collection',handle:'draft-list'}},{label:'Mug',to:{type:'product',handle:'mug-1'}},{label:'Shop',to:{type:'link',href:'/shop'},children:[{label:'Tops',to:{type:'link',href:'/shop?category=Tops'}}]}]});
+  assert.deepEqual((await h.api('/api/stall/menus',undefined,{as:''})).menus.main,[{label:'Gifts',href:'/shop?collection=gifts'},{label:'Shirt',href:'/shop/linen-t-shirt'},{label:'Shop',href:'/shop',children:[{label:'Tops',href:'/shop?category=Tops'}]}]);
+  // Merchant controls are owner/admin people only; agents and members are refused.
+  const member=await h.signIn('merch-member@example.test'),grant=await h.api('/api/stall/agent-token',{});
+  for(const [type,payload] of [['collection.save',{handle:'x',title:'X',description:'',kind:'manual',skus:[]}],['menu.save',{name:'footer',items:[]}],['search.synonyms',{groups:[]}],['search.pin',{pins:[]}]]) {
+   await h.command(type,payload,{as:member,status:403});
+   await h.command(type,payload,{as:'',headers:{authorization:`Bearer ${grant.token}`},status:403});
+   await h.command(type,payload,{as:'',status:401});
+  }
+  // The search report lists what shoppers asked for, including queries with no results.
+  const report=await h.api('/api/stall/search-report');
+  assert.deepEqual(report.top.slice(0,2).map(row=>[row.query,row.searches]),[['zzzz',2],['linen',1]]);
+  assert.deepEqual(report.noResults.map(row=>[row.query,row.noResults]),[['zzzz',2]]);
+  await h.api('/api/stall/search-report',undefined,{as:'',status:401});await h.api('/api/stall/search-report',undefined,{as:member,status:403});
+  // Records travel with the archive and export.
+  const exported=await h.api('/api/stall/exports/records');
+  assert.deepEqual([exported.collections.length,exported.merchandising.synonyms,exported.merchandising.pins[0].query,exported.searchTerms[0].query],[4,[['tee','t shirt','tshirt']],'cotton','zzzz']);
+  destination=await installation();
+  await restore(destination,await archive(h));
+  assert.deepEqual((await destination.api('/api/stall/exports/records')).collections,exported.collections);
+  assert.deepEqual((await destination.api('/api/stall/exports/records')).merchandising,exported.merchandising);
+  assert.equal((await h.command('collection.save',{handle:'gifts',title:'Gifts under the tree',description:'Small things people keep.',kind:'manual',skus:['HAT-1'],revision:(await state(h)).merchandising.collections.find(entry=>entry.id==='gifts').revision})).value.skus[0],'HAT-1');
+  await h.command('collection.delete',{handle:'draft-list',revision:(await state(h)).merchandising.collections.find(entry=>entry.id==='draft-list').revision});
+  assert.equal((await state(h)).merchandising.collections.length,3);void gifts;void synonyms;
+ }finally{if(destination)await destination.close();await h.close()}
+});

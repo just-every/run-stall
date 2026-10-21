@@ -1,17 +1,23 @@
 import type { Media, Option, Variant } from '../listing'
 import { money } from './api'
 
-export type VariantRow = { sku: string; options: Record<string, string>; price: string; compare: string; weight: string; hsCode: string; origin: string; customs: string; mediaId: string; archived: boolean }
+export type VariantRow = { sku: string; options: Record<string, string>; price: string; compare: string; cost: string; weight: string; length: string; width: string; height: string; hsCode: string; origin: string; customs: string; mediaId: string; archived: boolean }
 export type OptionRow = { name: string; values: string }
 const cents = (value: string, name: string) => { if (!/^\d+(\.\d{1,2})?$/.test(value)) throw new Error(`${name} must be dollars and cents.`); return Math.round(Number(value) * 100) }
-export const rowOf = (variant: Variant): VariantRow => ({ sku: variant.sku, options: variant.options, price: variant.unitCents === undefined ? '' : (variant.unitCents / 100).toFixed(2), compare: variant.compareAtCents === undefined ? '' : (variant.compareAtCents / 100).toFixed(2), weight: String(variant.weightGrams ?? ''), hsCode: variant.hsCode ?? '', origin: variant.countryOfOrigin ?? '', customs: variant.customsDescription ?? '', mediaId: variant.mediaId ?? '', archived: !!variant.archived })
+export const rowOf = (variant: Variant): VariantRow => ({ sku: variant.sku, options: variant.options, price: variant.unitCents === undefined ? '' : (variant.unitCents / 100).toFixed(2), compare: variant.compareAtCents === undefined ? '' : (variant.compareAtCents / 100).toFixed(2), cost: variant.costCents === undefined ? '' : (variant.costCents / 100).toFixed(2), weight: String(variant.weightGrams ?? ''), length: String(variant.dimensionsMm?.length ?? ''), width: String(variant.dimensionsMm?.width ?? ''), height: String(variant.dimensionsMm?.height ?? ''), hsCode: variant.hsCode ?? '', origin: variant.countryOfOrigin ?? '', customs: variant.customsDescription ?? '', mediaId: variant.mediaId ?? '', archived: !!variant.archived })
 export function readOptions(rows: OptionRow[]): Option[] { return rows.filter(row => row.name.trim()).map(row => ({ name: row.name.trim(), values: row.values.split(',').map(value => value.trim()).filter(Boolean) })) }
 export function readVariants(rows: VariantRow[]): Variant[] {
   return rows.map(row => {
     const variant: Variant = { sku: row.sku.trim(), options: row.options }
     if (row.price) variant.unitCents = cents(row.price, `Variant ${row.sku} price`)
     if (row.compare) variant.compareAtCents = cents(row.compare, `Variant ${row.sku} compare-at price`)
+    if (row.cost) variant.costCents = cents(row.cost, `Variant ${row.sku} cost`)
     if (row.weight) variant.weightGrams = Number(row.weight)
+    const size = [row.length, row.width, row.height]
+    if (size.some(Boolean)) {
+      if (!size.every(value => /^\d+$/.test(value) && Number(value) > 0)) throw new Error(`Variant ${row.sku} needs all three dimensions as positive whole millimeters, or none.`)
+      variant.dimensionsMm = { length: Number(row.length), width: Number(row.width), height: Number(row.height) }
+    }
     if (row.hsCode.trim()) variant.hsCode = row.hsCode.trim()
     if (row.origin.trim()) variant.countryOfOrigin = row.origin.trim().toUpperCase()
     if (row.customs.trim()) variant.customsDescription = row.customs.trim()
@@ -29,7 +35,7 @@ export function VariantsEditor({ sku, options, setOptions, variants, setVariants
     const declared = readOptions(options)
     const made = combinations(declared).map((chosen): VariantRow => {
       const kept = variants.find(row => declared.every(option => row.options[option.name] === chosen[option.name]))
-      return kept ?? { sku: `${sku.trim() || 'SKU'}-${declared.map(option => slug(chosen[option.name])).join('-')}`, options: chosen, price: '', compare: '', weight: '', hsCode: '', origin: '', customs: '', mediaId: '', archived: false }
+      return kept ?? { sku: `${sku.trim() || 'SKU'}-${declared.map(option => slug(chosen[option.name])).join('-')}`, options: chosen, price: '', compare: '', cost: '', weight: '', length: '', width: '', height: '', hsCode: '', origin: '', customs: '', mediaId: '', archived: false }
     })
     setVariants(made)
   }
@@ -46,7 +52,9 @@ export function VariantsEditor({ sku, options, setOptions, variants, setVariants
         <label>Variant {index + 1} SKU<input required maxLength={100} value={row.sku} onChange={event => change(index, { sku: event.target.value })} /></label>
         <label>Variant {index + 1} price · USD<input inputMode="decimal" value={row.price} placeholder="Product price" onChange={event => change(index, { price: event.target.value })} /></label>
         <label>Variant {index + 1} compare-at price<input inputMode="decimal" value={row.compare} placeholder="None" onChange={event => change(index, { compare: event.target.value })} /></label>
+        <label>Variant {index + 1} cost · USD<input inputMode="decimal" value={row.cost} placeholder="Not set" onChange={event => change(index, { cost: event.target.value })} /></label>
         <label>Variant {index + 1} weight · g<input type="number" min="1" step="1" value={row.weight} onChange={event => change(index, { weight: event.target.value })} /></label>
+        {(['length', 'width', 'height'] as const).map(name => <label key={name}>Variant {index + 1} {name} · mm<input type="number" min="1" step="1" value={row[name]} onChange={event => change(index, { [name]: event.target.value })} /></label>)}
         <label>Variant {index + 1} HS code<input inputMode="numeric" value={row.hsCode} onChange={event => change(index, { hsCode: event.target.value })} /></label>
         <label>Variant {index + 1} country of origin<input maxLength={2} value={row.origin} onChange={event => change(index, { origin: event.target.value.toUpperCase() })} /></label>
       </div>

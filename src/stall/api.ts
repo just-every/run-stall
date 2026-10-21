@@ -13,6 +13,11 @@ import { uploadMedia,mediaResponse } from './media'
 import { uploadPersonalization,uploadResponse } from './personalization'
 import { validateLine } from './order-selection'
 import { packingSlip } from './packing-slip'
+import { collectionCommand,collections } from './collections'
+import { merchandising,merchandisingCommand } from './merchandising'
+import { discover,readFilters,suggest,type Source } from './discover'
+import { recordSearch,searchReport } from './search-report'
+import { menuLinks } from './menu-links'
 import { checkAwaitingPayments,confirmReturn,webhook } from './payments'
 import { localShop,rawBody } from './stripe'
 import { operationsSnapshot,probeProviders } from './operations'
@@ -26,6 +31,10 @@ import { eraseCustomer } from './erasure'
 import { connectionCommand,connectionDetails,withConnections } from './connections'
 // Agent/connector readers retain commerce draft context, without staff annotations or staff-as-provider payment evidence.
 function agentRecord({notes,tags,manualPayment,...record}:any) { return {...record,...(manualPayment?{manualPayment:{...manualPayment,reference:undefined},payment:undefined}:{})} }
+async function discoverySource(env:Bindings):Promise<Source> {
+ const [stock,saved,config]=await Promise.all([catalogue(env),collections(env.DB),merchandising(env.DB)])
+ return {products:stock.products,items:stock.items,collections:saved,config:config.value}
+}
 const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'}})
 async function body(request:Request):Promise<any> { try { const value=JSON.parse(await rawBody(request,100000));if(!value||typeof value!=='object'||Array.isArray(value)) fail('INPUT','A JSON object is required.',400);return value }catch(e) { if(e instanceof Problem) throw e;return fail('INPUT','Invalid JSON request.',400) } }
 export async function stallResponse(request:Request,original:Bindings):Promise<Response|null> {
@@ -43,6 +52,13 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own product page.',403)
    return json(await validateLine(env,await body(request)))
   }
+  if(path==='/api/stall/menus'&&request.method==='GET') return json({menus:await menuLinks(env.DB)})
+  if(path==='/api/stall/discover'&&['GET'].includes(request.method)) {
+   const params=new URL(request.url).searchParams,found=await discoverySource(env),result=discover(found,readFilters(params))
+   if(params.get('report')==='1'&&result.query) await recordSearch(env.DB,result.query,result.total)
+   return json(result)
+  }
+  if(path==='/api/stall/discover/suggest'&&request.method==='GET') return json({suggestions:suggest(await discoverySource(env),(new URL(request.url).searchParams.get('q')??'').slice(0,100))})
   if(path==='/api/stall/checkout'&&request.method==='POST') {
    if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own checkout page.',403)
    return json(await checkout(env,await body(request)))
@@ -54,6 +70,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   const actor=await current(request,env)
   requireSupplier(actor)
   if(!['GET','HEAD'].includes(request.method)&&request.headers.get('origin')!==env.AUTH_ORIGIN&&(!actor.agent||request.headers.has('origin'))) fail('ORIGIN','Use this installation’s own page to change records.',403)
+  if(path==='/api/stall/search-report'&&request.method==='GET') { requirePerson(actor);return json(await searchReport(env.DB)) }
   if(path==='/api/stall/media'&&request.method==='POST') return json(await uploadMedia(env,actor,request))
   if(path.startsWith('/api/stall/uploads/')&&request.method==='GET') { requirePerson(actor);return await uploadResponse(env,decodeURIComponent(path.slice(19))) }
   if(path==='/api/stall/packing-slip'&&request.method==='GET') { requirePerson(actor);return await packingSlip(env.DB,text(new URL(request.url).searchParams.get('orderId'),'Order')) }
@@ -70,7 +87,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    const shipping=await refreshShipments(env,actor,history)
    const historyChanged=shipping.orders.some((order,index)=>order.revision!==history[index].revision)
    const events=historyChanged?(await env.DB.prepare('SELECT * FROM st_audit ORDER BY rowid DESC LIMIT 200').all()).results:logs.results
-   return json({timeZone:await businessTimeZone(env.DB),staff:Object.fromEntries(people.results.filter(person=>person.status==='active').map(person=>[person.id,person.name||person.email])),people:Object.fromEntries(people.results.map(person=>[person.id,person.name||person.email])),actor,products:selected,shippingCents:await shippingCharge(env.DB),...shipping,orders:actor.agent?shipping.orders.map(agentRecord):shipping.orders,audit:events,connections:{pier:pierConfigured(env),stripe:Boolean(env.STRIPE_SECRET_KEY),webhook:Boolean(env.STRIPE_WEBHOOK_SECRET)||(localShop(env)&&Boolean(env.STRIPE_SECRET_KEY))},connectionDetails:await connectionDetails(base,env)})
+   return json({timeZone:await businessTimeZone(env.DB),staff:Object.fromEntries(people.results.filter(person=>person.status==='active').map(person=>[person.id,person.name||person.email])),people:Object.fromEntries(people.results.map(person=>[person.id,person.name||person.email])),actor,products:selected,merchandising:{collections:await collections(env.DB),config:await merchandising(env.DB)},shippingCents:await shippingCharge(env.DB),...shipping,orders:actor.agent?shipping.orders.map(agentRecord):shipping.orders,audit:events,connections:{pier:pierConfigured(env),stripe:Boolean(env.STRIPE_SECRET_KEY),webhook:Boolean(env.STRIPE_WEBHOOK_SECRET)||(localShop(env)&&Boolean(env.STRIPE_SECRET_KEY))},connectionDetails:await connectionDetails(base,env)})
   }
   if(path==='/api/stall/orders'&&request.method==='GET') { requirePerson(actor);return json(await searchOrders(env.DB,new URL(request.url).searchParams)) }
   if(path==='/api/stall/orders/history'&&request.method==='GET') { requirePerson(actor);return json(await orderHistory(env.DB,text(new URL(request.url).searchParams.get('orderId'),'Order'))) }
@@ -104,6 +121,8 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    else if(type==='order.manual') result=await createManualOrder(env,actor,payload)
    else if(type==='order.assign') result=await assignOrder(env,actor,payload)
    else if(type==='shipping.configure') result=await configureShipping(env,actor,payload)
+   else if(['collection.save','collection.delete'].includes(type)) result=await collectionCommand(env,actor,type,payload)
+   else if(['menu.save','search.synonyms','search.pin'].includes(type)) result=await merchandisingCommand(env,actor,type,payload)
    else if(type==='customer.erase') result=await eraseCustomer(env,actor,payload)
    else if(['connection.pier','connection.stripe','connection.remove'].includes(type)) result=await connectionCommand(base,actor,type,payload)
    else fail('COMMAND','Unknown shop command.',404)
