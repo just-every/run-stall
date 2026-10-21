@@ -31,7 +31,7 @@ Choose one place to dispatch each order. For delivery you arrange yourself, Stal
 
 To change a prepared shipping reference or refund before approval, select **Edit** beside the approve button and prepare it again; the new draft replaces the old one. **Needs action** lists drafts the shop agent prepared first, each with its **Agent note**.
 
-Approval dispatches the reserved lines through Pier. Stall does not book a courier, calculate shipping rates or print labels; arrange the physical delivery yourself.
+Approval dispatches the reserved lines through Pier. Stall prices shipping at checkout from your [shipping profiles](SHIPPING.md) and keeps the service, ZIP code and charge on the order; it does not book a courier, fetch live carrier rates or print labels, so arrange the physical delivery yourself.
 
 Before preparing or approving, Stall checks Pier for an existing dispatch. An order already shipped there names its shipment instead of offering another shipment. A revoked or unrecognized connection key shows Pier's exact reason. After a Pier restore, create a new Stall key in **Pier → Channels**, then paste it into **Stall → Settings → Connect Pier**. If the restored Pier lacks an order or a dispatch Stall already recorded, restore its original business history before shipping again. When a refresh cannot check Pier, Orders shows the reason and clearly marks its shipment information as the last recorded state.
 

@@ -27,7 +27,7 @@ export function AssignProducts({ data, reload }: { data: ShippingState; reload: 
     {error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}
     <form className="st-stack" onSubmit={event => { event.preventDefault(); void preview({ assignments: selected.map(sku => ({ sku, profile })) }) }}>
       <fieldset disabled={busy} className="st-stack"><legend>Select products or variants</legend>
-        <div className="st-table-wrap"><table><caption className="st-sr-only">Products and their shipping profiles</caption><thead><tr><th scope="col">Select</th><th scope="col">Product</th><th scope="col">Profile</th></tr></thead><tbody>{data.skus.map(item => <tr key={item.sku}>
+        <div className="st-table-wrap"><table className="st-activity-table"><caption className="st-sr-only">Products and their shipping profiles</caption><thead><tr><th scope="col">Select</th><th scope="col">Product</th><th scope="col">Profile</th></tr></thead><tbody>{data.skus.map(item => <tr key={item.sku}>
           <td><label className="st-checkbox"><input type="checkbox" checked={selected.includes(item.sku)} onChange={event => { setReview(null); setSelected(event.target.checked ? [...selected, item.sku] : selected.filter(sku => sku !== item.sku)) }} /><span className="st-sr-only">Select {item.sku}</span></label></td>
           <td>{item.name} <small>{item.sku}</small></td><td>{nameOf(data.assignments[item.sku] ?? 'general')}</td></tr>)}</tbody></table></div>
         <label>Move the selected items to<select value={profile} onChange={event => { setReview(null); setProfile(event.target.value) }}>{data.profiles.map(entry => <option key={entry.id} value={entry.id}>{entry.value.name}</option>)}</select></label>
