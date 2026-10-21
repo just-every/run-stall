@@ -3,8 +3,8 @@
 The first move-in kit imports listing metadata from a deliberately small Shopify
 product CSV subset. It uses Base import-kit for a read-only dry-run, exact reviewed
 fingerprint, retained source bytes, resumable journal and protected partial undo. It never
-imports inventory, customers, cards, orders, images, options, tax settings or
-fulfilment settings, and never writes to Pier.
+imports inventory, customers, cards, orders, images, options, tax calculations or
+fulfillment settings, and never writes to Pier.
 
 ## Move in from the Shop desk
 
@@ -12,7 +12,7 @@ Start with two products while keeping your existing shop open. The importer take
 listing metadata only; it does not migrate your Shopify shop as a whole.
 
 1. Keep your original Shopify export. Prepare a private copy containing only the
-   six columns documented below, with one row per unique handle and SKU. Use USD
+   six columns documented below, optionally followed by `Stall Details`, with one row per unique handle and SKU. Use USD
    prices and the same SKUs as Pier. Remove extra columns and variant or image
    continuation rows; a full Shopify export may not match this supported subset.
 2. Sign in as an owner or administrator and open **Shop desk → Move in**. Under
@@ -22,7 +22,7 @@ listing metadata only; it does not migrate your Shopify shop as a whole.
    namespace when resuming this source.
 3. Select **Run dry run**. Under **2. Review & apply**, read the counts and every
    diagnostic, then expand **Review planned product changes**. Check names,
-   descriptions, SKUs and exact prices. A dry run does not change products.
+   descriptions, SKUs, exact prices and all optional details against their before-images. A dry run does not change products.
 4. Correct rejected value rows and run another dry run, or explicitly check
    **Exclude the … rejected CSV rows listed above** to apply only valid rows.
    Structural problems, ambiguous duplicate SKUs/handles and unsupported columns
@@ -57,9 +57,9 @@ Shopify documents product CSVs, their columns, decimal prices and legacy-column
 compatibility in [Using CSV files to import and export products](https://help.shopify.com/en/manual/products/import-export/using-csv).
 The legacy headers used here are also listed in Shopify's
 [CSV import troubleshooting guide](https://help.shopify.com/en/manual/products/import-export/common-import-issues).
-This kit accepts the six legacy headers below only. It does not implement every
+This kit accepts the six legacy headers below, optionally followed by `Stall Details`. It does not implement every
 Shopify import feature or accept arbitrary full exports. Prepare a private copy
-with only these columns; do not replace your original Shopify export.
+with only these supported columns; do not replace your original Shopify export.
 
 ```csv
 Handle,Title,Body (HTML),Variant SKU,Variant Price,Published
@@ -90,6 +90,37 @@ the entire source. Resolve variants in your source copy rather
 than allowing this kit to guess a combination. Currency conversion is not
 performed; check the installation currency before review.
 
+
+### Optional Stall Details extension
+
+Append a seventh header, `Stall Details`, to import the optional facts already
+supported by the [product editor](PRODUCTS.md#optional-product-details). This is
+Stall's extension, not a Shopify export column. Each cell is a complete JSON
+object using `costCents`, `weightGrams`, `dimensionsMm` (`length`, `width`, `height`),
+`taxCategory`, `hsCode`, `countryOfOrigin` and `customFields`. Custom fields have
+`key`, `label`, `type` (`text`, `number` or `boolean`) and a matching `value`.
+Unknown keys, invalid units/types and duplicate custom-field keys are rejected
+at their physical CSV row before any change. Tax categories and format-checked
+HS/origin facts do not claim tax or customs verification.
+
+For example, the JSON object `{"costCents":735,"weightGrams":350}` is written as
+this CSV cell (including the surrounding quotes):
+
+```csv
+"{""costCents"":735,""weightGrams"":350}"
+```
+
+The extended object **replaces all optional details**, including pending native
+facts, after exact reviewed apply. A literal `{}` clears the details; a blank
+cell is invalid. Review the full current/pending before-image and planned values.
+A six-column CSV still refuses products with current or pending optional details
+instead of silently dropping them. The staged bulk grid retains the same refusal.
+Published and ordered products remain protected for both CSV forms.
+
+New jobs use mapping v4. Older v1/v2/v3 jobs keep their retained mapping, source,
+fingerprint and resume/undo semantics. Original source, row outcomes, business
+CSV/JSON exports and installation archives preserve the supported facts.
+
 ## API reference: review, apply and publish
 
 1. A signed-in owner or admin, or their current Stall agent credential, submits
@@ -111,7 +142,7 @@ performed; check the installation currency before review.
    human product approval flow. Import does not create stock or publish listings.
 
 The destination row is `st_products(id=sku,value_json,revision)`. Its imported JSON
-is exactly `{sku,name,description,unitCents,active:false}`. Updating a reviewed
+is `{sku,name,description,unitCents,active:false}`, with optional validated `details` when the extended column is present. Updating a reviewed
 existing draft replaces its listing metadata; the journal retains the complete
 original draft. Published products and any SKU referenced by an existing order
 are refused. Concurrent edits, including same-revision edits, are fenced in the
@@ -131,7 +162,7 @@ public product metadata and has no customer-erasure custody.
 A human owner or admin can `POST /api/stall/imports/:id/undo` with an empty JSON
 object. Repeat while `state` is `undoing`. Undo deletes a newly imported draft or
 restores an existing draft only while it still matches this import's attributed
-after-image. Current v2/v3 jobs retain changed or dependent rows while reversing
+after-image. Current v2/v3/v4 jobs retain changed or dependent rows while reversing
 untouched rows. The report names each SKU, its disposition/reason, observed and
 expected revisions/content, and protecting order/publication references. Every
 observation and dependency set is fenced in the undo transaction. A repeated undo

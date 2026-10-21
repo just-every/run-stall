@@ -31,7 +31,10 @@ clears it when that revision is approved. A failed prepare keeps the form input.
 Product CSV/JSON business exports and installation archives include current and
 prepared details. The six-column Shopify import and staged bulk grid cannot carry
 these richer fields: they refuse a SKU with current or prepared metadata instead
-of dropping it. Edit that SKU through Products.
+of dropping it. Edit that SKU through Products, or use the reviewed
+[Stall Details CSV extension](MOVE-IN.md#optional-stall-details-extension) to replace
+the complete optional details object. The extension stages unpublished products;
+publication remains a separate approval.
 
 New purchases keep the description, name and price from checkout even after a
 later listing change. Older orders without a saved description do not infer one

@@ -144,8 +144,61 @@ try {
  await page.getByLabel('Product undo outcomes', { exact: true }).getByText('RUNNER-NAT · Reversed', { exact: true }).waitFor()
  assert.ok(!(await h.api('/api/stall/state')).products.some(p => p.id === 'RUNNER-NAT'))
  await capture('mixed-undone', page.getByLabel('Product undo outcomes', { exact: true }))
+ // CATALOG-002 metadata uses the same public reviewed import and journal doors.
+ const details = { costCents: 735, weightGrams: 350, dimensionsMm: { length: 120, width: 90, height: 100 }, taxCategory: 'ceramics', hsCode: '691200', countryOfOrigin: 'US', customFields: [{ key: 'care', label: 'Care', type: 'text', value: '<img src=x onerror=alert(1)> Hand wash' }] }
+ const cell = value => '"' + JSON.stringify(value).replaceAll('"', '""') + '"'
+ const metadataCSV = 'Handle,Title,Body (HTML),Variant SKU,Variant Price,Published,Stall Details\n' + Array.from({ length: 12 }, (_, index) => `meta-${index + 1},Metadata product ${index + 1},Reviewed facts,META-${index + 1},12.34,FALSE,${cell(details)}\n`).join('') + `meta-bad,Invalid weight,,META-BAD,12.34,FALSE,${cell({ weightGrams: 0 })}\n`
+ await page.getByRole('textbox', { name: /^CSV source/ }).fill(metadataCSV)
+ await page.getByRole('button', { name: 'Run dry run', exact: true }).click()
+ await page.getByText('Stall Details replaces all optional details on each valid row, including any pending native details. Review the complete before-image; {} clears them. Tax and customs facts are not provider verified.', { exact: true }).waitFor()
+ await page.getByText('Review planned product changes', { exact: true }).click()
+ assert.ok(!(await h.api('/api/stall/state')).products.some(p => p.id === 'META-1'))
+ await capture('metadata-review', page.getByText('Review planned product changes', { exact: true }))
+ await page.getByRole('checkbox', { name: /^Exclude the 1 rejected CSV rows/ }).check()
+ await page.getByRole('button', { name: 'Apply reviewed import', exact: true }).click()
+ await page.getByRole('button', { name: 'Resume apply', exact: true }).waitFor()
+ // Leave the source form and resume using only retained source in the journal.
+ await page.getByRole('link', { name: 'Products', exact: true }).click()
+ await page.getByRole('link', { name: 'Move in', exact: true }).click()
+ await page.getByRole('button', { name: 'View', exact: true }).first().click()
+ await page.getByRole('button', { name: 'Resume apply from retained source', exact: true }).click()
+ await page.getByText('Import completed.', { exact: true }).waitFor()
+ state = await h.api('/api/stall/state')
+ const metadata = state.products.filter(p => p.id.startsWith('META-'))
+ assert.equal(metadata.length, 12)
+ assert.ok(metadata.every(p => p.value.active === false))
+ for (const item of metadata) assert.deepEqual(item.value.details, details)
+ assert.ok(!state.products.some(p => p.id === 'META-BAD'))
+ await capture('metadata-resumed', page.getByText('Import completed.', { exact: true }))
+ await page.getByRole('link', { name: 'Products', exact: true }).click()
+ await page.getByRole('button', { name: 'Metadata product 1', exact: true }).click()
+ const metadataPanel = page.getByRole('complementary', { name: 'Product META-1', exact: true })
+ await metadataPanel.getByText('<img src=x onerror=alert(1)> Hand wash', { exact: true }).waitFor()
+ assert.equal(await metadataPanel.locator('img').count(), 0)
+ await capture('metadata-product', metadataPanel)
+ await page.getByRole('link', { name: 'Move in', exact: true }).click()
+ await page.getByRole('button', { name: 'View', exact: true }).first().click()
+ await page.getByRole('button', { name: 'Review undo', exact: true }).click()
+ await page.getByRole('button', { name: 'Undo import', exact: true }).click()
+ await page.getByRole('button', { name: 'Resume undo', exact: true }).waitFor()
+ await page.getByRole('button', { name: 'Resume undo', exact: true }).click()
+ await page.getByRole('button', { name: 'Undo import', exact: true }).click()
+ await page.getByText('Undo finished. Review the journal for preserved records.', { exact: true }).waitFor()
+ assert.ok(!(await h.api('/api/stall/state')).products.some(p => p.id.startsWith('META-')))
+ await capture('metadata-undone', page.getByLabel('Product undo outcomes', { exact: true }))
+ const sitePage = await context.newPage()
+ for (const [path, name] of [['/docs/move-in', 'metadata-guide'], ['/docs/products', 'product-guide'], ['/contract', 'contract']]) {
+  const response = await sitePage.goto(ready.siteUrl + path)
+  assert.equal(response.status(), 200)
+  for (const width of [1440, 390]) {
+   await sitePage.setViewportSize({ width, height: 1000 })
+   assert.ok(await sitePage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${path} overflow at ${width}`)
+   await sitePage.screenshot({ path: join(screenshots, `CATALOG-002-${name}-${width}.png`), fullPage: true })
+  }
+ }
+ await sitePage.close()
  assert.deepEqual(errors, [])
  await dev.assertRunning()
- console.log('CATALOG-002 bulk journey passed: exact-cent grid, read-only review, concurrent-edit refusal with retained input, staged apply, literal text, retained source, untouched reversal and named native-edit protection, explicit mixed-row exclusion and rejected-row custody at 1440/390.')
+ console.log('CATALOG-002 bulk journey passed: exact-cent grid, read-only review, concurrent-edit refusal with retained input, staged apply, literal text, retained source, untouched reversal and named native-edit protection, explicit mixed-row exclusion, metadata review/import/journal resume/undo and guides/contract at 1440/390.')
 } catch (error) { journeyError = error; throw error }
 finally { try { await finishCleanup(cleanup, journeyError) } finally { for (const signal of ['SIGINT', 'SIGTERM']) process.off(signal, interrupted) } }

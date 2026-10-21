@@ -91,8 +91,8 @@ export function productTargets(reversing = false, review?: { plan: ImportPlan; j
     write(row) {
       checkScope(row.destination, row.targetKind);
       // Reversal restores the complete original draft, including native fields.
-      // Forward writes use the import's deliberately narrow product schema.
-      if (!reversing) validateProductValue(row.value);
+      // Forward writes accept only the supported, validated catalog facts.
+      if (!reversing) validateProductValue(row.value, true);
       return [sql('INSERT INTO st_products(id,value_json,revision) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET value_json=excluded.value_json,revision=excluded.revision', row.targetId, JSON.stringify(row.value), row.revision)];
     },
     remove(destination, kind, id) {

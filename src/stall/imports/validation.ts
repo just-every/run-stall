@@ -1,4 +1,5 @@
-export type ProductValue = { sku: string; name: string; description: string; unitCents: number; active: boolean };
+import { productDetails, type ProductDetails } from '../product-details';
+export type ProductValue = { details?: ProductDetails; sku: string; name: string; description: string; unitCents: number; active: boolean };
 export function importError(code: string, message: string): never {
   throw Object.assign(new Error(message), { code, status: code === 'FORBIDDEN' ? 403 : code === 'IMPORT_JOB_NOT_FOUND' ? 404 : 409 });
 }
@@ -13,14 +14,19 @@ export function stableId(value: unknown, field = 'sku'): string {
     importError('PRODUCT_ID', `${field} must use letters, digits, dot, underscore, colon or dash.`);
   return result;
 }
-export function validateProductValue(input: unknown): ProductValue {
+export function validateProductValue(input: unknown, allowDetails = false): ProductValue {
   if (!input || typeof input !== 'object' || Array.isArray(input)) importError('PRODUCT_VALUE', 'Supply a product object.');
   const value = input as Record<string, unknown>;
   const keys = ['sku', 'name', 'description', 'unitCents', 'active'];
-  if (Object.keys(value).length !== keys.length || keys.some(key => !(key in value))) importError('PRODUCT_VALUE', 'Use exactly the documented product fields.');
+  if (Object.keys(value).some(key => !keys.includes(key) && !(allowDetails && key === 'details')) || keys.some(key => !(key in value))) importError('PRODUCT_VALUE', 'Use exactly the documented product fields.');
   const sku = stableId(value.sku), name = boundedText(value.name, 'name');
   if (typeof value.description !== 'string' || value.description.length > 4000 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value.description)) importError('PRODUCT_DESCRIPTION', 'Description must contain at most 4000 characters of text.');
   if (typeof value.unitCents !== 'number' || !Number.isSafeInteger(value.unitCents) || value.unitCents < 1 || value.unitCents > 100000000) importError('PRODUCT_PRICE', 'Price must be an integer from 1 through 100000000 cents.');
   if (value.active !== false) importError('PRODUCT_PUBLICATION', 'Imports must stage unpublished products. Approve publication separately after Pier validation.');
-  return { sku, name, description: value.description, unitCents: value.unitCents, active: false };
+  let details: ProductDetails | undefined;
+  if ('details' in value) {
+    try { details = productDetails(value.details); }
+    catch (error) { importError('PRODUCT_DETAILS', error instanceof Error ? error.message : 'Invalid product details.'); }
+  }
+  return { ...(details && Object.keys(details).length ? { details } : {}), sku, name, description: value.description, unitCents: value.unitCents, active: false };
 }

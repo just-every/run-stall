@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { installation } from './harness.mjs';
+import { installation, archive, restore } from './harness.mjs';
 import { pierInstallation } from './pier.mjs';
 import { stripeEdge, deliverWebhook, purchase } from './network.mjs';
 const base = '/api/stall/imports';
@@ -400,4 +400,80 @@ test('CATALOG-002: undo preserves a real paid order and its published product wh
     if (h) await h.close();
     await pier.close();
   }
+});
+
+
+test('CATALOG-002: reviewed metadata CSV survives resume and restore, exports exact facts, and protects later native work on undo', async () => {
+  const h = await installation();
+  let receiving;
+  try {
+    const facts = { costCents: 735, weightGrams: 350, dimensionsMm: { length: 120, width: 90, height: 100 },
+      taxCategory: 'ceramics', hsCode: '691200', countryOfOrigin: 'US', customFields: [
+        { key: 'care', label: 'Care', type: 'text', value: 'Hand wash. <img src=x onerror=alert(1)>' },
+        { key: 'capacity', label: 'Capacity', type: 'number', value: 325 },
+        { key: 'dishwasher', label: 'Dishwasher safe', type: 'boolean', value: false },
+      ] };
+    let native = await h.command('product.prepare', { sku: 'FACTS-1', name: 'Original', description: 'Keep on undo', unitCents: 100, active: false, details: facts });
+    native = await h.command('product.approve', { sku: native.id, revision: native.revision });
+    await h.command('product.prepare', { sku: native.id, revision: native.revision, name: 'Pending native', description: '', unitCents: 200, active: false, details: { ...facts, costCents: 950 } });
+    const initial = (await h.api('/api/stall/state')).products;
+    const quote = value => '"' + value.replaceAll('"', '""') + '"';
+    const row = (sku, details) => [sku.toLowerCase(), `Imported ${sku}`, 'Reviewed plain description', sku, '12.34', 'FALSE', quote(typeof details === 'string' ? details : JSON.stringify(details))].join(',');
+    const header = 'Handle,Title,Body (HTML),Variant SKU,Variant Price,Published,Stall Details\n';
+    const invalid = [{ ...facts, costCents: 1.5 }, { ...facts, customFields: [{ key: 'care', label: 'Care', type: 'number', value: 'not a number' }] }, { ...facts, credentials: 'unsupported' }, '{not JSON'];
+    const csv = header + Array.from({ length: 12 }, (_, index) => row(`FACTS-${index + 1}`, { ...facts, costCents: 700 + index })).concat(invalid.map((details, index) => row(`INVALID-${index + 1}`, details))).join('\n') + '\n';
+    const preview = await h.api(`${base}/preview`, { csv });
+    assert.equal(preview.counts.mapped, 12);
+    assert.equal(preview.counts.rejected, invalid.length);
+    assert.deepEqual((await h.api('/api/stall/state')).products, initial, 'metadata review changes neither native nor pending values');
+    assert.deepEqual(preview.plan.entries[0].source.payload.previous.value, initial[0].value, 'review includes complete current and pending facts');
+    assert.deepEqual(preview.plan.entries[0].effects[0].value.details, { ...facts, costCents: 700 });
+    assert.equal((await h.api('/api/stall/catalogue', undefined, { as: '' })).items.length, 0);
+    await h.api(`${base}/apply`, { csv, fingerprint: preview.fingerprint }, { status: 409 });
+    const excludedRows = [14, 15, 16, 17];
+    const body = { csv, fingerprint: preview.fingerprint, excludedRows };
+    await h.api(`${base}/apply`, { ...body, csv: csv.replace('""costCents"":700', '""costCents"":701') }, { status: 409 });
+    assert.deepEqual((await h.api('/api/stall/state')).products, initial);
+    let job = await h.api(`${base}/apply`, body);
+    assert.equal(job.state, 'applying');
+    assert.ok(job.checkpoint > 0 && job.checkpoint < 12);
+    receiving = await installation();
+    await restore(receiving, await archive(h));
+    let journal = await receiving.api(`${base}/${job.id}`);
+    const retained = journal.originals.find(item => item.original.status === 'retained');
+    assert.equal(Buffer.from(retained.original.base64, 'base64').toString('utf8'), csv);
+    assert.deepEqual(journal.rejectedRows.map(item => item.row), excludedRows);
+    for (let n = 0; job.state === 'applying' && n < 4; n++) job = await receiving.api(`${base}/apply`, body);
+    assert.equal(job.state, 'completed');
+    const complete = (await receiving.api('/api/stall/exports/records')).products;
+    assert.equal(complete.length, 12);
+    for (let index = 0; index < 12; index++) {
+      const imported = complete.find(item => item.id === `FACTS-${index + 1}`);
+      assert.deepEqual(imported.value.details, { ...facts, costCents: 700 + index });
+      assert.equal(imported.value.active, false);
+      assert.equal(imported.value.unitCents, 1234);
+    }
+    assert.deepEqual(await receiving.api(`${base}/apply`, body), job, 'restore and replay keep the original job and completed effects');
+    assert.deepEqual((await receiving.api('/api/stall/exports/records')).products, complete);
+    const { readCsv } = await import('./csv-reader.mjs');
+    const exported = readCsv(await (await receiving.request('/api/stall/exports/products')).text());
+    assert.equal(exported.length, 12);
+    assert.deepEqual(JSON.parse(exported.find(item => item.id === 'FACTS-1').details), { ...facts, costCents: 700 });
+    // Explicit {} clears details only after exact reviewed apply; undo restores them.
+    const clearCSV = header + row('FACTS-1', {}) + '\n';
+    const clearing = await apply(receiving, clearCSV);
+    assert.equal((await receiving.api('/api/stall/exports/records')).products.find(item => item.id === 'FACTS-1').value.details, undefined);
+    await undo(receiving, clearing.job);
+    assert.deepEqual((await receiving.api('/api/stall/exports/records')).products, complete);
+    const later = (await receiving.api('/api/stall/state')).products.find(item => item.id === 'FACTS-12');
+    await receiving.command('product.prepare', { ...later.value, sku: later.id, revision: later.revision, name: 'Keep this native work', details: { ...facts, costCents: 999 } });
+    const protectedRow = (await receiving.api('/api/stall/state')).products.find(item => item.id === later.id);
+    const report = await undo(receiving, job, { bounded: true });
+    const remaining = (await receiving.api('/api/stall/state')).products;
+    assert.equal(remaining.length, 2);
+    assert.deepEqual(remaining.find(item => item.id === 'FACTS-1'), initial[0], 'undo restores both original and pending native details');
+    assert.deepEqual(remaining.find(item => item.id === later.id), protectedRow);
+    assert.equal(report.dispositions.find(item => item.targetId === later.id).disposition, 'retained');
+    assert.equal(report.dispositions.find(item => item.targetId === later.id).reason, 'edited');
+  } finally { await receiving?.close(); await h.close(); }
 });

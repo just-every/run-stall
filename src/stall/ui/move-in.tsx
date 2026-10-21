@@ -52,7 +52,7 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
     if (!original || original.status !== 'retained') throw new Error('The original CSV is unavailable. This import cannot be resumed from its journal.')
     const bytes = Uint8Array.from(atob(original.base64), character => character.charCodeAt(0))
     const source = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-    const job = await request<ImportJob>('/api/stall/imports/apply', { csv: source, namespace: journal.job.namespace.replace(/^stall-shopify-products-v[23]:/, '').replace(/:[a-f0-9]{64}$/, ''), fingerprint: journal.job.fingerprint, excludedRows: journal.rejectedRows.map(entry => entry.row) })
+    const job = await request<ImportJob>('/api/stall/imports/apply', { csv: source, namespace: journal.job.namespace.replace(/^stall-shopify-products-v[234]:/, '').replace(/:[a-f0-9]{64}$/, ''), fingerprint: journal.job.fingerprint, excludedRows: journal.rejectedRows.map(entry => entry.row) })
     setJournal(await request<Journal>(`/api/stall/imports/${encodeURIComponent(job.id)}`))
     setNotice(job.state === 'completed' ? 'Import completed.' : `Import is ${humanLabel(job.state)}: ${job.checkpoint} / ${job.total}. Resume again to continue.`)
     await list(); await reload()
@@ -65,7 +65,7 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
     {error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}
     <div className="st-panel st-stack">
       <div className="st-heading-row"><h2><span className="st-step-number">1.</span> Add your CSV</h2></div>
-      <p className="st-small">Use a Shopify product export with Handle, Title, Body (HTML), Variant SKU, Variant Price and Published columns (only these six, in this order). Prices are imported as USD. Review every warning; published source products are still staged for approval here.</p>
+      <p className="st-small">Use a Shopify product export with Handle, Title, Body (HTML), Variant SKU, Variant Price and Published columns (these six in this order; optionally append Stall Details with a complete JSON details object, or {} to clear it). Prices are imported as USD. Review every warning; published source products are still staged for approval here.</p>
       <label>Choose a CSV file<input type="file" accept=".csv,text/csv" disabled={busy} onChange={event => {
         const file = event.target.files?.[0]
         if (file) void act(async () => { const value = await file.text(); changed(); setCsv(value) })
@@ -82,7 +82,7 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
       {preview.diagnostics.length ? <ul className="st-diagnostics">{preview.diagnostics.map((diagnostic, index) => <li key={index}><strong>{humanLabel(diagnostic.severity)}: {humanLabel(diagnostic.code)}</strong><p>{diagnostic.message}</p>{diagnostic.location?.row && <small>CSV row {diagnostic.location.row}</small>}</li>)}</ul> : <p>No diagnostics reported.</p>}
       {excludedRows.length > 0 && <label className="st-checkbox"><input type="checkbox" disabled={busy || !!applied} checked={excludeRejected} onChange={event => setExcludeRejected(event.target.checked)} />Exclude the {excludedRows.length} rejected CSV rows listed above; apply only the valid reviewed rows.</label>}
       <label>Reviewed fingerprint<input readOnly value={preview.fingerprint} className="st-mono" /></label>
-      <RecordDetail value={preview.plan.entries.map(entry => ({ sourceId: entry.source.sourceId, effects: entry.effects, unmapped: entry.unmapped, rejection: entry.rejection }))} label="Review planned product changes" />
+      <RecordDetail value={preview.plan.entries.map(entry => ({ sourceId: entry.source.sourceId, before: (entry.source.payload as { previous?: unknown }).previous, effects: entry.effects, unmapped: entry.unmapped, rejection: entry.rejection }))} label="Review planned product changes" />
       <p>Applying writes these product changes. Existing staged product details may be updated. Rejected rows make no product changes and remain in the journal and original source. Each request processes a bounded batch; resume until complete.</p>
       <div className="st-actions"><button disabled={busy || (!canApply && !resume)} onClick={() => void act(apply)}>{resume ? 'Resume apply' : applied?.state === 'completed' ? 'Import completed' : 'Apply reviewed import'}</button></div>
       </>}

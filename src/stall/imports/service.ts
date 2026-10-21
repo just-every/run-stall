@@ -42,13 +42,13 @@ async function preparePlan(db: D1Database, actor: Actor, input: ProductImportInp
   for (const record of source.records) {
     record.namespace = namespace;
     if (record.kind === 'shopify-product-rejected') continue;
-    const product = validateProductValue(record.payload);
+    const product = validateProductValue(record.payload, true);
     const previous = existing.get(record.sourceId);
     if (previous && (previous.value as Record<string, Json>).active !== false)
       importError('IMPORT_PUBLISHED_PRODUCT', 'Unpublish this product through the native workflow before importing it.');
     const priorValue = previous?.value as Record<string, Json> | undefined;
     const pending = priorValue?.draft as Record<string, Json> | undefined;
-    if (priorValue?.details || pending?.details)
+    if ((priorValue?.details || pending?.details) && !source.diagnostics.some(diagnostic => diagnostic.code === 'IMPORT_DETAILS_REPLACEMENT'))
       importError('IMPORT_PRODUCT_DETAILS', 'This SKU has native product details that the six-column CSV cannot carry. Edit it in Products; this import would discard those details.');
     const dependency = await db.prepare(`SELECT 1 AS found WHERE ${orderDependencySQL}`).bind(record.sourceId).first();
     if (dependency) importError('IMPORT_ORDER_DEPENDENCY', 'An order refers to this SKU. Preserve its catalog reference.');
@@ -107,7 +107,7 @@ export async function applyProductImport(db: D1Database, actor: Actor, input: Pr
 async function jobContext(db: D1Database, actor: Actor, id: string, reversing = false) {
   await authorizeProductImport(db, actor, reversing);
   stableId(id, 'jobId');
-  const row = await db.prepare('SELECT namespace,mapping_version FROM ik_jobs WHERE id=? AND destination=? AND mapping_version IN (?,?,?) AND principal_id=?')
+  const row = await db.prepare(`SELECT namespace,mapping_version FROM ik_jobs WHERE id=? AND destination=? AND mapping_version IN (${supportedProductMappings.map(() => '?').join(',')}) AND principal_id=?`)
     .bind(id, productImportDestination, ...supportedProductMappings, productImportPrincipal).first<{ namespace: string; mapping_version: string }>();
   if (!row) importError('IMPORT_JOB_NOT_FOUND', 'Import journal was not found or has been retired.');
   return productImportContext(db, actor, row.namespace, reversing, row.mapping_version);
@@ -116,7 +116,7 @@ async function jobContext(db: D1Database, actor: Actor, id: string, reversing = 
 export async function listProductImports(db: D1Database, actor: Actor, limit = 50) {
   await authorizeProductImport(db, actor);
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) importError('IMPORT_LIMIT', 'Journal limit must be from 1 through 100.');
-  const rows = await db.prepare('SELECT id,namespace,mapping_version FROM ik_jobs WHERE destination=? AND mapping_version IN (?,?,?) AND principal_id=? ORDER BY rowid DESC LIMIT ?')
+  const rows = await db.prepare(`SELECT id,namespace,mapping_version FROM ik_jobs WHERE destination=? AND mapping_version IN (${supportedProductMappings.map(() => '?').join(',')}) AND principal_id=? ORDER BY rowid DESC LIMIT ?`)
     .bind(productImportDestination, ...supportedProductMappings, productImportPrincipal, limit).all<{ id: string; namespace: string; mapping_version: string }>();
   const jobs = [];
   for (const row of rows.results) jobs.push(await readD1ImportJob(row.id, productImportContext(db, actor, row.namespace, false, row.mapping_version)));
