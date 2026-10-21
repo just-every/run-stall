@@ -254,7 +254,7 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
    await h.command('order.manual',payload,{as:admin,status:503});
    assert.equal((await pier.api('/api/pier/state')).orders.length,before.orders.length+1);
    let value=await h.command('order.manual',payload,{as:admin});
-   assert.equal(value.status,'reserved');assert.equal(value.payment.source,'staff');assert.equal(value.payment.intentId,undefined);assert.equal(value.payment.sessionId,undefined);
+   assert.equal(value.status,'reserved');assert.equal(value.payment.source,'staff');assert.equal(value.payment.label,'Payment recorded by staff, not confirmed by a payment provider');assert.equal(value.payment.intentId,undefined);assert.equal(value.payment.sessionId,undefined);
    await h.api('/api/stall/checkout/confirm',{orderId:value.id},{as:'',status:404});
    assert.equal(value.manualPayment.method,'check');assert.equal(value.manualPayment.amountCents,value.totalCents);assert.equal(value.manualPayment.reference,payload.reference);assert.equal(value.taxTreatment,'no_tax_recorded');assert.equal(value.channel,'manual');
    assert.ok(value.manualPayment.by);assert.ok(value.manualPayment.at.endsWith('Z'));
@@ -282,7 +282,7 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
    await h.command('refund.approve',{orderId:value.id,revision:'stale'},{status:409});
    await h.command('refund.approve',{orderId:value.id,revision:value.revision},{...agent,status:403});
    value=await h.command('refund.approve',{orderId:value.id,revision:value.revision});
-   assert.equal(value.refunds.at(-1).source,'staff');assert.equal(value.refunds.at(-1).status,'succeeded');assert.equal(value.refunds.at(-1).amountCents,2450);assert.equal(value.refunds.at(-1).stripeId,undefined);
+   assert.equal(value.refunds.at(-1).source,'staff');assert.equal(value.refunds.at(-1).label,'Refund recorded by staff; Stall moved no money');assert.equal(value.refunds.at(-1).status,'succeeded');assert.equal(value.refunds.at(-1).amountCents,2450);assert.equal(value.refunds.at(-1).stripeId,undefined);
    assert.equal((await h.command('refund.approve',{orderId:value.id,revision:value.revision})).refunds.length,1);
    await h.command('refund.prepare',{orderId:value.id,revision:value.revision,lines:[{sku:'MUG-BLUE',quantity:1}],reason:'Duplicate purchased units'},{status:409});
    await h.command('refund.prepare',{orderId:value.id,revision:value.revision,kind:'goodwill',amountCents:626,reason:'Exceeds remainder'},{status:409});

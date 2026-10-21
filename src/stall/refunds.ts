@@ -4,6 +4,7 @@ import { createRefund,retrieveRefund } from './stripe'
 import { readOrder,saveOrder } from './store'
 import { refundValue } from './refund-values'
 import { exactRevision,liveApproval } from './fulfilment'
+import { staffRefundLabel } from './payment-labels'
 import { observedStripeWork } from './integration-work'
 function refundResult(order:Order,r:Refund,result:any):Refund {
  if(typeof result?.id!=='string'||!/^re_[A-Za-z0-9_]+$/.test(result.id)||result.object!=='refund'||result.amount!==r.amountCents||result.currency!==shopCurrency||result.payment_intent!==order.payment?.intentId||result.metadata?.stall_order_id!==order.id||result.metadata?.stall_refund_id!==r.id||(r.stripeId&&r.stripeId!==result.id)||!['pending','requires_action','succeeded','failed','canceled'].includes(result.status)) fail('REFUND_MISMATCH','Stripe refund does not match this approved refund.',502)
@@ -40,7 +41,7 @@ export async function refundCommand(env:Bindings,actor:Actor,type:string,p:any) 
 export async function finishRefund(env:Bindings,actor:Actor,order:Order,r:Refund,recoveredStripeId?:string,allowCreate=false) {
  await liveApproval(env,actor,r.approval)
  if(order.payment?.source==='staff') {
-  const next:Refund={...r,source:'staff',status:'succeeded'}
+  const next:Refund={...r,source:'staff',label:staffRefundLabel,status:'succeeded'}
   return saveOrder(env,{...order,refunds:order.refunds.map(x=>x.id===r.id?next:x)},'refund.staff-recorded',actor)
  }
  const result=r.stripeId||recoveredStripeId?await retrieveRefund(env,r.stripeId??recoveredStripeId!):await createRefund(env,order,r,allowCreate)

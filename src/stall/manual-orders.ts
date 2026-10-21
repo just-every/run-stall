@@ -5,6 +5,7 @@ import { businessTimeZone } from './preferences'
 import { pierOrigin } from './pier'
 import { priceSelection,selectLines } from './order-selection'
 import { readOrder } from './store'
+import { staffPaymentLabel } from './payment-labels'
 import { reservePaid } from './payments'
 
 function receivedDate(value:unknown,timeZone:string) {
@@ -40,8 +41,8 @@ export async function createManualOrder(env:Bindings,actor:import('./model').Act
  if(existing) order=await resume(existing.id)
  else {
   const priced=await priceSelection(env,selection,expectedTotalCents),at=new Date().toISOString()
-  const manualPayment:ManualPayment={method:p.method,amountCents,receivedOn,...(reference?{reference}:{}),by:actorLabel(actor),at}
-  order={id:crypto.randomUUID(),revision:crypto.randomUUID(),channel:'manual',customerEmail,shippingDetails,...priced,currency:shopCurrency,status:'paid',createdAt:at,requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,payment:{source:'staff',paidAt:at},manualPayment,taxTreatment:'no_tax_recorded',refunds:[]}
+  const manualPayment:ManualPayment={label:staffPaymentLabel,method:p.method,amountCents,receivedOn,...(reference?{reference}:{}),by:actorLabel(actor),at}
+  order={id:crypto.randomUUID(),revision:crypto.randomUUID(),channel:'manual',customerEmail,shippingDetails,...priced,currency:shopCurrency,status:'paid',createdAt:at,requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,payment:{source:'staff',label:staffPaymentLabel,paidAt:at},manualPayment,taxTreatment:'no_tax_recorded',refunds:[]}
   try { await commit(env.DB,actor,[env.DB.prepare('INSERT INTO st_orders VALUES(?,?,?)').bind(order.id,JSON.stringify(order),order.revision),audit(env.DB,actor,order.id,'order.manual-created'),audit(env.DB,actor,order.id,'payment.staff-recorded')]) }
   catch(error) {
    const winner=await env.DB.prepare("SELECT id FROM st_orders WHERE json_extract(value_json,'$.checkoutKey')=?").bind(checkoutKey).first<{id:string}>()
