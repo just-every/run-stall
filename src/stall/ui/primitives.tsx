@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { humanLabel, shortId, usePerson, When } from './presentation'
 import { HydrationUnit } from '../../base/hydration/unit'
 import type { Tone } from './order-status'
+import { HeaderMenu } from './menus'
 export function Notice({ children, error = false }: { children: ReactNode; error?: boolean }) { return <div className={`st-notice ${error ? 'st-error' : ''}`} role={error ? 'alert' : 'status'}>{children}</div> }
 export function Section({ children, id, title, className = '' }: { children: ReactNode; id?: string; title: string; className?: string }) { return <HydrationUnit><section className={`st-panel st-stack ${className}`} id={id}><h2>{title}</h2>{children}</section></HydrationUnit> }
 export function Empty({ children }: { children: ReactNode }) { return <div className="st-empty"><span className="st-empty-mark" aria-hidden="true"><img src="/brand/mark.svg" width="40" height="41" alt="" /></span><div>{children}</div></div> }
@@ -19,5 +20,5 @@ const toneOf = (value: string): Tone => value === 'failed' ? 'bad' : ['Setup req
 export function Badge({ children, value, tone = toneOf(value) }: { children?: ReactNode; value: string; tone?: Tone }) { return <span className={`st-badge${tone ? ` st-badge-${tone}` : ''}`}>{children ?? humanLabel(value)}</span> }
 export function Brand({ href }: { href: string }) { return <a className="st-brand" href={href}><img src="/brand/mark.svg" width="32" height="33" alt="" /><span data-rer-name>Stall</span></a> }
 /** The storefront's and order page's header: the lockup and the two doors. */
-export function Chrome() { return <HydrationUnit><header className="st-store-header"><Brand href="/shop" /><nav aria-label="Main navigation"><a href="/shop" aria-current="page">Shop</a><a href="/app">Shop desk</a></nav></header></HydrationUnit> }
+export function Chrome() { return <HydrationUnit><header className="st-store-header"><Brand href="/shop" /><nav aria-label="Main navigation"><a href="/shop" aria-current="page">Shop</a><a href="/app">Shop desk</a></nav></header><HeaderMenu /></HydrationUnit> }
 export function ProviderLinks() { return <p className="st-small">Connect your stock provider and payments before taking orders. <a href="https://github.com/just-every/run-stall/blob/main/docs/CONNECTIONS.md" target="_blank" rel="noreferrer">Pier and Stripe connection guide</a> · <a href="https://docs.stripe.com/checkout/quickstart" target="_blank" rel="noreferrer">Stripe setup guide</a></p> }

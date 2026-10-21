@@ -10,6 +10,7 @@ import { initials } from './presentation'
 export const deskViews = [
   { id: 'orders', label: 'Orders', icon: 'orders' },
   { id: 'products', label: 'Products', icon: 'products' },
+  { id: 'shopfront', label: 'Collections & search', icon: 'search' },
   { id: 'move-in', label: 'Move in', icon: 'moveIn' },
   { id: 'history', label: 'Activity', icon: 'activity' },
   { id: 'settings', label: 'Settings', icon: 'settings' },

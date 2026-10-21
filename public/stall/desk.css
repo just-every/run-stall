@@ -308,3 +308,7 @@
 .st-media-row .st-actions { grid-column: 1 / -1; flex-wrap: wrap; }
 .st-variant { border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
 .st-field-error { color: var(--error, #b42318); }
+.st-picked { display: grid; gap: 6px; padding-left: 20px; }
+.st-picked li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.st-menu-row { display: grid; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.st-menu-children { display: grid; gap: 8px; padding-left: 20px; }

@@ -80,7 +80,7 @@ export function discover(source: Source, f: Filters) {
  const base = entries.filter(entry => !alts.length || scores.has(entry.product.sku) || pinned.includes(entry.product.sku))
  const kept = (skip = '') => base.filter(entry => passes(entry, f, skip))
  const found = kept(), collection = f.collection ? published.find(entry => entry.handle === f.collection) : undefined
- const sort = f.sort || (alts.length ? 'relevance' : collection?.sort ?? 'featured')
+ const sort = f.sort || (alts.length ? 'relevance' : collection?.sort && collection.sort !== 'manual' ? collection.sort : 'featured')
  const order = (a: Entry, b: Entry) => {
   const pin = (entry: Entry) => { const at = pinned.indexOf(entry.product.sku); return at < 0 ? 999 : at }
   if (alts.length && pin(a) !== pin(b)) return pin(a) - pin(b)

@@ -4,6 +4,9 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { HydrationUnit } from '../../base/hydration/unit'
 import { request, errorMessage, money } from './api'
 import { Chrome, Empty, Notice, ProviderLinks, Section } from './primitives'
+import { useDiscovery } from './discovery'
+import { Facets, NoResults, Pager, ResultsBar, SearchBox } from './discovery-views'
+import { FooterMenu } from './menus'
 import { readBasket, writeBasket, type BasketLine } from './basket'
 export interface Media { id: string; kind: 'image' | 'video'; alt: string; url: string }
 export interface PersonalizationField { key: string; label: string; required?: boolean; addOnCents?: number; type: 'text' | 'choice' | 'file'; maxLength?: number; choices?: string[]; fileTypes?: string[]; maxBytes?: number }
@@ -18,7 +21,8 @@ export function Shop() {
   const [email, setEmail] = useState(''), [review, setReview] = useState(false)
   const [error, setError] = useState(''), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true)
   const key = useRef(''), lock = useRef(false)
-  async function load() { setLoading(true); setError(''); try { setCatalogue(await request<Catalogue>('/api/stall/catalogue')); setReview(false) } catch (error) { setError(errorMessage(error)) } finally { setLoading(false) } }
+  const browse = useDiscovery()
+  async function load() { setLoading(true); setError(''); try { setCatalogue(await request<Catalogue>('/api/stall/catalogue')); setReview(false); void browse.reload() } catch (error) { setError(errorMessage(error)) } finally { setLoading(false) } }
   useEffect(() => { void load() }, [])
   useEffect(() => {
     const lines = readBasket()
@@ -28,6 +32,8 @@ export function Shop() {
   }, [])
   useEffect(() => { if (stored) writeBasket(Object.entries(quantities).filter(([, quantity]) => Number(quantity) > 0).map(([sku, quantity]) => ({ sku, quantity: Number(quantity), ...extras[sku] }))) }, [stored, quantities, extras])
   const items = (catalogue?.items ?? []).filter(item => item.active !== false)
+  // The server's browse result decides which products show, in what order; the catalogue holds their stock and options.
+  const shown = browse.result ? browse.result.order.flatMap(sku => catalogue?.products.filter(product => product.sku === sku) ?? []) : catalogue?.products ?? []
   const chosen = items.filter(item => Number(quantities[item.sku]) > 0)
   const subtotal = chosen.reduce((sum, item) => sum + (item.unitCents + (extras[item.sku]?.addOnCents ?? 0)) * Number(quantities[item.sku]), 0)
   const shipping = chosen.length ? catalogue?.shippingCents ?? 0 : 0
@@ -48,16 +54,20 @@ export function Shop() {
     } catch (error) { setError(errorMessage(error)); lock.current = false; setBusy(false) }
   }
   return <div className="st-app st-store"><Chrome /><main id="main" className="st-store-main">
-    <HydrationUnit><header className="st-store-heading"><p className="st-eyebrow">The shop</p><h1>Choose something good.</h1><p>Available products, current stock, and a clear total in US dollars.</p></header></HydrationUnit>
+    <HydrationUnit><header className="st-store-heading"><p className="st-eyebrow">{browse.result?.collection ? 'Collection' : 'The shop'}</p><h1>{browse.result?.collection?.title ?? 'Choose something good.'}</h1><p>{browse.result?.collection ? browse.result.collection.description : 'Available products, current stock, and a clear total in US dollars.'}</p></header></HydrationUnit>
     <Section title="Products" className="st-store-panel"><div className="st-row"><p>Stock is checked again when you continue to payment.</p><button className="st-secondary" onClick={() => void load()} disabled={loading || busy}>Refresh availability</button></div>
+      {catalogue && <div className="st-browse st-stack"><SearchBox value={browse.params.get('q') ?? ''} onSubmit={value => browse.go(next => value ? next.set('q', value) : next.delete('q'))} />
+        {browse.problem && <Notice error>{browse.problem}</Notice>}
+        {browse.result && <><ResultsBar result={browse.result} params={browse.params} go={browse.go} /><details className="st-filters" open={typeof matchMedia === 'undefined' ? true : !matchMedia('(max-width: 900px)').matches}><summary>Filters</summary><Facets result={browse.result} params={browse.params} go={browse.go} /></details></>}</div>}
       {loading && <p role="status">Checking available products with Pier…</p>}
       {error && <Notice error>{error}</Notice>}
       {!loading && !catalogue && <Empty><h3>The shop is not ready for orders</h3><p>Live stock and payment connections need to be available before checkout can open. Please try again later.</p></Empty>}
       {catalogue && !catalogue.checkoutReady && <Notice>Payments are not available yet. The shop owner needs to connect Stripe checkout before orders can be accepted.</Notice>}
+      {catalogue && browse.result && browse.result.total === 0 && items.length > 0 && <NoResults result={browse.result} go={browse.go} />}
       {catalogue && !items.length && <Empty><h3>No products available yet</h3><p>The owner is preparing the catalog. Check back soon.</p></Empty>}
       {!loading && (!catalogue || !catalogue.checkoutReady || !items.length) && <ProviderLinks />}
-      {!!items.length && <form className="st-shop-layout" onSubmit={event => void checkout(event)}>
-        <div className="st-product-grid">{catalogue!.products.map(product => {
+      {!!items.length && !(browse.result?.total === 0) && <form className="st-shop-layout" onSubmit={event => void checkout(event)}>
+        <div className="st-product-grid">{shown.map(product => {
           const stocked = items.filter(item => product.skus.includes(item.sku)), first = stocked[0]
           if (!first) return null
           const image = product.media?.find(media => media.kind === 'image'), from = Math.min(...stocked.map(item => item.unitCents)), sold = stocked.every(item => Number(item.available) <= 0)
@@ -69,6 +79,7 @@ export function Shop() {
               : <><div className="st-row"><strong>{stocked.length > 1 && Math.max(...stocked.map(item => item.unitCents)) !== from ? `From ${money(from)}` : money(from)}</strong><span>{sold ? 'Sold out' : `${stocked.length} option${stocked.length === 1 ? '' : 's'} available`}</span></div><a className="st-button st-choose" href={`/shop/${product.handle}`}>Choose options<span className="st-sr-only"> for {product.name}</span></a></>}
           </div>
         })}</div>
+        {browse.result && <Pager result={browse.result} goPage={browse.goPage} />}
         {invalid && <Notice error>Choose whole quantities within the available stock.</Notice>}
         <div className="st-checkout st-stack"><h3>{review ? 'Review your order' : 'Your order'}</h3><label>Email for your order<input required type="email" autoComplete="email" maxLength={254} value={email} disabled={busy} onChange={event => { changed(); setEmail(event.target.value) }} /></label>
           {chosen.length ? <ul className="st-lines">{chosen.map(item => <li key={item.sku}><span>{item.name} × {quantities[item.sku]}{extras[item.sku]?.detail?.map(line => <small key={line} className="st-line-detail">{line}</small>)}{extras[item.sku] && <button type="button" className="st-link" disabled={busy} onClick={() => { changed(); setQuantities(current => ({ ...current, [item.sku]: '0' })); setExtras(current => { const { [item.sku]: _gone, ...rest } = current; return rest }) }}>Remove<span className="st-sr-only"> {item.name}</span></button>}</span><strong>{money((item.unitCents + (extras[item.sku]?.addOnCents ?? 0)) * Number(quantities[item.sku]))}</strong></li>)}</ul> : <p>Choose a quantity above to start your order.</p>}
@@ -79,5 +90,5 @@ export function Shop() {
         </div>
       </form>}
     </Section>
-  </main></div>
+  <FooterMenu /></main></div>
 }

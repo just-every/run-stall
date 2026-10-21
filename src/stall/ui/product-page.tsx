@@ -4,6 +4,7 @@ import { HydrationUnit } from '../../base/hydration/unit'
 import { request, errorMessage, money } from './api'
 import { readBasket, writeBasket } from './basket'
 import { Chrome, Empty, Notice, Section } from './primitives'
+import { FooterMenu } from './menus'
 import { CustomFields } from './product-details'
 import { Personalization, type Answers } from './personalization-form'
 import type { Catalogue, Item } from './shop'
@@ -60,5 +61,5 @@ export function ProductPage() {
     </div></section></HydrationUnit>}
     {!product && error && !loading && <Notice error>{error}</Notice>}
     <HydrationUnit><Section title="Need something else?" className="st-store-panel"><p><a href="/shop">All products</a></p></Section></HydrationUnit>
-  </main></div>
+  <FooterMenu /></main></div>
 }
