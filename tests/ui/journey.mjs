@@ -22,6 +22,9 @@ let browser,h,pier,restored,original,dev,cleaning,journeyError
 function cleanup() {
  return cleaning??=(async()=>{
   const resources=new Set([browser,restored,h,original,pier].filter(Boolean))
+  // Drain browser routes before disposing their Worker transports.
+  if(browser)await browser.close()
+  resources.delete(browser)
   const results=await Promise.allSettled([...resources].map(resource=>resource.close()).concat(dev?[dev.stop()]:[]))
   const failures=results.filter(result=>result.status==='rejected').map(result=>result.reason)
   if(failures.length)throw new AggregateError(failures,'Owned resource cleanup did not finish; the test checkout was preserved.')
@@ -289,7 +292,8 @@ try {
  await page.getByText('Archive restored. Review provider connections before taking orders.',{exact:true}).waitFor()
  assert.equal((await h.api('/api/stall/state')).orders[0].refunds[0].status,'succeeded')
  await capture('data-restored','#portability')
- h=original;await restored.close();restored=undefined
+ // Keep the restored transport alive until browser routes have drained.
+ h=original
  await page.reload()
 
  await page.getByLabel('Customer email',{exact:true}).fill('customer@example.test')
