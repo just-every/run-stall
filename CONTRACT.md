@@ -413,7 +413,7 @@ Every capability claim on the homepage built on the owner-approved structure pag
 
 ## Status
 
-Judged from the code and tests at commit `3277c247d78baad8bb02b12846488033db766f8b` (21 October 2026).
+Judged from the code and tests at commit `98ca8f2accff45e8782ba39e5e6c8a2c6963901e` (21 October 2026).
 
 That is the code commit of this revision (the commit recording it adds only this line); the earlier judgement was at `b4fc3b0ac94fd95df7ca1371cf52ba440554cb2c` (17 October 2026).
 
