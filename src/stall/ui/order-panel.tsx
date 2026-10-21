@@ -13,6 +13,8 @@ import { RecoverForm, ShipForm } from './order-forms'
 import { RefundForm, refundDescription } from './refund-form'
 import { Icon } from './icons'
 import { OrderAssignment } from './order-assignment'
+import { OrderNotes } from './order-notes'
+import { staffPaymentLabel,staffRefundLabel } from '../payment-labels'
 import { OrderHistory } from './order-history'
 
 type Editing = 'shipment' | 'refund' | null
@@ -56,7 +58,7 @@ function NextStep({ order, busy, run, canApprove, editing, edit }: { order: Orde
   </>
 }
 
-export function OrderPanel({ order, staff, busy, run, canApprove, previous, next, footer }: { order: Order; staff: Record<string,string>; busy: boolean; run: Run; canApprove: boolean; footer: ReactNode; previous?: () => void; next?: () => void }) {
+export function OrderPanel({ order, staff, busy, run, canApprove, owner, previous, next, footer }: { order: Order; staff: Record<string,string>; busy: boolean; run: Run; canApprove: boolean; owner:boolean; footer: ReactNode; previous?: () => void; next?: () => void }) {
   const { shortTime } = useBusinessTime()
   const person = usePerson(), short = shortBy(order), details = order.shippingDetails, address = details?.address
   const [editing, setEditing] = useState<Editing>(null)
@@ -71,7 +73,9 @@ export function OrderPanel({ order, staff, busy, run, canApprove, previous, next
     <section className="st-panel-block st-sums">
       <p><span>Shipping charged</span><span>{money(order.shippingCents ?? 0)}</span></p>
       <p><span>Order total · USD</span><strong>{money(order.totalCents)}</strong></p>
-      <p><span>Payment</span><span>{order.payment ? `Paid ${shortTime(order.payment.paidAt)} · Stripe` : humanLabel(order.status)}</span></p>
+      <p><span>Payment</span><span>{order.payment?.source==='staff' ? staffPaymentLabel : order.payment ? `Paid ${shortTime(order.payment.paidAt)} · Stripe` : humanLabel(order.status)}</span></p>
+      {order.manualPayment&&<p><span>{order.manualPayment.method.replace('_',' ')} · received {order.manualPayment.receivedOn}</span><span>{order.manualPayment.reference}</span></p>}
+      {order.taxTreatment&&<p>No tax recorded</p>}
       {!!refunded && <p><span>Refunded</span><span>−{money(refunded)}</span></p>}
     </section>
     {details && <section className="st-panel-block"><h3>Delivery address</h3><address>{details.name}<br />{address?.line1}{address?.line2 && <><br />{address.line2}</>}<br />{[placeLine(address), address?.postal_code].filter(Boolean).join(' ')}<br />{countryName(address?.country)}</address></section>}
@@ -82,15 +86,16 @@ export function OrderPanel({ order, staff, busy, run, canApprove, previous, next
         : order.status === 'reserved' ? <><p className="st-small">No dispatch recorded yet. To ship from Stall, add the carrier’s reference for a person to approve.</p><ShipForm order={order} busy={busy} run={run} /></>
         : <p className="st-small">Shipping opens once payment is confirmed and Pier holds the stock.</p>}
     </section>
-    {order.refunds.filter(refund => refund.status !== 'draft').map(refund => <section key={refund.id} className="st-panel-block"><div className="st-row"><h3>Refund · {money(refund.amountCents)}</h3><Badge value={refund.status} /></div><p className="st-small">{refundDescription(refund, order)} · {refund.reason}</p><p className="st-small">Prepared by {person(refund.preparedBy)}</p><ApprovalRecord approval={refund.approval} /></section>)}
+    {order.refunds.filter(refund => refund.status !== 'draft').map(refund => <section key={refund.id} className="st-panel-block"><div className="st-row"><h3>Refund · {money(refund.amountCents)}</h3><Badge value={refund.status} /></div><p className="st-small">{refund.source==='staff'&&<>{staffRefundLabel}. </>}{refundDescription(refund, order)} · {refund.reason}</p><p className="st-small">Prepared by {person(refund.preparedBy)}</p><ApprovalRecord approval={refund.approval} /></section>)}
     <NextStep order={order} busy={busy} run={run} canApprove={canApprove} editing={editing} edit={setEditing} />
+    {canApprove && <OrderNotes order={order} busy={busy} run={run} owner={owner} />}
     {canApprove && <OrderAssignment order={order} staff={staff} busy={busy} run={run} />}
     {canApprove && <OrderHistory orderId={order.id} revision={order.revision} />}
     {footer}
     <details className="st-more"><summary>More actions</summary>
       {!!order.payment && <details><summary>Prepare a refund</summary><RefundForm order={order} busy={busy} run={run} /></details>}
       <details><summary>Recover an existing provider operation</summary><RecoverForm order={order} busy={busy} run={run} /></details>
-      <RecordDetail label="Payment, stock reservation & provider details" value={{ payment: order.payment, reservation: order.reservation, shipment: order.shipment, refunds: order.refunds }} />
+      <RecordDetail label="Payment, stock reservation & provider details" value={{ payment: order.payment?.source==='staff'?{...order.payment,label:staffPaymentLabel}:order.payment, manualPayment:order.manualPayment, reservation: order.reservation, shipment: order.shipment, refunds: order.refunds }} />
     </details>
   </div>
 }

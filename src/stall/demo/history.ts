@@ -124,7 +124,7 @@ export async function history(now: Date, staff: Staff, pier: PierState) {
     const approved = later(asked, 35), stripeId = `re_demo_${hex(refund.id)}`
     const approval: Approval = { by: staff.owner.id, version: staff.owner.version, at: approved, revision: await revision() }
     happened(staff.owner.id, 'refund.approved', approved)
-    stripe.refunds[stripeId] = { id: stripeId, orderId: id, refundId: refund.id, intent: order.payment!.intentId, amount: refund.amountCents, status: 'succeeded' }
+    stripe.refunds[stripeId] = { id: stripeId, orderId: id, refundId: refund.id, intent: order.payment!.intentId!, amount: refund.amountCents, status: 'succeeded' }
     happened(staff.owner.id, 'refund.succeeded', later(approved, 1))
     order = { ...order, refunds: [{ ...refund, status: 'succeeded', approval, startedAt: approved, stripeId }] }
    } else order = { ...order, refunds: [refund] }

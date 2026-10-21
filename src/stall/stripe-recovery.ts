@@ -33,5 +33,5 @@ export function originalCheckout(env: Bindings, order: Order, id?: string) {
 }
 export function originalRefund(env: Bindings, order: Order, refund: Refund, id?: string) {
  if (id) return retrieveRefund(env, id)
- return original(env, '/refunds', new URLSearchParams({ payment_intent: order.payment!.intentId }), value => value?.metadata?.stall_refund_id === refund.id)
+ return original(env, '/refunds', new URLSearchParams({ payment_intent: order.payment!.intentId! }), value => value?.metadata?.stall_refund_id === refund.id)
 }

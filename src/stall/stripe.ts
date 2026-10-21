@@ -37,7 +37,8 @@ export async function createCheckout(env:Bindings,o:Order,allowCreate=false) {
 }
 export const checkoutSession=(env:Bindings,id:string)=>stripe(env,'/checkout/sessions/'+encodeURIComponent(id))
 export async function createRefund(env:Bindings,o:Order,r:Refund,allowCreate=false) {
- return stripeWrite(env,{id:`stall-refund-${r.id}`,orderId:o.id,kind:'refund',value:{intentId:o.payment!.intentId,amountCents:r.amountCents,currency:o.currency}},()=>stripe(env,'/refunds',new URLSearchParams({payment_intent:o.payment!.intentId,amount:String(r.amountCents),'metadata[stall_order_id]':o.id,'metadata[stall_refund_id]':r.id}),`stall-refund-${r.id}`),id=>originalRefund(env,o,r,id),allowCreate,()=>{writeWindow(r.startedAt!);if(!env.STRIPE_SECRET_KEY)fail('STRIPE_UNAVAILABLE','Connect Stripe before sending this saved operation.',503)})
+ if(o.payment?.source==='staff'||!o.payment?.intentId) fail('PAYMENT','Only a verified Stripe payment can be refunded through Stripe.')
+ return stripeWrite(env,{id:`stall-refund-${r.id}`,orderId:o.id,kind:'refund',value:{intentId:o.payment!.intentId,amountCents:r.amountCents,currency:o.currency}},()=>stripe(env,'/refunds',new URLSearchParams({payment_intent:o.payment!.intentId!,amount:String(r.amountCents),'metadata[stall_order_id]':o.id,'metadata[stall_refund_id]':r.id}),`stall-refund-${r.id}`),id=>originalRefund(env,o,r,id),allowCreate,()=>{writeWindow(r.startedAt!);if(!env.STRIPE_SECRET_KEY)fail('STRIPE_UNAVAILABLE','Connect Stripe before sending this saved operation.',503)})
 }
 export const retrieveRefund=(env:Bindings,id:string)=>stripe(env,'/refunds/'+encodeURIComponent(id))
 export function validateSession(o:Order,s:any,paid=false) {

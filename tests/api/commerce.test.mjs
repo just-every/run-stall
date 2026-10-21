@@ -28,6 +28,14 @@ test('OPEN-001: an owned installation publishes 200 products, adds 10 staff and 
    assert.equal(delivered.value.status,'reserved');
    expected.set(bought.orderId,cents);
   }
+  const oldest=expected.keys().next().value;
+  for(const query of ['customer=CUSTOMER@example.test','customer=TEST+CUSTOMER',`sku=${stock.items[0].sku.toLowerCase()}`]) {
+   const found=await h.api('/api/stall/orders?'+query);
+   const count=query.startsWith('sku=')?5:1000;
+   assert.equal(found.total,count);assert.equal(found.orders.length,count);
+   assert.ok(found.orders.some(order=>order.id===oldest),'oldest order is searchable beyond 100');
+   assert.ok(!JSON.stringify(found).includes('test-stock-network-edge'));assert.ok(found.orders.every(order=>!('requestDigest' in order)&&!('checkoutKey' in order)));
+  }
   const result=await state(h);
   assert.equal(result.products.length,200);
   assert.equal(result.orders.length,1000);
@@ -47,10 +55,11 @@ test('OPEN-001: an owned installation publishes 200 products, adds 10 staff and 
  }finally{await h.close()}
 });
 test('shop purchase, signed paid reservation, shipment and partial refund reconcile through real Pier',async t=>{
+ const outbound=[];
  const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex');
  let h;
  try {
-  h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle});
+  h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-1',STRIPE_WEBHOOK_SECRET:secret},outboundService:async request=>{if(request.method==='POST')outbound.push(await request.clone().text());return edge.handle(request)}});
   await publish(h,'MUG-BLUE','Blue ceramic mug',2450);
   await publish(h,'TOWEL-NAT','Natural linen towel',1800);
   let bought,paid,eventId;
@@ -226,6 +235,66 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
    assert.equal(net.netRecordedCents,0);
    assert.equal(net.succeededRefundCents,4875);
   });
+  await t.test('manual paid sales reserve once, preserve commercial truth and record reviewed refunds without moving money',async()=>{
+   const owner=(await state(h)).actor,member=await h.signIn('synthetic-stall-201@example.test'),admin=await h.signIn('synthetic-stall-202@example.test','admin');
+   const grant=await h.api('/api/stall/agent-token',{}),agent={as:'',headers:{authorization:'Bearer '+grant.token}};
+   await publish(h,'MUG-BLUE','Current mug for paid sales',2450);
+   await h.command('shipping.configure',{shippingCents:625});
+   const payload={idempotencyKey:randomUUID(),customerEmail:'synthetic-stall-203@example.test',name:'Ana Ruiz',address:{line1:'12 Cedar Lane',line2:'Apt 2',city:'Austin',state:'TX',postal_code:'78702',country:'US'},lines:[{sku:'MUG-BLUE',quantity:1}],expectedTotalCents:3075,amountCents:3075,method:'check',receivedOn:'2026-10-20',reference:'synthetic-stall-204'};
+   for(const opts of [{as:'',status:401},{as:member,status:403},{...agent,status:403}])await h.command('order.manual',payload,opts);
+   for(const bad of [{amountCents:3074},{receivedOn:'2099-01-01'},{receivedOn:'2026-02-30'},{method:'unpaid'},{lines:[{sku:'MUG-BLUE',quantity:0}]},{address:{...payload.address,country:'CA'}}])await h.command('order.manual',{...payload,...bad},{status:400});
+   await h.command('order.manual',{...payload,expectedTotalCents:3074,amountCents:3074},{status:409});
+   const before=await pier.api('/api/pier/state'),stripeCalls=edge.calls.length,messages=h.messages.length;
+   edge.loseNextPierResponse('order.create');
+   await h.command('order.manual',payload,{as:admin,status:503});
+   assert.equal((await pier.api('/api/pier/state')).orders.length,before.orders.length+1);
+   let value=await h.command('order.manual',payload,{as:admin});
+   assert.equal(value.status,'reserved');assert.equal(value.payment.source,'staff');assert.equal(value.payment.intentId,undefined);assert.equal(value.payment.sessionId,undefined);
+   assert.equal(value.manualPayment.method,'check');assert.equal(value.manualPayment.amountCents,value.totalCents);assert.equal(value.manualPayment.reference,payload.reference);assert.equal(value.taxTreatment,'no_tax_recorded');assert.equal(value.channel,'manual');
+   assert.ok(value.manualPayment.by);assert.ok(value.manualPayment.at.endsWith('Z'));
+   assert.equal((await h.command('order.manual',payload)).id,value.id);
+   await h.command('order.manual',{...payload,name:'Different buyer'},{status:409});
+   const native=(await pier.api('/api/pier/state')).orders.find(order=>order.id===value.reservation.id);
+   assert.equal(native.channelPayment,undefined);assert.equal(native.lines[0].reserved,'1');
+   assert.equal((await pier.api('/api/pier/state')).orders.length,before.orders.length+1);
+   assert.equal(edge.calls.length,stripeCalls);assert.equal(h.messages.length,messages);
+   const manual=await h.api('/api/stall/orders?channel=manual&customer=ANA+RUIZ&sku=MUG-BLUE&status=reserved');
+   assert.deepEqual(manual.orders.map(order=>order.id),[value.id]);assert.equal(manual.total,1);
+   assert.ok(!(await h.api('/api/stall/orders?channel=online')).orders.some(order=>order.id===value.id));
+   const original=structuredClone(value);
+   value=await h.command('order.note.add',{orderId:value.id,revision:value.revision,text:'synthetic-stall-205'});
+   value=await h.command('order.tag.add',{orderId:value.id,revision:value.revision,tag:'synthetic-stall-206'});
+   const agentView=(await h.api('/api/stall/state',undefined,agent)).orders.find(order=>order.id===value.id);
+   assert.equal(agentView.notes,undefined);assert.equal(agentView.tags,undefined);assert.equal(agentView.payment,undefined);
+   value=await h.command('shipment.prepare',{orderId:value.id,revision:value.revision,reference:'synthetic-stall-207'},agent);
+   assert.equal(value.notes,undefined);assert.equal(value.tags,undefined);
+   value=await h.command('shipment.approve',{orderId:value.id,revision:value.revision});
+   assert.equal(value.status,'shipped');
+   await publish(h,'MUG-BLUE','New catalog name and price',2600);
+   assert.deepEqual(value.lines,original.lines);assert.deepEqual(value.shippingDetails,original.shippingDetails);assert.equal(value.totalCents,original.totalCents);assert.equal(value.reservation.id,original.reservation.id);
+   value=await h.command('refund.prepare',{orderId:value.id,revision:value.revision,lines:[{sku:'MUG-BLUE',quantity:1}],reason:'Recorded return; no money moved'});
+   await h.command('refund.approve',{orderId:value.id,revision:'stale'},{status:409});
+   await h.command('refund.approve',{orderId:value.id,revision:value.revision},{...agent,status:403});
+   value=await h.command('refund.approve',{orderId:value.id,revision:value.revision});
+   assert.equal(value.refunds.at(-1).source,'staff');assert.equal(value.refunds.at(-1).status,'succeeded');assert.equal(value.refunds.at(-1).amountCents,2450);assert.equal(value.refunds.at(-1).stripeId,undefined);
+   assert.equal((await h.command('refund.approve',{orderId:value.id,revision:value.revision})).refunds.length,1);
+   await h.command('refund.prepare',{orderId:value.id,revision:value.revision,lines:[{sku:'MUG-BLUE',quantity:1}],reason:'Duplicate purchased units'},{status:409});
+   await h.command('refund.prepare',{orderId:value.id,revision:value.revision,kind:'goodwill',amountCents:626,reason:'Exceeds remainder'},{status:409});
+   value=await h.command('refund.prepare',{orderId:value.id,revision:value.revision,kind:'shipping',amountCents:625,reason:'Record remaining shipping refund'});
+   value=await h.command('refund.approve',{orderId:value.id,revision:value.revision});
+   assert.equal(value.refunds.reduce((sum,refund)=>sum+refund.amountCents,0),3075);
+   assert.equal(edge.calls.length,stripeCalls);assert.equal(h.messages.length,messages);
+   for(const text of ['synthetic-stall-204','synthetic-stall-205','synthetic-stall-206']) assert.ok(!outbound.some(body=>body.includes(text)),'internal text never crosses provider boundary');
+   const exported=await h.api('/api/stall/exports/records'),record=exported.orders.find(order=>order.id===value.id);
+   assert.equal(record.payment.label,'Payment recorded by staff, not confirmed by a payment provider');assert.equal(record.payment.source,'staff');assert.equal(record.payment.method,'check');assert.equal(record.taxTreatment,'no_tax_recorded');
+   assert.equal(exported.reconciliation.find(row=>row.orderId===value.id).netRecordedCents,0);
+   const history=await h.api('/api/stall/orders/history?orderId='+value.id);
+   assert.ok(history.events.some(event=>event.action==='payment.staff-recorded'));assert.equal(history.events.filter(event=>event.action==='refund.staff-recorded').length,2);assert.equal(history.references.payment,undefined);
+   // Public catalogues and checkout responses never contain staff annotations.
+   assert.ok(!JSON.stringify(await h.api('/api/stall/catalogue',undefined,{as:''})).includes('synthetic-stall-205'));
+   assert.equal(owner.role,'owner');
+   await publish(h,'MUG-BLUE','Blue ceramic mug',2450);
+  });
   await t.test('warehouse dispatches refresh into Stall without a second dispatch; partial work stays unfinished',async()=>{
    const bought=await purchase(h,edge,{email:'warehouse@example.test'});
    const payment=await deliverWebhook(h,secret,edge.pay(bought.session.id));
@@ -365,6 +434,12 @@ test('ORDER-001: time zones and revision-checked staff assignments survive trans
   await h.command('shop.configure',{timeZone:'+09:00'},{status:400});
   await h.command('shop.configure',{timeZone:'Europe/London'},{as:member,status:403});
   assert.equal((await state(h)).timeZone,'Pacific/Auckland');
+  await h.command('shop.configure',{timeZone:'US/Central'});
+  assert.equal((await state(h)).timeZone,'America/Chicago');
+  await h.command('shop.configure',{timeZone:'America/New_York'});
+  assert.equal((await state(h)).timeZone,'America/New_York');
+  assert.ok((await state(h)).audit.some(event=>event.action==='shop.configured'&&event.actor===owner.id));
+  await h.command('shop.configure',{timeZone:'Pacific/Auckland'});
   await publish(h,stock.items[0].sku,'A handmade ceramic bowl',3000);
   const bought=await purchase(h,edge,{skus:[stock.items[0].sku],quantities:[1]});
   assert.equal((await deliverWebhook(h,secret,edge.pay(bought.session.id))).response.status,200);
@@ -418,6 +493,24 @@ test('ORDER-001: time zones and revision-checked staff assignments survive trans
   assert.ok(history.events.every(e=>Number.isFinite(Date.parse(e.at))));
   await h.api('/api/stall/orders/history?orderId='+original.id,undefined,{as:member,status:403});
   await h.api('/api/stall/orders/history?orderId=missing',undefined,{status:404});
+  await h.db.prepare("UPDATE st_orders SET value_json=json_set(value_json,'$.createdAt','2026-10-20T04:30:00.000Z') WHERE id=?").bind(original.id).run();
+  await h.command('shop.configure',{timeZone:'America/Chicago'});
+  assert.deepEqual(await find('from=2026-10-19&to=2026-10-19'),[original.id]);
+  const utcBefore=(await h.api('/api/stall/exports/records')).orders.find(order=>order.id===original.id).createdAt;
+  await h.command('shop.configure',{timeZone:'America/New_York'});
+  assert.deepEqual(await find('from=2026-10-20&to=2026-10-20'),[original.id]);
+  assert.deepEqual(await find('from=2026-10-19&to=2026-10-19'),[]);
+  assert.equal((await order(h,original.id)).createdAt,utcBefore);
+  assert.equal((await h.api('/api/stall/exports/records')).orders.find(order=>order.id===original.id).createdAt,utcBefore);
+  for(const [day,first,last,before,after] of [
+   ['2026-03-08','2026-03-08T05:00:00.000Z','2026-03-09T03:59:59.999Z','2026-03-08T04:59:59.999Z','2026-03-09T04:00:00.000Z'],
+   ['2026-11-01','2026-11-01T04:00:00.000Z','2026-11-02T04:59:59.999Z','2026-11-01T03:59:59.999Z','2026-11-02T05:00:00.000Z']]) {
+   for(const [at,included] of [[first,true],[last,true],[before,false],[after,false]]) {
+    await h.db.prepare("UPDATE st_orders SET value_json=json_set(value_json,'$.createdAt',?) WHERE id=?").bind(at,original.id).run();
+    assert.equal((await find(`from=${day}&to=${day}`)).includes(original.id),included);
+   }
+  }
+  await h.command('shop.configure',{timeZone:'Pacific/Auckland'});
   const exported=await h.api('/api/stall/exports/records');
   assert.equal(exported.timeZone,'Pacific/Auckland');
   assert.deepEqual(exported.orders.find(o=>o.id===original.id).assignments,saved.assignments);

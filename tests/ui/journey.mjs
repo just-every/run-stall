@@ -10,6 +10,7 @@ import { chromium } from '@playwright/test'
 import { installation } from '../api/harness.mjs'
 import { pierInstallation } from '../api/pier.mjs'
 import { stripeEdge, deliverWebhook } from '../api/network.mjs'
+import { orderDeskJourney } from './order-desk.mjs'
 import { readCsv } from '../api/csv-reader.mjs'
 const exec=promisify(execFile),rer=resolve('node_modules/@runeditrun/rer/global/rer.mjs')
 const hostileDescription='Hand-thrown stoneware. <script>window.stallUnsafe=1</script><img src=https://unsafe.example.test/pixel onerror=alert(1)>';
@@ -56,6 +57,7 @@ try {
   await route.fulfill({status:response.status,headers:{'content-type':response.headers.get('content-type')??'application/json',...(response.headers.get('content-disposition')?{'content-disposition':response.headers.get('content-disposition')}:{})},body:Buffer.from(await response.arrayBuffer())})
  })
  async function capture(name,selector) {
+  if(process.env.STALL_PROOF==='ORDER-001a')return
   if(process.env.STALL_PROOF==='CATALOG-001'&&!name.startsWith('CATALOG-001'))return
   if(process.env.STALL_PROOF==='OPS-001'&&!name.startsWith('OPS-001'))return
   if(process.env.STALL_PROOF==='ORDER-003'&&!/^(ORDER-003|shop-review|order$|refund-approval)/.test(name))return
@@ -83,7 +85,7 @@ try {
   }
  }
  await page.goto(site);await capture('landing')
- for(const width of [1440,390]) {await page.setViewportSize({width,height:1000});await page.screenshot({path:resolve(evidence,`landing-full-${width}.png`),fullPage:true})}
+ if(process.env.STALL_PROOF!=='ORDER-001a')for(const width of [1440,390]) {await page.setViewportSize({width,height:1000});await page.screenshot({path:resolve(evidence,`landing-full-${width}.png`),fullPage:true})}
  await page.goto(site+'/run');await capture('run')
  await page.goto(site+'/docs');await capture('docs')
  for(const slug of ['getting-started','orders','commands']) {
@@ -107,6 +109,9 @@ try {
  await page.getByRole('heading',{name:'Orders',exact:true,level:1}).waitFor()
  await page.getByText('No orders yet',{exact:true}).waitFor()
  await capture('empty')
+ if(process.env.STALL_PROOF==='ORDER-001a') {
+  await orderDeskJourney({page,h,edge,secret,origin,evidence});assert.deepEqual(errors,[]);await dev.assertRunning()
+ } else {
  // OPEN-001: provider identity and pricing are visible before saving a connection.
  await page.getByRole('link',{name:'Settings',exact:true}).click()
  await page.getByRole('heading',{name:'Settings',exact:true,level:1}).waitFor()
@@ -404,6 +409,7 @@ try {
  console.log('OPS-001 browser journey passed: real read-only provider observations, unavailable diagnosis, limits and empty terminal backlog at 1440/390.');
  console.log('ORDER-003 browser journey passed: shipping configuration, paid checkout, item/shipping/goodwill approval and terminal records at 1440/390.');
  console.log('BASE-001 browser journey passed: move-in, product approvals, customer checkout, shipping, refund, backup/restore, credentials and erasure at 1440 and 390.')
+ }
  }catch(error){
   journeyError=error
   if(page&&!page.isClosed()) {

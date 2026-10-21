@@ -39,6 +39,10 @@ export async function refundCommand(env:Bindings,actor:Actor,type:string,p:any) 
 }
 export async function finishRefund(env:Bindings,actor:Actor,order:Order,r:Refund,recoveredStripeId?:string,allowCreate=false) {
  await liveApproval(env,actor,r.approval)
+ if(order.payment?.source==='staff') {
+  const next:Refund={...r,source:'staff',status:'succeeded'}
+  return saveOrder(env,{...order,refunds:order.refunds.map(x=>x.id===r.id?next:x)},'refund.staff-recorded',actor)
+ }
  const result=r.stripeId||recoveredStripeId?await retrieveRefund(env,r.stripeId??recoveredStripeId!):await createRefund(env,order,r,allowCreate)
  const next=refundResult(order,r,result)
  await observedStripeWork(env.DB,`stall-refund-${r.id}`,next.stripeId!)

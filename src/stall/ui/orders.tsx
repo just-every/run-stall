@@ -8,6 +8,8 @@ import { money } from './api'
 import { Badge, Empty, Notice } from './primitives'
 import { placeLine, shortId, useBusinessTime, When } from './presentation'
 import { agentDrafted, carrierOf, fulfilmentPill, itemCount, matches, needs, orderTabs, paymentPill, type OrderTab } from './order-status'
+import { ManualOrder } from './manual-order'
+import { staffPaymentLabel } from '../payment-labels'
 import { OrderPanel } from './order-panel'
 import { Readiness } from './readiness'
 import { Icon } from './icons'
@@ -29,7 +31,7 @@ function OrderRow({ order, selected, now, onSelect }: { order: Order; selected: 
     <td data-label="Customer" className="st-customer"><span className="st-customer-name">{order.shippingDetails?.name ?? (order.customerEmail ? <EmailLines email={order.customerEmail} /> : 'Customer details erased')}</span><small>{placeLine(order.shippingDetails?.address) || (order.shippingDetails ? '' : order.customerEmail ? 'No address yet' : '')}</small></td>
     <td data-label="Items" className="st-muted-cell">{itemCount(order)}</td>
     <td data-label="Total" className="st-num st-money">{money(order.totalCents)}</td>
-    <td data-label="Payment"><Badge value={payment} tone={paymentTone}>{payment}</Badge></td>
+    <td data-label="Payment"><Badge value={payment} tone={paymentTone}>{payment}</Badge>{order.payment?.source==='staff'&&<small>{staffPaymentLabel}</small>}</td>
     <td data-label="Fulfillment">{fulfilment === '—' ? '—' : <Badge value={fulfilment} tone={fulfilmentTone}>{fulfilment}</Badge>}</td>
     <td data-label="Shipping" className={`st-ship-cell${order.shipment ? '' : ' is-empty'}`} title={order.shipment?.reference}>{order.shipment ? carrierOf(order.shipment.reference) : '—'}</td>
   </tr>
@@ -40,6 +42,7 @@ export function OrdersView({ state, focus, query, busy, run, canApprove, refresh
   const { timeZone } = useBusinessTime()
   const { orders, audit } = state
   const tabFor = (id?: string) => { const order = orders.find(order => order.id === id); return order ? needs(order) ? 'needs' : 'all' : orders.some(order => needs(order)) ? 'needs' : 'all' }
+  const [manual,setManual]=useState(false)
   const [tab, setTab] = useState<OrderTab>(() => tabFor(focus))
   const [selectedId, setSelectedId] = useState(focus ?? ''), [now, setNow] = useState(() => Date.now()), [filters, setFilters] = useState<OrderFilters>(noFilters)
   const found = useFilteredIds(filters, orders)
@@ -63,9 +66,10 @@ export function OrdersView({ state, focus, query, busy, run, canApprove, refresh
   const waiting = orders.filter(order => needs(order)).length
   return <div className={`st-orders-layout${selected || !orders.length ? '' : ' is-single'}`} id="orders">
     <HydrationUnit><section className="st-orders" aria-labelledby="orders-title">
-      <div className="st-view-head"><h1 id="orders-title">Orders</h1><button className="st-secondary" disabled={busy} onClick={refresh}>Refresh shop</button></div>
+      <div className="st-view-head"><h1 id="orders-title">Orders</h1><div className="st-actions">{canApprove&&<button className="st-secondary" disabled={busy} onClick={()=>setManual(true)}>Record paid sale</button>}<button className="st-secondary" disabled={busy} onClick={refresh}>Refresh shop</button></div></div>
       <p className="st-small">Times: {timeZone}. {state.shipmentSync?.checkedAt && <>Shipping checked with Pier <When at={state.shipmentSync.checkedAt} />.</>}</p>
       {state.shipmentSync?.error && <Notice error>Shipping could not be refreshed: {state.shipmentSync.error} Showing the last recorded shipment state.</Notice>}
+      {manual&&canApprove&&<ManualOrder state={state} busy={busy} run={run} close={()=>{setManual(false);setTab('all')}} />}
       <OrderFilterBar filters={filters} skus={[...new Set(orders.flatMap(order => order.lines.map(line => line.sku)))].sort()} timeZone={timeZone} change={setFilters} />
       {found.error && <Notice error>{found.error}</Notice>}
       <nav className="st-tabs" aria-label="Order status">{orderTabs.map(item => { const count = item.counted ? orders.filter(item.keep).length : 0; return <button key={item.id} aria-current={tab === item.id ? 'true' : undefined} onClick={() => { setTab(item.id); setSelectedId('') }}>{item.label}{!!count && <span className="st-tab-count">{count}</span>}</button> })}</nav>
@@ -77,7 +81,7 @@ export function OrdersView({ state, focus, query, busy, run, canApprove, refresh
         </table></div>}
     </section></HydrationUnit>
     {selected && <HydrationUnit><aside className="st-order-panel" ref={panel} aria-label={`Order ${shortId(selected.id)}`}>
-      <OrderPanel key={selected.id} order={selected} staff={state.staff ?? {}} busy={busy} run={run} canApprove={canApprove}
+      <OrderPanel key={selected.id} order={selected} staff={state.staff ?? {}} busy={busy} run={run} canApprove={canApprove} owner={state.actor.role==='owner'}
         previous={position > 0 ? () => select(shown[position - 1], false) : undefined}
         next={position >= 0 && position < shown.length - 1 ? () => select(shown[position + 1], false) : undefined}
         footer={<p className="st-agent-line"><Icon name="agent" /><span>Shop agent prepared work on {agentOrders} order{agentOrders === 1 ? '' : 's'} this week, <strong>{waiting ? `${waiting} need${waiting === 1 ? 's' : ''} you.` : 'nothing needs you.'}</strong></span></p>} />

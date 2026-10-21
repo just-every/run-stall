@@ -72,7 +72,7 @@ export async function reserveOrder(env:Bindings,o:Order) {
  // Pier's order contains merchandise only. Allocate that portion of the verified
  // charge to it; the separate shipping charge and gross payment remain in Stall.
  const merchandiseCents=o.lines.reduce((sum,line)=>sum+line.quantity*line.unitCents,0)
- if(o.payment) await commandWork(env,o,{commandId:`stall-payment-${o.id}`,type:'order.channelPayment',payload:{orderId:result.id,payment:{provider:'stripe',reference:o.payment.intentId,amount:(merchandiseCents/100).toFixed(2),currency:o.currency.toUpperCase(),paidAt:o.payment.paidAt,orderReference:o.id}}},o.payment.intentId)
+ if(o.payment&&o.payment.source!=='staff') await commandWork(env,o,{commandId:`stall-payment-${o.id}`,type:'order.channelPayment',payload:{orderId:result.id,payment:{provider:'stripe',reference:o.payment.intentId,amount:(merchandiseCents/100).toFixed(2),currency:o.currency.toUpperCase(),paidAt:o.payment.paidAt,orderReference:o.id}}},o.payment.intentId)
  return result
 }
 export function fullyReserved(result:any,lines:Line[]) {

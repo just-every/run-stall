@@ -31,7 +31,7 @@ export function RefundForm({ order, busy, run, initial, onCancel }: { order: Ord
    ...(kind === 'lines' ? { lines: [{ sku, quantity: Number(quantity) }] } : { amountCents: refundTotal }) })) onCancel?.()
  }
  return <form className="st-stack" onSubmit={event => void prepare(event)}>
-  <p className="st-small">A person approves the saved amount and reason before Stripe is called. A refund does not record returned stock or restock items.</p>
+  <p className="st-small">{order.payment?.source==='staff'?'A person approves the saved amount and reason. Refund recorded by staff; Stall moved no money.':'A person approves the saved amount and reason before Stripe is called.'} A refund does not record returned stock or restock items.</p>
   <label>Refund type<select value={kind} disabled={busy} onChange={event => setKind(event.target.value as RefundKind)}><option value="lines">Purchased items</option><option value="shipping">Shipping only</option><option value="goodwill">Goodwill</option></select></label>
   {kind === 'lines' ? <div className="st-refund-grid"><label>Order line<select value={sku} disabled={busy} onChange={event => setSku(event.target.value)}>{order.lines.map(item => <option value={item.sku} key={item.sku}>{item.name} ({item.sku})</option>)}</select></label><label>Refund quantity<input required type="number" min="1" max={quantityLeft} step="1" value={quantity} disabled={busy} onChange={event => setQuantity(event.target.value)} /></label></div>
    : <label>Refund amount · USD<input required type="text" inputMode="decimal" value={amount} disabled={busy} placeholder="5.00" onChange={event => setAmount(event.target.value)} /></label>}

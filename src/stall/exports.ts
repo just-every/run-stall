@@ -28,21 +28,23 @@ function productValue(value: Omit<ProductValue, 'draft'>) {
 function commercialOrder(order: Order) {
  const shipment = order.shipment, shipping = order.shippingDetails
  return {
-  id: order.id, revision: order.revision, customerEmail: order.customerEmail,
+  id: order.id, revision: order.revision, customerEmail: order.customerEmail, channel: order.channel ?? 'online', taxTreatment: order.taxTreatment,
+  notes: order.notes?.map(note=>({...note,at:utc(note.at)})), tags: order.tags,
+  manualPayment: order.manualPayment ? {...order.manualPayment,at:utc(order.manualPayment.at)} : undefined,
   totalCents: order.totalCents, shippingCents: order.shippingCents ?? 0, currency: order.currency, status: order.status,
   pierOrigin: order.pierOrigin, pierCustomerId: order.pierCustomerId,
   assignments: order.assignments?.map(change=>({...fields(change,['id','assigneeId','by']),at:utc(change.at)})),
   createdAt: utc(order.createdAt), erasedAt: utc(order.erasedAt),
   shippingDetails: shipping ? { name: shipping.name, address: fields(shipping.address, ['line1', 'line2', 'city', 'state', 'postal_code', 'country']) } : undefined,
   checkout: order.checkout ? fields(order.checkout, ['id']) : undefined,
-  payment: order.payment ? { ...fields(order.payment, ['sessionId', 'intentId']), paidAt: utc(order.payment.paidAt) } : undefined,
+  payment: order.payment ? { ...fields(order.payment, ['source', 'sessionId', 'intentId']), ...(order.manualPayment?{method:order.manualPayment.method,receivedOn:order.manualPayment.receivedOn,reference:order.manualPayment.reference,recordedBy:order.manualPayment.by,label:'Payment recorded by staff, not confirmed by a payment provider'}:{source:'stripe'}), paidAt: utc(order.payment.paidAt) } : undefined,
   lines: order.lines.map(line => fields(line, ['sku', 'name', 'description', 'itemId', 'quantity', 'unitCents'])),
   reservation: order.reservation ? { ...fields(order.reservation, ['id', 'reference']),
    lines: order.reservation.lines.map(line => fields(line, ['id', 'itemId', 'quantity', 'price', 'reserved', 'cancelled', 'dispatched'])) } : undefined,
   shipment: shipment ? { ...fields(shipment, ['id', 'reference', 'status', 'preparedBy', 'pierShipmentId']), approval: approved(shipment.approval),
    dispatches: shipment.dispatches?.map(dispatch => ({ ...fields(dispatch, ['id', 'reference', 'deliveryStatus']), shippedAt: utc(dispatch.shippedAt),
     tracking: dispatch.tracking.map(tracking => fields(tracking, ['carton', 'trackingCode', 'trackingUrl'])) })) } : undefined,
-  refunds: order.refunds.map(refund => ({ ...fields(refund, ['id', 'kind', 'taxTreatment', 'accountingCategory', 'amountCents', 'reason', 'status', 'preparedBy', 'stripeId']),
+  refunds: order.refunds.map(refund => ({ ...fields(refund, ['id', 'kind', 'taxTreatment', 'accountingCategory', 'amountCents', 'reason', 'status', 'preparedBy', 'stripeId', 'source']),
    approval: approved(refund.approval), startedAt: utc(refund.startedAt), lines: refund.lines.map(line => fields(line, ['sku', 'quantity'])) })),
  }
 }
@@ -75,10 +77,10 @@ function reconciliation(order: Order) {
 const columns: Record<string, string[]> = {
  products: ['id', 'revision', 'state', 'sku', 'name', 'description', 'unitCents', 'currency', 'active', 'approval', 'details'],
  customers: ['email', 'orderCount', 'firstOrderAt', 'lastOrderAt', 'orderIds', 'currency', 'paidCents', 'refundedCents'],
- orders: ['assignments', 'id', 'revision', 'customerEmail', 'status', 'createdAt', 'erasedAt', 'totalCents', 'shippingCents', 'currency', 'shippingDetails', 'checkout', 'payment', 'reservation', 'shipment', 'refunds'],
+ orders: ['notes', 'tags', 'channel', 'manualPayment', 'taxTreatment', 'assignments', 'id', 'revision', 'customerEmail', 'status', 'createdAt', 'erasedAt', 'totalCents', 'shippingCents', 'currency', 'shippingDetails', 'checkout', 'payment', 'reservation', 'shipment', 'refunds'],
  lines: ['orderId', 'lineNumber', 'sku', 'name', 'description', 'itemId', 'quantity', 'unitCents', 'lineTotalCents', 'currency'],
- payments: ['orderId', 'sessionId', 'intentId', 'paidAt', 'amountCents', 'currency'],
- refunds: ['orderId', 'id', 'kind', 'taxTreatment', 'accountingCategory', 'amountCents', 'currency', 'reason', 'status', 'preparedBy', 'approval', 'startedAt', 'stripeId', 'lines'],
+ payments: ['source', 'method', 'receivedOn', 'reference', 'recordedBy', 'label', 'orderId', 'sessionId', 'intentId', 'paidAt', 'amountCents', 'currency'],
+ refunds: ['source', 'orderId', 'id', 'kind', 'taxTreatment', 'accountingCategory', 'amountCents', 'currency', 'reason', 'status', 'preparedBy', 'approval', 'startedAt', 'stripeId', 'lines'],
  shipments: ['orderId', 'id', 'reference', 'status', 'preparedBy', 'approval', 'pierShipmentId', 'dispatches'],
  'pier-work': [...pierWorkFields],
  'stripe-work': ['id', 'orderId', 'kind', 'status', 'attempts', 'attemptedAt', 'observedAt', 'providerId', 'errorCode'],

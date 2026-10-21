@@ -16,19 +16,21 @@ export const lastDispatchAt=(order:Order)=>order.shipment?.dispatches?.map(d=>d.
 export const overduePartial=(order:Order,now:number)=>order.shipment?.status==='partial'&&now-Date.parse(lastDispatchAt(order))>overdueAfterMs
 
 /** Filters combine; every given filter must match. Dates are the shop time zone's calendar days of placement, both ends inclusive. */
-export async function searchOrders(db:D1Database,query:URLSearchParams,now=Date.now()):Promise<{timeZone:string;orders:Order[]}> {
+export async function searchOrders(db:D1Database,query:URLSearchParams,now=Date.now()):Promise<{timeZone:string;total:number;orders:Omit<Order,'requestDigest'|'checkoutKey'>[]}> {
  const timeZone=await businessTimeZone(db),status=query.get('status')||undefined,sku=query.get('sku')?.trim().toLowerCase(),customer=query.get('customer')?.trim().toLowerCase()
- const from=calendarDate(query.get('from'),'From'),to=calendarDate(query.get('to'),'To'),overdue=query.get('overdue')||undefined
+ const from=calendarDate(query.get('from'),'From'),to=calendarDate(query.get('to'),'To'),overdue=query.get('overdue')||undefined,channel=query.get('channel')||undefined
+ if(channel&&!['online','manual'].includes(channel)) fail('INPUT','Choose Online store or Manual.',400)
  if(status&&!statuses.includes(status)) fail('INPUT','Choose a recorded order status.',400)
  if(overdue&&overdue!=='partial') fail('INPUT','Overdue work is filtered as partial (partly shipped).',400)
  if(from&&to&&from>to) fail('INPUT','The From date must not be after the To date.',400)
  const matches=(order:Order)=>{
   const day=shopDay(timeZone,order.createdAt)
-  return (!status||order.status===status)&&(!sku||order.lines.some(line=>line.sku.toLowerCase()===sku))
+  return (!channel||(order.channel??'online')===channel)&&(!status||order.status===status)&&(!sku||order.lines.some(line=>line.sku.toLowerCase()===sku))
    &&(!customer||[order.customerEmail,order.shippingDetails?.name].some(value=>value?.toLowerCase().includes(customer)))
    &&(!from||day>=from)&&(!to||day<=to)&&(!overdue||overduePartial(order,now))
  }
- return {timeZone,orders:(await orders(db)).filter(matches)}
+ const found=(await orders(db)).filter(matches)
+ return {timeZone,total:found.length,orders:found.map(({requestDigest,checkoutKey,...order})=>order)}
 }
 
 /** One timeline: every audited action on the order, oldest first, with the provider references the record holds. */
@@ -36,6 +38,6 @@ export async function orderHistory(db:D1Database,orderId:string) {
  const order=await readOrder(db,orderId)
  const events=await db.prepare('SELECT id,actor,action,at FROM st_audit WHERE subject=? ORDER BY rowid').bind(order.id).all<{id:string;actor:string;action:string;at:string}>()
  return {orderId:order.id,createdAt:order.createdAt,events:events.results,references:{
-  checkout:order.checkout?.id,payment:order.payment&&{sessionId:order.payment.sessionId,intentId:order.payment.intentId},reservation:order.reservation?.reference,
+  checkout:order.checkout?.id,payment:order.payment?.source==='staff'?undefined:order.payment&&{sessionId:order.payment.sessionId,intentId:order.payment.intentId},reservation:order.reservation?.reference,
   shipments:[order.shipment?.reference,...(order.shipment?.dispatches??[]).map(d=>d.reference)].filter(Boolean),refunds:order.refunds.filter(r=>r.stripeId).map(r=>r.stripeId)}}
 }

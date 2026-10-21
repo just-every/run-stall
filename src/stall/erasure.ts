@@ -22,7 +22,16 @@ export async function eraseCustomer(env: Bindings, actor: Actor, payload: any) {
  await commit(env.DB, actor, [
   ...await portability.invalidateTransfersStatements(),
   ...await portability.redactionStatements(),
-  env.DB.prepare(`UPDATE st_orders SET value_json=json_remove(json_set(value_json,'$.customerEmail',NULL,'$.requestDigest','','$.erasedAt',?),'$.shippingDetails'),revision=lower(hex(randomblob(16))) WHERE json_extract(value_json,'$.customerEmail')=?`).bind(erasedAt, address),
+  // Rebuild annotations from their attribution fields only: even a redaction
+  // reason can contain customer details. The transaction also fences old writes.
+  env.DB.prepare(`UPDATE st_orders SET value_json=json_remove(json_set(value_json,
+   '$.customerEmail',NULL,'$.requestDigest','','$.erasedAt',?,
+   '$.notes',json((SELECT json_group_array(json_object(
+    'id',json_extract(note.value,'$.id'),'by',json_extract(note.value,'$.by'),
+    'at',json_extract(note.value,'$.at'),'text','Erased with customer contact'))
+    FROM json_each(st_orders.value_json,'$.notes') note))),
+   '$.shippingDetails','$.tags','$.manualPayment.reference'),revision=lower(hex(randomblob(16)))
+   WHERE json_extract(value_json,'$.customerEmail')=?`).bind(erasedAt, address),
   audit(env.DB, actor, crypto.randomUUID(), 'customer.email-erased'),
  ])
  return { erased: true, erasedAt }
