@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Shipping profiles: group products into profiles with their own zones, services, rates, pickup and local delivery. A mixed basket is quoted per service from each profile's rate for its own items, refused before payment when a line's profile does not serve the ZIP code, and bound to the profile revisions it was quoted under; assign products by grid, product editor or catalog CSV. The flat shipping charge is now the General profile.
+
 - Let hosted Stall reach a Pier Worker on the same Cloudflare zone using public fetch routing.
 
 - Hosted mail takes the provider and verified sender from private deployment settings.
