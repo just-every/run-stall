@@ -1,5 +1,6 @@
 // One product's own page: gallery, option choice, personalization, and add to basket.
 import { useEffect, useState } from 'react'
+import { useParams } from '@tanstack/react-router'
 import { HydrationUnit } from '../../base/hydration/unit'
 import { request, errorMessage, money } from './api'
 import { readBasket, writeBasket } from './basket'
@@ -11,7 +12,7 @@ import type { Catalogue, Item } from './shop'
 
 const same = (a: Record<string, string>, b: Record<string, string>) => Object.keys(a).length === Object.keys(b).length && Object.entries(a).every(([key, value]) => b[key] === value)
 export function ProductPage() {
-  const handle = decodeURIComponent(location.pathname.split('/').filter(Boolean)[1] ?? '')
+  const { handle = '' } = useParams({ strict: false }) as { handle?: string }
   const [catalogue, setCatalogue] = useState<Catalogue | null>(null), [loading, setLoading] = useState(true), [error, setError] = useState('')
   const [picked, setPicked] = useState<Record<string, string>>({}), [shown, setShown] = useState(0), [answers, setAnswers] = useState<Answers>({}), [quantity, setQuantity] = useState('1')
   const [busy, setBusy] = useState(false), [added, setAdded] = useState('')
