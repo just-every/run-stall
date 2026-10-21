@@ -277,6 +277,7 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
    value=await h.command('shipment.approve',{orderId:value.id,revision:value.revision});
    assert.equal(value.status,'shipped');
    await reviseProduct(h,'MUG-BLUE','New catalog name and price',2600);
+   value=await order(h,value.id);
    assert.deepEqual(value.lines,original.lines);assert.deepEqual(value.shippingDetails,original.shippingDetails);assert.equal(value.totalCents,original.totalCents);assert.equal(value.reservation.id,original.reservation.id);
    value=await h.command('refund.prepare',{orderId:value.id,revision:value.revision,lines:[{sku:'MUG-BLUE',quantity:1}],reason:'Recorded return; no money moved'});
    await h.command('refund.approve',{orderId:value.id,revision:'stale'},{status:409});
