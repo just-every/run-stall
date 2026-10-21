@@ -41,7 +41,7 @@ export function productDetails(input: unknown): ProductDetails {
  if (value.customFields !== undefined) {
   if (!Array.isArray(value.customFields) || value.customFields.length > 20) fail('PRODUCT_DETAILS', 'Use at most 20 custom fields.', 400)
   const seen = new Set<string>()
-  result.customFields = value.customFields.map(input => {
+  const fields = value.customFields.map((input): CustomField => {
    const field = object(input, ['key', 'label', 'type', 'value'], 'Custom field')
    const key = text(field.key, 'Field key', 40), label = text(field.label, 'Field label', 80)
    if (!/^[a-z][a-z0-9_]*$/.test(key) || seen.has(key)) fail('PRODUCT_DETAILS', 'Field keys must be unique lowercase names using letters, digits and underscores.', 400)
@@ -51,6 +51,7 @@ export function productDetails(input: unknown): ProductDetails {
    if (field.type === 'boolean' && typeof field.value === 'boolean') return { key, label, type: 'boolean', value: field.value }
    return fail('PRODUCT_DETAILS', 'A custom field needs a text, finite number or boolean value matching its type.', 400)
   })
+  if (fields.length) result.customFields = fields
  }
  return result
 }

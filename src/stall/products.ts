@@ -11,7 +11,7 @@ export async function productCommand(env:Bindings,actor:Actor,type:string,p:any)
  if(type==='product.prepare') {
   if(prior&&p.revision!==prior.revision) fail('CHANGED','Refresh this product before preparing a new version.')
   const details=p.details===undefined?(prior?.value.draft??prior?.value)?.details:productDetails(p.details)
-  const draft={...(details?{details}:{}),sku,name:text(p.name,'Product name'),description:typeof p.description==='string'&&p.description.length<=4000?p.description:fail('INPUT','Description must be at most 4000 characters.',400),unitCents:integer(p.unitCents,'Unit cents',1),active:p.active===true}
+  const draft={...(details&&Object.keys(details).length?{details}:{}),sku,name:text(p.name,'Product name'),description:typeof p.description==='string'&&p.description.length<=4000?p.description:fail('INPUT','Description must be at most 4000 characters.',400),unitCents:integer(p.unitCents,'Unit cents',1),active:p.active===true}
   value=prior?{...prior.value,draft}:{...draft,active:false,draft}
  } else {
   requirePerson(actor)

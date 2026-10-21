@@ -210,6 +210,9 @@ test('CATALOG-001: exact approved metadata stays private until publication, rend
   const retained=await h.command('product.prepare',{sku:source.id,revision:source.revision,name:'Renamed',description:'',unitCents:100,active:false})
   assert.deepEqual(retained.value.draft.details,details)
   const cleared=await h.command('product.prepare',{sku:source.id,revision:retained.revision,name:'Renamed',description:'',unitCents:100,active:false,details:{}})
-  assert.deepEqual(cleared.value.draft.details,{})
+  assert.equal(cleared.value.draft.details,undefined)
+  await h.command('product.approve',{sku:source.id,revision:cleared.revision})
+  const unblocked=await h.api('/api/stall/imports/preview',{csv})
+  assert.equal(unblocked.counts.mapped,1)
  } finally {await destination?.close();await h?.close();await pier.close()}
 })
