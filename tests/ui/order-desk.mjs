@@ -96,10 +96,10 @@ export async function orderDeskJourney({page,h,edge,secret,origin,evidence}) {
  }
  await zone('America/Chicago')
  let row=page.locator('#orders tbody tr').filter({hasText:'Test Customer'})
- await row.getByText('Yesterday',{exact:true}).waitFor()
+ await row.locator('time').filter({hasText:'Yesterday'}).waitFor()
  await zone('America/New_York')
  row=page.locator('#orders tbody tr').filter({hasText:'Test Customer'})
- await row.getByText('12:30 AM',{exact:true}).waitFor()
+ await row.locator('time').filter({hasText:'12:30 AM'}).waitFor()
  await filter.getByLabel('Placed from',{exact:true}).fill('2026-10-20');await filter.getByLabel('Placed to',{exact:true}).fill('2026-10-20')
  await row.getByRole('button').click()
  await capture('zone-change-filters',panel)

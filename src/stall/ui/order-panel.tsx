@@ -73,7 +73,8 @@ export function OrderPanel({ order, staff, busy, run, canApprove, owner, previou
     <section className="st-panel-block st-sums">
       <p><span>Shipping charged</span><span>{money(order.shippingCents ?? 0)}</span></p>
       <p><span>Order total · USD</span><strong>{money(order.totalCents)}</strong></p>
-      <p><span>Payment</span><span>{order.payment?.source==='staff' ? staffPaymentLabel : order.payment ? `Paid ${shortTime(order.payment.paidAt)} · Stripe` : humanLabel(order.status)}</span></p>
+      <p><span>Payment</span><span>{order.payment?.source==='staff' ? `Recorded ${shortTime(order.payment.paidAt)}` : order.payment ? `Paid ${shortTime(order.payment.paidAt)} · Stripe` : humanLabel(order.status)}</span></p>
+      {order.payment?.source==='staff'&&<p className="st-small">{staffPaymentLabel}</p>}
       {order.manualPayment&&<p><span>{order.manualPayment.method.replace('_',' ')} · received {order.manualPayment.receivedOn}</span><span>{order.manualPayment.reference}</span></p>}
       {order.taxTreatment&&<p>No tax recorded</p>}
       {!!refunded && <p><span>Refunded</span><span>−{money(refunded)}</span></p>}
