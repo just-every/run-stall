@@ -7,7 +7,7 @@ import { mkdtemp, mkdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
 import { installation } from '../api/harness.mjs'
-import { stripeEdge, deliverWebhook, sendFile, png } from '../api/network.mjs'
+import { stripeEdge, deliverWebhook, sendFile, png, solidPng } from '../api/network.mjs'
 import { volumeStock } from '../api/volume-stock.mjs'
 import { startOwnedDev, finishCleanup } from '../owned-dev.mjs'
 
@@ -78,9 +78,9 @@ try {
  await page.getByLabel('Attribute 1 name', { exact: true }).fill('Material')
  await page.getByLabel('Attribute 1 value', { exact: true }).fill('Organic cotton')
  await page.locator('summary', { hasText: 'Images and videos' }).click()
- await page.getByLabel('Add an image or video', { exact: true }).setInputFiles({ name: 'front.png', mimeType: 'image/png', buffer: png(80, 1) })
+ await page.getByLabel('Add an image or video', { exact: true }).setInputFiles({ name: 'front.png', mimeType: 'image/png', buffer: solidPng(400, 400, [214, 140, 92]) })
  await page.getByLabel('Alt text for image 1', { exact: true }).fill('Front of the tee')
- await page.getByLabel('Add an image or video', { exact: true }).setInputFiles({ name: 'back.png', mimeType: 'image/png', buffer: png(90, 2) })
+ await page.getByLabel('Add an image or video', { exact: true }).setInputFiles({ name: 'back.png', mimeType: 'image/png', buffer: solidPng(400, 400, [84, 126, 168]) })
  await page.getByLabel('Alt text for image 2', { exact: true }).fill('Back of the tee')
  await page.getByLabel('Add an image or video', { exact: true }).setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('not media') })
  await page.getByText('Upload a PNG, JPEG, GIF or WebP image', { exact: false }).waitFor()

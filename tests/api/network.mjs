@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHmac,randomUUID } from 'node:crypto';
+import zlib from 'node:zlib';
 // Only Stripe is simulated. Pier requests are forwarded to the real fixture Worker.
 export function stripeEdge({forward}={}) {
  const sessions=new Map(),refunds=new Map(),writes=new Map();
@@ -99,3 +100,10 @@ export function sendFile(h,path,bytes,type,{as=h.cookie,origin=h.origin,method='
 }
 export const png=(size=64,fill=1)=>Buffer.concat([Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]),Buffer.alloc(size,fill)]);
 export const pdf=(size=64)=>Buffer.concat([Buffer.from('%PDF-1.4\n'),Buffer.alloc(size,32)]);
+/** A valid solid-colour PNG, for journeys whose screenshots should show real pictures. */
+export function solidPng(width,height,[red,green,blue]) {
+ const chunk=(type,data)=>{const body=Buffer.concat([Buffer.from(type),data]),length=Buffer.alloc(4),crc=Buffer.alloc(4);length.writeUInt32BE(data.length);crc.writeUInt32BE(zlib.crc32(body));return Buffer.concat([length,body,crc])};
+ const header=Buffer.alloc(13);header.writeUInt32BE(width,0);header.writeUInt32BE(height,4);header[8]=8;header[9]=2;
+ const row=Buffer.concat([Buffer.from([0]),Buffer.from(Array.from({length:width},()=>[red,green,blue]).flat())]);
+ return Buffer.concat([Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]),chunk('IHDR',header),chunk('IDAT',zlib.deflateSync(Buffer.concat(Array.from({length:height},()=>row)))),chunk('IEND',Buffer.alloc(0))]);
+}

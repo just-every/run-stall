@@ -33,7 +33,7 @@ prepared details, variants, media files, personalization settings and each order
 these richer fields: they refuse a SKU with current or prepared metadata instead
 of dropping it. Edit that SKU through Products, or use the reviewed
 [Stall Details CSV extension](MOVE-IN.md#optional-stall-details-extension) to replace
-the complete optional details object. The extension stages unpublished products;
+the complete optional details object, which now includes variants, categories, tags, attributes and personalization. Image and video files travel in the installation archive, not in a CSV: a staged product that names a file this shop does not hold is refused at approval until you upload the file again. The extension stages unpublished products;
 publication remains a separate approval.
 
 New purchases keep the description, name and price from checkout even after a
