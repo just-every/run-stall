@@ -52,7 +52,7 @@ export function BulkProducts({ products, reload, close }: { products: Product[];
   }))) ?? []
   const unfinished = job && ['queued', 'applying', 'failed'].includes(job.state)
   return <Section title="Bulk edit staged products">
-    <p>Edit names, plain-text descriptions and USD prices for up to 200 unpublished products (256 KiB of generated CSV per edit). Published products and products used in orders cannot be changed here. Existing prepared revisions are replaced by the reviewed staged values; publication still needs its separate native approval. Descriptions trim leading and trailing whitespace; review the resulting text below.</p>
+    <p>Edit names, plain-text descriptions and USD prices for up to 200 unpublished products (256 KiB of generated CSV per edit). Published products, products used in orders and products with current or prepared optional details cannot be changed here. Edit products with optional details in Products. Existing prepared revisions are replaced by the reviewed staged values; publication still needs its separate native approval. Descriptions trim leading and trailing whitespace; review the resulting text below.</p>
     <p className="st-small">Every apply retains its original rows and before-images in the <a href="#move-in">Move in import journal</a>. Resume or undo there after leaving this editor. Later native edits, publication or orders protect products from undo.</p>
     {error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}
     {!rows.length ? <p>No unpublished products are available for bulk editing.</p> : <form className="st-stack" onSubmit={event => { event.preventDefault(); void act(review) }}>

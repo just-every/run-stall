@@ -54,7 +54,7 @@ export async function catalogue(env:Bindings) {
   const item=state.items.find((i:any)=>i.sku===p.id&&!i.archived)
   if(!item) return []
   const available=state.positions.filter((x:any)=>x.itemId===item.id&&x.status==='sellable'&&bins.has(x.locationId)).reduce((sum:bigint,x:any)=>sum+decimal(x.available),0n)
-  return [{sku:p.id,name:p.value.name,description:p.value.description,unitCents:p.value.unitCents,itemId:item.id,available:format(available)}]
+  return [{sku:p.id,name:p.value.name,description:p.value.description,...(p.value.details?.customFields?{customFields:p.value.details.customFields}:{}),unitCents:p.value.unitCents,itemId:item.id,available:format(available)}]
  })
  return {items,shippingCents,observedAt:new Date().toISOString(),checkoutReady:paymentsReady(env)}
 }

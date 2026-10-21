@@ -15,7 +15,7 @@ Supported kinds:
 | `products` | Every product, including inactive products, with separate `current` and pending `draft` rows and their shared revision. |
 | `customers` | Contact email and order history derived from locally retained, unerased orders; order IDs, first/last order time and recorded paid/refunded totals. |
 | `orders` | Every order, including incomplete checkouts, with retained delivery details and nested local payment, reservation, shipment and refund records. |
-| `lines` | Every purchased line, its order ID, one-based line number, original SKU/name/item ID, quantity and prices. |
+| `lines` | Every purchased line, its order ID, one-based line number, original SKU/name/description (when retained)/item ID, quantity and prices. |
 | `payments` | Locally confirmed payments, Stripe session/intent references, confirmation time and recorded order amount. |
 | `refunds` | Every refund including drafts, pending, failed and canceled attempts, with line quantities, refund kind, explicit tax treatment/accounting category and approval evidence. Shipping and goodwill refunds have empty line arrays. |
 | `shipments` | Every locally recorded draft or shipment, including observed partial dispatches and retained tracking. |
@@ -83,3 +83,9 @@ actor and UTC time). Assignment carries no access authority, including after
 transfer. The complete JSON also names the saved IANA business time zone;
 timestamp fields remain UTC. Full archives preserve the preference and
 assignments while the receiving installation keeps its own staff and permissions.
+
+Product rows include a JSON `details` cell containing supported cost, gram weight,
+millimeter dimensions, tax category, HS code, country of origin and typed custom
+fields. JSON records carry the same object under each current/prepared value.
+These are merchant facts with the editor's validation, not provider verification.
+Purchased descriptions are retained for new checkouts; older orders may omit them.

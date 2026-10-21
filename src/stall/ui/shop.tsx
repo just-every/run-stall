@@ -1,8 +1,10 @@
+import type { CustomField } from '../product-details'
+import { CustomFields } from './product-details'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { HydrationUnit } from '../../base/hydration/unit'
 import { request, errorMessage, money } from './api'
 import { Chrome, Empty, Notice, ProviderLinks, Section } from './primitives'
-interface Item { sku: string; name: string; description?: string; unitCents: number; available: string; active?: boolean }
+interface Item { sku: string; name: string; description?: string; unitCents: number; available: string; active?: boolean; customFields?: CustomField[] }
 interface Catalogue { shippingCents: number; items: Item[]; observedAt?: string; checkoutReady: boolean }
 export function Shop() {
   const [catalogue, setCatalogue] = useState<Catalogue | null>(null)
@@ -42,7 +44,7 @@ export function Shop() {
       {catalogue && !items.length && <Empty><h3>No products available yet</h3><p>The owner is preparing the catalog. Check back soon.</p></Empty>}
       {!loading && (!catalogue || !catalogue.checkoutReady || !items.length) && <ProviderLinks />}
       {!!items.length && <form className="st-shop-layout" onSubmit={event => void checkout(event)}>
-        <div className="st-product-grid">{items.map(item => <div className="st-product st-stack" key={item.sku}><div><small>{item.sku}</small><h3>{item.name}</h3></div><p>{item.description}</p><div className="st-row"><strong>{money(item.unitCents)}</strong><span>{Number(item.available) > 0 ? `${item.available} available` : 'Sold out'}</span></div><label><span className="st-sr-only">Quantity for {item.name}</span><input type="number" min="0" max={Math.floor(Number(item.available))} step="1" inputMode="numeric" value={quantities[item.sku] ?? ''} placeholder="0" disabled={busy || Number(item.available) <= 0} onChange={event => { changed(); setQuantities(current => ({ ...current, [item.sku]: event.target.value })) }} /></label></div>)}</div>
+        <div className="st-product-grid">{items.map(item => <div className="st-product st-stack" key={item.sku}><div><small>{item.sku}</small><h3>{item.name}</h3></div><p>{item.description}</p><CustomFields fields={item.customFields} /><div className="st-row"><strong>{money(item.unitCents)}</strong><span>{Number(item.available) > 0 ? `${item.available} available` : 'Sold out'}</span></div><label><span className="st-sr-only">Quantity for {item.name}</span><input type="number" min="0" max={Math.floor(Number(item.available))} step="1" inputMode="numeric" value={quantities[item.sku] ?? ''} placeholder="0" disabled={busy || Number(item.available) <= 0} onChange={event => { changed(); setQuantities(current => ({ ...current, [item.sku]: event.target.value })) }} /></label></div>)}</div>
         {invalid && <Notice error>Choose whole quantities within the available stock.</Notice>}
         <div className="st-checkout st-stack"><h3>{review ? 'Review your order' : 'Your order'}</h3><label>Email for your order<input required type="email" autoComplete="email" maxLength={254} value={email} disabled={busy} onChange={event => { changed(); setEmail(event.target.value) }} /></label>
           {chosen.length ? <ul className="st-lines">{chosen.map(item => <li key={item.sku}><span>{item.name} × {quantities[item.sku]}</span><strong>{money(item.unitCents * Number(quantities[item.sku]))}</strong></li>)}</ul> : <p>Choose a quantity above to start your order.</p>}

@@ -46,6 +46,10 @@ async function preparePlan(db: D1Database, actor: Actor, input: ProductImportInp
     const previous = existing.get(record.sourceId);
     if (previous && (previous.value as Record<string, Json>).active !== false)
       importError('IMPORT_PUBLISHED_PRODUCT', 'Unpublish this product through the native workflow before importing it.');
+    const priorValue = previous?.value as Record<string, Json> | undefined;
+    const pending = priorValue?.draft as Record<string, Json> | undefined;
+    if (priorValue?.details || pending?.details)
+      importError('IMPORT_PRODUCT_DETAILS', 'This SKU has native product details that the six-column CSV cannot carry. Edit it in Products; this import would discard those details.');
     const dependency = await db.prepare(`SELECT 1 AS found WHERE ${orderDependencySQL}`).bind(record.sourceId).first();
     if (dependency) importError('IMPORT_ORDER_DEPENDENCY', 'An order refers to this SKU. Preserve its catalog reference.');
     // Bind the complete before-image into the reviewed fingerprint, including

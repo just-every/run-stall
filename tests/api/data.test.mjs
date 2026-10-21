@@ -151,3 +151,65 @@ test('BASE-001 / INTEGRATION-001: native owner data doors preserve commerce and 
   })
  }finally{for(const value of destinations)await value.close();await h.close();await pier.close()}
 })
+
+test('CATALOG-001: exact approved metadata stays private until publication, renders typed facts and travels without losing purchased descriptions',async()=>{
+ const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex')
+ let h,destination
+ try {
+  h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle})
+  const details={costCents:735,weightGrams:350,dimensionsMm:{length:120,width:90,height:100},taxCategory:'ceramics',hsCode:'691200',countryOfOrigin:'US',customFields:[
+   {key:'care',label:'Care instructions',type:'text',value:'Hand wash. <img src=x onerror=alert(1)>'},
+   {key:'capacity',label:'Capacity · ml',type:'number',value:325},
+   {key:'dishwasher',label:'Dishwasher safe',type:'boolean',value:false},
+  ]}
+  const payload={sku:'MUG-BLUE',name:'Glazed mug',description:'Original cobalt glaze',unitCents:2450,active:true,details}
+  for(const invalid of [
+   {...details,costCents:7.35}, {...details,weightGrams:0}, {...details,dimensionsMm:{length:120,width:90}},
+   {...details,hsCode:'ceramic'}, {...details,countryOfOrigin:'usa'},
+   {...details,customFields:[{key:'care',label:'Care',type:'number',value:'three'}]},
+   {...details,customFields:[details.customFields[0],details.customFields[0]]}, {...details,secret:'not a documented merchant fact'},
+  ]) await h.command('product.prepare',{...payload,details:invalid},{status:400})
+  assert.equal((await state(h)).products.length,0)
+  let prepared=await h.command('product.prepare',payload)
+  assert.deepEqual((await h.api('/api/stall/catalogue',undefined,{as:''})).items,[])
+  await h.command('product.approve',{sku:prepared.id,revision:'stale'},{status:409})
+  const published=await h.command('product.approve',{sku:prepared.id,revision:prepared.revision})
+  assert.deepEqual(published.value.details,details)
+  const listing=(await h.api('/api/stall/catalogue',undefined,{as:''})).items[0]
+  assert.deepEqual(listing.customFields,details.customFields)
+  for(const field of ['details','costCents','taxCategory','dimensionsMm','hsCode']) assert.equal(Object.hasOwn(listing,field),false)
+  const bought=await purchase(h,edge,{skus:['MUG-BLUE'],quantities:[1],expectedTotalCents:2450})
+  assert.equal((await deliverWebhook(h,secret,edge.pay(bought.session.id))).response.status,200)
+  prepared=await h.command('product.prepare',{...payload,revision:published.revision,name:'New glaze',description:'Later green glaze',unitCents:3100,details:{...details,costCents:900,customFields:[{key:'care',label:'Care instructions',type:'text',value:'New care'}]}})
+  assert.deepEqual((await h.api('/api/stall/catalogue',undefined,{as:''})).items[0].customFields,details.customFields)
+  const pending=(await h.api('/api/stall/exports/records')).products[0].value
+  assert.equal(pending.details.costCents,735)
+  assert.equal(pending.draft.details.costCents,900)
+  await h.command('product.approve',{sku:prepared.id,revision:prepared.revision})
+  const purchased=(await state(h)).orders[0].lines[0]
+  assert.deepEqual({name:purchased.name,description:purchased.description,unitCents:purchased.unitCents},{name:payload.name,description:payload.description,unitCents:2450})
+  const exported=await h.api('/api/stall/exports/records')
+  assert.equal(exported.orders[0].lines[0].description,payload.description)
+  const rows=readCsv(await (await h.request('/api/stall/exports/products')).text())
+  assert.deepEqual(JSON.parse(rows[0].details),exported.products[0].value.details)
+  assert.equal(readCsv(await (await h.request('/api/stall/exports/lines')).text())[0].description,payload.description)
+  // Narrow imports must refuse rich current or pending native values, never erase them.
+  let native=await h.command('product.prepare',{sku:'RICH-STAGED',name:'Staged',description:'',unitCents:100,active:false,details})
+  await h.command('product.approve',{sku:native.id,revision:native.revision})
+  const csv='Handle,Title,Body (HTML),Variant SKU,Variant Price,Published\nrich,Replacement,,RICH-STAGED,1.00,FALSE\n'
+  await h.api('/api/stall/imports/preview',{csv},{status:409})
+  assert.deepEqual((await state(h)).products.find(p=>p.id===native.id).value.details,details)
+  const saved=await archive(h)
+  destination=await installation()
+  await restore(destination,saved)
+  const transferred=await destination.api('/api/stall/exports/records')
+  assert.deepEqual(transferred.products, (await h.api('/api/stall/exports/records')).products)
+  assert.equal(transferred.orders[0].lines[0].description,payload.description)
+  // Old callers can edit without dropping metadata; an explicit empty object clears it.
+  const source=(await state(h)).products.find(p=>p.id===native.id)
+  const retained=await h.command('product.prepare',{sku:source.id,revision:source.revision,name:'Renamed',description:'',unitCents:100,active:false})
+  assert.deepEqual(retained.value.draft.details,details)
+  const cleared=await h.command('product.prepare',{sku:source.id,revision:retained.revision,name:'Renamed',description:'',unitCents:100,active:false,details:{}})
+  assert.deepEqual(cleared.value.draft.details,{})
+ } finally {await destination?.close();await h?.close();await pier.close()}
+})

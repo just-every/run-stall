@@ -1,5 +1,6 @@
 import { fail, shopCurrency, type Approval, type Order, type ProductValue } from './model'
 import { orders, products } from './store'
+import { productDetails } from './product-details'
 import { businessTimeZone } from './preferences'
 import { stripeWork,workRecord } from './integration-work'
 import { pierWork,pierWorkRecord,pierWorkFields } from './pier-work'
@@ -22,7 +23,7 @@ function approved(value?: Approval) {
  return value ? { ...fields(value, ['by', 'version', 'revision']), at: utc(value.at) } : undefined
 }
 function productValue(value: Omit<ProductValue, 'draft'>) {
- return { ...fields(value, ['sku', 'name', 'description', 'unitCents', 'active']), approval: approved(value.approval) }
+ return { ...fields(value, ['sku', 'name', 'description', 'unitCents', 'active']), approval: approved(value.approval), ...(value.details ? { details: productDetails(value.details) } : {}) }
 }
 function commercialOrder(order: Order) {
  const shipment = order.shipment, shipping = order.shippingDetails
@@ -35,7 +36,7 @@ function commercialOrder(order: Order) {
   shippingDetails: shipping ? { name: shipping.name, address: fields(shipping.address, ['line1', 'line2', 'city', 'state', 'postal_code', 'country']) } : undefined,
   checkout: order.checkout ? fields(order.checkout, ['id']) : undefined,
   payment: order.payment ? { ...fields(order.payment, ['sessionId', 'intentId']), paidAt: utc(order.payment.paidAt) } : undefined,
-  lines: order.lines.map(line => fields(line, ['sku', 'name', 'itemId', 'quantity', 'unitCents'])),
+  lines: order.lines.map(line => fields(line, ['sku', 'name', 'description', 'itemId', 'quantity', 'unitCents'])),
   reservation: order.reservation ? { ...fields(order.reservation, ['id', 'reference']),
    lines: order.reservation.lines.map(line => fields(line, ['id', 'itemId', 'quantity', 'price', 'reserved', 'cancelled', 'dispatched'])) } : undefined,
   shipment: shipment ? { ...fields(shipment, ['id', 'reference', 'status', 'preparedBy', 'pierShipmentId']), approval: approved(shipment.approval),
@@ -72,10 +73,10 @@ function reconciliation(order: Order) {
   pendingRefundIds: order.refunds.filter(refund => refund.status === 'pending').map(refund => refund.id) }
 }
 const columns: Record<string, string[]> = {
- products: ['id', 'revision', 'state', 'sku', 'name', 'description', 'unitCents', 'currency', 'active', 'approval'],
+ products: ['id', 'revision', 'state', 'sku', 'name', 'description', 'unitCents', 'currency', 'active', 'approval', 'details'],
  customers: ['email', 'orderCount', 'firstOrderAt', 'lastOrderAt', 'orderIds', 'currency', 'paidCents', 'refundedCents'],
  orders: ['assignments', 'id', 'revision', 'customerEmail', 'status', 'createdAt', 'erasedAt', 'totalCents', 'shippingCents', 'currency', 'shippingDetails', 'checkout', 'payment', 'reservation', 'shipment', 'refunds'],
- lines: ['orderId', 'lineNumber', 'sku', 'name', 'itemId', 'quantity', 'unitCents', 'lineTotalCents', 'currency'],
+ lines: ['orderId', 'lineNumber', 'sku', 'name', 'description', 'itemId', 'quantity', 'unitCents', 'lineTotalCents', 'currency'],
  payments: ['orderId', 'sessionId', 'intentId', 'paidAt', 'amountCents', 'currency'],
  refunds: ['orderId', 'id', 'kind', 'taxTreatment', 'accountingCategory', 'amountCents', 'currency', 'reason', 'status', 'preparedBy', 'approval', 'startedAt', 'stripeId', 'lines'],
  shipments: ['orderId', 'id', 'reference', 'status', 'preparedBy', 'approval', 'pierShipmentId', 'dispatches'],
@@ -116,7 +117,7 @@ export async function businessExport(db: D1Database, kind: string): Promise<Resp
   case 'customers': rows = customerRecords; break
   case 'orders': rows = orderRecords; break
   case 'lines': rows = history.flatMap(order => order.lines.map((line, index) => ({ orderId: order.id, lineNumber: index + 1,
-   ...fields(line, ['sku', 'name', 'itemId', 'quantity', 'unitCents']), lineTotalCents: line.quantity * line.unitCents, currency: order.currency }))); break
+   ...fields(line, ['sku', 'name', 'description', 'itemId', 'quantity', 'unitCents']), lineTotalCents: line.quantity * line.unitCents, currency: order.currency }))); break
   case 'payments': rows = orderRecords.flatMap(order => order.payment ? [{ orderId: order.id, ...order.payment, amountCents: order.totalCents, currency: order.currency }] : []); break
   case 'refunds': rows = orderRecords.flatMap(order => order.refunds.map(refund => ({ orderId: order.id, currency: order.currency, ...refund }))); break
   case 'shipments': rows = orderRecords.flatMap(order => order.shipment ? [{ orderId: order.id, ...order.shipment }] : []); break

@@ -30,7 +30,7 @@ export async function checkout(env:Bindings,p:any) {
    if(!product) fail('PRODUCT','A selected product is no longer published.')
    if(BigInt(line.quantity)*1000000n>decimal(product.available)) fail('STOCK','There is not enough available stock. Refresh the shop.')
    integer(product.unitCents,'Product unit cents',1)
-   return {...line,itemId:product.itemId,name:product.name,unitCents:product.unitCents}
+   return {...line,itemId:product.itemId,name:product.name,description:product.description,unitCents:product.unitCents}
   })
   const shippingCents=stock.shippingCents
   const totalCents=lines.reduce((sum,l)=>sum+l.quantity*l.unitCents,0)+shippingCents

@@ -56,6 +56,7 @@ try {
   await route.fulfill({status:response.status,headers:{'content-type':response.headers.get('content-type')??'application/json',...(response.headers.get('content-disposition')?{'content-disposition':response.headers.get('content-disposition')}:{})},body:Buffer.from(await response.arrayBuffer())})
  })
  async function capture(name,selector) {
+  if(process.env.STALL_PROOF==='CATALOG-001'&&!name.startsWith('CATALOG-001'))return
   if(process.env.STALL_PROOF==='OPS-001'&&!name.startsWith('OPS-001'))return
   if(process.env.STALL_PROOF==='ORDER-003'&&!/^(ORDER-003|shop-review|order$|refund-approval)/.test(name))return
   for(const width of [1440,390]) {
@@ -64,7 +65,7 @@ try {
    else await page.evaluate(()=>window.scrollTo(0,0))
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`page overflows at ${width}: ${name}`)
    await page.screenshot({path:resolve(evidence,`${name}-${width}.png`)})
-   if(name.startsWith('ORDER-001-guide-')||name.startsWith('OPS-001')||name.endsWith('terminal')||['order','products','settings','move-in-preview','empty','home','shop-review','checkout-return'].includes(name))await page.screenshot({path:resolve(evidence,`${name}-full-${width}.png`),fullPage:true})
+   if((name.startsWith('CATALOG-001')&&!name.includes('contract'))||name.startsWith('ORDER-001-guide-')||name.startsWith('OPS-001')||name.endsWith('terminal')||['order','products','settings','move-in-preview','empty','home','shop-review','checkout-return'].includes(name))await page.screenshot({path:resolve(evidence,`${name}-full-${width}.png`),fullPage:true})
   }
   await page.setViewportSize({width:1440,height:1000})
  }
@@ -89,6 +90,10 @@ try {
   await page.goto(site+'/docs/'+slug)
   await capture('ORDER-001-guide-'+slug,page.locator('article h1'))
  }
+ await page.goto(site+'/docs/products')
+ await capture('CATALOG-001-guide',page.getByRole('heading',{name:'Optional product details',exact:true}))
+ await page.goto(site+'/contract')
+ await capture('CATALOG-001-contract',page.getByText(/Current metadata semantics:/).first())
  await page.goto(origin);await capture('lobby')
  await page.route('**/signin', async route => { const response = await h.request('/signin', { as: '' }); await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: await response.text() }) });
  await page.goto(origin+'/signin');await page.getByRole('heading',{name:'Sign in to Stall'}).waitFor();await capture('signin')
@@ -152,24 +157,59 @@ try {
  await capture('import-journal',page.getByRole('heading',{name:'Import journal',exact:true}))
  await page.getByRole('link',{name:'Products',exact:true}).click()
  await page.locator('.st-nav a[href="#products"][aria-current="page"]').waitFor()
+ await page.getByRole('button',{name:'Bulk edit staged products',exact:true}).click()
+ await capture('CATALOG-001-bulk',page.getByRole('heading',{name:'Bulk edit staged products',exact:true}))
+ await page.getByRole('button',{name:'Back to products',exact:true}).click()
  for(const name of ['Stoneware mug','Linen towel']) {
   await page.getByRole('button',{name,exact:true}).click()
   await page.getByRole('button',{name:'Edit product',exact:true}).click()
-  if(name==='Stoneware mug')await page.locator('#product-editor textarea').fill(hostileDescription)
+  if(name==='Stoneware mug') {
+   await page.locator('#product-editor > label textarea').fill(hostileDescription)
+   await page.getByText('Optional product details',{exact:true}).click()
+   await page.getByLabel('Cost price · USD',{exact:true}).fill('7.35')
+   await page.getByLabel('Weight · g',{exact:true}).fill('350')
+   await page.getByLabel('Length · mm',{exact:true}).fill('120')
+   await page.getByLabel('Width · mm',{exact:true}).fill('90')
+   await page.getByLabel('Height · mm',{exact:true}).fill('100')
+   await page.getByLabel('Tax category',{exact:true}).fill('ceramics')
+   await page.getByLabel('HS code',{exact:true}).fill('691200')
+   await page.getByLabel('Country of origin',{exact:true}).fill('US')
+   for(const [i,key,label,type,value] of [[1,'size_chart','Size chart','text','Height 100 mm. <img src=x onerror=alert(1)>'],[2,'capacity','Capacity · ml','number','325'],[3,'dishwasher','Dishwasher safe','boolean','false']]) {
+    await page.getByRole('button',{name:'Add custom field',exact:true}).click()
+    await page.getByLabel('Field key '+i,{exact:true}).fill(key)
+    await page.getByLabel('Field label '+i,{exact:true}).fill(label)
+    await page.getByLabel('Field type '+i,{exact:true}).selectOption(type)
+    if(type==='boolean')await page.getByLabel('Field value '+i,{exact:true}).selectOption(value)
+    else await page.getByLabel('Field value '+i,{exact:true}).fill(value)
+   }
+   // A server validation error keeps every entered fact for correction.
+   await page.getByLabel('Weight · g',{exact:true}).fill('100000001')
+   await page.getByRole('button',{name:'Prepare revision',exact:true}).click()
+   await page.getByRole('alert').waitFor()
+   assert.equal(await page.getByLabel('Field value 1',{exact:true}).inputValue(),'Height 100 mm. <img src=x onerror=alert(1)>')
+   await page.getByLabel('Weight · g',{exact:true}).fill('350')
+   await capture('CATALOG-001-editor','#product-editor')
+  }
   await page.getByLabel('Available for publication',{exact:true}).check()
   await page.getByRole('button',{name:'Prepare revision',exact:true}).click()
   await page.getByRole('button',{name:/Approve & publish revision/}).waitFor()
   await capture('product-approval-'+name.split(' ')[0].toLowerCase())
+  if(name==='Stoneware mug')await capture('CATALOG-001-approval','.st-order-panel')
   await page.getByRole('button',{name:/Approve & publish revision/}).click()
   await page.locator('#products tbody tr',{hasText:name}).getByText('Published',{exact:true}).waitFor()
  }
  await capture('products')
  await capture('products-published')
+ await page.getByRole('button',{name:'Stoneware mug',exact:true}).click()
+ await capture('CATALOG-001-published','.st-order-panel')
  await page.goto(origin+'/shop')
  // BASE-001: arbitrary product HTML stays visible plain text in the public shop.
  await page.getByText(hostileDescription,{exact:true}).waitFor()
  assert.equal(await page.locator('.st-product script,.st-product img').count(),0)
  assert.equal(await page.evaluate(()=>window.stallUnsafe),undefined)
+ await page.getByText('Height 100 mm. <img src=x onerror=alert(1)>',{exact:true}).waitFor()
+ assert.equal(await page.locator('.st-product dt').filter({hasText:'Cost price'}).count(),0)
+ await capture('CATALOG-001-shop','.st-product-grid')
  await page.getByLabel('Quantity for Stoneware mug').fill('1')
  await page.getByLabel('Quantity for Linen towel').fill('1')
  await page.getByLabel('Email for your order').fill('customer@example.test')
@@ -201,6 +241,8 @@ try {
  await page.locator('#orders .st-order-id').first().waitFor()
  await capture('home')
  await page.locator('#orders .st-order-id').first().click()
+ await page.locator('.st-order-panel').getByText(hostileDescription,{exact:true}).waitFor()
+ await capture('CATALOG-001-order-description','.st-order-panel')
  // Assign a real active teammate through the desk; reload proves persistence.
  const teammateCookie=await h.signIn('packer@example.test')
  const teammate=(await h.api('/auth/session',undefined,{as:teammateCookie})).operator
@@ -336,6 +378,8 @@ try {
  await page.getByText('Archive restored. Review provider connections before taking orders.',{exact:true}).waitFor()
  assert.equal((await h.api('/api/stall/state')).orders[0].refunds[0].status,'succeeded')
  assert.equal((await h.api('/api/stall/state')).timeZone,'Pacific/Auckland')
+ assert.equal((await h.api('/api/stall/state')).products.find(product=>product.id==='MUG-BLUE').value.details.costCents,735)
+ assert.equal((await h.api('/api/stall/state')).orders[0].lines.find(line=>line.sku==='MUG-BLUE').description,hostileDescription)
  assert.equal((await h.api('/api/stall/state')).orders[0].assignments[0].assigneeId,teammate.id)
  await capture('data-restored','#portability')
  // Keep the restored transport alive until browser routes have drained.
