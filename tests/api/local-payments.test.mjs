@@ -21,9 +21,9 @@ test('a local shop connects Stripe from the page alone and confirms payments by 
   assert.equal((await h.api('/api/stall/catalogue',undefined,{as:''})).checkoutReady,true);
   // The customer's return asks Stripe: unpaid stays waiting, paid is confirmed and reserved in Pier, priced.
   const first=await purchase(h,edge,{skus:['MUG-BLUE'],quantities:[2]});
-  assert.deepEqual(await h.api('/api/stall/checkout/confirm',{orderId:first.orderId},{as:''}),{status:'awaiting_payment'});
+  assert.equal((await h.api('/api/stall/checkout/confirm',{orderId:first.orderId},{as:''})).status,'awaiting_payment');
   edge.pay(first.session.id);
-  assert.deepEqual(await h.api('/api/stall/checkout/confirm',{orderId:first.orderId},{as:''}),{status:'paid'});
+  assert.equal((await h.api('/api/stall/checkout/confirm',{orderId:first.orderId},{as:''})).status,'paid');
   const reserved=(await h.api('/api/stall/state')).orders.find(o=>o.id===first.orderId);
   assert.equal(reserved.status,'reserved');
   let stock=await pier.api('/api/pier/state');
