@@ -411,7 +411,9 @@ Every capability claim on the homepage built on the owner-approved structure pag
 
 ## Status
 
-Judged from the code and tests at commit `b4fc3b0ac94fd95df7ca1371cf52ba440554cb2c` (17 October 2026).
+Judged from the code and tests at commit `3277c247d78baad8bb02b12846488033db766f8b` (21 October 2026).
+
+That is the code commit of this revision (the commit recording it adds only this line); the earlier judgement was at `b4fc3b0ac94fd95df7ca1371cf52ba440554cb2c` (17 October 2026).
 
 Revised 17 October 2026 so every capability claim on the approved homepage has a clause (see [Homepage claims](#homepage-claims)): DEMO-001, CUSTOMER-003, OPS-002 and OPEN-001 were added and judged from the commit above, and the acceptance evidence of STOCK-002, SHIP-001, SHIP-002, TAX-001, PROMO-002, MIGRATE-001 and ANALYTICS-001 was sharpened without changing their statuses. Between `7eadb4b` and the commit above, `src/stall` gained demo mode (`src/demo.ts`, `src/stall/demo/*` and the simulated Pier/Stripe effects in `src/stall/pier.ts` and `src/stall/stripe.ts`) and moved checkout and refunds from AUD to USD (`shopCurrency` in `src/stall/model.ts`); no clause gained or lost implemented behavior beyond that, so every earlier status stands. The AUD wording in earlier gaps describes `7eadb4b`; PAY-001 and ORDER-003 stay partial for their other gaps.
 
