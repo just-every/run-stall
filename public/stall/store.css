@@ -110,7 +110,7 @@
 .st-facets { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; padding: 8px 0; }
 .st-facets fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 4px; align-content: start; }
 .st-facets legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
-.st-check { display: flex; gap: 8px; align-items: center; }
 .st-count-inline { color: var(--muted); font-size: 13px; }
 .st-pager { display: flex; gap: 12px; align-items: center; justify-content: center; padding: 12px 0; }
 @media (max-width: 600px) { .st-searchrow { flex-direction: column; } .st-facets { grid-template-columns: 1fr; } }
+.st-app input[type=radio] { width: 18px; min-height: 18px; height: 18px; flex: none; margin: 1px 0 0; padding: 0; accent-color: var(--tangerine-press); }
