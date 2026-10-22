@@ -25,7 +25,7 @@ export async function riskJourney({page,h,edge,secret,origin,riskLevels,capture}
  assert.equal(blocked.error.code,'RISK_HELD')
  let response=page.waitForResponse(r=>r.url().endsWith('/api/stall/commands'))
  await held.getByRole('button',{name:'Release fulfillment',exact:true}).click();assert.ok((await response).ok())
- await held.getByText('released',{exact:true}).waitFor();await capture('risk-released',held)
+ await held.getByText('Released',{exact:true}).waitFor();await capture('risk-released',held)
  const canceled=risk(orders[2]);response=page.waitForResponse(r=>r.url().endsWith('/api/stall/commands'))
  await canceled.getByRole('button',{name:'Cancel fulfillment',exact:true}).click();assert.ok((await response).ok())
  await canceled.getByText('Fulfillment canceled. Payment and reserved stock remain recorded; handle money and stock separately through their authorized workflows.',{exact:true}).waitFor()

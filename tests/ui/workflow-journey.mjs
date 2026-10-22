@@ -42,7 +42,7 @@ export async function workflowJourney({page,h,origin,assignee,capture,setActor})
  const task=page.getByRole('article',{name:`Task ${before.tasks[0].id}`,exact:true})
  await task.getByRole('button',{name:'Mark task complete',exact:true}).waitFor();await capture('workflow-staff-inbox',page.locator('#workflows'))
  response=page.waitForResponse(r=>r.url().endsWith('/api/stall/workflows')&&r.request().method()==='POST')
- await task.getByRole('button',{name:'Mark task complete',exact:true}).click();assert.ok((await response).ok());await task.getByText('completed',{exact:true}).waitFor()
+ await task.getByRole('button',{name:'Mark task complete',exact:true}).click();assert.ok((await response).ok());await task.getByText('Completed',{exact:true}).waitFor()
  await capture('workflow-completed',task)
  setActor(h.cookie)
 }
