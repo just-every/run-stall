@@ -24,9 +24,9 @@ export function CustomerRequests() {
     {!orders && !error && <p role="status">Loading orders for your account…</p>}
     {orders && !orders.length && <Notice>No orders are available for this signed-in email. Contact the shop if your order used a different email.</Notice>}
     {!!orders?.length && <form className="st-stack" aria-label="Request order help" onSubmit={event => void submit(event)}>
-      <label>Order<select required value={orderId} disabled={busy} onChange={event => { setOrderId(event.target.value); setReceipt(undefined); setError('') }}><option value="">Choose your order…</option>{orders.map(order => <option key={order.id} value={order.id}>{order.id} · {money(order.totalCents)}</option>)}</select></label>
+      <label>Order<select aria-label="Order" required value={orderId} disabled={busy} onChange={event => { setOrderId(event.target.value); setReceipt(undefined); setError('') }}><option value="">Choose your order…</option>{orders.map(order => <option key={order.id} value={order.id}>{order.id} · {money(order.totalCents)}</option>)}</select></label>
       {chosen && <div className="st-stack"><p style={{ overflowWrap: 'anywhere' }}>Order reference: {chosen.id}</p><ul>{chosen.lines.map(line => <li key={line.sku}>{line.name} × {line.quantity}</li>)}</ul><p>Order total: {money(chosen.totalCents)}</p></div>}
-      <label>Request type<select value={kind} disabled={busy} onChange={event => { setKind(event.target.value); setReceipt(undefined); setError('') }}><option value="return">Return request</option><option value="cancellation">Cancellation request</option></select></label>
+      <label>Request type<select aria-label="Request type" value={kind} disabled={busy} onChange={event => { setKind(event.target.value); setReceipt(undefined); setError('') }}><option value="return">Return request</option><option value="cancellation">Cancellation request</option></select></label>
       <button disabled={busy || !chosen}>{busy ? 'Submitting request…' : 'Request staff review'}</button>
     </form>}
     {receipt && <Notice><strong>Request received for staff review.</strong><p>{receipt.message}</p><p style={{ overflowWrap: 'anywhere' }}>Request reference: {receipt.request.id}</p><p>Sending the same request again keeps this reference and creates no duplicate request.</p></Notice>}
