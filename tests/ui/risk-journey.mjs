@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { purchase,deliverWebhook } from '../api/network.mjs'
 export async function riskJourney({page,h,edge,secret,origin,riskLevels,capture}) {
- await page.goto(origin+'/app#settings')
+ await page.goto(origin+'/app#settings');await page.reload()
  const form=page.getByRole('form',{name:'Risk hold rules',exact:true})
  await form.getByLabel('Enable fulfillment holds',{exact:true}).check()
  await form.getByLabel('Hold at processor risk score (optional)',{exact:true}).fill('70')

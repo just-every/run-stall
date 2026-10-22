@@ -814,6 +814,8 @@ test('functional staff grants isolate workflows, customer records and stale prep
   await h.command('staff.configure',{actorId:people.finance.id,staffRole:'finance',refundLimitCents:1500,separateApproval:false})
   const approved=await h.command('refund.approve',{orderId:current.id,revision:refund.revision},{as:people.finance.cookie})
   assert.equal(approved.refunds.at(-1).status,'succeeded');assert.equal(approved.notes,undefined);assert.equal(edge.refunds.size,1)
+  const recorded=await h.command('order.manual',{idempotencyKey:randomUUID(),customerEmail:'synthetic-stall-541@example.test',name:'Sam Flores',address:{line1:'12 Cedar Lane',city:'Austin',state:'TX',postal_code:'78702',country:'US'},lines:[{sku,quantity:1}],expectedTotalCents:3000,method:'cash',receivedOn:'2026-10-21',amountCents:3000,reference:'synthetic-stall-542'},{as:people.finance.cookie})
+  assert.equal(recorded.status,'reserved');assert.equal(recorded.payment.source,'staff');assert.equal(recorded.payment.intentId,undefined);assert.equal(recorded.manualPayment.reference,undefined)
   await h.command('search.synonyms',{groups:[]},{as:people.marketing.cookie})
   await h.command('shop.configure',{timeZone:'America/Chicago'},{as:people.administrator.cookie})
   const csv='Handle,Title,Body (HTML),Variant SKU,Variant Price,Published\nsynthetic-stall-540,Serving plate,Stoneware,synthetic-stall-540,18.00,FALSE\n'

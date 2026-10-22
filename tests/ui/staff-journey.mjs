@@ -82,6 +82,9 @@ try {
  await workflowJourney({page,h,origin:ready.url,assignee:people.fulfillment,capture,setActor:value=>{as=value}})
  await h.command('staff.configure',{actorId:people.customer_support.id,staffRole:'marketing',refundLimitCents:0})
  as=people.customer_support.cookie;await page.goto(ready.url+'/app#orders');await page.reload();await page.getByRole('heading',{name:'Staff workspace',exact:true}).waitFor();await capture('downgraded')
+ await page.goto(ready.siteUrl+'/contract')
+ for(const title of ['Staff and app least privilege','Fraud indicators and human review','Documented headless API and signed events','Event and scheduled workflows with visible follow-up'])await capture('contract-'+title.split(' ')[0],page.getByRole('row').filter({hasText:title}))
+ for(const slug of ['staff-permissions','risk-review','workflows','headless-api']){await page.goto(ready.siteUrl+'/docs/'+slug);await page.getByRole('heading',{level:1}).waitFor();await capture('guide-'+slug,page.locator('article').first())}
  assert.deepEqual(errors,[])
  console.log('PASS staff permissions and scoped desk journey at 1440 and 390')
 } catch(error){journeyError=error;if(page){await page.screenshot({path:join(screenshots,'failure.png'),fullPage:true});console.log('Visible failure state:',(await page.locator('main').innerText()).slice(0,10000))}throw error} finally {await finishCleanup(cleanup,journeyError)}
