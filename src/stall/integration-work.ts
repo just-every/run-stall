@@ -15,7 +15,7 @@ export async function stripeWork(db: D1Database, limit?: number) {
 
 /** Claim the only write before crossing the network. An interrupted/unknown
  * attempt is observation-only thereafter, including on another Worker/restore. */
-export async function stripeWrite(env: Bindings, intent: { id: string; orderId: string; kind: StripeWork['kind']; value: unknown }, send: () => Promise<any>, recover: (id?: string) => Promise<any>, allowCreate: boolean, preflight: () => void) {
+export async function stripeWrite(env: Bindings, intent: { id: string; orderId: string; kind: StripeWork['kind']; value: unknown }, send: () => Promise<any>, recover: (id?: string) => Promise<any>, allowCreate: boolean, preflight: () => void | Promise<void>) {
  const hash = await digest(JSON.stringify(intent.value)), at = new Date().toISOString()
  if (allowCreate) await env.DB.prepare("INSERT OR IGNORE INTO st_stripe_work(id,order_id,kind,intent_hash,status,attempts,attempted_at) VALUES(?,?,?,?,?,0,?)").bind(intent.id, intent.orderId, intent.kind, hash, 'prepared', at).run()
  let work = await env.DB.prepare(`SELECT ${columns} FROM st_stripe_work WHERE id=?`).bind(intent.id).first<StripeWork>()
@@ -28,7 +28,7 @@ export async function stripeWrite(env: Bindings, intent: { id: string; orderId: 
   if (work.status === 'prepared') {
    // Only a row never claimed for the network may make its first request.
    // Configuration/age refusals leave it demonstrably unsent and recoverable.
-   preflight()
+   await preflight()
    const claim = await env.DB.prepare("UPDATE st_stripe_work SET status='uncertain',attempts=1,attempted_at=?,error_code=NULL WHERE id=? AND status='prepared' AND attempts=0").bind(at, intent.id).run()
    claimed = claim.meta.changes === 1
    if (!claimed) work = (await env.DB.prepare(`SELECT ${columns} FROM st_stripe_work WHERE id=?`).bind(intent.id).first<StripeWork>())!
