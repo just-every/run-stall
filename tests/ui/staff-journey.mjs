@@ -31,6 +31,7 @@ try {
  const people={}
  for(const [index,role] of ['catalog','fulfillment','customer_support','marketing','finance','administrator'].entries()) {
   const cookie=await h.signIn(`synthetic-stall-${610+index}@example.test`),person=(await h.api('/auth/session',undefined,{as:cookie})).operator
+  await h.db.prepare('UPDATE oa_operators SET display_name=? WHERE id=?').bind(['Maya Chen','Luis Rivera','Ana Patel','Rowan Park','Elena Ruiz','Jonah Brooks'][index],person.id).run()
   people[role]={cookie,...person}
  }
  let as=h.cookie

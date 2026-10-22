@@ -23,7 +23,7 @@ function StaffGrant({person,busy,save}:{person:Staff;busy:boolean;save:(p:unknow
  const [role,setRole]=useState(person.staffRole??''),[limit,setLimit]=useState(String((person.refundLimitCents??0)/100)),[separate,setSeparate]=useState(person.separateApproval!==0)
  return <form className="st-stack st-panel" aria-label={`Permissions for ${person.email}`} onSubmit={event=>{event.preventDefault();void save({actorId:person.id,staffRole:role||null,refundLimitCents:Math.round(Number(limit)*100),separateApproval:separate})}}>
   <h3>{person.name||person.email}</h3><p>{person.email} · {person.status} · sign-in role: {person.role}</p>
-  <label>Shop role<select value={role} onChange={e=>setRole(e.target.value)}><option value="">No staff grant</option>{staffRoles.map(value=><option key={value} value={value}>{value.replace('_',' ')}</option>)}</select></label>
+  <label>Shop role<select aria-label="Shop role" value={role} onChange={e=>setRole(e.target.value)}><option value="">No staff grant</option>{staffRoles.map(value=><option key={value} value={value}>{value.replace('_',' ')}</option>)}</select></label>
   <label>Refund approval limit (USD)<input type="number" min="0" max="1000000" step="0.01" required value={limit} onChange={e=>setLimit(e.target.value)} /></label>
   <label><input type="checkbox" checked={separate} onChange={e=>setSeparate(e.target.checked)} />Another person must approve refunds</label>
   <p>Changes apply to the next request and invalidate prepared approvals. Native administrators retain their existing shop authority; their refund limit and approval separation apply here.</p>
