@@ -15,7 +15,7 @@ import { startOwnedDev,finishCleanup } from '../owned-dev.mjs'
 const exec=promisify(execFile),screenshots=resolve(process.env.STALL_SCREENSHOTS??'test-results/staff')
 const scratch=await mkdtemp(join(tmpdir(),'stall-staff-')),checkout=join(scratch,'run-stall'),rerHome=join(scratch,'rer-home')
 await mkdir(screenshots,{recursive:true});await mkdir(rerHome)
-let browser,dev,h,pier,journeyError,cleaning
+let browser,dev,h,pier,page,journeyError,cleaning
 function cleanup(){return cleaning??=(async()=>{await browser?.close();const results=await Promise.allSettled([h?.close(),pier?.close(),dev?.stop()].filter(Boolean));if(results.some(r=>r.status==='rejected'))throw new AggregateError(results.filter(r=>r.status==='rejected').map(r=>r.reason),'Staff journey cleanup');await rm(scratch,{recursive:true,force:true})})()}
 for(const signal of ['SIGINT','SIGTERM'])process.once(signal,()=>void cleanup().then(()=>process.exit(1),()=>process.exit(1)))
 try {
@@ -35,13 +35,15 @@ try {
  }
  let as=h.cookie
  browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
- const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'}),page=await context.newPage(),errors=[]
+ const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'});page=await context.newPage();const errors=[]
  page.on('pageerror',error=>errors.push(error.message))
  await context.route('**/api/stall/**',async route=>{const req=route.request(),url=new URL(req.url());const response=await h.request(url.pathname+url.search,{method:req.method(),as,...(req.postData()?{body:JSON.parse(req.postData())}:{})});await route.fulfill({status:response.status,headers:{'content-type':response.headers.get('content-type')??'application/json'},body:Buffer.from(await response.arrayBuffer())})})
  await page.goto(ready.openUrl);await page.waitForURL(url=>['/setup','/app'].includes(url.pathname))
  if(new URL(page.url()).pathname==='/setup'){await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click()}
  async function capture(name,selector=page.locator('main')){for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await selector.scrollIntoViewIfNeeded();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name} overflows ${width}`);await page.screenshot({path:join(screenshots,`ROLE-001-${name}-${width}.png`)});await selector.screenshot({path:join(screenshots,`ROLE-001-${name}-detail-${width}.png`)})}await page.setViewportSize({width:1440,height:1000})}
+ const staffResponse=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/stall/staff')
  await page.goto(ready.url+'/app#settings')
+ const loaded=await staffResponse;assert.ok(loaded.ok(),await loaded.text());const visibleStaff=await loaded.json();assert.ok(visibleStaff.staff.some(p=>p.email===people.catalog.email),JSON.stringify(visibleStaff))
  await page.getByRole('heading',{name:'Staff permissions',exact:true}).waitFor()
  for(const [role,person] of Object.entries(people)) {
   const form=page.getByRole('form',{name:`Permissions for ${person.email}`,exact:true})
@@ -81,4 +83,4 @@ try {
  as=people.customer_support.cookie;await page.goto(ready.url+'/app#orders');await page.reload();await page.getByRole('heading',{name:'Staff workspace',exact:true}).waitFor();await capture('downgraded')
  assert.deepEqual(errors,[])
  console.log('PASS staff permissions and scoped desk journey at 1440 and 390')
-} catch(error){journeyError=error;throw error} finally {await finishCleanup(cleanup,journeyError)}
+} catch(error){journeyError=error;if(page){await page.screenshot({path:join(screenshots,'failure.png'),fullPage:true});console.log('Visible failure state:',(await page.locator('main').innerText()).slice(0,10000))}throw error} finally {await finishCleanup(cleanup,journeyError)}
