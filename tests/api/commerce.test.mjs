@@ -837,10 +837,12 @@ test('functional staff grants isolate workflows, customer records and stale prep
 
 test('headless storefront scopes bind independent customers, one purchase and signed filtered event replay',async()=>{
  const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex'),deliveries=[]
+ let revokeDuringStock
  const h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-701',STRIPE_WEBHOOK_SECRET:secret},outboundService:async request=>{
   const url=new URL(request.url)
   if(url.hostname==='cloudflare-dns.com')return Response.json({Status:0,Answer:url.searchParams.get('type')==='A'?[{type:1,data:'93.184.216.34'}]:[]})
   if(url.hostname==='hooks.synthetic-stall-702.com'){deliveries.push({body:await request.text(),headers:Object.fromEntries(request.headers)});return new Response(null,{status:204})}
+  if(url.origin===pier.origin&&request.method==='GET'&&revokeDuringStock){const revoke=revokeDuringStock;revokeDuringStock=undefined;await revoke()}
   return edge.handle(request)
  }})
  try {
@@ -910,6 +912,12 @@ test('headless storefront scopes bind independent customers, one purchase and si
   await call('/orders',undefined,{status:401})
   assert.equal(edge.sessions.size,1)
   await h.api(base+'/admin/deliveries/'+pending.id+'/replay',{},{status:403})
+  const raced=await h.api(base+'/admin/apps',{label:'Revocation during pricing',origin,scopes:['cart:write','checkout:write']})
+  const racedHeaders={origin,authorization:`Bearer ${raced.token}`}
+  const racedCart=await h.api(base+'/carts',{lines:[{sku:'MUG-BLUE',quantity:1}]},{as:customer,headers:{...racedHeaders,'idempotency-key':randomUUID()}})
+  revokeDuringStock=()=>h.api(base+'/admin/apps/'+raced.id+'/revoke',{})
+  await h.api(base+'/checkout',{cartId:racedCart.id,expectedTotalCents:2450},{as:customer,headers:{...racedHeaders,'idempotency-key':randomUUID()},status:409})
+  assert.equal(revokeDuringStock,undefined);assert.equal(edge.sessions.size,1)
   const stored=JSON.stringify(await h.api(base+'/admin/apps'))
   assert.ok(!stored.includes(app.token));assert.ok(!stored.includes(sub.signingSecret))
  } finally {await h.close();await pier.close()}

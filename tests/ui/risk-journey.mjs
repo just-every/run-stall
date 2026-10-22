@@ -7,7 +7,7 @@ export async function riskJourney({page,h,edge,secret,origin,riskLevels,capture}
  await form.getByLabel('Hold at processor risk score (optional)',{exact:true}).fill('70')
  const saved=page.waitForResponse(r=>r.url().endsWith('/api/stall/commands'))
  await form.getByRole('button',{name:'Save risk rules',exact:true}).click();assert.ok((await saved).ok())
- await page.waitForFunction(()=>!document.querySelector('#risk-review button:disabled'))
+ await page.waitForFunction(()=>!document.querySelector('form[aria-label="Risk hold rules"] button:disabled'))
  await capture('risk-rules',form)
  const orders=[]
  for(const [index,level] of ['normal','elevated','highest'].entries()) {

@@ -6,7 +6,7 @@ import { selectLines,priceLines } from '../order-selection'
 import { postalCodeOf,quoteShipping } from '../shipping-quote'
 import { confirmReturn } from '../payments'
 import { readOrder } from '../store'
-import { fenced,rate,type App,type Customer } from './auth'
+import { appGuard,customerGuard,fenced,rate,type App,type Customer } from './auth'
 import { now,uuid } from './common'
 type Cart={id:string;app_id:string;customer_id:string;value_json:string;revision:string;created_at:string;checkout_request:string|null}
 type Work={id:string;customer_id:string;operation:string;request_digest:string;commerce_key:string;cart_id:string;order_id:string|null}
@@ -55,7 +55,7 @@ export async function buy(env:Bindings,a:App,c:Customer,request:Request,p:any) {
  // No separate commerce engine: the same Stripe/Pier work ledger, verified
  // payment callbacks and idempotency rules apply to both storefronts.
  await fenced(env,a,c)
- const result=await checkout(env,{customerEmail:email,lines:JSON.parse(found.value_json),idempotencyKey:previous.commerce_key,expectedTotalCents:p.expectedTotalCents,...(p.shipping!==undefined?{shipping:p.shipping}:{})})
+ const result=await checkout(env,{customerEmail:email,lines:JSON.parse(found.value_json),idempotencyKey:previous.commerce_key,expectedTotalCents:p.expectedTotalCents,...(p.shipping!==undefined?{shipping:p.shipping}:{})},{check:()=>fenced(env,a,c),statements:()=>[appGuard(env,a),customerGuard(env,c)]})
  await fenced(env,a,c)
  return result
 }

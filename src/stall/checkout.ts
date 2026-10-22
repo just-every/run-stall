@@ -1,3 +1,4 @@
+import type { CommerceAuthority } from './commerce-authority'
 import type { Bindings } from '../auth.server'
 import { digest,systemAudit } from './access'
 import { pierOrigin } from './pier'
@@ -6,7 +7,8 @@ import { createCheckout,paymentsReady,validateSession } from './stripe'
 import { readOrder,saveOrder } from './store'
 import { paidSession } from './payments'
 import { email,fail,shopCurrency,text,type Order } from './model'
-export async function checkout(env:Bindings,p:any) {
+export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority) {
+ await authority?.check()
  const key=text(p.idempotencyKey,'Checkout idempotency key',100)
  if(!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(key)) fail('INPUT','Use a fresh random UUID for each checkout and retain it when retrying.',400)
  const customerEmail=email(p.customerEmail)
@@ -24,7 +26,7 @@ export async function checkout(env:Bindings,p:any) {
   order={id,revision,customerEmail,lines,totalCents,shippingCents,shipping,currency:shopCurrency,status:'checkout_pending',createdAt:new Date().toISOString(),requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,refunds:[]}
   // Unique checkout key prevents two orders even if concurrent requests observed no row.
   const files=lines.flatMap(line=>line.personalization?.flatMap(answer=>answer.fileId?[answer.fileId]:[])??[])
-  try { await env.DB.batch([env.DB.prepare('INSERT INTO st_orders VALUES(?,?,?)').bind(id,JSON.stringify(order),revision),systemAudit(env.DB,id,'checkout.prepared','customer'),...files.map(file=>env.DB.prepare('UPDATE st_uploads SET order_id=? WHERE id=? AND order_id IS NULL').bind(id,file)),env.DB.prepare('INSERT INTO st_guard(value) SELECT CASE WHEN (SELECT COUNT(*) FROM st_uploads WHERE order_id=?)=? THEN 1 ELSE 0 END').bind(id,files.length),env.DB.prepare('DELETE FROM st_guard')]);allowCreate=true }
+  try { await env.DB.batch([...(authority?.statements()??[]),env.DB.prepare('INSERT INTO st_orders VALUES(?,?,?)').bind(id,JSON.stringify(order),revision),systemAudit(env.DB,id,'checkout.prepared','customer'),...files.map(file=>env.DB.prepare('UPDATE st_uploads SET order_id=? WHERE id=? AND order_id IS NULL').bind(id,file)),env.DB.prepare('INSERT INTO st_guard(value) SELECT CASE WHEN (SELECT COUNT(*) FROM st_uploads WHERE order_id=?)=? THEN 1 ELSE 0 END').bind(id,files.length),env.DB.prepare('DELETE FROM st_guard')]);allowCreate=true }
   catch(error) {
    const winner=await env.DB.prepare("SELECT id FROM st_orders WHERE json_extract(value_json,'$.checkoutKey')=?").bind(checkoutKey).first<any>()
    if(!winner) throw error
@@ -35,7 +37,7 @@ export async function checkout(env:Bindings,p:any) {
  if(order.payment) return {orderId:order.id,url:'/order?checkout=success&orderId='+encodeURIComponent(order.id),status:order.status}
  if(!order.checkout) {
   if(order.erasedAt||!order.customerEmail) fail('ERASED','This customer record was erased.')
-  const session=await createCheckout(env,order,allowCreate)
+  const session=await createCheckout(env,order,allowCreate,authority?.check)
   validateSession(order,session)
   if(!allowCreate&&session.payment_status==='paid') {
    order=await paidSession(env,order,session.id)
