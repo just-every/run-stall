@@ -444,8 +444,8 @@ Judged against `main` **7eadb4b8faebf02302be95217ca8c2807fe5d986**, the same com
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 1 | 0 | 0 | 1 |
-| Target and push further | 17 | 25 | 35 | 77 |
-| All | 18 | 25 | 35 | 78 |
+| Target and push further | 17 | 25 | 36 | 78 |
+| All | 18 | 25 | 36 | 79 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
