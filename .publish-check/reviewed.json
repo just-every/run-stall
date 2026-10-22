@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "findings": [
+    {
+      "rule": "secret.assignment",
+      "path": "src/stall/workflows/sources.ts",
+      "blob": "ed658cdc1ed5621e509c5acbf4cad967c7276872",
+      "reason": "The generic Gitleaks hit at line 26 is a SQLite UPSERT expression joining event identity and observation timestamp column identifiers. This source blob contains no credential literal; its runtime values are separately bound to the statement.",
+      "reviewer": "Run Edit Run fleet",
+      "date": "2026-10-22"
+    }
+  ]
+}
