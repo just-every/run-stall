@@ -760,3 +760,68 @@ test('STORE-002: collections, menus, search, filters, synonyms and pins agree wi
   assert.equal((await state(h)).merchandising.collections.length,3);void gifts;void synonyms;
  }finally{if(destination)await destination.close();await h.close()}
 });
+
+test('functional staff grants isolate workflows, customer records and stale prepared authority',async()=>{
+ const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex')
+ const h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-502',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle})
+ try {
+  const sku='MUG-BLUE'
+  await publish(h,sku,'Hand-thrown serving bowl',3000)
+  const people={}
+  for(const [i,role] of ['catalog','fulfillment','customer_support','marketing','finance','administrator'].entries()) {
+   const cookie=await h.signIn(`synthetic-stall-${510+i}@example.test`),person=(await h.api('/auth/session',undefined,{as:cookie})).operator
+   people[role]={cookie,...person}
+   await h.command('staff.configure',{actorId:person.id,staffRole:role,refundLimitCents:1500,separateApproval:true})
+  }
+  const bought=await purchase(h,edge,{skus:[sku],quantities:[1],expectedTotalCents:3000,email:'synthetic-stall-520@example.test'})
+  await deliverWebhook(h,secret,edge.pay(bought.session.id))
+  let current=await order(h,bought.orderId)
+  current=await h.command('order.note.add',{orderId:current.id,revision:current.revision,text:'Keep this instruction inside the staff desk'})
+  for(const [role,person] of Object.entries(people)) {
+   const snapshot=await h.api('/api/stall/state',undefined,{as:person.cookie})
+   assert.equal(snapshot.actor.staffRole,role)
+   assert.equal(snapshot.orders.length,['fulfillment','customer_support','finance','administrator'].includes(role)?1:0)
+   assert.equal(snapshot.products.length,['catalog','administrator'].includes(role)?1:0)
+   assert.deepEqual(snapshot.audit,[])
+   assert.equal(snapshot.connectionDetails,undefined)
+   assert.ok(!JSON.stringify(snapshot).includes('synthetic-stall-501'))
+   assert.ok(!JSON.stringify(snapshot).includes('requestDigest'))
+   if(role==='finance')assert.ok(!JSON.stringify(snapshot).includes('Keep this instruction'))
+   await h.api('/api/stall/exports/records',undefined,{as:person.cookie,status:403})
+   await h.api('/api/stall/portability/exports',{}, {as:person.cookie,status:403})
+   await h.api('/api/stall/staff',undefined,{as:person.cookie,status:403})
+  }
+  const product=(await state(h)).products[0]
+  const draft=await h.command('product.prepare',{sku,revision:product.revision,name:'Serving bowl',unitCents:3000,description:'Stoneware',active:true},{as:people.catalog.cookie})
+  await h.command('product.approve',{sku,revision:draft.revision},{as:people.catalog.cookie})
+  await h.command('product.prepare',{sku,revision:(await state(h)).products[0].revision,name:'Forbidden',unitCents:1,active:true},{as:people.marketing.cookie,status:403})
+  await h.command('order.note.add',{orderId:current.id,revision:current.revision,text:'Packing reviewed'},{as:people.fulfillment.cookie})
+  current=await order(h,current.id)
+  await h.command('order.tag.add',{orderId:current.id,revision:current.revision,tag:'support reviewed'},{as:people.customer_support.cookie})
+  current=await order(h,current.id)
+  await h.command('order.manual',{}, {as:people.customer_support.cookie,status:403})
+  await h.command('shipment.prepare',{orderId:current.id,revision:current.revision,reference:'synthetic-stall-530'},{as:people.finance.cookie,status:403})
+  const shipment=await h.command('shipment.prepare',{orderId:current.id,revision:current.revision,reference:'synthetic-stall-530'},{as:people.fulfillment.cookie})
+  await h.command('staff.configure',{actorId:people.fulfillment.id,staffRole:'marketing',refundLimitCents:0})
+  await h.command('shipment.approve',{orderId:current.id,revision:shipment.revision},{as:people.fulfillment.cookie,status:403})
+  await h.api('/api/stall/orders',undefined,{as:people.fulfillment.cookie,status:403})
+  current=await h.command('shipment.approve',{orderId:current.id,revision:shipment.revision})
+  const refund=await h.command('refund.prepare',{orderId:current.id,revision:current.revision,kind:'goodwill',amountCents:1000,reason:'Service adjustment'},{as:people.finance.cookie})
+  await h.command('refund.approve',{orderId:current.id,revision:refund.revision},{as:people.finance.cookie,status:403})
+  assert.equal(edge.refunds.size,0)
+  await h.command('staff.configure',{actorId:people.finance.id,staffRole:'finance',refundLimitCents:500,separateApproval:false})
+  await h.command('refund.approve',{orderId:current.id,revision:refund.revision},{as:people.finance.cookie,status:403})
+  await h.command('staff.configure',{actorId:people.finance.id,staffRole:'finance',refundLimitCents:1500,separateApproval:false})
+  const approved=await h.command('refund.approve',{orderId:current.id,revision:refund.revision},{as:people.finance.cookie})
+  assert.equal(approved.refunds.at(-1).status,'succeeded');assert.equal(approved.notes,undefined);assert.equal(edge.refunds.size,1)
+  await h.command('search.synonyms',{groups:[]},{as:people.marketing.cookie})
+  await h.command('shop.configure',{timeZone:'America/Chicago'},{as:people.administrator.cookie})
+  await h.command('staff.configure',{actorId:people.catalog.id,staffRole:null})
+  await h.api('/api/stall/state',undefined,{as:people.catalog.cookie,status:403})
+  const customer=await h.signIn('synthetic-stall-520@example.test'),other=await h.signIn('synthetic-stall-521@example.test')
+  const owned=await h.api('/api/stall/customer/orders',undefined,{as:customer})
+  assert.deepEqual(owned.orders.map(o=>o.id),[current.id]);assert.ok(!JSON.stringify(owned).includes('instruction'))
+  assert.deepEqual((await h.api('/api/stall/customer/orders',undefined,{as:other})).orders,[])
+  await h.api('/api/stall/orders?customer=synthetic',undefined,{as:customer,status:403})
+ } finally { await h.close();await pier.close() }
+})

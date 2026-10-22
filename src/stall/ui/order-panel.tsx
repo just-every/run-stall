@@ -1,3 +1,4 @@
+import { useCan } from './authority'
 // The selected order's panel (the owner's pick): customer, lines with any
 // stock shortfall, totals and payment, delivery address, shipping, then the
 // next step: the Agent note above the approve pill when the shop agent prepared
@@ -33,10 +34,11 @@ function Dispatches({ order }: { order: Order }) {
 }
 
 function NextStep({ order, busy, run, canApprove, editing, edit }: { order: Order; busy: boolean; run: Run; canApprove: boolean; editing: Editing; edit: (to: Editing) => void }) {
+  const can=useCan()
   const person = usePerson(), need = needs(order), draft = draftOf(order)
   const shipment = draft?.kind === 'shipment' ? order.shipment : undefined, refund = draft?.kind === 'refund' ? draft.refund : undefined
-  const approve = editing ? null : shipment && canApprove ? <button disabled={busy} onClick={() => void run('shipment.approve', { orderId: order.id, revision: order.revision })}>Approve shipping · revision {shortId(order.revision)}</button>
-    : refund && canApprove ? <button disabled={busy} onClick={() => void run('refund.approve', { orderId: order.id, revision: order.revision })}>Approve {money(refund.amountCents)} refund · revision {shortId(order.revision)}</button> : null
+  const approve = editing ? null : shipment && canApprove && can('shipment.approve') ? <button disabled={busy} onClick={() => void run('shipment.approve', { orderId: order.id, revision: order.revision })}>Approve shipping · revision {shortId(order.revision)}</button>
+    : refund && canApprove && can('refund.approve') ? <button disabled={busy} onClick={() => void run('refund.approve', { orderId: order.id, revision: order.revision })}>Approve {money(refund.amountCents)} refund · revision {shortId(order.revision)}</button> : null
   const failed = order.refunds.some(refund => refund.status === 'failed')
   return <>
     {need && <div className="st-note"><Icon name="spark" /><div>
@@ -52,13 +54,14 @@ function NextStep({ order, busy, run, canApprove, editing, edit }: { order: Orde
     {editing === 'refund' && refund && <div className="st-panel-edit"><RefundForm order={order} busy={busy} run={run} initial={refund} onCancel={() => edit(null)} /></div>}
     {(approve || draft || pendingWork(order)) && <div className="st-actions st-panel-actions">
       {approve}
-      {draft && !editing && <button className="st-secondary" disabled={busy} onClick={() => edit(draft.kind)}>Edit<span className="st-sr-only"> {draft.kind === 'refund' ? 'refund' : 'shipping'}</span></button>}
-      {pendingWork(order) && <button className="st-secondary" disabled={busy} onClick={() => void run('order.reconcile', { orderId: order.id })}>Reconcile</button>}
+      {draft && !editing && can(draft.kind==='refund'?'refund.prepare':'shipment.prepare') && <button className="st-secondary" disabled={busy} onClick={() => edit(draft.kind)}>Edit<span className="st-sr-only"> {draft.kind === 'refund' ? 'refund' : 'shipping'}</span></button>}
+      {pendingWork(order) && can('order.reconcile') && <button className="st-secondary" disabled={busy} onClick={() => void run('order.reconcile', { orderId: order.id })}>Reconcile</button>}
     </div>}
   </>
 }
 
 export function OrderPanel({ order, staff, busy, run, canApprove, owner, previous, next, footer }: { order: Order; staff: Record<string,string>; busy: boolean; run: Run; canApprove: boolean; owner:boolean; footer: ReactNode; previous?: () => void; next?: () => void }) {
+  const can=useCan()
   const { shortTime } = useBusinessTime()
   const person = usePerson(), short = shortBy(order), details = order.shippingDetails, address = details?.address
   const [editing, setEditing] = useState<Editing>(null)
@@ -86,18 +89,18 @@ export function OrderPanel({ order, staff, busy, run, canApprove, owner, previou
       <p className="st-small">Pier handles stock and warehouse dispatch. Ship in Pier and refresh Stall to see the result. If you arrange delivery yourself, approve shipping here to record the dispatch in Pier.</p>
       {order.shipment && editing === 'shipment' ? <ShipForm order={order} busy={busy} run={run} initial={order.shipment.reference} onCancel={() => setEditing(null)} />
         : order.shipment ? <>{order.shipment.dispatches?.length ? <Dispatches order={order} /> : <p className="st-reference">{order.shipment.reference}</p>}{order.shipment.preparedBy !== 'pier' && <p className="st-small">Prepared by {person(order.shipment.preparedBy)}{shipmentDraft ? ' · awaiting approval' : ''}</p>}<ApprovalRecord approval={order.shipment.approval} /></>
-        : order.status === 'reserved' ? <><p className="st-small">No dispatch recorded yet. To ship from Stall, add the carrier’s reference for a person to approve.</p><ShipForm order={order} busy={busy} run={run} /></>
+        : order.status === 'reserved' && can('shipment.prepare') ? <><p className="st-small">No dispatch recorded yet. To ship from Stall, add the carrier’s reference for a person to approve.</p><ShipForm order={order} busy={busy} run={run} /></>
         : <p className="st-small">Shipping opens once payment is confirmed and Pier holds the stock.</p>}
     </section>
     {order.refunds.filter(refund => refund.status !== 'draft').map(refund => <section key={refund.id} className="st-panel-block"><div className="st-row"><h3>Refund · {money(refund.amountCents)}</h3><Badge value={refund.status} /></div><p className="st-small">{refund.source==='staff'&&<>{staffRefundLabel}. </>}{refundDescription(refund, order)} · {refund.reason}</p><p className="st-small">Prepared by {person(refund.preparedBy)}</p><ApprovalRecord approval={refund.approval} /></section>)}
     <NextStep order={order} busy={busy} run={run} canApprove={canApprove} editing={editing} edit={setEditing} />
-    {canApprove && <OrderNotes order={order} busy={busy} run={run} owner={owner} />}
-    {canApprove && <OrderAssignment order={order} staff={staff} busy={busy} run={run} />}
+    {canApprove && can('order.note.add') && <OrderNotes order={order} busy={busy} run={run} owner={owner} />}
+    {canApprove && can('order.assign') && <OrderAssignment order={order} staff={staff} busy={busy} run={run} />}
     {canApprove && <OrderHistory orderId={order.id} revision={order.revision} />}
     {footer}
     <details className="st-more"><summary>More actions</summary>
-      {!!order.payment && <details><summary>Prepare a refund</summary><RefundForm order={order} busy={busy} run={run} /></details>}
-      <details><summary>Recover an existing provider operation</summary><RecoverForm order={order} busy={busy} run={run} /></details>
+      {!!order.payment && can('refund.prepare') && <details><summary>Prepare a refund</summary><RefundForm order={order} busy={busy} run={run} /></details>}
+      {can('order.reconcile')&&<details><summary>Recover an existing provider operation</summary><RecoverForm order={order} busy={busy} run={run} /></details>}
       <RecordDetail label="Payment, stock reservation & provider details" value={{ payment: order.payment?.source==='staff'?{...order.payment,label:staffPaymentLabel}:order.payment, manualPayment:order.manualPayment, reservation: order.reservation, shipment: order.shipment, refunds: order.refunds }} />
     </details>
   </div>

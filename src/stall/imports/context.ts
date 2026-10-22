@@ -1,3 +1,5 @@
+import { authority } from '../access';
+import { permits } from '../permissions';
 import type { D1Database, D1ImportContext, D1Sql } from '../../modules/import-kit/src/d1/index';
 import type { Actor } from '../model';
 import { productImportDestination, productImportMappingVersion, defaultProductNamespace, legacyProductMappingVersion } from './csv';
@@ -5,15 +7,8 @@ import { productTargets } from './targets';
 import { importError } from './validation';
 export const productImportPrincipal = 'grant:stall-product-administration';
 export function importAuthority(actor: Actor, human = false): D1Sql {
-  if (!actor || !['owner', 'admin'].includes(actor.role) || (human && actor.agent)) importError('FORBIDDEN', 'Only a current human owner or admin can apply or undo product imports.');
-  if (actor.agent) return {
-    sql: "EXISTS(SELECT 1 FROM st_agent_tokens t JOIN oa_operators o ON o.id=t.actor_id WHERE t.id=? AND o.id=? AND o.version=? AND o.role=? AND t.actor_version=o.version AND o.status='active' AND o.role IN ('owner','admin') AND t.expires_at>?)",
-    params: [actor.grantId ?? '', actor.id, actor.version, actor.role, Date.now()],
-  };
-  return {
-    sql: "EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id WHERE s.id=? AND o.id=? AND o.version=? AND s.operator_version=o.version AND o.role=? AND o.role IN ('owner','admin') AND o.status='active' AND s.revoked_at IS NULL AND s.expires_at>?)",
-    params: [actor.sessionId ?? '', actor.id, actor.version, actor.role, Date.now()],
-  };
+  if (!actor || !permits(actor,'bulk') || (human && actor.agent)) importError('FORBIDDEN', 'Current catalog bulk authority is required.');
+  return authority(actor);
 }
 export async function authorizeProductImport(db: D1Database, actor: Actor, human = false): Promise<void> {
   const authority = importAuthority(actor, human);

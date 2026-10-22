@@ -1,3 +1,4 @@
+import { permits } from './permissions'
 import type { Bindings } from '../auth.server'
 import { audit, commit, current } from './access'
 import { decode, encode, fileHeaders, rawBytes, sniff } from './files'
@@ -23,7 +24,7 @@ export async function mediaResponse(env: Bindings, request: Request, id: string)
  const shown = (await products(env.DB)).some(product => listingState(product.value) === 'published' && product.value.details?.media?.some(media => media.id === id))
  if (!shown) {
   const actor = await current(request, env).catch(() => null)
-  if (!actor || !['owner', 'admin'].includes(actor.role)) fail('NOT_FOUND', 'No such file.', 404)
+  if (!actor || !permits(actor,'catalog')) fail('NOT_FOUND', 'No such file.', 404)
  }
  return new Response(decode(row.data), { headers: fileHeaders(row.mime, { 'cache-control': shown ? 'public, max-age=300' : 'private, no-store' }) })
 }

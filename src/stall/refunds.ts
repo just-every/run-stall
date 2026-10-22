@@ -1,3 +1,4 @@
+import { refundAuthority } from './permissions'
 import type { Bindings } from '../auth.server'
 import { actorLabel,approval,fail,requirePerson,shopCurrency,text,type Actor,type Order,type Refund } from './model'
 import { createRefund,retrieveRefund } from './stripe'
@@ -23,6 +24,7 @@ export async function refundCommand(env:Bindings,actor:Actor,type:string,p:any) 
  requirePerson(actor)
  let refund=p.refundId?order.refunds.find(r=>r.id===p.refundId):order.refunds.at(-1)
  if(!refund) fail('REFUND','Prepare and review a refund first.')
+ refundAuthority(actor,refund.amountCents,refund.preparedBy)
  if(['succeeded','failed','canceled'].includes(refund.status)) return order
  const allowCreate=refund.status==='draft'
  if(refund.status==='draft') {
@@ -39,7 +41,8 @@ export async function refundCommand(env:Bindings,actor:Actor,type:string,p:any) 
  return finishRefund(env,actor,order,refund,undefined,allowCreate)
 }
 export async function finishRefund(env:Bindings,actor:Actor,order:Order,r:Refund,recoveredStripeId?:string,allowCreate=false) {
- await liveApproval(env,actor,r.approval)
+ refundAuthority(actor,r.amountCents,r.preparedBy)
+ await liveApproval(env,actor,r.approval,'finance')
  if(order.payment?.source==='staff') {
   const next:Refund={...r,source:'staff',label:staffRefundLabel,status:'succeeded'}
   return saveOrder(env,{...order,refunds:order.refunds.map(x=>x.id===r.id?next:x)},'refund.staff-recorded',actor)

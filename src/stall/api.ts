@@ -1,3 +1,5 @@
+import { authorize,authorizeCommand,permits } from './permissions'
+import { staffCommand,staffSnapshot } from './staff'
 import { runtimeBindings,type Bindings } from '../auth.server'
 import { audit,commit,current,digest,live } from './access'
 import { fail,Problem,requirePerson,requireSupplier,text } from './model'
@@ -33,6 +35,7 @@ import { eraseCustomer } from './erasure'
 import { connectionCommand,connectionDetails,withConnections } from './connections'
 // Agent/connector readers retain commerce draft context, without staff annotations or staff-as-provider payment evidence.
 function agentRecord({notes,tags,manualPayment,...record}:any) { return {...record,...(manualPayment?{manualPayment:{...manualPayment,reference:undefined},payment:undefined}:{})} }
+function privateOrder(actor:import('./model').Actor,{requestDigest,checkoutKey,checkout,...record}:any) { return actor.agent||!permits(actor,'support')?agentRecord(record):record }
 async function discoverySource(env:Bindings):Promise<Source> {
  const [stock,saved,config]=await Promise.all([catalogue(env),collections(env.DB),merchandising(env.DB)])
  return {products:stock.products,items:stock.items,collections:saved,config:config.value}
@@ -82,29 +85,38 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    return json(await confirmReturn(env,text((await body(request)).orderId,'Order')))
   }
   const actor=await current(request,env)
+  if(path==='/api/stall/customer/orders'&&request.method==='GET') { requirePerson(actor);return json({orders:(await orders(env.DB)).filter(o=>!o.erasedAt&&o.customerEmail===actor.email).map(({id,createdAt,status,lines,totalCents,currency})=>({id,createdAt,status,lines:lines.map(({sku,name,quantity,unitCents})=>({sku,name,quantity,unitCents})),totalCents,currency}))}) }
   requireSupplier(actor)
   if(!['GET','HEAD'].includes(request.method)&&request.headers.get('origin')!==env.AUTH_ORIGIN&&(!actor.agent||request.headers.has('origin'))) fail('ORIGIN','Use this installation’s own page to change records.',403)
-  if(path==='/api/stall/search-report'&&request.method==='GET') { requirePerson(actor);return json(await searchReport(env.DB)) }
-  if(path==='/api/stall/media'&&request.method==='POST') return json(await uploadMedia(env,actor,request))
-  if(path.startsWith('/api/stall/uploads/')&&request.method==='GET') { requirePerson(actor);return await uploadResponse(env,decodeURIComponent(path.slice(19))) }
-  if(path==='/api/stall/packing-slip'&&request.method==='GET') { requirePerson(actor);return await packingSlip(env.DB,text(new URL(request.url).searchParams.get('orderId'),'Order')) }
+  if(path==='/api/stall/staff'&&request.method==='GET') return json(await staffSnapshot(env,actor))
+
+  if(path==='/api/stall/search-report'&&request.method==='GET') { authorize(actor,'marketing');requirePerson(actor);return json(await searchReport(env.DB)) }
+  if(path==='/api/stall/media'&&request.method==='POST') { authorize(actor,'catalog');return json(await uploadMedia(env,actor,request)) }
+  if(path.startsWith('/api/stall/uploads/')&&request.method==='GET') { authorize(actor,'orders');requirePerson(actor);return await uploadResponse(env,decodeURIComponent(path.slice(19))) }
+  if(path==='/api/stall/packing-slip'&&request.method==='GET') { authorize(actor,'fulfillment');requirePerson(actor);return await packingSlip(env.DB,text(new URL(request.url).searchParams.get('orderId'),'Order')) }
   if(path==='/api/stall/operations'&&request.method==='GET') {
-   requirePerson(actor);await live(env,actor)
+   authorize(actor,'admin');requirePerson(actor);await live(env,actor)
    return json(await operationsSnapshot(env))
   }
   if(path==='/api/stall/operations/probe'&&request.method==='POST') {
-   await probeProviders(env,actor)
+   authorize(actor,'admin');await probeProviders(env,actor)
    return json(await operationsSnapshot(env))
   }
   if(path==='/api/stall/state'&&request.method==='GET') {
+   if(!['owner','admin'].includes(actor.role)) {
+    await live(env,actor)
+    const records=permits(actor,'orders')?await orders(env.DB):[]
+    const clean=records.map(record=>privateOrder(actor,record))
+    return json({actor,timeZone:await businessTimeZone(env.DB),people:{[actor.id]:actor.email},staff:{},products:permits(actor,'catalog')?await products(env.DB):[],orders:clean,audit:[],...(permits(actor,'marketing')?{merchandising:{collections:await collections(env.DB),config:await merchandising(env.DB)}}:{}),...(permits(actor,'admin')?{shipping:await shippingState(env.DB)}:{}),connections:{pier:false,stripe:false,webhook:false}})
+   }
    const [selected,history,logs,people]=await Promise.all([products(env.DB),orders(env.DB),env.DB.prepare('SELECT * FROM st_audit ORDER BY rowid DESC LIMIT 200').all(),env.DB.prepare('SELECT id,display_name AS name,email,status FROM oa_operators').all<{id:string;name:string;email:string;status:string}>()])
    const shipping=await refreshShipments(env,actor,history)
    const historyChanged=shipping.orders.some((order,index)=>order.revision!==history[index].revision)
    const events=historyChanged?(await env.DB.prepare('SELECT * FROM st_audit ORDER BY rowid DESC LIMIT 200').all()).results:logs.results
    return json({timeZone:await businessTimeZone(env.DB),staff:Object.fromEntries(people.results.filter(person=>person.status==='active').map(person=>[person.id,person.name||person.email])),people:Object.fromEntries(people.results.map(person=>[person.id,person.name||person.email])),actor,products:selected,merchandising:{collections:await collections(env.DB),config:await merchandising(env.DB)},shippingCents:await generalFlatCents(env.DB),shipping:await shippingState(env.DB),...shipping,orders:actor.agent?shipping.orders.map(agentRecord):shipping.orders,audit:events,connections:{pier:pierConfigured(env),stripe:Boolean(env.STRIPE_SECRET_KEY),webhook:Boolean(env.STRIPE_WEBHOOK_SECRET)||(localShop(env)&&Boolean(env.STRIPE_SECRET_KEY))},connectionDetails:await connectionDetails(base,env)})
   }
-  if(path==='/api/stall/orders'&&request.method==='GET') { requirePerson(actor);return json(await searchOrders(env.DB,new URL(request.url).searchParams)) }
-  if(path==='/api/stall/orders/history'&&request.method==='GET') { requirePerson(actor);return json(await orderHistory(env.DB,text(new URL(request.url).searchParams.get('orderId'),'Order'))) }
+  if(path==='/api/stall/orders'&&request.method==='GET') { authorize(actor,'orders');requirePerson(actor);const found=await searchOrders(env.DB,new URL(request.url).searchParams);return json({...found,orders:found.orders.map(record=>privateOrder(actor,record))}) }
+  if(path==='/api/stall/orders/history'&&request.method==='GET') { authorize(actor,'orders');requirePerson(actor);return json(await orderHistory(env.DB,text(new URL(request.url).searchParams.get('orderId'),'Order'))) }
   if(path==='/api/stall/agent-token'&&request.method==='POST') {
    requirePerson(actor)
    if(actor.role!=='owner') fail('FORBIDDEN','Only the human owner may grant personal agent access.',403)
@@ -112,7 +124,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    await commit(env.DB,actor,[env.DB.prepare('INSERT INTO st_agent_tokens VALUES(?,?,?,?,?)').bind(id,await digest(token),actor.id,actor.version,expiresAt),audit(env.DB,actor,id,'agent.granted')])
    return json({id,token,expiresAt})
   }
-  if(path==='/api/stall/agent-token'&&request.method==='GET') return json({grants:(await env.DB.prepare('SELECT id,actor_id AS actorId,expires_at AS expiresAt FROM st_agent_tokens WHERE actor_id=? ORDER BY expires_at DESC').bind(actor.id).all()).results})
+  if(path==='/api/stall/agent-token'&&request.method==='GET') { authorize(actor,'admin');return json({grants:(await env.DB.prepare('SELECT id,actor_id AS actorId,expires_at AS expiresAt FROM st_agent_tokens WHERE actor_id=? ORDER BY expires_at DESC').bind(actor.id).all()).results}) }
   if(path==='/api/stall/agent-token/revoke'&&request.method==='POST') {
    requirePerson(actor)
    if(actor.role!=='owner') fail('FORBIDDEN','Only the human owner may revoke personal agent access.',403)
@@ -124,9 +136,11 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    const p=await body(request),type=p.type,payload=p.payload
    if(typeof type!=='string'||!payload||typeof payload!=='object'||Array.isArray(payload)) fail('INPUT','A command has a type and payload.',400)
    if(actor.agent&&!['product.prepare','shipment.prepare','refund.prepare'].includes(type)) fail('PERSON_REQUIRED','Agents prepare drafts; a person must review and approve.',403)
+   authorizeCommand(actor,type)
    await live(env,actor)
    let result:unknown
-   if(['product.prepare','product.approve'].includes(type)) result=await productCommand(env,actor,type,payload)
+   if(type==='staff.configure') result=await staffCommand(env,actor,payload)
+   else if(['product.prepare','product.approve'].includes(type)) result=await productCommand(env,actor,type,payload)
    else if(['shipment.prepare','shipment.approve'].includes(type)) result=await shipmentCommand(env,actor,type,payload)
    else if(['refund.prepare','refund.approve'].includes(type)) result=await refundCommand(env,actor,type,payload)
    else if(type==='order.reconcile') result=await reconcileOrder(env,actor,payload)
@@ -143,7 +157,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    else if(type==='customer.erase') result=await eraseCustomer(env,actor,payload)
    else if(['connection.pier','connection.stripe','connection.remove'].includes(type)) result=await connectionCommand(base,actor,type,payload)
    else fail('COMMAND','Unknown shop command.',404)
-   return json({result:actor.agent&&result&&typeof result==='object'?agentRecord(result):result})
+   return json({result:result&&typeof result==='object'&&'customerEmail' in result?privateOrder(actor,result):result})
   }
   return json({error:{code:'NOT_FOUND',message:'Unknown shop endpoint.'}},404)
  } catch(error:any) {

@@ -44,7 +44,8 @@
       "commands": [
         "pnpm run test:browser",
         "node tests/ui/integration-journey.mjs",
-        "node tests/ui/bulk-products-journey.mjs"
+        "node tests/ui/bulk-products-journey.mjs",
+        "node tests/ui/staff-journey.mjs"
       ]
     },
     {

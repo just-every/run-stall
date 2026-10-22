@@ -4,9 +4,9 @@ import { decimal,dispatchOrder } from './pier'
 import { observeShipment } from './shipment-sync'
 import { readOrder,saveOrder } from './store'
 import { approval,actorLabel,fail,requirePerson,text,type Actor,type Approval,type Order } from './model'
-export async function liveApproval(env:Bindings,actor:Actor,a?:Approval) {
+export async function liveApproval(env:Bindings,actor:Actor,a?:Approval,right='fulfillment') {
  await live(env,actor)
- if(!a||!await env.DB.prepare("SELECT id FROM oa_operators WHERE id=? AND version=? AND status='active' AND role IN ('owner','admin')").bind(a.by,a.version).first()) fail('APPROVAL_REVOKED','The recorded approver no longer has authority. Review with a current approver.')
+ if(!a||!await env.DB.prepare(`SELECT o.id FROM oa_operators o LEFT JOIN st_staff g ON g.actor_id=o.id WHERE o.id=? AND o.version=? AND o.status='active' AND (o.role IN ('owner','admin') OR (g.revision=? AND g.staff_role IN (?,'administrator')))` ).bind(a.by,a.version,a.scopeRevision??'',right).first()) fail('APPROVAL_REVOKED','The recorded approver no longer has authority. Review with a current approver.')
 }
 export function exactRevision(order:Order,p:any) { if(p.revision!==order.revision) fail('CHANGED','The order changed. Review its current exact revision.') }
 export async function shipmentCommand(env:Bindings,actor:Actor,type:string,p:any) {

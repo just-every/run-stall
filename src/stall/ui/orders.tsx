@@ -1,3 +1,4 @@
+import { useCan } from './authority'
 // The Orders workspace (the owner's pick): status tabs, a dense order table and
 // the selected order's panel. Rows a person must act on carry a tangerine dot;
 // Needs action opens on the shop agent's drafts, then the most urgent.
@@ -39,6 +40,7 @@ function OrderRow({ order, selected, now, onSelect }: { order: Order; selected: 
 
 /** `focus` is an order id from a link (#orders/<id>), opened in the tab that holds it. */
 export function OrdersView({ state, focus, query, busy, run, canApprove, refresh }: { state: State; focus?: string; query: string; busy: boolean; run: Run; canApprove: boolean; refresh: () => void }) {
+  const can=useCan()
   const { timeZone } = useBusinessTime()
   const { orders, audit } = state
   const tabFor = (id?: string) => { const order = orders.find(order => order.id === id); return order ? needs(order) ? 'needs' : 'all' : orders.some(order => needs(order)) ? 'needs' : 'all' }
@@ -66,10 +68,10 @@ export function OrdersView({ state, focus, query, busy, run, canApprove, refresh
   const waiting = orders.filter(order => needs(order)).length
   return <div className={`st-orders-layout${selected || !orders.length ? '' : ' is-single'}`} id="orders">
     <HydrationUnit><section className="st-orders" aria-labelledby="orders-title">
-      <div className="st-view-head"><h1 id="orders-title">Orders</h1><div className="st-actions">{canApprove&&<button className="st-secondary" disabled={busy} onClick={()=>setManual(true)}>Record paid sale</button>}<button className="st-secondary" disabled={busy} onClick={refresh}>Refresh shop</button></div></div>
+      <div className="st-view-head"><h1 id="orders-title">Orders</h1><div className="st-actions">{canApprove&&can('order.manual')&&<button className="st-secondary" disabled={busy} onClick={()=>setManual(true)}>Record paid sale</button>}<button className="st-secondary" disabled={busy} onClick={refresh}>Refresh shop</button></div></div>
       <p className="st-small">Times: {timeZone}. {state.shipmentSync?.checkedAt && <>Shipping checked with Pier <When at={state.shipmentSync.checkedAt} />.</>}</p>
       {state.shipmentSync?.error && <Notice error>Shipping could not be refreshed: {state.shipmentSync.error} Showing the last recorded shipment state.</Notice>}
-      {manual&&canApprove&&<ManualOrder state={state} busy={busy} run={run} close={()=>{setManual(false);setTab('all')}} />}
+      {manual&&canApprove&&can('order.manual')&&<ManualOrder state={state} busy={busy} run={run} close={()=>{setManual(false);setTab('all')}} />}
       <OrderFilterBar filters={filters} skus={[...new Set(orders.flatMap(order => order.lines.map(line => line.sku)))].sort()} timeZone={timeZone} change={setFilters} />
       {found.error && <Notice error>{found.error}</Notice>}
       <nav className="st-tabs" aria-label="Order status">{orderTabs.map(item => { const count = item.counted ? orders.filter(item.keep).length : 0; return <button key={item.id} aria-current={tab === item.id ? 'true' : undefined} onClick={() => { setTab(item.id); setSelectedId('') }}>{item.label}{!!count && <span className="st-tab-count">{count}</span>}</button> })}</nav>

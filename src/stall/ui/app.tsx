@@ -1,3 +1,5 @@
+import { Authority } from './authority'
+import { permits } from '../permissions'
 import { useEffect, useRef, useState } from 'react'
 import { HydrationUnit } from '../../base/hydration/unit'
 import { request, errorMessage } from './api'
@@ -34,20 +36,24 @@ export function ShopDesk() {
     catch (error) { setError(errorMessage(error)); try { await reload() } catch { /* Keep the last known state visible; the action error remains explicit. */ } return false }
     finally { lock.current = false; setBusy(false) }
   }
-  const role = state?.actor.role.toLowerCase() ?? '', owner = role === 'owner', canApprove = !!state && !state.actor.agent && ['owner', 'admin'].includes(role)
+  const permissionActor=state?{...state.actor,agent:!!state.actor.agent}:{role:'member',agent:false}
+  const allowedViews:DeskView[]=state&&['owner','admin'].includes(state.actor.role)?['orders','products','shopfront','shipping','move-in','history','settings']:[...(permits(permissionActor,'orders')?['orders' as const]:[]),...(permits(permissionActor,'catalog')?['products' as const,'move-in' as const]:[]),...(permits(permissionActor,'marketing')?['shopfront' as const]:[]),...(permits(permissionActor,'admin')?['shipping' as const]:[]),'settings']
+  const allowed=allowedViews.includes(view)
+  const role = state?.actor.role.toLowerCase() ?? '', owner = role === 'owner', canApprove = !!state && !state.actor.agent && (['owner', 'admin'].includes(role)||!!state.actor.staffRole)
   const open = state?.orders.filter(order => orderTabs[1].keep(order) || needs(order)).length ?? 0
   const label = searchLabel[view]
   const actor = state && { name: state.people[state.actor.id] ?? state.actor.email, email: state.actor.email, role: state.actor.role }
-  return <DeskShell view={view} counts={{ orders: open }} host={host} actor={actor ?? undefined} search={label ? { label, value: query, onChange: setQuery } : undefined}>
+  return <DeskShell allowedViews={allowedViews} view={view} counts={{ orders: open }} host={host} actor={actor ?? undefined} search={label ? { label, value: query, onChange: setQuery } : undefined}>
     <HydrationUnit><div className="st-messages" aria-live="polite">{loading && <p role="status" className="st-loading">Loading your shop…</p>}{error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}</div></HydrationUnit>
-    {state ? <TimeZone.Provider value={state.timeZone ?? defaultTimeZone}><People.Provider value={state.people}>
-      {view === 'orders' && <OrdersView state={state} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} refresh={() => { setError(''); void reload().catch(error => setError(errorMessage(error))) }} />}
-      {view === 'products' && <ProductsView products={state.products} audit={state.audit} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} reload={reload} shipping={state.shipping} />}
-      {view === 'shopfront' && state.merchandising && <MerchandisingView data={state.merchandising} products={state.products} busy={busy} run={run} canApprove={canApprove} />}
-      {view === 'shipping' && state.shipping && (canApprove ? <ShippingView data={state.shipping} busy={busy} run={run} reload={reload} /> : <Section title="Shipping"><p>Only an owner or administrator can change shipping profiles.</p></Section>)}
-      {view === 'move-in' && (canApprove ? <MoveIn reload={reload} /> : <Section title="Move in from Shopify"><p>Only an owner or administrator can import products.</p></Section>)}
-      {view === 'history' && <Activity state={state} query={query} />}
-      {view === 'settings' && <Settings state={state} owner={owner} busy={busy} run={run} reload={reload} />}
-    </People.Provider></TimeZone.Provider> : !loading && <Section title="Shop desk unavailable"><p>Sign in with your operator account to manage this shop. If you are already signed in, resolve the error above and refresh.</p><a href="/signin?returnTo=%2Fapp">Sign in</a></Section>}
+    {state ? <TimeZone.Provider value={state.timeZone ?? defaultTimeZone}><People.Provider value={state.people}><Authority.Provider value={permissionActor}>
+      {!allowed&&<Section title="Staff workspace"><p>Choose a workspace permitted by your current shop role.</p></Section>}
+      {allowed&&view === 'orders' && <OrdersView state={state} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} refresh={() => { setError(''); void reload().catch(error => setError(errorMessage(error))) }} />}
+      {allowed&&view === 'products' && <ProductsView products={state.products} audit={state.audit} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} reload={reload} shipping={state.shipping} />}
+      {allowed&&view === 'shopfront' && state.merchandising && <MerchandisingView data={state.merchandising} products={state.products} busy={busy} run={run} canApprove={canApprove} />}
+      {allowed&&view === 'shipping' && state.shipping && (canApprove ? <ShippingView data={state.shipping} busy={busy} run={run} reload={reload} /> : <Section title="Shipping"><p>Only an owner or administrator can change shipping profiles.</p></Section>)}
+      {allowed&&view === 'move-in' && (canApprove ? <MoveIn reload={reload} /> : <Section title="Move in from Shopify"><p>Only an owner or administrator can import products.</p></Section>)}
+      {allowed&&view === 'history' && <Activity state={state} query={query} />}
+      {allowed&&view === 'settings' && <Settings state={state} owner={owner} busy={busy} run={run} reload={reload} />}
+    </Authority.Provider></People.Provider></TimeZone.Provider> : !loading && <Section title="Shop desk unavailable"><p>Sign in with your operator account to manage this shop. If you are already signed in, resolve the error above and refresh.</p><a href="/signin?returnTo=%2Fapp">Sign in</a></Section>}
   </DeskShell>
 }

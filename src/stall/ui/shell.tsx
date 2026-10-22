@@ -35,8 +35,8 @@ function Account({ name, email, role }: { name: string; email: string; role: str
   </div>
 }
 
-export function DeskShell({ view, counts, host, actor, search, children }: {
-  view: DeskView; counts: Partial<Record<DeskView, number>>; host: string
+export function DeskShell({ allowedViews, view, counts, host, actor, search, children }: {
+  allowedViews?:DeskView[];view: DeskView; counts: Partial<Record<DeskView, number>>; host: string
   actor?: { name: string; email: string; role: string }
   search?: { label: string; value: string; onChange: (value: string) => void }
   children: ReactNode
@@ -45,7 +45,7 @@ export function DeskShell({ view, counts, host, actor, search, children }: {
     <HydrationUnit><aside className="st-sidebar">
       <Brand href="/app" />
       <div className="st-install"><h2>Shop desk</h2><p>{host || ' '}</p></div>
-      <nav className="st-nav" aria-label="Shop desk">{deskViews.map(item => <a key={item.id} href={`#${item.id}`} aria-current={view === item.id ? 'page' : undefined}><Icon name={item.icon} /><span>{item.label}</span>{!!counts[item.id] && <span className="st-count">{counts[item.id]}</span>}</a>)}</nav>
+      <nav className="st-nav" aria-label="Shop desk">{deskViews.filter(item=>!allowedViews||allowedViews.includes(item.id)).map(item => <a key={item.id} href={`#${item.id}`} aria-current={view === item.id ? 'page' : undefined}><Icon name={item.icon} /><span>{item.label}</span>{!!counts[item.id] && <span className="st-count">{counts[item.id]}</span>}</a>)}</nav>
       <p className="st-cork"><Icon name="leaf" />Free and open source for makers and small shops.</p>
     </aside></HydrationUnit>
     <div className="st-workspace">

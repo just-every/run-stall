@@ -11,12 +11,17 @@ export async function current(request:Request,env:Bindings):Promise<Actor> {
  }
  const s=await operatorAuth(env).getSession(request)
  if(!s) fail('AUTH','Sign in to manage the shop.',401)
- return {id:s.operator.id,email:s.operator.email,role:s.operator.role,version:s.operator.version,sessionId:s.id,agent:false}
+ const staff=await env.DB.prepare('SELECT staff_role AS staffRole,revision AS scopeRevision,refund_limit_cents AS refundLimitCents,separate_approval AS separateApproval FROM st_staff WHERE actor_id=?').bind(s.operator.id).first<any>()
+ return {...(staff?{...staff,separateApproval:!!staff.separateApproval}:{}),id:s.operator.id,email:s.operator.email,role:s.operator.role,version:s.operator.version,sessionId:s.id,agent:false}
+}
+export function authority(a:Actor) {
+ const sql=a.agent?`EXISTS(SELECT 1 FROM st_agent_tokens t JOIN oa_operators o ON o.id=t.actor_id WHERE t.id=? AND o.id=? AND o.version=? AND t.actor_version=o.version AND o.status='active' AND o.role IN ('owner','admin') AND t.expires_at>?)`:`EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id WHERE s.id=? AND o.id=? AND o.version=? AND s.operator_version=o.version AND o.role=? AND (o.role='owner' OR (o.role='admin' AND NOT EXISTS(SELECT 1 FROM st_staff g WHERE g.actor_id=o.id) AND ?='') OR EXISTS(SELECT 1 FROM st_staff g WHERE g.actor_id=o.id AND g.revision=?)) AND o.status='active' AND s.revoked_at IS NULL AND s.expires_at>?)`
+ const values=a.agent?[a.grantId!,a.id,a.version,Date.now()]:[a.sessionId!,a.id,a.version,a.role,a.scopeRevision??'',a.scopeRevision??'',Date.now()]
+ return {sql,params:values}
 }
 export function admission(db:D1Database,a:Actor) {
- const sql=a.agent?`EXISTS(SELECT 1 FROM st_agent_tokens t JOIN oa_operators o ON o.id=t.actor_id WHERE t.id=? AND o.id=? AND o.version=? AND t.actor_version=o.version AND o.status='active' AND o.role IN ('owner','admin') AND t.expires_at>?)`:`EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id WHERE s.id=? AND o.id=? AND o.version=? AND s.operator_version=o.version AND o.role=? AND o.role IN ('owner','admin') AND o.status='active' AND s.revoked_at IS NULL AND s.expires_at>?)`
- const values=a.agent?[a.grantId!,a.id,a.version,Date.now()]:[a.sessionId!,a.id,a.version,a.role,Date.now()]
- return db.prepare(`INSERT INTO st_guard(value) SELECT CASE WHEN ${sql} THEN 1 ELSE 0 END`).bind(...values)
+ const {sql,params}=authority(a)
+ return db.prepare(`INSERT INTO st_guard(value) SELECT CASE WHEN ${sql} THEN 1 ELSE 0 END`).bind(...params)
 }
 export async function commit(db:D1Database,a:Actor,statements:D1PreparedStatement[]) { await db.batch([admission(db,a),...statements,db.prepare('DELETE FROM st_guard')]) }
 export const changed=(db:D1Database)=>db.prepare('INSERT INTO st_guard(value) VALUES(changes())')

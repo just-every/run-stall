@@ -1,6 +1,7 @@
 import { runtimeBindings, type Bindings } from '../auth.server'
 import { createPortabilityHandler, boundedJson } from '@runeditrun/rer/modules/portability/http'
 import { portabilityPolicy } from './portability-policy.mjs'
+import { authorize } from './permissions'
 import { audit, commit, current, live } from './access'
 import { businessExport } from './exports'
 import { Problem, fail, requirePerson, requireSupplier } from './model'
@@ -36,6 +37,7 @@ export async function toolsResponse(request: Request, original: Bindings): Promi
    }
    return response
   }
+  authorize(actor,'bulk')
   if (path === '/api/stall/imports' && request.method === 'GET') return json({ jobs: await listProductImports(env.DB, actor) })
   if (path === '/api/stall/imports/preview' && request.method === 'POST') return json(await dryRunProductImport(env.DB, actor, await boundedJson(request, 1_000_000) as any))
   requirePerson(actor)
