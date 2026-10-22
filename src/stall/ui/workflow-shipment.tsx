@@ -12,7 +12,6 @@ export function WorkflowShipment({task,busy,run,refresh}:{task:ShipmentTask;busy
   <h5>Review shipment draft</h5>
   <p>Order {shortId(prep.orderId)} · {prep.status??'Status unavailable'} · {typeof prep.totalCents==='number'?money(prep.totalCents):'Total unavailable'}</p>
   <ul>{prep.lines.map(l=><li key={l.sku}>{l.quantity} × {l.name} ({l.sku})</li>)}</ul>
-  {prep.revision&&<p style={{overflowWrap:'anywhere'}}>Reviewed order revision: {prep.revision}</p>}
   {prep.reason&&<Notice error>{prep.reason}</Notice>}
   <label>Shipment reference<input required maxLength={160} value={reference} onChange={e=>setReference(e.target.value)} /></label>
   <p>Prepare saves a draft only. A person must separately review and approve shipment from the order desk.</p>
