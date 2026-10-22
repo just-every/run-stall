@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { startJourney } from './journey-kit.mjs'
+import { resolve } from 'node:path'
 import { publish, deliverWebhook } from '../api/network.mjs'
 
 // PROMO-001's existing free-shipping slice through the actual desk and checkout.
@@ -79,6 +80,18 @@ try {
     await paidCard.getByText('Revoked', { exact: false }).waitFor()
     await capture(`PROMO-001-revoked-${width}`, paidCard)
   }
+  const site = await journey.context.newPage()
+  for (const [path, label] of [['/docs/headless-api', 'guide'], ['/contract', 'contract']]) {
+    assert.equal((await site.goto(ready.siteUrl + path)).status(), 200)
+    for (const width of [1440, 390]) {
+      await site.setViewportSize({ width, height: 1000 })
+      const target = path === '/contract' ? site.getByRole('row').filter({ hasText: 'Discounts, automatic promotions and controlled budgets' }) : site.locator('main')
+      await target.scrollIntoViewIfNeeded()
+      assert.ok(await site.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
+      await site.screenshot({ path: resolve(process.env.STALL_SCREENSHOTS ?? 'test-results/promotions', `PROMO-001-${label}-${width}.png`) })
+    }
+  }
+  await site.close()
   assert.deepEqual(journey.errors, [])
   await journey.dev.assertRunning()
   console.log('PASS PROMO-001 free-shipping desk and checkout at 1440 and 390')

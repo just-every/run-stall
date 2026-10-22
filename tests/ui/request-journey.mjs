@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { startJourney } from './journey-kit.mjs'
+import { resolve } from 'node:path'
 import { publish, purchase, deliverWebhook } from '../api/network.mjs'
 
 // RETURN-001 intake only: native invited-member identity, no received-goods evidence.
@@ -88,6 +89,18 @@ try {
     assert.equal(await page.getByRole('navigation', { name: 'Shop desk', exact: true }).getByRole('link', { name: 'Customer requests', exact: true }).count(), 0)
     assert.deepEqual((await h.api('/api/stall/state')).orders.find(o => o.id === bought.orderId), before)
   }
+  const site = await context.newPage()
+  for (const [path, label] of [['/docs/workflows', 'guide'], ['/contract', 'contract']]) {
+    assert.equal((await site.goto(ready.siteUrl + path)).status(), 200)
+    for (const width of [1440, 390]) {
+      await site.setViewportSize({ width, height: 1000 })
+      const target = path === '/contract' ? site.getByRole('row').filter({ hasText: 'Customer self-service returns, cancellations and exchanges' }) : site.locator('main')
+      await target.scrollIntoViewIfNeeded()
+      assert.ok(await site.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
+      await site.screenshot({ path: resolve(process.env.STALL_SCREENSHOTS ?? 'test-results/requests', `RETURN-001-${label}-${width}.png`) })
+    }
+  }
+  await site.close()
   assert.deepEqual(journey.errors, [])
   await journey.dev.assertRunning()
   console.log('PASS RETURN-001 invited-member and staff request intake at 1440 and 390')

@@ -32,6 +32,9 @@ test('free shipping promotions reserve real checkout budgets atomically and rede
   const nativeGet=await h.mf.dispatchFetch(h.origin+base,{headers:{cookie:h.cookie}});
   assert.equal(nativeGet.status,200,'native same-origin GET needs no Origin header');
   assert.equal((await nativeGet.json()).promotions.length,1);
+  assert.equal((await h.mf.dispatchFetch(h.origin+base)).status,401,'omitting Origin never grants an anonymous reader access');
+  assert.equal((await h.mf.dispatchFetch(h.origin+base,{headers:{cookie:customer}})).status,403);
+  assert.equal((await h.mf.dispatchFetch(h.origin+base,{headers:{authorization:'Bearer '+agent.token}})).status,403);
   await h.api(base,undefined,{headers:{origin},status:403});
   const lines=[{sku:'MUG-BLUE',quantity:1}],quoteInput={lines,customerEmail:'synthetic-stall-806@example.test',promotionCode:input.code};
   const quote=overrides=>h.api(base+'/quote',{...quoteInput,...overrides},{as:''});
