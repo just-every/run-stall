@@ -8,6 +8,14 @@
       "reason": "The generic Gitleaks hit at line 26 is a SQLite UPSERT expression joining event identity and observation timestamp column identifiers. This source blob contains no credential literal; its runtime values are separately bound to the statement.",
       "reviewer": "Run Edit Run fleet",
       "date": "2026-10-22"
+    },
+    {
+      "rule": "secret.assignment",
+      "path": "src/stall/workflows/sources.ts",
+      "blob": "ae1a1eeaeedb34cb022966bd09465010a7dad3ba",
+      "reason": "The generic Gitleaks hit is the unchanged SQLite UPSERT expression for event identity and observation timestamp column identifiers. This updated source blob adds real promotion/return receipt source queries; it contains no credential literal. Runtime values are separately bound.",
+      "reviewer": "Run Edit Run fleet",
+      "date": "2026-10-22"
     }
   ]
 }
