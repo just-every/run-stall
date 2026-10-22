@@ -6,7 +6,7 @@ export function OrderNotes({order,busy,run,owner}:{order:Order;busy:boolean;run:
  const person=usePerson(),[note,setNote]=useState(''),[tag,setTag]=useState(''),[redacting,setRedacting]=useState(''),[reason,setReason]=useState('')
  const payload={orderId:order.id,revision:order.revision}
  return <section className="st-panel-block" aria-label="Internal notes and tags">
-  <h3>Internal notes and tags</h3><p className="st-small">Visible only to the owner and administrators. Corrections are new notes.</p>
+  <h3>Internal notes and tags</h3><p className="st-small">Internal to authorized shop staff. Corrections are new notes.</p>
   {order.notes?.map(entry=><div className="st-note-entry" key={entry.id}>
    <p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{entry.text}</p><p className="st-small">{person(entry.by)} · <When at={entry.at} />{entry.redaction&&<> · Redacted by {person(entry.redaction.by)} · {entry.redaction.reason}</>}</p>
    {owner&&!entry.redaction&&!order.erasedAt&&<button type="button" className="st-link" disabled={busy} onClick={()=>{setRedacting(entry.id);setReason('')}}>Redact note<span className="st-sr-only"> from {person(entry.by)} at {entry.at}</span></button>}

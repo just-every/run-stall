@@ -1,3 +1,4 @@
+import { Authority } from './authority'
 import { createContext, useContext, useMemo } from 'react'
 export const defaultTimeZone = 'America/Chicago'
 export const TimeZone = createContext(defaultTimeZone)
@@ -14,8 +15,8 @@ export function businessTime(value: string | number, timeZone = defaultTimeZone)
   return Number.isNaN(date.valueOf()) ? 'Time not recorded' : new Intl.DateTimeFormat('en-US', { timeZone, day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(date)
 }
 export function usePerson() {
-  const people = useContext(People)
-  return (id: string) => people[id] ?? (id === 'stripe' ? 'Stripe' : id === 'pier' ? 'Pier' : id.startsWith('agent:') ? 'Shop agent' : 'Former shop operator')
+  const people = useContext(People),actor=useContext(Authority)
+  return (id: string) => people[id] ?? (id === 'stripe' ? 'Stripe' : id === 'pier' ? 'Pier' : id.startsWith('agent:') ? 'Shop agent' : actor.role==='member'&&actor.staffRole?'Shop operator':'Former shop operator')
 }
 const dayKey = (date: Date, timeZone: string) => {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date)
