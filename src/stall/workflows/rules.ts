@@ -1,7 +1,7 @@
 import type { Bindings } from '../../auth.server'
 import { fail,integer,requirePerson,text,type Actor } from '../model'
 import { minute } from './time'
-export const triggers=['low_stock','overdue_fulfillment','return_request','cancellation_request','order','customer','promotion','scheduled_reconciliation'] as const
+export const triggers=['low_stock','overdue_fulfillment','return_request','return_confirmed','cancellation_request','order','customer','promotion','scheduled_reconciliation'] as const
 export type Trigger=typeof triggers[number]
 export type RuleValue={name:string;trigger:Trigger;assigneeId:string;dueMinutes:number;notifyStaff:boolean;action:'task'|'draft_followup'|'reconcile_followup';conditions:{sku?:string;status?:string;minTotalCents?:number;maxTotalCents?:number;stockAtMost?:number;overdueHours?:number};quietHours?:{start:string;end:string};localTime?:string}
 export type Rule={id:string;revision:string;state:'draft'|'active'|'paused';value:RuleValue;createdAt:string;updatedAt:string;checkedAt:string|null;errorCode:string|null;localAuthority:boolean}

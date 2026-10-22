@@ -3,14 +3,14 @@ import type { Bindings } from '../auth.server'
 import { live } from './access'
 import { decimal,dispatchOrder } from './pier'
 import { observeShipment } from './shipment-sync'
-import { readOrder,saveOrder } from './store'
+import { readOrder,saveOrder,type OrderWriteContext } from './store'
 import { approval,actorLabel,fail,requirePerson,text,type Actor,type Approval,type Order } from './model'
 export async function liveApproval(env:Bindings,actor:Actor,a?:Approval,right='fulfillment') {
  await live(env,actor)
  if(!a||!await env.DB.prepare(`SELECT o.id FROM oa_operators o LEFT JOIN st_staff g ON g.actor_id=o.id WHERE o.id=? AND o.version=? AND o.status='active' AND (o.role IN ('owner','admin') OR (g.revision=? AND g.staff_role IN (?,'administrator')))` ).bind(a.by,a.version,a.scopeRevision??'',right).first()) fail('APPROVAL_REVOKED','The recorded approver no longer has authority. Review with a current approver.')
 }
 export function exactRevision(order:Order,p:any) { if(p.revision!==order.revision) fail('CHANGED','The order changed. Review its current exact revision.') }
-export async function shipmentCommand(env:Bindings,actor:Actor,type:string,p:any) {
+export async function shipmentCommand(env:Bindings,actor:Actor,type:string,p:any,preparation?:OrderWriteContext) {
  let order=await readOrder(env.DB,text(p.orderId,'Order'))
  await assertRiskClear(env,order.id)
  const before=order
@@ -21,7 +21,7 @@ export async function shipmentCommand(env:Bindings,actor:Actor,type:string,p:any
   exactRevision(order,p)
   if(order.status!=='reserved'||!order.payment||!order.reservation) fail('SHIPMENT','Only paid orders with fully reserved stock can be shipped.')
   if(order.shipment&&order.shipment.status!=='draft') fail('SHIPMENT','This order already has an approved shipment.')
-  return saveOrder(env,{...order,shipment:{id:order.shipment?.id??crypto.randomUUID(),reference:text(p.reference,'Shipment reference'),status:'draft',preparedBy:actorLabel(actor)}},'shipment.prepared',actor)
+  return saveOrder(env,{...order,shipment:{id:order.shipment?.id??crypto.randomUUID(),reference:text(p.reference,'Shipment reference'),status:'draft',preparedBy:actorLabel(actor)}},'shipment.prepared',actor,'stripe',preparation)
  }
  requirePerson(actor)
  if(order.shipment?.status==='shipped') return order

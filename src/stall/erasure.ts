@@ -32,6 +32,7 @@ export async function eraseCustomer(env: Bindings, actor: Actor, payload: any) {
   ...scrubbed,
   ...workflowErasureStatements(env.DB,address),
   ...headlessErasureStatements(env.DB,address),
+  env.DB.prepare("UPDATE st_promotion_allocations SET customer_key='erased:'||order_id WHERE order_id IN (SELECT id FROM st_orders WHERE lower(json_extract(value_json,'$.customerEmail'))=?)").bind(address),
   env.DB.prepare("DELETE FROM st_uploads WHERE order_id IN (SELECT id FROM st_orders WHERE json_extract(value_json,'$.customerEmail')=?)").bind(address),
   ...await portability.invalidateTransfersStatements(),
   ...await portability.redactionStatements(),

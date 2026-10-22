@@ -7,10 +7,12 @@ import { runWorkflows } from './engine'
 import { activeStaff,activeStaffSql,authoritySql,isManager,manager,reader,rule,validateRule } from './rules'
 import { matches,sourceSupport } from './sources'
 import { date,localInstant,minute,quietRelease } from './time'
+import { prepareTaskShipment } from './shipment'
 
 export async function workflowCommand(original:Bindings,actor:Actor,type:string,p:any={}) {
  const env=await withConnections(original)
  if(!p||typeof p!=='object'||Array.isArray(p)) fail('INPUT','Workflow payload must be an object.',400)
+ if(type==='workflow.task.prepare-shipment') return prepareTaskShipment(env,actor,p)
  if(type==='workflow.task.complete'||type==='workflow.task.retry'||type==='workflow.notification.read') {
   reader(actor)
   const id=text(p.id,'Work ID',100),all=isManager(actor),stamp=new Date().toISOString()
@@ -59,7 +61,7 @@ export async function workflowCommand(original:Bindings,actor:Actor,type:string,
  if(type==='workflow.activate'||type==='workflow.pause') {
   const found=await rule(env,text(p.id,'Rule ID',100))
   if(p.revision!==found.revision) fail('CHANGED','The workflow rule changed. Review it again.')
-  if(type==='workflow.activate') {await activeStaff(env,found.value.assigneeId);if(!sourceSupport(found.value.trigger).available) fail('SOURCE_UNAVAILABLE','Promotion records and their native event producer are not implemented.',409)}
+  if(type==='workflow.activate') await activeStaff(env,found.value.assigneeId)
   const state=type==='workflow.activate'?'active':'paused'
   await commit(env.DB,actor,[env.DB.prepare(`UPDATE st_workflow_rules SET state=?,updated_at=?,error_code=NULL WHERE id=? AND revision=? ${state==='active'?`AND EXISTS(${activeStaffSql})`:''}`).bind(state,new Date().toISOString(),found.id,found.revision,...(state==='active'?[found.value.assigneeId]:[])),changed(env.DB),...(state==='paused'?[env.DB.prepare('DELETE FROM st_workflow_authority WHERE rule_id=?').bind(found.id),env.DB.prepare("UPDATE st_workflow_tasks SET status='paused',error_code='RULE_PAUSED' WHERE rule_id=? AND status='pending'").bind(found.id)]:[env.DB.prepare('INSERT INTO st_workflow_authority(rule_id,rule_revision,custodian_id,custodian_version) VALUES(?,?,?,?) ON CONFLICT(rule_id) DO UPDATE SET rule_revision=excluded.rule_revision,custodian_id=excluded.custodian_id,custodian_version=excluded.custodian_version').bind(found.id,found.revision,actor.id,actor.version)]),audit(env.DB,actor,found.id,type)])
   // Activation performs no dispatch. The reviewable pending work is collected

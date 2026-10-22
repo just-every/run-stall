@@ -354,9 +354,18 @@ test('RISK-001: restricted advisory queue holds fulfillment, records human revie
 // and an unavailable Pier network response are simulated at the provider edge.
 test('FLOW-001: current-source rules, native customer requests, cron, quiet pause and visible failed follow-up', async()=>{
  const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward})
- let unavailable=false
+ let unavailable=false,duringStockRead
+ const intents=new Map()
  const bindings={...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-101',STRIPE_WEBHOOK_SECRET:'synthetic-stall-102'}
- const h=await installation({bindings,outboundService:r=>unavailable&&new URL(r.url).origin===pier.origin?Response.json({error:'synthetic-stall-103'},{status:503}):edge.handle(r)})
+ const h=await installation({bindings,outboundService:async r=>{
+  const url=new URL(r.url)
+  if(url.origin===pier.origin) {
+   if(unavailable)return Response.json({error:'synthetic-stall-103'},{status:503})
+   if(url.pathname==='/api/pier/state'&&duringStockRead){const change=duringStockRead;duringStockRead=null;await change()}
+  }
+  if(url.hostname==='api.stripe.com'&&url.pathname.startsWith('/v1/payment_intents/')) return Response.json(intents.get(decodeURIComponent(url.pathname.split('/').at(-1)))??{error:'missing'},{status:intents.has(decodeURIComponent(url.pathname.split('/').at(-1)))?200:404})
+  return edge.handle(r)
+ }})
  const flow=async(type,payload={},opts={})=>{
   const value=await h.api('/api/stall/workflows',{type,payload},opts)
   return opts.status&&opts.status>=400?value:value.result
@@ -365,7 +374,8 @@ test('FLOW-001: current-source rules, native customer requests, cron, quiet paus
  const scheduled=async()=>{assert.equal((await(await h.mf.getWorker()).scheduled({scheduledTime:new Date(),cron:'* * * * *'})).outcome,'ok')}
  try {
   const owner=(await h.api('/auth/session')).operator
-  const member=await h.signIn('synthetic-stall-104@example.test'),admin=await h.signIn('synthetic-stall-105@example.test','admin')
+  let member=await h.signIn('synthetic-stall-104@example.test')
+  const admin=await h.signIn('synthetic-stall-105@example.test','admin')
   const packer=(await h.api('/auth/session',undefined,{as:member})).operator,administrator=(await h.api('/auth/session',undefined,{as:admin})).operator
   const grant=await h.api('/api/stall/agent-token',{})
   await h.api('/api/stall/workflows',undefined,{as:'',status:401})
@@ -408,14 +418,15 @@ test('FLOW-001: current-source rules, native customer requests, cron, quiet paus
   const customerDry=await flow('workflow.dry-run',{id:customerRule.id})
   assert.ok(customerDry.matches.some(m=>m.sourceId===nativeCustomer.id))
   const promotion=await create('promotion')
-  assert.equal((await flow('workflow.dry-run',{id:promotion.id})).source.available,false)
-  assert.equal((await flow('workflow.activate',{id:promotion.id,revision:promotion.revision},{status:409})).error.code,'SOURCE_UNAVAILABLE')
+  assert.equal((await flow('workflow.dry-run',{id:promotion.id})).source.available,true)
+  const nativePromotion=await h.api('/api/stall/promotions',{code:'SYNTHETIC-STALL-118',startsAt:new Date(Date.now()-60000).toISOString(),endsAt:new Date(Date.now()+86400000).toISOString(),minimumBasketCents:0,maxUsesPerCustomer:1,maxTotalUses:2,maxShippingDiscountCents:1000})
+  assert.equal((await flow('workflow.dry-run',{id:promotion.id})).matches[0].sourceId,nativePromotion.id)
   await h.command('shop.configure',{timeZone:'America/New_York'})
   assert.equal((await flow('workflow.schedule.preview',{date:'2026-11-01',localTime:'01:30'})).instant,'2026-11-01T05:30:00.000Z')
   assert.equal((await flow('workflow.schedule.preview',{date:'2026-03-08',localTime:'02:30'})).instant,'2026-03-08T07:00:00.000Z')
   await h.command('shop.configure',{timeZone:'UTC'})
   const scheduledRule=await create('scheduled_reconciliation',{localTime:'00:00',action:'reconcile_followup',assigneeId:owner.id})
-  for(const r of [low,overdue,order,returns,cancellations,customerRule,scheduledRule]) await activate(r)
+  for(const r of [low,overdue,order,returns,cancellations,customerRule,scheduledRule,promotion]) await activate(r)
   const request={orderId:bought.orderId,kind:'return'}
   await h.api('/api/stall/customer-requests',request,{as:'',status:401})
   await h.api('/api/stall/customer-requests',request,{as:otherCustomer,status:404})
@@ -428,7 +439,7 @@ test('FLOW-001: current-source rules, native customer requests, cron, quiet paus
   await h.api('/api/stall/customer-requests',{...request,kind:'cancellation'},{as:customer})
   await scheduled()
   let snap=await snapshot()
-  for(const r of [low,overdue,order,returns,cancellations,customerRule,scheduledRule]) {
+  for(const r of [low,overdue,order,returns,cancellations,customerRule,scheduledRule,promotion]) {
    const tasks=snap.tasks.filter(t=>t.ruleId===r.id)
    assert.equal(tasks.length,1,r.value.trigger)
    const task=tasks[0]
@@ -443,7 +454,7 @@ test('FLOW-001: current-source rules, native customer requests, cron, quiet paus
   const mine=await h.api('/api/stall/workflows',undefined,{as:member})
   assert.ok(mine.tasks.length>0&&mine.tasks.every(t=>t.assigneeId===packer.id));assert.equal(mine.rules.length,0)
   assert.ok(mine.notifications.every(n=>n.recipientId===packer.id))
-  const completed=mine.tasks[0]
+  const completed=mine.tasks.find(t=>t.action==='task')
   await flow('workflow.task.complete',{id:completed.id},{as:member})
   assert.equal((await snapshot()).tasks.find(t=>t.id===completed.id).status,'completed')
   await flow('workflow.notification.read',{id:mine.notifications[0].id},{as:member})
@@ -479,6 +490,92 @@ test('FLOW-001: current-source rules, native customer requests, cron, quiet paus
   assert.equal(after.status,before.status);assert.equal(after.refunds.length,0)
   assert.equal((await pier.api('/api/pier/state')).shipments.length,0)
   assert.equal(edge.refunds.size,0)
+  // A human prepares the real shipment draft from the assigned task. Native
+  // functional rights, current task/rule authority, and exact revision bind it.
+  const draftTask=(await snapshot()).tasks.find(t=>t.ruleId===overdue.id)
+  const prepare={id:draftTask.id,revision:after.revision,reference:'synthetic-stall-119'}
+  await flow('workflow.task.prepare-shipment',prepare,{as:'',status:401})
+  await flow('workflow.task.prepare-shipment',prepare,{as:'',headers:{authorization:`Bearer ${grant.token}`},status:403})
+  await flow('workflow.task.prepare-shipment',prepare,{as:otherCustomer,status:403})
+  await h.command('staff.configure',{actorId:packer.id,staffRole:'customer_support'})
+  await flow('workflow.task.prepare-shipment',prepare,{as:member,status:403})
+  await h.command('staff.configure',{actorId:packer.id,staffRole:'fulfillment'})
+  await flow('workflow.task.prepare-shipment',{...prepare,revision:'synthetic-stall-120'},{as:member,status:409})
+  assert.equal((await snapshot()).tasks.find(t=>t.id===draftTask.id).errorCode,'CHANGED')
+  await flow('workflow.pause',{id:overdue.id,revision:overdue.revision})
+  assert.equal((await flow('workflow.task.prepare-shipment',prepare,{as:member,status:409})).error.code,'RULE_INACTIVE')
+  await activate(overdue)
+  await h.api('/auth/operator/status',{operatorId:packer.id,status:'inactive'})
+  assert.equal((await flow('workflow.task.prepare-shipment',prepare,{status:400})).error.code,'ASSIGNEE')
+  await h.api('/auth/operator/status',{operatorId:packer.id,status:'active'})
+  await h.api('/auth/magic-link',{email:packer.email,returnTo:'/app'},{as:'',status:202})
+  const message=h.messages.findLast(message=>JSON.stringify(message.to).includes(packer.email)),link=new URL(message.text.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)[0])
+  const signedAgain=await h.request('/auth/confirm',{method:'POST',as:'',body:{token:link.searchParams.get('token')}})
+  assert.equal(signedAgain.status,303)
+  member=signedAgain.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
+  const charge={id:'synthetic-stall-121',object:'charge',payment_intent:paid.payment_intent,outcome:{risk_level:'elevated',risk_score:82},payment_method_details:{card:{checks:{cvc_check:'pass',address_line1_check:'pass',address_postal_code_check:'pass'}}}}
+  intents.set(paid.payment_intent,{id:paid.payment_intent,object:'payment_intent',metadata:{stall_order_id:after.id},amount:after.totalCents,currency:'usd',status:'succeeded',latest_charge:charge})
+  await h.command('risk.configure',{enabled:true,holdElevated:true,holdHighest:true,holdAddressMismatch:true,holdPaymentMismatch:true,scoreThreshold:70})
+  await h.command('risk.refresh',{orderId:after.id})
+  assert.equal((await flow('workflow.task.prepare-shipment',prepare,{as:member,status:409})).error.code,'RISK_HELD')
+  assert.equal((await snapshot()).tasks.find(t=>t.id===draftTask.id).shipmentPreparation.available,false)
+  const held=(await h.api('/api/stall/risk')).queue.find(r=>r.orderId===after.id)
+  await h.command('risk.release',{orderId:after.id,revision:held.revision})
+  duringStockRead=()=>flow('workflow.pause',{id:overdue.id,revision:overdue.revision})
+  await flow('workflow.task.prepare-shipment',prepare,{as:member,status:409})
+  assert.ok(!(await h.api('/api/stall/state')).orders.find(o=>o.id===after.id).shipment)
+  assert.equal((await snapshot()).tasks.find(t=>t.id===draftTask.id).shipmentDraft,null)
+  await activate(overdue)
+  duringStockRead=()=>h.command('staff.configure',{actorId:packer.id,staffRole:'customer_support'})
+  await flow('workflow.task.prepare-shipment',prepare,{as:member,status:409})
+  assert.ok(!(await h.api('/api/stall/state')).orders.find(o=>o.id===after.id).shipment)
+  await h.command('staff.configure',{actorId:packer.id,staffRole:'fulfillment'})
+  const draftReplies=await Promise.all([flow('workflow.task.prepare-shipment',prepare,{as:member}),flow('workflow.task.prepare-shipment',prepare,{as:member})])
+  assert.equal(draftReplies[0].shipmentId,draftReplies[1].shipmentId)
+  assert.equal((await flow('workflow.task.prepare-shipment',prepare,{as:member})).shipmentId,draftReplies[0].shipmentId)
+  assert.equal((await flow('workflow.task.prepare-shipment',{...prepare,reference:'synthetic-stall-122'},{as:member,status:409})).error.code,'IDEMPOTENCY')
+  const prepared=(await h.api('/api/stall/state')).orders.find(o=>o.id===after.id)
+  assert.equal(prepared.shipment.status,'draft');assert.ok(!prepared.shipment.approval)
+  const beforeLoop=(await snapshot()).tasks.filter(t=>t.ruleId===order.id).length
+  await flow('workflow.run');await flow('workflow.run')
+  assert.equal((await snapshot()).tasks.filter(t=>t.ruleId===order.id).length,beforeLoop,'workflow output revisions never feed another order event')
+  assert.equal((await snapshot()).tasks.filter(t=>t.shipmentDraft).length,1)
+  await flow('workflow.task.complete',{id:draftTask.id},{as:member})
+  assert.equal((await h.api('/api/stall/state')).orders.find(o=>o.id===after.id).shipment.status,'draft')
+  assert.equal((await pier.api('/api/pier/state')).shipments.length,0)
+  assert.equal(edge.refunds.size,0)
+  // A separately approved dispatch enables a real received-goods confirmation.
+  const receiptRule=await flow('workflow.save',{rule:{name:'synthetic-stall-124',trigger:'return_confirmed',assigneeId:packer.id,dueMinutes:90,conditions:{}}})
+  await activate(receiptRule)
+  const returnInput={requestId:first.request.id,orderRevision:prepared.revision,lines:[{sku:item.sku,quantity:1}]}
+  await h.api('/api/stall/returns',returnInput,{as:member,status:403})
+  await h.api('/api/stall/returns',returnInput,{as:'',headers:{authorization:`Bearer ${grant.token}`},status:403})
+  await h.api('/api/stall/returns',returnInput,{status:409})
+  const shipped=await h.command('shipment.approve',{orderId:prepared.id,revision:prepared.revision})
+  await h.api('/api/stall/returns',{...returnInput,orderRevision:'synthetic-stall-123'},{status:409})
+  await h.api('/api/stall/returns',{...returnInput,orderRevision:shipped.revision,lines:[{sku:item.sku,quantity:2}]},{status:400})
+  const stockBeforeReturn=await pier.api('/api/pier/state'),returnReceived={...returnInput,orderRevision:shipped.revision}
+  const received=await h.api('/api/stall/returns',returnReceived)
+  assert.equal((await h.api('/api/stall/returns',returnReceived)).id,received.id)
+  await flow('workflow.run');await flow('workflow.run')
+  snap=await snapshot()
+  const stockTasks=snap.tasks.filter(t=>t.ruleId===receiptRule.id)
+  assert.equal(stockTasks.length,1);assert.equal(stockTasks[0].sourceKind,'return_receipt');assert.equal(stockTasks[0].sourceId,received.id)
+  assert.equal(stockTasks[0].assigneeId,packer.id);assert.equal(stockTasks[0].status,'open')
+  assert.deepEqual((await pier.api('/api/pier/state')).positions,stockBeforeReturn.positions)
+  assert.equal(edge.refunds.size,0)
+  // A canceled fulfillment remains blocked through the workflow door too.
+  const canceledBuy=await purchase(h,edge,{skus:[item.sku],email:'synthetic-stall-125@example.test'}),canceledPaid=edge.pay(canceledBuy.session.id)
+  intents.set(canceledPaid.payment_intent,{id:canceledPaid.payment_intent,object:'payment_intent',metadata:{stall_order_id:canceledBuy.orderId},amount:canceledPaid.amount_total,currency:'usd',status:'succeeded',latest_charge:{...charge,id:'synthetic-stall-126',payment_intent:canceledPaid.payment_intent}})
+  assert.equal((await deliverWebhook(h,bindings.STRIPE_WEBHOOK_SECRET,canceledPaid)).response.status,200)
+  const cancelRule=await flow('workflow.save',{rule:{name:'synthetic-stall-127',trigger:'order',assigneeId:packer.id,conditions:{sku:item.sku,status:'reserved'},action:'draft_followup'}})
+  await activate(cancelRule);await flow('workflow.run')
+  const canceledOrder=(await h.api('/api/stall/state')).orders.find(o=>o.id===canceledBuy.orderId),cancelTask=(await snapshot()).tasks.find(t=>t.ruleId===cancelRule.id&&t.sourceId===canceledBuy.orderId)
+  const canceledRisk=(await h.api('/api/stall/risk')).queue.find(r=>r.orderId===canceledBuy.orderId)
+  await h.command('risk.cancel',{orderId:canceledBuy.orderId,revision:canceledRisk.revision})
+  assert.equal((await flow('workflow.task.prepare-shipment',{id:cancelTask.id,revision:canceledOrder.revision,reference:'synthetic-stall-128'},{as:member,status:409})).error.code,'RISK_CANCELED')
+  assert.equal((await snapshot()).tasks.find(t=>t.id===cancelTask.id).errorCode,'RISK_CANCELED')
+  assert.ok(!(await h.api('/api/stall/state')).orders.find(o=>o.id===canceledBuy.orderId).shipment)
   const serialized=JSON.stringify(await snapshot())
   for(const secret of [bindings.STRIPE_SECRET_KEY,bindings.STRIPE_WEBHOOK_SECRET,bindings.PIER_SESSION,grant.token,app.token,'synthetic-stall-113@example.test','1 Maker Lane']) assert.ok(!serialized.includes(secret))
  } finally {await h.close();await pier.close()}

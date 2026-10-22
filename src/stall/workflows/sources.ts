@@ -6,13 +6,16 @@ import type { RuleValue } from './rules'
 
 export type Match={eventKey:string;sourceKind:string;sourceId:string;explanation:string;observedAt:string}
 export function sourceSupport(trigger:RuleValue['trigger']) {
- return trigger==='promotion'?{available:false,reason:'Promotion records and their native change producer are not implemented.'}:{available:true,reason:trigger==='customer'?'Native headless customer identities created by independently authenticated customers.':'Current source records; no arbitrary event ingestion.'}
+ return {available:true,reason:trigger==='customer'?'Native headless customer identities created by independently authenticated customers.':trigger==='promotion'?'Native promotion creation, change and revocation events; no promotion code is copied into work.':'Current source records; no arbitrary event ingestion.'}
 }
 /** Dry runs never mutate observations. Stock event episodes are persisted only
  * during active evaluation, so a dry run cannot consume a future event. */
 export async function matches(env:Bindings,value:RuleValue,zone:string,at:number,observe=false):Promise<Match[]> {
  const stamp=new Date(at).toISOString(),c=value.conditions
- if(value.trigger==='promotion') return []
+ if(value.trigger==='promotion') {
+  const rows=await env.DB.prepare(`SELECT e.id,e.resource_id FROM st_headless_events e JOIN st_promotions p ON p.id=e.resource_id WHERE e.kind='promotion' ORDER BY e.occurred_at,e.id`).all<{id:string;resource_id:string}>()
+  return rows.results.map(r=>({eventKey:r.id,sourceKind:'promotion',sourceId:r.resource_id,explanation:'A native promotion was created, changed or revoked. Staff follow-up never applies or changes a promotion automatically.',observedAt:stamp}))
+ }
  if(value.trigger==='scheduled_reconciliation') {
   const day=localParts(at,zone).date,instant=localInstant(day,minute(value.localTime),zone)
   return instant<=at?[{eventKey:`scheduled:${day}`,sourceKind:'schedule',sourceId:day,explanation:`Daily reconciliation at ${value.localTime} ${zone} (${new Date(instant).toISOString()}); follow-up requires a person.`,observedAt:stamp}]:[]
@@ -37,13 +40,21 @@ export async function matches(env:Bindings,value:RuleValue,zone:string,at:number
   const customers=await env.DB.prepare(`SELECT c.id,c.created_at FROM st_headless_customers c JOIN oa_operators o ON o.id=c.operator_id WHERE o.status='active' ORDER BY c.id`).all<{id:string;created_at:string}>()
   return customers.results.map(r=>({eventKey:'customer:'+r.id,sourceKind:'customer',sourceId:r.id,explanation:'Current native customer identity; customer contact is not copied into tasks.',observedAt:stamp}))
  }
+ if(value.trigger==='return_confirmed') {
+  const rows=await env.DB.prepare(`SELECT r.id,r.order_id FROM st_return_receipts r JOIN st_orders o ON o.id=r.order_id WHERE json_extract(o.value_json,'$.erasedAt') IS NULL ORDER BY r.created_at,r.id`).all<{id:string;order_id:string}>()
+  return rows.results.map(r=>({eventKey:'return.received:'+r.id,sourceKind:'return_receipt',sourceId:r.id,explanation:`Staff confirmed receipt for order ${r.order_id}. Inspect and arrange separately authorized stock work; no restock or refund is asserted.`,observedAt:stamp}))
+ }
  if(value.trigger==='return_request'||value.trigger==='cancellation_request') {
   const kind=value.trigger==='return_request'?'return':'cancellation'
   const rows=await env.DB.prepare(`SELECT r.id,r.order_id FROM st_workflow_requests r JOIN st_orders o ON o.id=r.order_id WHERE r.kind=? AND json_extract(o.value_json,'$.erasedAt') IS NULL ORDER BY r.created_at,r.id`).bind(kind).all<{id:string;order_id:string}>()
   return rows.results.map(r=>({eventKey:'request:'+r.id,sourceKind:kind,sourceId:r.order_id,explanation:`Customer independently authenticated and requested ${kind} for their own current order; no refund, restock or cancellation is authorized.`,observedAt:stamp}))
  }
  const list=await orders(env.DB)
+ // A workflow's own draft revision is an output, never a new order trigger.
+ const prepared=await env.DB.prepare('SELECT order_id,draft_revision FROM st_workflow_drafts').all<{order_id:string;draft_revision:string}>()
+ const ownRevisions=new Set(prepared.results.map(r=>`${r.order_id}:${r.draft_revision}`))
  return list.flatMap(o=>{
+  if(value.trigger==='order'&&ownRevisions.has(`${o.id}:${o.revision}`)) return []
   if(o.erasedAt||(c.sku&&!o.lines.some(l=>l.sku===c.sku))||(c.status&&o.status!==c.status)||(c.minTotalCents!==undefined&&o.totalCents<c.minTotalCents)||(c.maxTotalCents!==undefined&&o.totalCents>c.maxTotalCents)) return []
   let eventKey=`order:${o.id}:${o.revision}`,explanation=`Current order revision ${o.revision}; status ${o.status}, total ${o.totalCents} USD cents.`
   if(value.trigger==='overdue_fulfillment') {

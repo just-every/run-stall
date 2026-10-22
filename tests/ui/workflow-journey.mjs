@@ -49,4 +49,45 @@ export async function workflowJourney({page,h,origin,assignee,capture,setActor})
  await task.getByRole('button',{name:'Mark task complete',exact:true}).click();assert.ok((await response).ok());await task.getByText('Completed',{exact:true}).waitFor()
  await capture('workflow-completed',task)
  setActor(h.cookie)
+ // The prior risk journey supplies two current, paid/reserved clear/released
+ // orders. A fresh rule produces real assigned tasks for explicit draft work.
+ const orders=(await h.api('/api/stall/state')).orders,risk=(await h.api('/api/stall/risk')).queue
+ const eligible=orders.filter(o=>o.status==='reserved'&&!o.shipment&&risk.some(r=>r.orderId===o.id&&['clear','released'].includes(r.status)))
+ assert.ok(eligible.length>=2,'two live eligible orders are needed for desktop and phone draft preparation')
+ const shipmentRule=(await h.api('/api/stall/workflows',{type:'workflow.save',payload:{rule:{name:'Prepare reserved fulfillment',trigger:'order',action:'draft_followup',assigneeId:assignee.id,dueMinutes:60,conditions:{status:'reserved'}}}})).result
+ await h.api('/api/stall/workflows',{type:'workflow.activate',payload:{id:shipmentRule.id,revision:shipmentRule.revision}})
+ await h.api('/api/stall/workflows',{type:'workflow.run',payload:{}})
+ const shipmentTasks=(await h.api('/api/stall/workflows')).tasks.filter(t=>t.ruleId===shipmentRule.id)
+ setActor(assignee.cookie);await page.reload()
+ for(const [index,width] of [1440,390].entries()) {
+  const order=eligible[index],work=shipmentTasks.find(t=>t.sourceId===order.id)
+  assert.ok(work)
+  const article=page.getByRole('article',{name:`Task ${work.id}`,exact:true}),draftForm=article.getByRole('form',{name:'Prepare workflow shipment draft',exact:true}),reference=`synthetic-stall-${680+index}`
+  await draftForm.getByLabel('Shipment reference',{exact:true}).fill(reference)
+  if(index===0) {
+   await h.command('order.note.add',{orderId:order.id,revision:order.revision,text:'synthetic-stall-682'})
+   await page.setViewportSize({width,height:1000})
+   response=page.waitForResponse(r=>r.url().endsWith('/api/stall/workflows')&&r.request().method()==='POST')
+   await draftForm.getByRole('button',{name:'Prepare shipment draft',exact:true}).click();assert.equal((await response).status(),409)
+   await page.getByRole('alert').filter({hasText:'The order changed.'}).waitFor()
+   assert.equal(await draftForm.getByLabel('Shipment reference',{exact:true}).inputValue(),reference)
+   response=page.waitForResponse(r=>r.url().endsWith('/api/stall/workflows')&&r.request().method()==='GET')
+   await draftForm.getByRole('button',{name:'Refresh current order',exact:true}).click();assert.ok((await response).ok())
+   await page.getByRole('alert').filter({hasText:'The order changed.'}).waitFor({state:'hidden'})
+   assert.equal(await draftForm.getByLabel('Shipment reference',{exact:true}).inputValue(),reference)
+  }
+  await capture(`workflow-shipment-review-${width}`,article)
+  await page.setViewportSize({width,height:1000})
+  response=page.waitForResponse(r=>r.url().endsWith('/api/stall/workflows')&&r.request().method()==='POST')
+  await draftForm.getByRole('button',{name:'Prepare shipment draft',exact:true}).click()
+  const preparedResponse=await response;assert.ok(preparedResponse.ok(),await preparedResponse.text())
+  await article.getByText(/Shipment draft .* prepared:/).waitFor()
+  await capture(`workflow-shipment-prepared-${width}`,article)
+  const current=(await h.api('/api/stall/state')).orders.find(o=>o.id===order.id)
+  assert.equal(current.status,'reserved');assert.equal(current.shipment.status,'draft');assert.ok(!current.shipment.approval)
+  const receipt=(await h.api('/api/stall/workflows')).tasks.find(t=>t.id===work.id).shipmentDraft
+  assert.equal(receipt.shipmentId,current.shipment.id)
+  await page.reload();await page.getByRole('article',{name:`Task ${work.id}`,exact:true}).getByText(/Shipment draft .* prepared:/).waitFor()
+ }
+ setActor(h.cookie)
 }

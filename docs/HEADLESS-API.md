@@ -2,9 +2,28 @@
 
 The installation serves `/api/stall/v1`. This API uses a scoped integration principal; an integration credential grants no owner session, staff records, exports, provider credentials, fulfillment commands, refunds or arbitrary backend commands. Native private Stall and Stripe webhook doors retain their existing authentication.
 
-API-001 remains PARTIAL. Owner-only app issuance and explicit audited endpoint consent are conservative defaults awaiting ct approval. The promotion event producer remains required future work; registering that filter does not create simulated production events. RETURN-001 inherits complete return lifecycle events when its states ship. Public DNS checks described below do not pin the connection's resolved address: DNS rebinding protection at the actual egress connection remains an open requirement. This document does not reduce those obligations.
+API-001 remains PARTIAL. Owner-only app issuance and explicit audited endpoint consent are conservative defaults awaiting ct approval. Real free-shipping promotion changes, budget reservations and verified redemptions now produce events, as do customer return requests and explicit human received-goods records. RETURN-001 inherits further return lifecycle events when its states ship. Public DNS checks described below do not pin the connection's resolved address: actual connection pinning needs a native egress primitive beyond the current Workers fetch runtime. This document does not reduce that obligation.
 
 ## Credentials and customer identity
+
+For a free-shipping code, send `promotionCode` with the authenticated cart quote
+and then the same code with the reviewed `expectedTotalCents` at checkout. The
+quote's `promotion` result explains applicability, original/discounted shipping
+and the final total; the server checks current rules again before reserving a
+budget. A checkout retry retains its original cart, key, code and total.
+
+Native owners/admins manage this initial promotion type at
+`GET/POST /api/stall/promotions` and `POST /api/stall/promotions/revoke`, using
+their native session and exact installation Origin. Creation takes `code`,
+`startsAt`, `endsAt` (ISO instants with offsets), `minimumBasketCents`,
+`maxUsesPerCustomer`, `maxTotalUses` and `maxShippingDiscountCents`. Updates also
+require `id` and its current `revision`; revocation takes those two fields.
+Codes are hashed and never exposed by the management list or events. Reserved
+and paid allocations both consume the configured caps; cancellation, time and
+refunds never silently release a possibly payable checkout's budget. Historical
+allocations transfer without customer identity; restored rules need explicit
+local owner/admin review and save before spending is enabled. Other discount
+types, automatic discounts, combinations and reversal policy remain PROMO-001.
 
 An owner opens the native installation and creates an app with its native session:
 
@@ -115,7 +134,7 @@ Example subscription input:
 
 The consent string must match exactly. The response contains `id`, `signingSecret`, `endpoint`, `kinds`, and `consentAt`. Save the secret at the receiver when it is revealed; it is never listed again. Stall encrypts signing material with AES-GCM under an installation-derived key and excludes it from archives. Rotating the installation session secret makes old signing material unusable; revoke and recreate those subscriptions.
 
-Supported filters are `order`, `customer`, `stock`, `promotion`, `return`. Real order insertion/revision changes and native headless customer creation durably produce events in the same database transaction. IDs are stable for each event; replay preserves the ID and frozen body. Stock events describe changed current Pier availability observed by a versioned catalog read or the minute scheduler while a live stock subscription exists. Repeated unchanged snapshots emit nothing. Return events currently represent independently authenticated native return requests, without asserting returned stock or a refund; RETURN-001 inherits its later lifecycle events. Promotion events await PROMO-001 native records and remain an open API-001 obligation. Subscriptions receive future matching events only; there is no implicit historical backfill. Delivery order is not guaranteed.
+Supported filters are `order`, `customer`, `stock`, `promotion`, `return`. Real order insertion/revision changes and native headless customer creation durably produce events in the same database transaction. IDs are stable for each event; replay preserves the ID and frozen body. Stock events describe changed current Pier availability observed by a versioned catalog read or the minute scheduler while a live stock subscription exists. Repeated unchanged snapshots emit nothing. Return events represent independently authenticated native requests and explicit human received-goods records, without asserting restock or refund; RETURN-001 inherits later lifecycle events. Promotion events represent real free-shipping rule changes, atomic checkout reservations and verified redemptions. Their event ID names the transition; payloads contain only the four documented fields. Subscriptions receive future matching events only; there is no implicit historical backfill. Delivery order is not guaranteed.
 
 The entire transmitted JSON has exactly `id`, `kind`, `resourceId`, `occurredAt`. Resource IDs are opaque references. No notes, tags, contacts, names, titles, addresses, line contents, monetary amounts or staff identities are transmitted. Receiving an opaque event reference does not grant an API read. The integration must use a separately authorized customer door to obtain that customer's order.
 

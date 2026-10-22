@@ -2,9 +2,11 @@
 
 Workflows scan current commerce records and create internal work. They never
 charge, refund, ship, restock, cancel an order, send customer messages or call an
-outbound integration. `draft_followup` and `reconcile_followup` are tasks asking a
-person to use the existing reviewed commerce doors; they do not prepare or
-approve a commercial draft themselves. Completing a task records staff progress
+outbound integration automatically. An order's `draft_followup` task lets an
+authorized person review its current lines and exact revision, then explicitly
+prepare a shipment draft. Approval and dispatch remain separate. Other draft
+and reconciliation follow-ups ask a person to use the reviewed commerce doors.
+Completing a task records staff progress
 and never claims that its source order or an external effect succeeded.
 
 Owner/admin native sessions manage rules. Granted staff can see and complete
@@ -47,6 +49,14 @@ The same commands are exported as `workflowCommand(env,actor,type,payload)`.
   is active. A task from an edited rule cannot resume under a different policy.
 * `workflow.task.complete`: `{id}`; assignee or owner/admin completes an open
   task. It does not approve a commercial effect.
+* `workflow.task.prepare-shipment`: `{id,revision,reference}`; an authorized
+  human assignee or owner/admin prepares a shipment draft for an open order
+  follow-up. The current functional fulfillment permission, task, rule revision,
+  local activation, assignee, order revision and risk gate are checked again in
+  the same transaction as the draft and durable receipt. Replays recover that
+  receipt. One preparation per rule/order prevents the draft's new order revision
+  from creating a preparation loop. No stock is dispatched and no approval is
+  inferred from assignment, task completion or a restored receipt.
 * `workflow.notification.read`: `{id}`; recipient or owner/admin records a read.
 * `workflow.schedule.preview`: `{date:'YYYY-MM-DD',localTime:'HH:mm'}`; returns
   the resolved UTC instant in the current shop zone without emitting any event.
@@ -62,6 +72,15 @@ work. An activated request rule turns it into assigned staff work at the next
 scan. The owner/admin request list also exposes requests without an active rule.
 There is no arbitrary trigger/event emission endpoint.
 
+`GET /api/stall/returns` lists current return requests and received-goods records
+for native owners/admins. `POST` with `{requestId,orderRevision,lines:[{sku,quantity}]}`
+explicitly records purchased goods received after a completed shipment. Quantities
+must be positive, unique purchased lines within their original quantities. One
+immutable receipt per request is retained; an identical replay returns it and a
+different or stale confirmation is refused. This records the human observation,
+not warehouse success, a refund or a completed return/exchange case. The
+`return_confirmed` rule creates assigned stock inspection/restock work from it.
+
 ## Current sources and conditions
 
 | Trigger | Current source and event identity | Conditions |
@@ -69,10 +88,11 @@ There is no arbitrary trigger/event emission endpoint.
 | `low_stock` | Current published sellable variant availability read from Pier. Persisted observation changes create stable event episodes; unchanged observations replay the same event. A replenishment observed between low-stock episodes allows a later low-stock task. | `sku`, `stockAtMost` (default 5 whole units) |
 | `overdue_fulfillment` | Paid order not completely shipped, older than the selected elapsed hours since latest stamped dispatch, or payment time. Stable per order and that anchor time. | `sku`, `status`, `minTotalCents`, `maxTotalCents`, `overdueHours` (default 168) |
 | `return_request` / `cancellation_request` | The independently authenticated native customer request, stable per request ID. | None |
+| `return_confirmed` | Explicit owner/admin received-goods record, stable per receipt ID; creates stock follow-up without asserting a stock movement. | None |
 | `order` | Current order identity/revision; scanned records include existing orders. | `sku`, `status`, `minTotalCents`, `maxTotalCents` |
 | `customer` | Existing active native headless customer identities; one event per customer ID. | None |
 | `scheduled_reconciliation` | One daily slot per shop calendar date; prepares internal human reconciliation follow-up. | `localTime` on the rule |
-| `promotion` | Configuration and dry-run explicitly report unavailable. Activation is refused because native promotion records/events do not exist. | None |
+| `promotion` | Real promotion change, checkout budget qualification and verified redemption events, stable per event ID. | None |
 
 SKU and status match exactly; price bounds are inclusive USD cents. The low
 stock scan is a current observation, not an inventory movement subscription: a
@@ -121,7 +141,7 @@ retry under their original live rule revision. Erasure removes the minimal
 customer requests and notifications and stops related customer follow-ups;
 in-flight scans cannot recreate them after the scrub.
 
-Confirmed return receipt, restock,
-promotion events and accounting posting producers remain unimplemented, as do
-automatic approved-integration invocation and budget policy. FLOW-001 remains
+Warehouse stock movement, accounting posting and approved-integration invocation
+with budget policy remain unimplemented. Full return/exchange handling and the
+wider discount types remain RETURN-001/002 and PROMO-001. FLOW-001 remains
 partial pending those obligations and the clause ruling.

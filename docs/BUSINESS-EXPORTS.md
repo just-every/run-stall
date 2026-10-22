@@ -66,9 +66,14 @@ records. Reservation line fields are limited to ID, item ID, quantity, price,
 reserved, canceled (`cancelled`) and dispatched quantities. New or unknown stored
 fields are not automatically exported.
 
-There are no native variant, media, consent, return, gift-card, discount,
-redirect or saved-report records to export. Product descriptions and actual
-refunds are included; they do not establish these absent record types. Provider
+Complete business JSON also carries minimal return requests, received-goods
+receipts, workflow shipment-draft receipts and free-shipping promotion rules
+and allocations. These are current partial capabilities, not full return,
+exchange or discount engines. Promotion codes/hashes, customer usage keys and
+local activation authority are excluded from this download. Archives retain
+business history with inert customer bindings and exclude local activation.
+Native consent, gift-card, redirect and saved-report records remain absent.
+Provider
 data not retained locally (including card details, fees, payouts, full provider
 customer/stock/delivery history and settlement status) is excluded. Nothing is
 fetched to fill gaps. This is a business-data download, not an installation
