@@ -84,6 +84,7 @@ try {
  as=people.customer_support.cookie;await page.goto(ready.url+'/app#orders');await page.reload();await page.getByRole('heading',{name:'Staff workspace',exact:true}).waitFor();await capture('downgraded')
  await page.goto(ready.siteUrl+'/contract')
  for(const title of ['Staff and app least privilege','Fraud indicators and human review','Documented headless API and signed events','Event and scheduled workflows with visible follow-up'])await capture('contract-'+title.split(' ')[0],page.getByRole('row').filter({hasText:title}))
+ await page.goto(ready.siteUrl+'/docs');await capture('guides-index',page.locator('main'))
  for(const slug of ['staff-permissions','risk-review','workflows','headless-api']){await page.goto(ready.siteUrl+'/docs/'+slug);await page.getByRole('heading',{level:1}).waitFor();await capture('guide-'+slug,page.locator('article').first())}
  assert.deepEqual(errors,[])
  console.log('PASS staff permissions and scoped desk journey at 1440 and 390')
