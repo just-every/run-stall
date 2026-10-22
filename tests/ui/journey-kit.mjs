@@ -27,6 +27,7 @@ export async function startJourney({ name, skus, screenshots = process.env.STALL
   const interrupted = () => { void cleanup().then(() => process.exit(1), () => process.exit(1)) }
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, interrupted)
   kit.finish = async journeyError => { try { await finishCleanup(cleanup, journeyError) } finally { for (const signal of ['SIGINT', 'SIGTERM']) process.off(signal, interrupted) } }
+  try {
   await exec('git', ['clone', '--no-hardlinks', process.cwd(), checkout])
   kit.dev = await startOwnedDev({ launcher: resolve('node_modules/@runeditrun/rer/global/rer.mjs'), checkout, env: { ...process.env, HOME: rerHome, RER_SERVER_JOURNEY: '1', RER_LOCAL_OPERATION: '' } })
   kit.ready = await kit.dev.ready
@@ -57,4 +58,5 @@ export async function startJourney({ name, skus, screenshots = process.env.STALL
     await shown.setViewportSize({ width: 1440, height: 1000 })
   }
   return kit
+  } catch (error) { await kit.finish(error); throw error }
 }
