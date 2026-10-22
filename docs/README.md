@@ -10,6 +10,10 @@ Stall is a shop of your own for a US maker or small shop whose stock lives in Pi
 | [Orders, shipping and refunds](ORDERS.md) | Follow payment and stock, approve shipping, refund a line and recover pending work. |
 | [Shipping profiles](SHIPPING.md) | Group products into profiles with their own zones, services, rates, pickup and local delivery, and assign them in bulk. |
 | [Move in from Shopify](MOVE-IN.md) | Prepare the supported CSV, review and apply an import, resume or undo it. |
+| [Staff permissions](STAFF-PERMISSIONS.md) | Invite staff, assign functional shop access and configure refund controls. |
+| [Risk review](RISK-REVIEW.md) | Configure advisory processor holds and record explicit fulfillment decisions. |
+| [Workflows](WORKFLOWS.md) | Configure current-source rules, quiet hours and attributable staff follow-up. |
+| [Headless storefront API](HEADLESS-API.md) | Use scoped v1 customer/cart/checkout APIs and signed minimal events. |
 | [Backup and restore](BACKUP-RESTORE.md) | Download an archive, restore into an empty installation and handle customer erasure. |
 
 The Shop desk is at `/app`; customers shop at `/shop`. Owners and administrators manage shop records. In **Settings**, the archive (**Your installation, your data**), customer erasure and agent credentials are available to the owner.

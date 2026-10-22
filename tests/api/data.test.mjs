@@ -403,3 +403,48 @@ test('CATALOG-001: personalization is validated, priced and carried to the order
   assert.ok(!JSON.stringify(await archive(h)).includes(Buffer.from(png(500)).toString('base64')))
  } finally {await destination?.close();await h?.close();await pier.close()}
 })
+
+test('staff, customer carts, events and workflow history transfer without restoring authority and erase attributable follow-up',async()=>{
+ const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex')
+ const bindings={...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-801',STRIPE_WEBHOOK_SECRET:secret}
+ const h=await installation({bindings,outboundService:edge.handle});let destination
+ try {
+  const address='synthetic-stall-802@example.test',customer=await h.signIn(address),staff=await h.signIn('synthetic-stall-803@example.test')
+  const staffId=(await h.api('/auth/session',undefined,{as:staff})).operator.id,owner=(await h.api('/auth/session')).operator.id
+  await h.command('staff.configure',{actorId:staffId,staffRole:'customer_support'})
+  await publish(h,'MUG-BLUE','Blue ceramic mug',2450)
+  const origin='https://shop.synthetic-stall-804.com',base='/api/stall/v1',app=await h.api(base+'/admin/apps',{label:'Storefront',origin,scopes:['cart:write','checkout:write','orders:read']})
+  const headers={authorization:`Bearer ${app.token}`,origin},cart=await h.api(base+'/carts',{lines:[{sku:'MUG-BLUE',quantity:1}]},{as:customer,headers:{...headers,'idempotency-key':randomUUID()}})
+  const sub=await h.api(base+'/admin/subscriptions',{appId:app.id,endpoint:'https://hooks.synthetic-stall-805.com/events',kinds:['order'],consent:'Send minimal Stall event identifiers to this endpoint'})
+  const bought=await h.api(base+'/checkout',{cartId:cart.id,expectedTotalCents:2450},{as:customer,headers:{...headers,'idempotency-key':randomUUID()}})
+  await deliverWebhook(h,secret,edge.pay([...edge.sessions.keys()][0]))
+  const workflow=async(type,payload)=>(await h.api('/api/stall/workflows',{type,payload})).result
+  const rule=await workflow('workflow.save',{rule:{name:'Order follow-up',trigger:'order',assigneeId:owner,dueMinutes:60,action:'task',conditions:{status:'reserved'}}})
+  await workflow('workflow.activate',{id:rule.id,revision:rule.revision});await workflow('workflow.run',{})
+  await h.api('/api/stall/customer-requests',{orderId:bought.orderId,kind:'return'},{as:customer})
+  const commercial=await h.api('/api/stall/exports/records')
+  assert.equal(commercial.headless.customers[0].email,address);assert.equal(commercial.headless.carts[0].id,cart.id)
+  assert.ok(commercial.headless.events.length);assert.ok(commercial.headless.deliveries.length);assert.equal(commercial.workflows.tasks.length,1)
+  for(const value of [app.token,sub.signingSecret,bindings.STRIPE_SECRET_KEY])assert.ok(!JSON.stringify(commercial).includes(value))
+  const originalKey=(await h.db.prepare("SELECT commerce_key FROM st_headless_requests WHERE operation='checkout'").first()).commerce_key
+  const saved=await archive(h),encoded=JSON.stringify(saved)
+  for(const value of [app.token,sub.signingSecret,originalKey])assert.ok(!encoded.includes(value))
+  destination=await installation({bindings,outboundService:edge.handle});await restore(destination,saved)
+  const restored=await destination.api('/api/stall/exports/records')
+  assert.deepEqual(restored.headless,commercial.headless);assert.deepEqual(restored.workflows,commercial.workflows)
+  const local=await destination.api('/api/stall/workflows');assert.equal(local.rules[0].localAuthority,false)
+  await destination.api('/api/stall/workflows',{type:'workflow.run',payload:{}})
+  assert.equal((await destination.api('/api/stall/workflows')).notifications.length,local.notifications.length)
+  await destination.api(base+'/orders',undefined,{as:'',headers,status:401})
+  assert.equal((await destination.api('/api/stall/staff')).staff.filter(p=>p.staffRole).length,0)
+  let order=(await destination.api('/api/stall/state')).orders.find(o=>o.id===bought.orderId)
+  order=await destination.command('shipment.prepare',{orderId:order.id,revision:order.revision,reference:'synthetic-stall-806'})
+  order=await destination.command('shipment.approve',{orderId:order.id,revision:order.revision})
+  await destination.command('customer.erase',{email:address,confirm:'ERASE'})
+  const erased=await destination.api('/api/stall/exports/records')
+  assert.deepEqual(erased.headless.customers,[]);assert.deepEqual(erased.headless.carts,[]);assert.deepEqual(erased.workflows.requests,[])
+  assert.ok(erased.workflows.tasks.every(t=>t.status==='paused'&&t.error_code==='CUSTOMER_ERASED'))
+  assert.deepEqual(erased.workflows.notifications,[])
+  assert.ok(!JSON.stringify(await archive(destination)).includes(address))
+ } finally {await destination?.close();await h.close();await pier.close()}
+})

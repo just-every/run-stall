@@ -1,3 +1,5 @@
+import { workflowErasureStatements } from './workflows'
+import { headlessErasureStatements } from './headless'
 import type { Bindings } from '../auth.server'
 import { createPortability } from '@runeditrun/rer/modules/portability'
 import { portabilityPolicy } from './portability-policy.mjs'
@@ -28,6 +30,8 @@ export async function eraseCustomer(env: Bindings, actor: Actor, payload: any) {
  })
  await commit(env.DB, actor, [
   ...scrubbed,
+  ...workflowErasureStatements(env.DB,address),
+  ...headlessErasureStatements(env.DB,address),
   env.DB.prepare("DELETE FROM st_uploads WHERE order_id IN (SELECT id FROM st_orders WHERE json_extract(value_json,'$.customerEmail')=?)").bind(address),
   ...await portability.invalidateTransfersStatements(),
   ...await portability.redactionStatements(),

@@ -1,3 +1,4 @@
+import { assertRiskClear } from './risk'
 import type { Bindings } from '../auth.server'
 import { live } from './access'
 import { decimal,dispatchOrder } from './pier'
@@ -11,6 +12,7 @@ export async function liveApproval(env:Bindings,actor:Actor,a?:Approval,right='f
 export function exactRevision(order:Order,p:any) { if(p.revision!==order.revision) fail('CHANGED','The order changed. Review its current exact revision.') }
 export async function shipmentCommand(env:Bindings,actor:Actor,type:string,p:any) {
  let order=await readOrder(env.DB,text(p.orderId,'Order'))
+ await assertRiskClear(env,order.id)
  const before=order
  order=await observeShipment(env,actor,order)
  if(order.shipment?.status==='partial') fail('PART_ALREADY_SHIPPED',`Pier already shipped part of this order (${order.shipment.reference}). Finish the remaining lines in Pier, then refresh Stall.`)
@@ -39,6 +41,7 @@ export async function finishShipment(env:Bindings,actor:Actor,order:Order) {
  const observed=await observeShipment(env,actor,order)
  if(observed.shipment?.status==='shipped') return observed
  if(observed.shipment?.status==='partial') fail('PART_ALREADY_SHIPPED',`Pier already shipped part of this order (${observed.shipment.reference}). Finish the remaining lines in Pier, then refresh Stall.`)
+ await assertRiskClear(env,order.id)
  const result=await dispatchOrder(env,order)
  validateShipment(order,result)
  return saveOrder(env,{...order,status:'shipped',shipment:{...order.shipment,status:'shipped',pierShipmentId:result.id}},'shipment.shipped',actor)

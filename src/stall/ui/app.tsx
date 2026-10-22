@@ -37,7 +37,7 @@ export function ShopDesk() {
     finally { lock.current = false; setBusy(false) }
   }
   const permissionActor=state?{...state.actor,agent:!!state.actor.agent}:{role:'member',agent:false}
-  const allowedViews:DeskView[]=state&&['owner','admin'].includes(state.actor.role)?['orders','products','shopfront','shipping','move-in','history','settings']:[...(permits(permissionActor,'orders')?['orders' as const]:[]),...(permits(permissionActor,'catalog')?['products' as const,'move-in' as const]:[]),...(permits(permissionActor,'marketing')?['shopfront' as const]:[]),...(permits(permissionActor,'admin')?['shipping' as const]:[]),'settings']
+  const allowedViews:DeskView[]=state&&['owner','admin'].includes(state.actor.role)?['orders','products','shopfront','shipping','move-in','history','settings']:[...(permits(permissionActor,'orders')?['orders' as const]:[]),...(permits(permissionActor,'catalog')?['products' as const,'move-in' as const]:[]),...((permits(permissionActor,'marketing')||permits(permissionActor,'catalog'))?['shopfront' as const]:[]),...(permits(permissionActor,'admin')?['shipping' as const]:[]),'settings']
   const allowed=allowedViews.includes(view)
   const role = state?.actor.role.toLowerCase() ?? '', owner = role === 'owner', canApprove = !!state && !state.actor.agent && (['owner', 'admin'].includes(role)||!!state.actor.staffRole)
   const open = state?.orders.filter(order => orderTabs[1].keep(order) || needs(order)).length ?? 0

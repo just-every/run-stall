@@ -1,3 +1,4 @@
+import { businessExtensions } from './business-extensions'
 import { fail, shopCurrency, type Approval, type Order, type ProductValue } from './model'
 import { orders, products } from './store'
 import { productDetails } from './product-details'
@@ -111,7 +112,7 @@ export async function businessExport(db: D1Database, kind: string): Promise<Resp
   'content-type': kind === 'records' ? 'application/json; charset=utf-8' : 'text/csv; charset=utf-8',
   'content-disposition': `attachment; filename="stall-${kind}.${kind === 'records' ? 'json' : 'csv'}"` }
  if (kind === 'records') return new Response(JSON.stringify({ schema: 'stall-business-export-v1', exportedAt: new Date().toISOString(),
-  currency: shopCurrency, timeZone: await businessTimeZone(db), shipping: { profiles: await shippingProfiles(db), places: await shippingPlaces(db), assignments: await shippingAssignments(db) }, collections: (await collections(db)).map(entry => ({ id: entry.id, revision: entry.revision, value: entry.value })), merchandising: (await merchandising(db)).value, searchTerms: (await searchReport(db)).top, products: productRecords, customers: customerRecords, orders: orderRecords, reconciliation: reconciliationRecords, stripeWork: workRecords, pierWork: pierRecords }, null, 2), { headers })
+  currency: shopCurrency, ...await businessExtensions(db), timeZone: await businessTimeZone(db), shipping: { profiles: await shippingProfiles(db), places: await shippingPlaces(db), assignments: await shippingAssignments(db) }, collections: (await collections(db)).map(entry => ({ id: entry.id, revision: entry.revision, value: entry.value })), merchandising: (await merchandising(db)).value, searchTerms: (await searchReport(db)).top, products: productRecords, customers: customerRecords, orders: orderRecords, reconciliation: reconciliationRecords, stripeWork: workRecords, pierWork: pierRecords }, null, 2), { headers })
  let rows: Row[]
  switch (kind) {
   case 'products': rows = productRecords.flatMap(product => [

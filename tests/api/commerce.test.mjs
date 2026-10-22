@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { randomBytes,randomUUID } from 'node:crypto';
+import { createHmac,randomBytes,randomUUID } from 'node:crypto';
 import { installation,archive,restore } from './harness.mjs';
 import { pierInstallation } from './pier.mjs';
 import { stripeEdge,deliverWebhook,publish,purchase,sendFile,png } from './network.mjs';
@@ -781,7 +781,7 @@ test('functional staff grants isolate workflows, customer records and stale prep
    const snapshot=await h.api('/api/stall/state',undefined,{as:person.cookie})
    assert.equal(snapshot.actor.staffRole,role)
    assert.equal(snapshot.orders.length,['fulfillment','customer_support','finance','administrator'].includes(role)?1:0)
-   assert.equal(snapshot.products.length,['catalog','administrator'].includes(role)?1:0)
+   assert.equal(snapshot.products.length,['catalog','marketing','administrator'].includes(role)?1:0)
    assert.deepEqual(snapshot.audit,[])
    assert.equal(snapshot.connectionDetails,undefined)
    assert.ok(!JSON.stringify(snapshot).includes('synthetic-stall-501'))
@@ -816,7 +816,14 @@ test('functional staff grants isolate workflows, customer records and stale prep
   assert.equal(approved.refunds.at(-1).status,'succeeded');assert.equal(approved.notes,undefined);assert.equal(edge.refunds.size,1)
   await h.command('search.synonyms',{groups:[]},{as:people.marketing.cookie})
   await h.command('shop.configure',{timeZone:'America/Chicago'},{as:people.administrator.cookie})
+  const csv='Handle,Title,Body (HTML),Variant SKU,Variant Price,Published\nsynthetic-stall-540,Serving plate,Stoneware,synthetic-stall-540,18.00,FALSE\n'
+  const preview=await h.api('/api/stall/imports/preview',{csv},{as:people.catalog.cookie})
+  const imported=await h.api('/api/stall/imports/apply',{csv,fingerprint:preview.fingerprint},{as:people.catalog.cookie});assert.equal(imported.state,'completed')
+  await h.api('/api/stall/imports/'+imported.id,undefined,{as:people.customer_support.cookie,status:403})
+  await h.api('/api/stall/imports/'+imported.id+'/undo',{}, {as:people.catalog.cookie})
+  const preparedBulk=await h.api('/api/stall/imports/preview',{csv},{as:people.catalog.cookie})
   await h.command('staff.configure',{actorId:people.catalog.id,staffRole:null})
+  await h.api('/api/stall/imports/apply',{csv,fingerprint:preparedBulk.fingerprint},{as:people.catalog.cookie,status:403})
   await h.api('/api/stall/state',undefined,{as:people.catalog.cookie,status:403})
   const customer=await h.signIn('synthetic-stall-520@example.test'),other=await h.signIn('synthetic-stall-521@example.test')
   const owned=await h.api('/api/stall/customer/orders',undefined,{as:customer})
@@ -824,4 +831,84 @@ test('functional staff grants isolate workflows, customer records and stale prep
   assert.deepEqual((await h.api('/api/stall/customer/orders',undefined,{as:other})).orders,[])
   await h.api('/api/stall/orders?customer=synthetic',undefined,{as:customer,status:403})
  } finally { await h.close();await pier.close() }
+})
+
+test('headless storefront scopes bind independent customers, one purchase and signed filtered event replay',async()=>{
+ const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex'),deliveries=[]
+ const h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-701',STRIPE_WEBHOOK_SECRET:secret},outboundService:async request=>{
+  const url=new URL(request.url)
+  if(url.hostname==='cloudflare-dns.com')return Response.json({Status:0,Answer:url.searchParams.get('type')==='A'?[{type:1,data:'93.184.216.34'}]:[]})
+  if(url.hostname==='hooks.synthetic-stall-702.com'){deliveries.push({body:await request.text(),headers:Object.fromEntries(request.headers)});return new Response(null,{status:204})}
+  return edge.handle(request)
+ }})
+ try {
+  const base='/api/stall/v1',origin='https://shop.synthetic-stall-703.com'
+  const customer=await h.signIn('synthetic-stall-704@example.test'),foreign=await h.signIn('synthetic-stall-705@example.test')
+  await publish(h,'MUG-BLUE','Blue ceramic mug',2450)
+  await h.api(base+'/admin/apps',{label:'Forbidden',origin,scopes:['catalog:read']},{as:customer,status:403})
+  const app=await h.api(base+'/admin/apps',{label:'Custom storefront',origin,scopes:['catalog:read','cart:write','checkout:write','customer:read','orders:read']})
+  const limited=await h.api(base+'/admin/apps',{label:'Public catalog',origin,scopes:['catalog:read']})
+  const headers={authorization:`Bearer ${app.token}`,origin}
+  const call=(path,body,opts={})=>h.api(base+path,body,{as:customer,headers,...opts})
+  await h.api(base+'/catalog',undefined,{as:'',headers})
+  await h.api(base+'/customer',undefined,{as:'',headers,status:401})
+  await h.api(base+'/orders',undefined,{as:customer,headers:{authorization:`Bearer ${limited.token}`,origin},status:403})
+  await h.api(base+'/catalog',undefined,{as:'',headers:{...headers,origin:'https://foreign.synthetic-stall-706.com'},status:403})
+  await h.api('/api/stall/state',undefined,{as:'',headers,status:401})
+  const key=randomUUID(),cart=await call('/carts',{lines:[{sku:'MUG-BLUE',quantity:1}]},{headers:{...headers,'idempotency-key':key}})
+  assert.equal((await call('/carts',{lines:[{sku:'MUG-BLUE',quantity:1}]},{headers:{...headers,'idempotency-key':key}})).id,cart.id)
+  await call('/carts/'+cart.id,undefined,{as:foreign,status:404})
+  await call('/carts/'+cart.id,{revision:'synthetic-stall-707',lines:[{sku:'MUG-BLUE',quantity:2}]},{method:'PUT',status:409})
+  const quoted=await call('/carts/'+cart.id+'/quote',{postalCode:'78702'})
+  assert.ok(quoted.services.length)
+  const checkoutKey=randomUUID(),input={cartId:cart.id,expectedTotalCents:2450}
+  const bought=await call('/checkout',input,{headers:{...headers,'idempotency-key':checkoutKey}})
+  assert.equal((await call('/checkout',input,{headers:{...headers,'idempotency-key':checkoutKey}})).orderId,bought.orderId)
+  await call('/checkout',input,{headers:{...headers,'idempotency-key':randomUUID()},status:409})
+  assert.equal(edge.sessions.size,1)
+  const consent='Send minimal Stall event identifiers to this endpoint'
+  await h.api(base+'/admin/subscriptions',{appId:app.id,endpoint:'https://127.0.0.1/events',kinds:['order'],consent},{status:400})
+  const sub=await h.api(base+'/admin/subscriptions',{appId:app.id,endpoint:'https://hooks.synthetic-stall-702.com/events',kinds:['order'],consent})
+  const paid=edge.pay([...edge.sessions.keys()][0]),first=await deliverWebhook(h,secret,paid)
+  assert.equal(first.response.status,200)
+  assert.equal((await deliverWebhook(h,secret,paid,{id:first.id})).response.status,200)
+  assert.equal((await deliverWebhook(h,secret,{...paid,payment_status:'unpaid'})).response.status,200)
+  const own=await call('/orders/'+bought.orderId)
+  assert.equal(own.status,'reserved');assert.equal(own.totalCents,2450)
+  for(const forbidden of ['requestDigest','checkoutKey','notes','tags','intentId','customerEmail'])assert.ok(!(forbidden in own))
+  assert.deepEqual((await call('/orders')).orders.map(o=>o.id),[bought.orderId])
+  await call('/orders/'+bought.orderId,undefined,{as:foreign,status:404})
+  await call('/checkout/confirm',{orderId:bought.orderId})
+  assert.equal((await pier.api('/api/pier/state')).orders.length,1)
+  const history=await h.api(base+'/admin/deliveries?subscriptionId='+sub.id)
+  assert.ok(history.deliveries.length);assert.ok(history.deliveries.every(d=>d.kind==='order'))
+  const pending=history.deliveries[0]
+  const sent=await h.api(base+'/admin/deliveries/'+pending.id+'/send',{})
+  assert.equal(sent.status,'delivered')
+  const received=deliveries[0],signature=received.headers['stall-signature'],stamp=signature.match(/t=(\d+)/)[1],mac=signature.match(/v1=([a-f0-9]+)/)[1]
+  const expected=body=>createHmac('sha256',sub.signingSecret).update(stamp+'.'+body).digest('hex')
+  assert.equal(mac,expected(received.body));assert.notEqual(mac,expected(received.body+' '))
+  for(const value of [secret,app.token,sub.signingSecret,'synthetic-stall-704@example.test','notes','tags'])assert.ok(!received.body.includes(value))
+  const replay=await h.api(base+'/admin/deliveries/'+pending.id+'/replay',{})
+  assert.equal(replay.eventId,sent.eventId);assert.equal(deliveries.length,2);assert.equal(deliveries[1].body,received.body)
+  assert.equal((await pier.api('/api/pier/state')).orders.length,1);assert.equal(edge.sessions.size,1)
+  const signals=await h.api(base+'/admin/subscriptions',{appId:app.id,endpoint:'https://hooks.synthetic-stall-702.com/signals',kinds:['stock','return','customer'],consent})
+  await call('/catalog')
+  const stockCount=(await h.api(base+'/admin/deliveries?subscriptionId='+signals.id+'&kind=stock')).deliveries.length
+  assert.ok(stockCount)
+  await call('/catalog');assert.equal((await h.api(base+'/admin/deliveries?subscriptionId='+signals.id+'&kind=stock')).deliveries.length,stockCount)
+  await h.api('/api/stall/customer-requests',{orderId:bought.orderId,kind:'return'},{as:customer})
+  await h.api('/api/stall/customer-requests',{orderId:bought.orderId,kind:'return'},{as:customer})
+  assert.equal((await h.api(base+'/admin/deliveries?subscriptionId='+signals.id+'&kind=return')).deliveries.length,1)
+  const third=await h.signIn('synthetic-stall-709@example.test');await call('/customer',undefined,{as:third})
+  assert.equal((await h.api(base+'/admin/deliveries?subscriptionId='+signals.id+'&kind=customer')).deliveries.length,1)
+  const prepared=await call('/carts',{lines:[{sku:'MUG-BLUE',quantity:1}]},{headers:{...headers,'idempotency-key':randomUUID()}})
+  await h.api(base+'/admin/apps/'+app.id+'/revoke',{})
+  await call('/checkout',{cartId:prepared.id,expectedTotalCents:2450},{headers:{...headers,'idempotency-key':randomUUID()},status:401})
+  await call('/orders',undefined,{status:401})
+  assert.equal(edge.sessions.size,1)
+  await h.api(base+'/admin/deliveries/'+pending.id+'/replay',{},{status:403})
+  const stored=JSON.stringify(await h.api(base+'/admin/apps'))
+  assert.ok(!stored.includes(app.token));assert.ok(!stored.includes(sub.signingSecret))
+ } finally {await h.close();await pier.close()}
 })

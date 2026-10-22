@@ -1,3 +1,5 @@
+import { riskJourney } from './risk-journey.mjs'
+import { workflowJourney } from './workflow-journey.mjs'
 import assert from 'node:assert/strict'
 import { chromium } from '@playwright/test'
 import { execFile } from 'node:child_process'
@@ -21,7 +23,8 @@ try {
  dev=await startOwnedDev({launcher:resolve('node_modules/@runeditrun/rer/global/rer.mjs'),checkout,env:{...process.env,HOME:rerHome,RER_SERVER_JOURNEY:'1',RER_LOCAL_OPERATION:''}})
  const ready=await dev.ready
  pier=await pierInstallation();const edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex')
- h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-601',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle})
+ const riskLevels=new Map()
+ h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-601',STRIPE_WEBHOOK_SECRET:secret},outboundService:async request=>{const url=new URL(request.url);if(url.hostname==='api.stripe.com'&&url.pathname.startsWith('/v1/payment_intents/')){const id=decodeURIComponent(url.pathname.split('/').at(-1)),session=[...edge.sessions.values()].find(s=>s.payment_intent===id);assert.ok(session);const level=riskLevels.get(session.client_reference_id)??'normal';return Response.json({id,object:'payment_intent',metadata:session.metadata,amount:session.amount_total,currency:session.currency,status:'succeeded',latest_charge:{id:'synthetic-stall-660-'+session.client_reference_id,object:'charge',payment_intent:id,outcome:{risk_level:level,risk_score:level==='normal'?4:90},payment_method_details:{card:{checks:{cvc_check:'pass',address_postal_code_check:'pass',address_line1_check:'pass'}}}}})}return edge.handle(request)}})
  await publish(h,'MUG-BLUE','Blue ceramic mug',2450)
  const bought=await purchase(h,edge,{skus:['MUG-BLUE'],quantities:[1],expectedTotalCents:2450,email:'ana.ruiz@example.test'})
  await deliverWebhook(h,secret,edge.pay(bought.session.id))
@@ -37,7 +40,7 @@ try {
  await context.route('**/api/stall/**',async route=>{const req=route.request(),url=new URL(req.url());const response=await h.request(url.pathname+url.search,{method:req.method(),as,...(req.postData()?{body:JSON.parse(req.postData())}:{})});await route.fulfill({status:response.status,headers:{'content-type':response.headers.get('content-type')??'application/json'},body:Buffer.from(await response.arrayBuffer())})})
  await page.goto(ready.openUrl);await page.waitForURL(url=>['/setup','/app'].includes(url.pathname))
  if(new URL(page.url()).pathname==='/setup'){await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Finish setup',exact:true}).click()}
- async function capture(name,selector=page.locator('main')){for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await selector.scrollIntoViewIfNeeded();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name} overflows ${width}`);await page.screenshot({path:join(screenshots,`ROLE-001-${name}-${width}.png`),fullPage:true})}await page.setViewportSize({width:1440,height:1000})}
+ async function capture(name,selector=page.locator('main')){for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await selector.scrollIntoViewIfNeeded();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${name} overflows ${width}`);await page.screenshot({path:join(screenshots,`ROLE-001-${name}-${width}.png`)});await selector.screenshot({path:join(screenshots,`ROLE-001-${name}-detail-${width}.png`)})}await page.setViewportSize({width:1440,height:1000})}
  await page.goto(ready.url+'/app#settings')
  await page.getByRole('heading',{name:'Staff permissions',exact:true}).waitFor()
  for(const [role,person] of Object.entries(people)) {
@@ -49,7 +52,7 @@ try {
   await page.getByText('Saved. The latest recorded state is shown.',{exact:true}).waitFor()
   await page.waitForFunction(()=>!document.querySelector('#staff-access button:disabled'))
  }
- await capture('owner-permissions',page.locator('#staff-access'))
+ await capture('owner-permissions',page.getByRole('form',{name:`Permissions for ${people.catalog.email}`,exact:true}))
  for(const [role,person] of Object.entries(people)) {
   as=person.cookie
   const view=role==='catalog'?'products':role==='marketing'?'shopfront':role==='administrator'?'shipping':'orders'
@@ -71,7 +74,10 @@ try {
   await page.goto(ready.url+'/app#settings');await page.getByRole('heading',{name:'Your staff account',exact:true}).waitFor()
   if(role==='administrator')await capture('administrator-settings')
  }
- as=h.cookie;await h.command('staff.configure',{actorId:people.customer_support.id,staffRole:'marketing',refundLimitCents:0})
+ as=h.cookie
+ await riskJourney({page,h,edge,secret,origin:ready.url,riskLevels,capture})
+ await workflowJourney({page,h,origin:ready.url,assignee:people.fulfillment,capture,setActor:value=>{as=value}})
+ await h.command('staff.configure',{actorId:people.customer_support.id,staffRole:'marketing',refundLimitCents:0})
  as=people.customer_support.cookie;await page.goto(ready.url+'/app#orders');await page.reload();await page.getByRole('heading',{name:'Staff workspace',exact:true}).waitFor();await capture('downgraded')
  assert.deepEqual(errors,[])
  console.log('PASS staff permissions and scoped desk journey at 1440 and 390')

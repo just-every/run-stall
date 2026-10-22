@@ -1,7 +1,8 @@
+import { riskEnabled,inspectRisk } from './risk'
 import type { Bindings } from '../auth.server'
 import { digest,live } from './access'
 import { assertOriginalPier,fullyReserved,pierState,reserveOrder } from './pier'
-import { checkoutSession,signedEvent,validateSession } from './stripe'
+import { stripe,checkoutSession,signedEvent,validateSession } from './stripe'
 import { readOrder,saveOrder } from './store'
 import { startPaymentCheck,completePaymentCheck } from './operations'
 import { observeShipment } from './shipment-sync'
@@ -19,6 +20,7 @@ export async function paidSession(env:Bindings,order:Order,id:string,actor?:Acto
   const shippingDetails=details?.name&&details?.address?{name:String(details.name),address:{line1:details.address.line1??'',line2:details.address.line2??'',city:details.address.city??'',state:details.address.state??'',postal_code:details.address.postal_code??'',country:details.address.country??''}}:undefined
   order=await saveOrder(env,{...order,...(shippingDetails?{shippingDetails}:{}),payment:{sessionId:session.id,intentId:session.payment_intent,paidAt:new Date().toISOString()},status:'paid'},'payment.confirmed',actor)
  }
+ await refreshRisk(env,order)
  order=await sendConfirmation(env,order)
  return reservePaid(env,order,actor)
 }
@@ -41,8 +43,25 @@ export async function reservePaid(env:Bindings,order:Order,actor?:Actor):Promise
  if(order.status===status&&JSON.stringify(order.reservation)===JSON.stringify(reservation)) return order
  return saveOrder(env,{...order,reservation,status},full?'stock.reserved':'stock.shortfall',actor)
 }
+export async function refreshRisk(env:Bindings,order:Order) {
+ if(order.payment?.source==='staff'||!order.payment?.intentId||!await riskEnabled(env.DB)) return {observed:false}
+ return inspectRisk(env,order,await stripe(env,'/payment_intents/'+encodeURIComponent(order.payment.intentId)+'?expand[]=latest_charge'))
+}
 export async function webhook(request:Request,env:Bindings) {
  const {event,body}=await signedEvent(request,env)
+ if(['charge.updated','review.opened','review.closed','payment_intent.succeeded'].includes(event.type)&&await riskEnabled(env.DB)) {
+  const object=event.data?.object,intentId=object?.object==='payment_intent'?object.id:object?.payment_intent
+  if(typeof intentId!=='string') fail('RISK_PAYMENT_MISMATCH','Risk callback is missing its payment reference.',400)
+  const row=await env.DB.prepare("SELECT id FROM st_orders WHERE json_extract(value_json,'$.payment.intentId')=?").bind(intentId).first<{id:string}>()
+  if(!row) return {received:true,ignored:true}
+  const hash=await digest(body),previous=await env.DB.prepare('SELECT * FROM st_events WHERE id=?').bind(event.id).first<any>()
+  if(previous&&(previous.digest!==hash||previous.order_id!==row.id)) fail('EVENT_MISMATCH','Stripe event ID was reused with different content.',400)
+  if(previous?.completed_at) return {received:true,replayed:true}
+  await env.DB.prepare('INSERT OR IGNORE INTO st_events(id,digest,order_id) VALUES(?,?,?)').bind(event.id,hash,row.id).run()
+  await refreshRisk(env,await readOrder(env.DB,row.id))
+  await env.DB.prepare('UPDATE st_events SET completed_at=? WHERE id=? AND digest=?').bind(new Date().toISOString(),event.id,hash).run()
+  return {received:true}
+ }
  if(!['checkout.session.completed','checkout.session.async_payment_succeeded'].includes(event.type)) return {received:true,ignored:true}
  const session=event.data?.object
  if(typeof session?.metadata?.stall_order_id!=='string'||typeof session.id!=='string') fail('PAYMENT_MISMATCH','Stripe event is missing its order reference.',400)

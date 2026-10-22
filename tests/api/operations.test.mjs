@@ -229,3 +229,257 @@ test('INTEGRATION-001: uncertain Stripe writes recover by original reference wit
   assert.equal(edge.calls.filter(call => call.path === '/v1/checkout/sessions' && call.method === 'POST').length, beforeConcurrent + 1)
  } finally { await disconnected?.close(); await destination?.close(); await h.close(); await pier.close() }
 })
+
+// Canonical Stripe reads are the only fake boundary; order/auth/stock/archive are real Workers.
+test('RISK-001: restricted advisory queue holds fulfillment, records human review and deduplicates callbacks', async () => {
+ const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex')
+ const bindings={...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-1',STRIPE_WEBHOOK_SECRET:secret}
+ const intents=new Map(),providerWrites=[]
+ const outboundService=async request=>{
+  const url=new URL(request.url)
+  if(url.hostname==='api.stripe.com'&&request.method==='POST') providerWrites.push(url.pathname)
+  if(url.hostname==='api.stripe.com'&&url.pathname.startsWith('/v1/payment_intents/')) {
+   assert.equal(request.method,'GET')
+   assert.ok(url.searchParams.getAll('expand[]').includes('latest_charge'))
+   const intent=intents.get(decodeURIComponent(url.pathname.split('/').at(-1)))
+   return intent?Response.json(intent):Response.json({error:'missing'},{status:404})
+  }
+  return edge.handle(request)
+ }
+ const h=await installation({bindings,outboundService})
+ let destination
+ const snapshot=()=>h.api('/api/stall/risk')
+ const stateOrder=async id=>(await h.api('/api/stall/state')).orders.find(order=>order.id===id)
+ const canonical=(session,level='normal',score=4)=>{
+  const charge={id:'synthetic-stall-2-'+session.client_reference_id,object:'charge',payment_intent:session.payment_intent,outcome:{risk_level:level,risk_score:score},payment_method_details:{card:{checks:{address_line1_check:'pass',address_postal_code_check:'pass',cvc_check:'pass'}}}}
+  const intent={id:session.payment_intent,object:'payment_intent',metadata:{stall_order_id:session.client_reference_id},amount:session.amount_total,currency:session.currency,status:'succeeded',latest_charge:charge}
+  intents.set(intent.id,intent);return intent
+ }
+ const rules={enabled:true,holdElevated:true,holdHighest:true,holdAddressMismatch:true,holdPaymentMismatch:true,scoreThreshold:70}
+ try {
+  const member=await h.signIn('synthetic-stall-3@example.test'),admin=await h.signIn('synthetic-stall-4@example.test','admin'),grant=await h.api('/api/stall/agent-token',{})
+  await h.api('/api/stall/risk',undefined,{as:'',status:401})
+  await h.api('/api/stall/risk',undefined,{as:member,status:403})
+  await h.api('/api/stall/risk',undefined,{as:'',headers:{authorization:`Bearer ${grant.token}`},status:403})
+  for(const type of ['risk.configure','risk.release','risk.cancel']) {
+   await h.command(type,rules,{as:member,status:403})
+   await h.command(type,rules,{as:'',headers:{authorization:`Bearer ${grant.token}`},status:403})
+  }
+  await publish(h,'MUG-BLUE','Synthetic cup',2450)
+  const low=await purchase(h,edge,{skus:['MUG-BLUE'],email:'synthetic-stall-5@example.test'})
+  const lowSession=edge.pay(low.session.id);canonical(lowSession)
+  assert.equal((await deliverWebhook(h,secret,lowSession)).response.status,200)
+  assert.equal((await snapshot()).queue.length,0)
+  await h.command('risk.configure',rules,{as:admin})
+  const unreviewed=await stateOrder(low.orderId)
+  assert.equal((await h.command('shipment.prepare',{orderId:low.orderId,revision:unreviewed.revision,reference:'synthetic-stall-11'},{status:409})).error.code,'RISK_PENDING')
+  await h.command('risk.refresh',{orderId:low.orderId})
+  assert.equal((await snapshot()).queue.find(row=>row.orderId===low.orderId).status,'clear')
+  const flagged=await purchase(h,edge,{skus:['MUG-BLUE'],email:'synthetic-stall-6@example.test'})
+  const flaggedSession=edge.pay(flagged.session.id),intent=canonical(flaggedSession,'elevated',82)
+  intent.latest_charge.payment_method_details.card.checks.address_postal_code_check='fail'
+  // Even a signed callback's advisory fields cannot replace a canonical provider read.
+  const misleading={...flaggedSession,outcome:{risk_level:'normal',risk_score:0}}
+  assert.equal((await deliverWebhook(h,'synthetic-stall-13',misleading)).response.status,400)
+  assert.ok(!(await snapshot()).queue.some(entry=>entry.orderId===flagged.orderId))
+  const original=await deliverWebhook(h,secret,misleading)
+  assert.equal(original.response.status,200)
+  let snap=await snapshot(),row=snap.queue.find(entry=>entry.orderId===flagged.orderId)
+  assert.equal(row.status,'held')
+  assert.ok(row.reasons.includes('address_check_mismatch'))
+  assert.ok(row.signals.some(signal=>signal.provider==='stripe'&&signal.objectId===intent.latest_charge.id&&signal.field==='outcome.risk_score'&&signal.value===82))
+  assert.equal(snap.notifications.filter(entry=>entry.orderId===flagged.orderId).length,1)
+  let order=await stateOrder(flagged.orderId)
+  const held=await h.command('shipment.prepare',{orderId:order.id,revision:order.revision,reference:'synthetic-stall-7'},{status:409})
+  assert.equal(held.error.code,'RISK_HELD')
+  assert.equal((await pier.api('/api/pier/state')).shipments.length,0)
+  assert.equal((await deliverWebhook(h,secret,misleading,{id:original.id})).response.status,200)
+  assert.equal((await deliverWebhook(h,secret,misleading)).response.status,200)
+  assert.equal((await snapshot()).queue.find(entry=>entry.orderId===order.id).revision,row.revision)
+  row=await h.command('risk.release',{orderId:order.id,revision:row.revision},{as:admin})
+  assert.equal(row.status,'released');assert.equal(row.reviewer.decision,'release');assert.ok(row.reviewer.id)
+  await h.command('risk.cancel',{orderId:order.id,revision:'synthetic-stall-8'},{status:409})
+  assert.equal((await deliverWebhook(h,secret,misleading)).response.status,200)
+  assert.equal((await snapshot()).queue.find(entry=>entry.orderId===order.id).status,'released')
+  order=await stateOrder(order.id)
+  order=await h.command('shipment.prepare',{orderId:order.id,revision:order.revision,reference:'synthetic-stall-9'})
+  // Fresh provider signals reopen review even after a prior release.
+  intent.latest_charge.outcome={risk_level:'highest',risk_score:96}
+  assert.equal((await deliverWebhook(h,secret,flaggedSession)).response.status,200)
+  snap=await snapshot();row=snap.queue.find(entry=>entry.orderId===order.id)
+  assert.equal(row.status,'held');assert.equal(snap.notifications.filter(entry=>entry.orderId===order.id).length,2)
+  const approval=await h.command('shipment.approve',{orderId:order.id,revision:order.revision},{status:409})
+  assert.equal(approval.error.code,'RISK_HELD')
+  const stockBefore=(await pier.api('/api/pier/state')).orders.find(entry=>entry.id===order.reservation.id)
+  const writesBefore=providerWrites.length
+  row=await h.command('risk.cancel',{orderId:order.id,revision:row.revision})
+  assert.equal(row.status,'canceled');assert.equal(row.reviewer.decision,'cancel')
+  assert.equal(providerWrites.length,writesBefore)
+  assert.deepEqual((await pier.api('/api/pier/state')).orders.find(entry=>entry.id===order.reservation.id),stockBefore)
+  assert.equal((await pier.api('/api/pier/state')).shipments.length,0)
+  order=await stateOrder(order.id)
+  assert.ok(order.reservation);assert.ok(order.payment);assert.equal(order.refunds.length,0)
+  assert.equal((await h.command('shipment.approve',{orderId:order.id,revision:order.revision},{status:409})).error.code,'RISK_CANCELED')
+  // A later risk flag cannot silently deny a separately authorized refund.
+  // Existing refund policy requires shipment first, independent of risk.
+  let refundable=await stateOrder(low.orderId)
+  refundable=await h.command('shipment.prepare',{orderId:refundable.id,revision:refundable.revision,reference:'synthetic-stall-14'})
+  refundable=await h.command('shipment.approve',{orderId:refundable.id,revision:refundable.revision})
+  intents.get(lowSession.payment_intent).latest_charge.outcome={risk_level:'highest',risk_score:99}
+  assert.equal((await deliverWebhook(h,secret,lowSession)).response.status,200)
+  assert.equal((await snapshot()).queue.find(entry=>entry.orderId===low.orderId).status,'held')
+  refundable=await h.command('refund.prepare',{orderId:refundable.id,revision:refundable.revision,kind:'goodwill',amountCents:100,reason:'synthetic-stall-10'})
+  refundable=await h.command('refund.approve',{orderId:refundable.id,revision:refundable.revision})
+  assert.equal(refundable.refunds[0].status,'succeeded')
+  const notification=(await snapshot()).notifications[0]
+  await h.command('risk.notification.read',{id:notification.id},{as:admin})
+  snap=await snapshot()
+  assert.ok(snap.notifications.find(entry=>entry.id===notification.id).readBy)
+  assert.deepEqual(snap.decisions.filter(entry=>entry.orderId===order.id).map(entry=>entry.decision).sort(),['cancel','release'])
+  const history=await h.api('/api/stall/orders/history?orderId='+order.id)
+  assert.ok(history.events.some(event=>event.action==='risk.released'&&event.actor===snap.decisions.find(entry=>entry.decision==='release').reviewerId))
+  assert.ok(history.events.some(event=>event.action==='risk.canceled'))
+  const serialized=JSON.stringify(snap)
+  for(const value of [secret,bindings.STRIPE_SECRET_KEY,bindings.PIER_SESSION,grant.token,'synthetic-stall-6@example.test','1 Maker Lane']) assert.ok(!serialized.includes(value))
+  const saved=await archive(h)
+  destination=await installation({bindings,outboundService})
+  await restore(destination,saved)
+  const restored=await destination.api('/api/stall/risk')
+  assert.deepEqual(restored.queue,snap.queue);assert.deepEqual(restored.decisions,snap.decisions);assert.deepEqual(restored.notifications,snap.notifications)
+  assert.equal((await destination.command('shipment.approve',{orderId:order.id,revision:order.revision},{status:409})).error.code,'RISK_CANCELED')
+ } finally { await destination?.close();await h.close();await pier.close() }
+})
+
+// Current sources and all workflow effects use public native doors. Only Stripe
+// and an unavailable Pier network response are simulated at the provider edge.
+test('FLOW-001: current-source rules, native customer requests, cron, quiet pause and visible failed follow-up', async()=>{
+ const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward})
+ let unavailable=false
+ const bindings={...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-101',STRIPE_WEBHOOK_SECRET:'synthetic-stall-102'}
+ const h=await installation({bindings,outboundService:r=>unavailable&&new URL(r.url).origin===pier.origin?Response.json({error:'synthetic-stall-103'},{status:503}):edge.handle(r)})
+ const flow=async(type,payload={},opts={})=>{
+  const value=await h.api('/api/stall/workflows',{type,payload},opts)
+  return opts.status&&opts.status>=400?value:value.result
+ }
+ const snapshot=()=>h.api('/api/stall/workflows')
+ const scheduled=async()=>{assert.equal((await(await h.mf.getWorker()).scheduled({scheduledTime:new Date(),cron:'* * * * *'})).outcome,'ok')}
+ try {
+  const owner=(await h.api('/auth/session')).operator
+  const member=await h.signIn('synthetic-stall-104@example.test'),admin=await h.signIn('synthetic-stall-105@example.test','admin')
+  const packer=(await h.api('/auth/session',undefined,{as:member})).operator,administrator=(await h.api('/auth/session',undefined,{as:admin})).operator
+  const grant=await h.api('/api/stall/agent-token',{})
+  await h.api('/api/stall/workflows',undefined,{as:'',status:401})
+  await h.api('/api/stall/workflows',undefined,{as:member,status:403})
+  await h.api('/api/stall/workflows',undefined,{as:'',headers:{authorization:`Bearer ${grant.token}`},status:403})
+  for(const type of ['workflow.save','workflow.activate','workflow.pause','workflow.run']) {
+   await flow(type,{}, {as:member,status:403})
+   await flow(type,{}, {as:'',headers:{authorization:`Bearer ${grant.token}`},status:403})
+  }
+  await flow('workflow.run',{}, {headers:{origin:'https://synthetic-stall-106.test'},status:403})
+  await h.command('staff.configure',{actorId:packer.id,staffRole:'fulfillment'})
+  assert.equal((await h.api('/api/stall/workflows',undefined,{as:member})).canManage,false)
+  await flow('workflow.save',{}, {as:member,status:403})
+  const item=await pier.command('item.save',{sku:'synthetic-stall-107',name:'synthetic-stall-108',unit:'each',packSize:'1'})
+  const supplier=await pier.command('party.save',{name:'synthetic-stall-109',kind:'supplier'})
+  const po=await pier.command('po.draft',{supplierId:supplier.id,promiseDate:'2026-10-20',reason:'synthetic-stall-110',lines:[{itemId:item.id,quantity:'20',price:'2.00'}]})
+  await pier.command('po.approve',{poId:po.id,version:po.version});await pier.command('po.commit',{poId:po.id,version:po.version})
+  await pier.command('receipt.create',{poId:po.id,supplierReference:'synthetic-stall-111',lines:[{poLineId:po.lines[0].id,locationId:pier.location.id,quantity:'20',cost:'2.00'}]})
+  await publish(h,item.sku,'synthetic-stall-112',200)
+  const customer=await h.signIn('synthetic-stall-113@example.test'),otherCustomer=await h.signIn('synthetic-stall-114@example.test')
+  const bought=await purchase(h,edge,{skus:[item.sku],email:'synthetic-stall-113@example.test'})
+  const paid=edge.pay(bought.session.id)
+  assert.equal((await deliverWebhook(h,bindings.STRIPE_WEBHOOK_SECRET,paid)).response.status,200)
+  const before=(await h.api('/api/stall/state')).orders.find(o=>o.id===bought.orderId)
+  const create=async(trigger,extra={})=>flow('workflow.save',{rule:{name:'synthetic-stall-115 '+trigger,trigger,assigneeId:packer.id,dueMinutes:90,conditions:{},...extra}},{as:admin})
+  const activate=r=>flow('workflow.activate',{id:r.id,revision:r.revision})
+  const low=await create('low_stock',{conditions:{sku:item.sku,stockAtMost:19}})
+  const dry=await flow('workflow.dry-run',{id:low.id})
+  assert.equal(dry.total,1);assert.equal(dry.matches[0].sourceId,item.sku);assert.match(dry.matches[0].explanation,/19 sellable units/)
+  assert.equal((await snapshot()).tasks.length,0)
+  const overdue=await create('overdue_fulfillment',{conditions:{sku:item.sku,overdueHours:0},action:'draft_followup'})
+  assert.equal((await flow('workflow.dry-run',{id:overdue.id})).total,1)
+  const noMatch=await create('order',{conditions:{minTotalCents:before.totalCents+1}})
+  assert.equal((await flow('workflow.dry-run',{id:noMatch.id})).total,0)
+  const order=await create('order',{conditions:{sku:item.sku,status:'reserved',maxTotalCents:before.totalCents}})
+  const returns=await create('return_request'),cancellations=await create('cancellation_request')
+  const customerRule=await create('customer')
+  const app=await h.api('/api/stall/v1/admin/apps',{label:'synthetic-stall-116',origin:h.origin,scopes:['customer:read']})
+  const nativeCustomer=await h.api('/api/stall/v1/customer',undefined,{as:customer,headers:{authorization:`Bearer ${app.token}`}})
+  const customerDry=await flow('workflow.dry-run',{id:customerRule.id})
+  assert.ok(customerDry.matches.some(m=>m.sourceId===nativeCustomer.id))
+  const promotion=await create('promotion')
+  assert.equal((await flow('workflow.dry-run',{id:promotion.id})).source.available,false)
+  assert.equal((await flow('workflow.activate',{id:promotion.id,revision:promotion.revision},{status:409})).error.code,'SOURCE_UNAVAILABLE')
+  await h.command('shop.configure',{timeZone:'America/New_York'})
+  assert.equal((await flow('workflow.schedule.preview',{date:'2026-11-01',localTime:'01:30'})).instant,'2026-11-01T05:30:00.000Z')
+  assert.equal((await flow('workflow.schedule.preview',{date:'2026-03-08',localTime:'02:30'})).instant,'2026-03-08T07:00:00.000Z')
+  await h.command('shop.configure',{timeZone:'UTC'})
+  const scheduledRule=await create('scheduled_reconciliation',{localTime:'00:00',action:'reconcile_followup',assigneeId:owner.id})
+  for(const r of [low,overdue,order,returns,cancellations,customerRule,scheduledRule]) await activate(r)
+  const request={orderId:bought.orderId,kind:'return'}
+  await h.api('/api/stall/customer-requests',request,{as:'',status:401})
+  await h.api('/api/stall/customer-requests',request,{as:otherCustomer,status:404})
+  await h.api('/api/stall/customer-requests',{...request,email:'synthetic-stall-113@example.test'},{as:otherCustomer,status:400})
+  await h.api('/api/stall/customer-requests',{...request,actor:owner.id},{as:customer,status:400})
+  await h.api('/api/stall/customer-requests',request,{as:'',headers:{authorization:`Bearer ${app.token}`},status:401})
+  await h.api('/api/stall/customer-requests',request,{as:customer,headers:{origin:'https://synthetic-stall-117.test'},status:403})
+  const first=await h.api('/api/stall/customer-requests',request,{as:customer})
+  assert.equal((await h.api('/api/stall/customer-requests',request,{as:customer})).request.id,first.request.id)
+  await h.api('/api/stall/customer-requests',{...request,kind:'cancellation'},{as:customer})
+  await scheduled()
+  let snap=await snapshot()
+  for(const r of [low,overdue,order,returns,cancellations,customerRule,scheduledRule]) {
+   const tasks=snap.tasks.filter(t=>t.ruleId===r.id)
+   assert.equal(tasks.length,1,r.value.trigger)
+   const task=tasks[0]
+   assert.equal(task.assigneeId,r.value.assigneeId);assert.equal(task.status,'open')
+   assert.equal(Date.parse(task.dueAt)-Date.parse(task.createdAt),90*60000)
+   assert.equal(snap.notifications.filter(n=>n.taskId===task.id).length,1)
+  }
+  const frozen=snap.tasks.map(t=>({id:t.id,dueAt:t.dueAt,eventKey:t.eventKey})).sort((a,b)=>a.id.localeCompare(b.id))
+  await Promise.all([flow('workflow.run'),flow('workflow.run')]);await scheduled()
+  snap=await snapshot()
+  assert.deepEqual(snap.tasks.map(t=>({id:t.id,dueAt:t.dueAt,eventKey:t.eventKey})).sort((a,b)=>a.id.localeCompare(b.id)),frozen)
+  const mine=await h.api('/api/stall/workflows',undefined,{as:member})
+  assert.ok(mine.tasks.length>0&&mine.tasks.every(t=>t.assigneeId===packer.id));assert.equal(mine.rules.length,0)
+  assert.ok(mine.notifications.every(n=>n.recipientId===packer.id))
+  const completed=mine.tasks[0]
+  await flow('workflow.task.complete',{id:completed.id},{as:member})
+  assert.equal((await snapshot()).tasks.find(t=>t.id===completed.id).status,'completed')
+  await flow('workflow.notification.read',{id:mine.notifications[0].id},{as:member})
+  assert.ok((await snapshot()).notifications.find(n=>n.id===mine.notifications[0].id).readAt)
+  const minuteAt=offset=>{const d=new Date(Date.now()+offset*60000);return d.toISOString().slice(11,16)}
+  const quiet=await create('low_stock',{assigneeId:administrator.id,conditions:{sku:item.sku,stockAtMost:19},quietHours:{start:minuteAt(-1),end:minuteAt(5)}})
+  await activate(quiet);await flow('workflow.run')
+  const pending=(await snapshot()).tasks.find(t=>t.ruleId===quiet.id)
+  assert.equal(pending.status,'pending');assert.ok(Date.parse(pending.dispatchAt)>Date.now())
+  await flow('workflow.pause',{id:quiet.id,revision:quiet.revision})
+  await scheduled()
+  snap=await snapshot()
+  assert.equal(snap.tasks.find(t=>t.id===pending.id).status,'paused')
+  assert.ok(!snap.notifications.some(n=>n.taskId===pending.id))
+  await activate(quiet);await flow('workflow.task.retry',{id:pending.id})
+  await flow('workflow.activate',{id:noMatch.id,revision:noMatch.revision},{as:admin})
+  await h.api('/auth/operator/status',{operatorId:administrator.id,status:'inactive'})
+  await scheduled()
+  snap=await snapshot()
+  assert.equal(snap.tasks.find(t=>t.id===pending.id).status,'failed')
+  assert.equal(snap.tasks.find(t=>t.id===pending.id).errorCode,'ASSIGNEE')
+  assert.ok(!snap.notifications.some(n=>n.taskId===pending.id))
+  assert.equal(snap.rules.find(r=>r.id===noMatch.id).localAuthority,false)
+  assert.equal(snap.rules.find(r=>r.id===noMatch.id).errorCode,'LOCAL_AUTHORITY_REQUIRED')
+  unavailable=true;await flow('workflow.run');unavailable=false
+  snap=await snapshot()
+  assert.ok(snap.rules.find(r=>r.id===low.id).errorCode)
+  assert.ok(snap.rules.find(r=>r.id===low.id).checkedAt)
+  await flow('workflow.run')
+  assert.equal((await snapshot()).rules.find(r=>r.id===low.id).errorCode,null)
+  const after=(await h.api('/api/stall/state')).orders.find(o=>o.id===bought.orderId)
+  assert.deepEqual(after.payment,before.payment);assert.deepEqual(after.reservation,before.reservation)
+  assert.equal(after.status,before.status);assert.equal(after.refunds.length,0)
+  assert.equal((await pier.api('/api/pier/state')).shipments.length,0)
+  assert.equal(edge.refunds.size,0)
+  const serialized=JSON.stringify(await snapshot())
+  for(const secret of [bindings.STRIPE_SECRET_KEY,bindings.STRIPE_WEBHOOK_SECRET,bindings.PIER_SESSION,grant.token,app.token,'synthetic-stall-113@example.test','1 Maker Lane']) assert.ok(!serialized.includes(secret))
+ } finally {await h.close();await pier.close()}
+})

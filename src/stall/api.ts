@@ -1,3 +1,7 @@
+import { workflowResponse,runWorkflows } from './workflows'
+import { headlessResponse,observeStock } from './headless'
+import { riskCommand,riskSnapshot } from './risk'
+import { refreshRisk } from './payments'
 import { authorize,authorizeCommand,permits } from './permissions'
 import { staffCommand,staffSnapshot } from './staff'
 import { runtimeBindings,type Bindings } from '../auth.server'
@@ -35,7 +39,12 @@ import { eraseCustomer } from './erasure'
 import { connectionCommand,connectionDetails,withConnections } from './connections'
 // Agent/connector readers retain commerce draft context, without staff annotations or staff-as-provider payment evidence.
 function agentRecord({notes,tags,manualPayment,...record}:any) { return {...record,...(manualPayment?{manualPayment:{...manualPayment,reference:undefined},payment:undefined}:{})} }
-function privateOrder(actor:import('./model').Actor,{requestDigest,checkoutKey,checkout,...record}:any) { return actor.agent||!permits(actor,'support')?agentRecord(record):record }
+function privateOrder(actor:import('./model').Actor,{requestDigest,checkoutKey,checkout,...record}:any) {
+ if(actor.agent)return agentRecord(record)
+ if(permits(actor,'support'))return record
+ const {notes,tags,manualPayment,...visible}=record
+ return {...visible,...(manualPayment?{manualPayment:{...manualPayment,reference:undefined}}:{})}
+}
 async function discoverySource(env:Bindings):Promise<Source> {
  const [stock,saved,config]=await Promise.all([catalogue(env),collections(env.DB),merchandising(env.DB)])
  return {products:stock.products,items:stock.items,collections:saved,config:config.value}
@@ -57,6 +66,8 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   const base=runtimeBindings(original)
   // A demo uses its simulated providers; otherwise saved Settings connections fill unset secrets.
   const env=base.RER_DEMO==='1'?base:await withConnections(base)
+  const workflows=await workflowResponse(request,env);if(workflows)return workflows
+  const headless=await headlessResponse(request,env);if(headless)return headless
   if(path==='/api/stall/webhook'&&request.method==='POST') return json(await webhook(request,env))
   if(path==='/api/stall/catalogue'&&request.method==='GET') return json(await catalogue(env))
   if(path.startsWith('/api/stall/media/')&&request.method==='GET') return await mediaResponse(env,request,decodeURIComponent(path.slice(17)))
@@ -88,6 +99,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   if(path==='/api/stall/customer/orders'&&request.method==='GET') { requirePerson(actor);return json({orders:(await orders(env.DB)).filter(o=>!o.erasedAt&&o.customerEmail===actor.email).map(({id,createdAt,status,lines,totalCents,currency})=>({id,createdAt,status,lines:lines.map(({sku,name,quantity,unitCents})=>({sku,name,quantity,unitCents})),totalCents,currency}))}) }
   requireSupplier(actor)
   if(!['GET','HEAD'].includes(request.method)&&request.headers.get('origin')!==env.AUTH_ORIGIN&&(!actor.agent||request.headers.has('origin'))) fail('ORIGIN','Use this installation’s own page to change records.',403)
+  if(path==='/api/stall/risk'&&request.method==='GET') return json(await riskSnapshot(env,actor))
   if(path==='/api/stall/staff'&&request.method==='GET') return json(await staffSnapshot(env,actor))
 
   if(path==='/api/stall/search-report'&&request.method==='GET') { authorize(actor,'marketing');requirePerson(actor);return json(await searchReport(env.DB)) }
@@ -107,7 +119,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
     await live(env,actor)
     const records=permits(actor,'orders')?await orders(env.DB):[]
     const clean=records.map(record=>privateOrder(actor,record))
-    return json({actor,timeZone:await businessTimeZone(env.DB),people:{[actor.id]:actor.email},staff:{},products:permits(actor,'catalog')?await products(env.DB):[],orders:clean,audit:[],...(permits(actor,'marketing')?{merchandising:{collections:await collections(env.DB),config:await merchandising(env.DB)}}:{}),...(permits(actor,'admin')?{shipping:await shippingState(env.DB)}:{}),connections:{pier:false,stripe:false,webhook:false}})
+    return json({actor,timeZone:await businessTimeZone(env.DB),people:{[actor.id]:actor.email},staff:{},products:permits(actor,'catalog')?await products(env.DB):permits(actor,'marketing')?(await products(env.DB)).filter(p=>p.value.active&&!p.value.archived&&(!p.value.publishAt||Date.parse(p.value.publishAt)<=Date.now())).map(({id,revision,value:{draft,approval,...value}})=>({id,revision,value})):[],orders:clean,audit:[],...((permits(actor,'marketing')||permits(actor,'catalog'))?{merchandising:{collections:await collections(env.DB),config:await merchandising(env.DB)}}:{}),...(permits(actor,'admin')?{shipping:await shippingState(env.DB)}:{}),connections:{pier:false,stripe:false,webhook:false}})
    }
    const [selected,history,logs,people]=await Promise.all([products(env.DB),orders(env.DB),env.DB.prepare('SELECT * FROM st_audit ORDER BY rowid DESC LIMIT 200').all(),env.DB.prepare('SELECT id,display_name AS name,email,status FROM oa_operators').all<{id:string;name:string;email:string;status:string}>()])
    const shipping=await refreshShipments(env,actor,history)
@@ -139,7 +151,9 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    authorizeCommand(actor,type)
    await live(env,actor)
    let result:unknown
-   if(type==='staff.configure') result=await staffCommand(env,actor,payload)
+   if(type==='risk.refresh') { await riskSnapshot(env,actor);result=await refreshRisk(env,await (await import('./store')).readOrder(env.DB,text(payload.orderId,'Order'))) }
+   else if(type.startsWith('risk.')) result=await riskCommand(env,actor,type,payload)
+   else if(type==='staff.configure') result=await staffCommand(env,actor,payload)
    else if(['product.prepare','product.approve'].includes(type)) result=await productCommand(env,actor,type,payload)
    else if(['shipment.prepare','shipment.approve'].includes(type)) result=await shipmentCommand(env,actor,type,payload)
    else if(['refund.prepare','refund.approve'].includes(type)) result=await refundCommand(env,actor,type,payload)
@@ -169,5 +183,8 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
 export async function stallScheduled(original:Bindings) {
  const base=runtimeBindings(original)
  if(base.RER_DEMO==='1') return
- await checkAwaitingPayments(await withConnections(base))
+ const env=await withConnections(base)
+ await checkAwaitingPayments(env)
+ await runWorkflows(env)
+ await observeStock(env)
 }

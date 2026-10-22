@@ -1,3 +1,5 @@
+import { Workflows } from './workflows'
+import { RiskReview } from './risk-review'
 import { StaffAccess } from './staff-access'
 // Settings: provider connections and the signed-in account for everyone; agent
 // access, the data archive and customer erasure for the owner.
@@ -18,7 +20,7 @@ const providerRows: Record<string, [string, string]> = { pier: ['Pier stock', 'C
 /** Each connection's name and job. A shop on this computer confirms payments by asking Stripe. */
 export const providers = (state: State): Record<string, [string, string]> => state.connectionDetails?.stripe.local && !state.connectionDetails.stripe.webhook ? { ...providerRows, webhook: ['Payment confirmations', 'Stall asks Stripe; webhooks are for an online shop'] } : providerRows
 export function Settings({ state, owner, busy, run, reload }: { state: State; owner: boolean; busy: boolean; run: Run; reload: () => Promise<void> }) {
-  if(!['owner','admin'].includes(state.actor.role))return <Section title="Your staff account"><p>{state.actor.email} · {state.actor.staffRole?.replace('_',' ')}</p><p>Your permissions are checked on every action. Ask the owner to change your shop role.</p><a href="/auth/settings/identity">Account settings</a>{state.actor.staffRole==='administrator'&&<ShopTimeZone timeZone={state.timeZone??defaultTimeZone} busy={busy} run={run} />}</Section>
+  if(!['owner','admin'].includes(state.actor.role))return <Section title="Your staff account"><p>{state.actor.email} · {state.actor.staffRole?.replace('_',' ')}</p><p>Your permissions are checked on every action. Ask the owner to change your shop role.</p><a href="/auth/settings/identity">Account settings</a><Workflows />{state.actor.staffRole==='administrator'&&<ShopTimeZone timeZone={state.timeZone??defaultTimeZone} busy={busy} run={run} />}</Section>
   return <div className="st-settings">
     <h1>Settings</h1>
     <Section id="connections" title="Provider connections">
@@ -31,6 +33,8 @@ export function Settings({ state, owner, busy, run, reload }: { state: State; ow
     </Section>
     {!state.actor.agent && <ShopTimeZone timeZone={state.timeZone ?? defaultTimeZone} busy={busy} run={run} />}
     {owner && (state.shippingCents == null ? <Section title="Shipping charge"><p>Shipping is priced by profiles. <a href="#shipping">Edit shipping profiles</a>.</p></Section> : <ShippingCharge shippingCents={state.shippingCents} busy={busy} run={run} />)}
+    <RiskReview state={state} busy={busy} run={run} />
+    <Workflows />
     <Operations />
     <Section title="Your account"><div className="st-row"><p>{state.people[state.actor.id] ?? state.actor.email}<small>{state.actor.email} · {state.actor.role}</small></p><a className="st-button st-secondary" href="/auth/settings/identity">Account settings</a></div></Section>
     {owner && <><StaffAccess run={run} busy={busy} /><AgentCredential /><BusinessExports /><Portability reload={reload} /><CustomerErasure busy={busy} run={run} /></>}
