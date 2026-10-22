@@ -13,7 +13,7 @@ export async function workflowSnapshot(env:Bindings,actor:Actor) {
   env.DB.prepare(`SELECT ${taskColumns} FROM st_workflow_tasks t WHERE ${where} ORDER BY t.created_at DESC,t.id LIMIT 100`).bind(...params).all<any>(),
   env.DB.prepare(`SELECT t.status,count(*) AS count FROM st_workflow_tasks t WHERE ${where} GROUP BY t.status`).bind(...params).all<{status:string;count:number}>(),
   env.DB.prepare(`SELECT id,task_id AS taskId,recipient_id AS recipientId,created_at AS createdAt,read_at AS readAt,read_by AS readBy FROM st_workflow_notifications WHERE ${all?'1=1':'recipient_id=?'} ORDER BY created_at DESC,id LIMIT 100`).bind(...params).all(),
-  all?env.DB.prepare(`SELECT o.id,o.email,o.display_name AS name,o.role FROM oa_operators o WHERE o.status='active' AND (o.role IN ('owner','admin') OR EXISTS(SELECT 1 FROM st_staff s WHERE s.actor_id=o.id)) ORDER BY o.display_name,o.id`).all():Promise.resolve({results:[]}),
+  all?env.DB.prepare(`SELECT o.id,o.email,o.display_name AS name,o.role FROM oa_operators o WHERE o.status='active' AND (o.role IN ('owner','admin') OR EXISTS(SELECT 1 FROM st_staff s WHERE s.actor_id=o.id)) ORDER BY o.display_name,o.id`).all():env.DB.prepare('SELECT id,email,display_name AS name,role FROM oa_operators WHERE id=?').bind(actor.id).all(),
   all?env.DB.prepare(`SELECT id,order_id AS orderId,kind,created_at AS createdAt FROM st_workflow_requests ORDER BY created_at DESC,id LIMIT 100`).all():Promise.resolve({results:[]}),
   businessTimeZone(env.DB),
  ])
