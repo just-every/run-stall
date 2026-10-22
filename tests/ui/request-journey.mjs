@@ -84,8 +84,11 @@ try {
     await capture(`RETURN-001-staff-followup-${width}`)
     await page.getByRole('article', { name: `Request ${ids[0]}`, exact: true }).getByRole('link', { name: `Open order ${bought.orderId}`, exact: true }).click()
     await page.waitForURL(url => url.hash === '#orders/' + bought.orderId)
-    as = member; await page.goto(ready.url + '/app#requests'); await page.reload()
-    await page.getByRole('heading', { name: 'Staff workspace', exact: true }).waitFor()
+    as = member
+    const denied = page.waitForResponse(response => new URL(response.url()).pathname === '/api/stall/state')
+    await page.goto(ready.url + '/app#requests'); await page.reload()
+    assert.equal((await denied).status(), 403, 'an invited customer has no staff workspace grant')
+    await page.getByRole('heading', { name: 'Shop desk unavailable', exact: true }).waitFor()
     assert.equal(await page.getByRole('navigation', { name: 'Shop desk', exact: true }).getByRole('link', { name: 'Customer requests', exact: true }).count(), 0)
     assert.deepEqual((await h.api('/api/stall/state')).orders.find(o => o.id === bought.orderId), before)
   }

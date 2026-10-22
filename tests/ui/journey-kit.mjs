@@ -49,13 +49,14 @@ export async function startJourney({ name, skus, screenshots = process.env.STALL
   if (new URL(kit.page.url()).pathname === '/setup') { await kit.page.getByRole('checkbox').check(); await kit.page.getByRole('button', { name: 'Finish setup', exact: true }).click() }
   /** One screenshot per width, failing if the page scrolls sideways. */
   kit.capture = async (label, target = kit.page.locator('main'), shown = kit.page) => {
+    const previousViewport = shown.viewportSize()
     for (const width of [1440, 390]) {
       await shown.setViewportSize({ width, height: 1000 })
       await target.evaluate(element => window.scrollTo(0, element.getBoundingClientRect().top + scrollY - 20))
       assert.ok(await shown.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${label} overflow at ${width}`)
       await shown.screenshot({ path: join(resolve(screenshots), `${label}-${width}.png`), fullPage: true })
     }
-    await shown.setViewportSize({ width: 1440, height: 1000 })
+    await shown.setViewportSize(previousViewport ?? { width: 1440, height: 1000 })
   }
   return kit
   } catch (error) { await kit.finish(error); throw error }
