@@ -29,6 +29,10 @@ test('free shipping promotions reserve real checkout budgets atomically and rede
   const agent=await h.api('/api/stall/agent-token',{});
   await h.api(base,input,{headers:{authorization:'Bearer '+agent.token},status:403});
   let promotion=await h.api(base,input);
+  const nativeGet=await h.mf.dispatchFetch(h.origin+base,{headers:{cookie:h.cookie}});
+  assert.equal(nativeGet.status,200,'native same-origin GET needs no Origin header');
+  assert.equal((await nativeGet.json()).promotions.length,1);
+  await h.api(base,undefined,{headers:{origin},status:403});
   const lines=[{sku:'MUG-BLUE',quantity:1}],quoteInput={lines,customerEmail:'synthetic-stall-806@example.test',promotionCode:input.code};
   const quote=overrides=>h.api(base+'/quote',{...quoteInput,...overrides},{as:''});
   const save=async overrides=>{promotion=await h.api(base,{...input,...overrides,id:promotion.id,revision:promotion.revision});return promotion};
