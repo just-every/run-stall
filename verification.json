@@ -46,7 +46,8 @@
         "node tests/ui/integration-journey.mjs",
         "node tests/ui/bulk-products-journey.mjs",
         "node tests/ui/real-home.mjs tests/ui/staff-journey.mjs",
-        "node tests/ui/real-home.mjs tests/ui/promotion-journey.mjs"
+        "node tests/ui/real-home.mjs tests/ui/promotion-journey.mjs",
+        "node tests/ui/real-home.mjs tests/ui/request-journey.mjs"
       ]
     },
     {

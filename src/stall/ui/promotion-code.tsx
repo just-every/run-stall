@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { errorMessage, money, request } from './api'
 import { Notice } from './primitives'
 
@@ -6,16 +6,20 @@ type Input = { lines: { sku: string; quantity: number; personalization?: Record<
 type Quote = { applicable: boolean; message: string; discountCents: number; totalCents: number }
 export function usePromotionCode(input: Input) {
   const [code, setCode] = useState(''), [result, setResult] = useState<{ key: string; quote?: Quote; error?: string }>(), [loading, setLoading] = useState(false)
+  const generation = useRef(0)
+  const invalidate = () => { generation.current++; setResult(undefined) }
   const key = JSON.stringify({ ...input, code: code.trim() }), current = result?.key === key ? result : undefined
   const applied = current?.quote?.applicable ? current.quote : undefined
+  useEffect(invalidate, [key])
   async function apply() {
     if (loading || !code.trim() || !input.lines.length || !input.customerEmail || !input.shipping) return
+    const attempt = ++generation.current
     setLoading(true); setResult(undefined)
     try {
       const quote = await request<Quote>('/api/stall/promotions/quote', { lines: input.lines, customerEmail: input.customerEmail, shipping: input.shipping, promotionCode: code.trim() })
       if (quote.totalCents + quote.discountCents !== input.subtotal + input.shippingCents) throw new Error('Prices changed. Refresh availability and review your order again.')
-      setResult({ key, quote })
-    } catch (error) { setResult({ key, error: errorMessage(error) }) }
+      if (generation.current === attempt) setResult({ key, quote })
+    } catch (error) { if (generation.current === attempt) setResult({ key, error: errorMessage(error) }) }
     finally { setLoading(false) }
   }
   return { code, setCode, current, applied, loading, apply, ready: !!input.lines.length && !!input.customerEmail && !!input.shipping, blocked: !!code.trim() && !applied }
