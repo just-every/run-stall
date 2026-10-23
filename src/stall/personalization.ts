@@ -21,7 +21,7 @@ export async function uploadPersonalization(env: Bindings, request: Request) {
  if (!mime || mime !== declared || !field.fileTypes.some(type => fileKinds[type] === mime)) fail('FILE_TYPE', `This file must be one of: ${field.fileTypes.join(', ')}.`, 415)
  // Unclaimed files lapse after a day. A checkout's files lapse once it can no longer be
  // paid or confirmed: its Stripe session expires within a day, event retries end after three.
- await env.DB.prepare(`DELETE FROM st_uploads WHERE ${waiting} AND created_at<? AND (order_id IS NULL OR created_at<?)`).bind(new Date(Date.now() - day).toISOString(), new Date(Date.now() - 4 * day).toISOString()).run()
+ await env.DB.prepare(`DELETE FROM st_uploads WHERE rowid IN (SELECT rowid FROM st_uploads WHERE ${waiting} AND created_at<? AND (order_id IS NULL OR created_at<?))`).bind(new Date(Date.now() - day).toISOString(), new Date(Date.now() - 4 * day).toISOString()).run()
  const id = crypto.randomUUID(), name = safeName(url.searchParams.get('name')), client = await clientKey(env, request)
  // One statement checks both allowances and stores the file, so concurrent uploads cannot overrun them.
  const stored = await env.DB.prepare(`INSERT INTO st_uploads(id,sku,field,name,mime,size,data,created_at,order_id,client) SELECT ?,?,?,?,?,?,?,?,NULL,? WHERE (SELECT COUNT(*) FROM st_uploads WHERE ${waiting})<300 AND (SELECT COUNT(*) FROM st_uploads WHERE client=? AND ${waiting})<20`).bind(id, sku, key, name, mime, bytes.length, encode(bytes), new Date().toISOString(), client, client).run()
