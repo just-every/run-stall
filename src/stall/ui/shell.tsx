@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { HydrationUnit } from '../../base/hydration/unit'
 import { Icon, type IconName } from './icons'
+import { Tooltip } from './tooltip'
 import { Brand } from './primitives'
 import { initials } from './presentation'
 
@@ -32,7 +33,7 @@ function Account({ name, email, role }: { name: string; email: string; role: str
     return () => { removeEventListener('pointerdown', close); removeEventListener('keydown', close) }
   }, [open])
   return <div className="st-account" ref={root}>
-    <button className="st-account-button" aria-expanded={open} aria-label={`Account menu for ${name}`} onClick={() => setOpen(!open)}><span className="st-avatar" aria-hidden="true">{initials(name)}</span><Icon name="down" /></button>
+    <Tooltip label="Account menu"><button className="st-account-button" aria-expanded={open} aria-label={`Account menu for ${name}`} onClick={() => setOpen(!open)}><span className="st-avatar" aria-hidden="true">{initials(name)}</span><Icon name="down" /></button></Tooltip>
     {open && <div className="st-account-menu"><p><strong>{name}</strong><small>{email} · {role}</small></p><a href="/auth/settings/identity">Account</a><a href="/shop">View shop</a><button className="st-link" onClick={() => void fetch('/auth/signout', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: '{}' }).finally(() => location.assign('/signin?returnTo=%2Fapp'))}>Sign out</button></div>}
   </div>
 }

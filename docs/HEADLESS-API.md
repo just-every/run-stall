@@ -25,6 +25,25 @@ allocations transfer without customer identity; restored rules need explicit
 local owner/admin review and save before spending is enabled. Other discount
 types, automatic discounts, combinations and reversal policy remain PROMO-001.
 
+Native promotion managers open **Promotions → View usage report** or call
+`GET /api/stall/promotions/report?promotionId=<id>&limit=50`. The native owner
+or administrator session is required; functional staff grants, shoppers and app
+credentials cannot read it. An optional `after` takes the returned `nextAfter`;
+page sizes are 1 to 100. Every page returns full promotion totals and a bounded
+order list, read together in one database transaction. Refresh starts a new read;
+use it to reconcile status changes while paging.
+
+Reports identify each immutable rule revision, reserved or verified paid order,
+shipping discount, order total, paid shipping, pending and succeeded refunds,
+and existing qualification and redemption events. All money is integer USD cents.
+Gross paid includes verified paid orders only; net paid subtracts succeeded
+refunds only. Pending refunds remain separate. Neither refunds nor cancellation
+restore consumed budget. Codes, customer details, staff notes and provider
+credentials are excluded. Current orders have no calculated tax: the report
+labels tax amounts unavailable and does not imply a verified zero obligation.
+Combined campaign reports, tax reconciliation and wider discount types remain
+PROMO-001 work.
+
 An owner opens the native installation and creates an app with its native session:
 
 ```http

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { errorMessage, money, request } from './api'
+import { PromotionReport } from './promotion-report'
 import { Notice } from './primitives'
 import { HydrationUnit } from '../../base/hydration/unit'
 import { shortId, When } from './presentation'
@@ -25,6 +26,7 @@ function PromotionEditor({ editing, busy, save, close }: { editing?: Promotion; 
 }
 export function Promotions() {
   const [data, setData] = useState<Data>(), [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false), [editing, setEditing] = useState<Promotion | null | undefined>()
+  const [reportId, setReportId] = useState<string>()
   const lock = useRef(false)
   const load = async () => setData(await request<Data>('/api/stall/promotions'))
   useEffect(() => { void load().catch(error => setError(errorMessage(error))) }, [])
@@ -37,7 +39,7 @@ export function Promotions() {
   }
   return <HydrationUnit><section className="st-orders st-stack" aria-labelledby="promotions-title">
     <div className="st-view-head"><h1 id="promotions-title">Promotions</h1></div>
-    <p>Free-shipping codes waive the whole charge for a paid shipping service. Other discount types and campaign reports are not available yet.</p>
+    <p>Free-shipping codes waive the whole charge for a paid shipping service. Usage reports cover each free-shipping promotion. Other discount types and combined campaign reports are not available yet.</p>
     {error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}
     {!data && !error && <p role="status">Loading promotions…</p>}
     {data && <><Notice>{data.budgetPolicy}</Notice><p>Windows below use your shop time zone. The editor uses explicitly labeled UTC times.</p>
@@ -50,6 +52,8 @@ export function Promotions() {
         <p>Minimum basket: {money(promotion.minimumBasketCents)} · {promotion.maxUsesPerCustomer} checkout(s) per customer · {promotion.maxTotalUses} in total</p>
         <p>Reserved: {promotion.reservedUses} ({money(promotion.reservedDiscountCents)}) · Paid: {promotion.usedUses} ({money(promotion.usedDiscountCents)})</p>
         <p>Shipping discount budget: {money(promotion.maxShippingDiscountCents)} · Remaining: {money(promotion.maxShippingDiscountCents - promotion.reservedDiscountCents - promotion.usedDiscountCents)}</p>
+        <div className="st-actions"><button className="st-secondary" onClick={() => setReportId(reportId === promotion.id ? undefined : promotion.id)} aria-expanded={reportId === promotion.id}>{reportId === promotion.id ? 'Close usage report' : 'View usage report'}</button></div>
+        {reportId === promotion.id && <PromotionReport key={promotion.id} id={promotion.id} />}
         {!promotion.revokedAt && <div className="st-actions"><button className="st-secondary" disabled={busy} onClick={() => setEditing(promotion)}>Edit promotion</button><button className="st-secondary" disabled={busy} onClick={() => { if (confirm('Revoke this promotion? New checkouts will be refused. Existing allocations remain.')) void run('/api/stall/promotions/revoke', { id: promotion.id, revision: promotion.revision }) }}>Revoke promotion</button></div>}
       </article>)}
     </>}

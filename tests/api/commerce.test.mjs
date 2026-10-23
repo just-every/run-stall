@@ -29,6 +29,16 @@ test('free shipping promotions reserve real checkout budgets atomically and rede
   const agent=await h.api('/api/stall/agent-token',{});
   await h.api(base,input,{headers:{authorization:'Bearer '+agent.token},status:403});
   let promotion=await h.api(base,input);
+  const reportPath=id=>base+'/report?promotionId='+id;
+  await h.api(reportPath(promotion.id),undefined,{as:'',status:401});
+  await h.api(reportPath(promotion.id),undefined,{as:customer,status:403});
+  await h.api(reportPath(promotion.id),undefined,{headers:{authorization:'Bearer '+agent.token},status:403});
+  await h.api(reportPath(promotion.id),undefined,{headers:{origin},status:403});
+  await h.api(base+'/report?promotionId=synthetic-stall-absent',undefined,{status:404});
+  await h.api(reportPath(promotion.id)+'&limit=101',undefined,{status:400});
+  await h.api(reportPath(promotion.id)+'&after=invalid',undefined,{status:400});
+  assert.deepEqual((await h.api(reportPath(promotion.id))).totals,{checkouts:0,reservedUses:0,paidUses:0,committedDiscountCents:0,grossPaidCents:0,refundedCents:0,pendingRefundCents:0,netPaidCents:0});
+
   const nativeGet=await h.mf.dispatchFetch(h.origin+base,{headers:{cookie:h.cookie}});
   assert.equal(nativeGet.status,200,'native same-origin GET needs no Origin header');
   assert.equal((await nativeGet.json()).promotions.length,1);
@@ -96,6 +106,25 @@ test('free shipping promotions reserve real checkout budgets atomically and rede
   value=await h.command('refund.approve',{orderId:value.id,revision:value.revision});
   assert.equal(value.refunds.at(-1).amountCents,2450);assert.deepEqual(value.promotion,snapshot);
   assert.equal((await counts(promotion.id)).usedDiscountCents,625);assert.equal((await counts(promotion.id)).reservedDiscountCents,625);
+  const report=await h.api(reportPath(promotion.id)+'&limit=1');
+  assert.deepEqual(report.totals,{checkouts:2,reservedUses:1,paidUses:1,committedDiscountCents:1250,grossPaidCents:2450,refundedCents:2450,pendingRefundCents:0,netPaidCents:0});
+  assert.equal(report.orders.length,1);assert.ok(report.nextAfter);
+  const next=await h.api(reportPath(promotion.id)+'&limit=1&after='+report.nextAfter);
+  assert.deepEqual(next.totals,report.totals);assert.equal(next.orders.length,1);assert.equal(next.nextAfter,null);
+  const entries=[...report.orders,...next.orders];assert.equal(new Set(entries.map(r=>r.orderId)).size,2);
+  const paidEntry=entries.find(r=>r.orderId===first.orderId);
+  assert.equal(paidEntry.orderTotalCents,2450);assert.equal(paidEntry.shippingCents,0);assert.equal(paidEntry.refundedCents,2450);
+  assert.equal(paidEntry.promotionRevision,snapshot.revision);assert.equal(paidEntry.taxTreatment,'no_tax_recorded');
+  assert.equal(paidEntry.qualificationEventId,'promotion.qualified.'+first.orderId);assert.equal(paidEntry.redemptionEventId,'promotion.redeemed.'+first.orderId);
+  assert.equal(entries.find(r=>r.status==='reserved').redemptionEventId,null);
+  assert.match(report.taxNotice,/unavailable/);
+  for(const privateValue of [input.code,firstInput.customerEmail,secret,session.id])assert.ok(!JSON.stringify(report).includes(privateValue));
+  const admin=await h.signIn('synthetic-stall-812@example.test','admin');
+  assert.deepEqual((await h.api(reportPath(promotion.id),undefined,{as:admin})).totals,report.totals);
+  const administrator=(await h.api('/auth/session',undefined,{as:admin})).operator;
+  await h.command('staff.configure',{actorId:administrator.id,staffRole:'marketing',refundLimitCents:0});
+  await h.api(reportPath(promotion.id),undefined,{as:admin,status:403});
+
   // The second retail door uses the signed-in customer's identity and the same ledger.
   const second=await h.api(base,{...input,code:'SYNTHETIC-STALL-811',minimumBasketCents:0,maxTotalUses:1,maxShippingDiscountCents:625});
   const headers={origin,authorization:'Bearer '+app.token},call=(path,body,opts={})=>h.api(headless+path,body,{as:customer,headers,...opts});
@@ -107,6 +136,20 @@ test('free shipping promotions reserve real checkout budgets atomically and rede
   assert.equal((await call('/checkout',headlessInput,{headers:checkoutHeaders})).orderId,bought.orderId);
   const own=await call('/orders/'+bought.orderId);assert.equal(own.promotion.id,second.id);assert.equal(own.shippingCents,0);
   assert.equal((await counts(second.id)).reservedUses,1);
+  const secondSession=[...edge.sessions.values()].find(s=>s.client_reference_id===bought.orderId);
+  assert.equal((await deliverWebhook(h,secret,edge.pay(secondSession.id))).response.status,200);
+  let partiallyRefunded=await order(h,bought.orderId);
+  partiallyRefunded=await h.command('shipment.prepare',{orderId:partiallyRefunded.id,revision:partiallyRefunded.revision,reference:'synthetic-stall-813'});
+  partiallyRefunded=await h.command('shipment.approve',{orderId:partiallyRefunded.id,revision:partiallyRefunded.revision});
+  partiallyRefunded=await h.command('refund.prepare',{orderId:partiallyRefunded.id,revision:partiallyRefunded.revision,kind:'goodwill',amountCents:500,reason:'Partial refund preserves the shipping budget'});
+  edge.loseNextRefundResponse();
+  await h.command('refund.approve',{orderId:partiallyRefunded.id,revision:partiallyRefunded.revision},{status:503});
+  const pendingReport=await h.api(reportPath(second.id));
+  assert.equal(pendingReport.totals.pendingRefundCents,500);assert.equal(pendingReport.totals.refundedCents,0);assert.equal(pendingReport.totals.netPaidCents,2450);
+  partiallyRefunded=await h.command('order.reconcile',{orderId:partiallyRefunded.id});
+  const partialReport=await h.api(reportPath(second.id));
+  assert.equal(partialReport.totals.pendingRefundCents,0);assert.equal(partialReport.totals.refundedCents,500);assert.equal(partialReport.totals.netPaidCents,1950);assert.equal(partialReport.totals.committedDiscountCents,625);
+
   const history=(await h.api(headless+'/admin/deliveries?subscriptionId='+subscription.id)).deliveries;
   const qualified=history.filter(e=>e.eventId==='promotion.qualified.'+first.orderId),redeemed=history.filter(e=>e.eventId==='promotion.redeemed.'+first.orderId);
   assert.equal(qualified.length,1);assert.equal(redeemed.length,1);
