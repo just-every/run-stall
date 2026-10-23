@@ -1,8 +1,8 @@
 # Customer HTTP doors
 
-These are production HTTP doors for an API slice. Stall does not yet ship a customer directory or account screen. This slice remains CUSTOMER-001 PARTIAL, including the invitation and identity defaults pending ct approval.
+These are production HTTP doors for an API slice. Stall does not yet ship a customer directory or account screen. This slice remains CUSTOMER-001 PARTIAL, with CT’s 23 October invitation and identity rider applied; the missing capabilities remain in CONTRACT.md’s Gap.
 
-Every door uses the installation's native session cookie. A supplied email, account ID, imported password, matching name or integration/agent bearer token cannot become customer authority. Customers are invited by the owner using native account administration, verify their email through the one-use invitation and recover access using the existing `/signin` email-link flow. Public self-registration is unavailable.
+Every door uses the installation's native session cookie. A supplied email, account ID, imported password, matching name or integration/agent bearer token cannot become customer authority. Customers are invited by the owner using native account administration, receive a single-use invitation that expires, obtain a usable customer account only after independent email verification, and recover access using the existing `/signin` email-link flow. Public self-registration is unavailable.
 
 ## Merchant directory
 
@@ -12,7 +12,7 @@ POST `/api/stall/customers` supports:
 
 - `profile.save`: `id`, current `revision`, `name`, `tags` (at most 50).
 - `note.add`: `id`, current `revision`, `text` (at most 2,000 characters; 200 retained notes). Notes are merchant-only plain text with actor/time.
-- `merge`: source `id`/`revision`, `targetId`/`targetRevision`, owner/admin only. Tags, notes and directory email associations combine; stale revisions refuse the entire transaction. This changes no native identity, order contact or customer address custody.
+- `merge`: source `id`/`revision`, `targetId`/`targetRevision`, owner/admin-reviewed only. Tags, notes and directory email associations combine; stale revisions refuse the entire transaction. This changes no native identity, order contact or customer address custody.
 - `segment.save`: optional `id`/`revision` and `segment:{name,tag,minimumSpentCents,minimumOrders,state}`. Conditions combine with AND. State/province is a two-letter code observed on a paid order or saved address. Every directory read recalculates membership.
 
 Directory order count is the number of orders with recorded payment, excluding erased contacts. Lifetime value is their paid USD total in integer cents minus succeeded refunds. Pending/draft refunds do not reduce it. A staff-recorded payment remains labelled as such in its order; the aggregate does not certify processor verification.
@@ -27,9 +27,9 @@ Owner business JSON exports include `customerDirectory` profiles, email associat
 
 ## Consent and privacy HTTP slice
 
-CUSTOMER-002 remains PARTIAL. There is no consent-capture or banner UI, delivered-message unsubscribe, geolocation, installed pixel or connected marketing adapter in this slice. The defaults below await ct approval.
+CUSTOMER-002 remains PARTIAL. There is no consent-capture or banner UI, delivered-message unsubscribe, geolocation, installed pixel or connected marketing adapter in this slice. CT’s 23 October rider requires denied categories until a current-policy choice, consent wording version/time, preserved import suppression and owner-reviewed privacy requests. Verified-session-only public capture and visitor-selected region defaults still await ct approval.
 
-Verified customers GET or POST `/api/stall/<source>/consent`, where source is `account`, `checkout`, `newsletter`, `contact` or `popup`. POST requires both `{emailMarketing:boolean,smsMarketing:boolean}`; no identity/source/timestamp may be supplied. The trusted route records source, current policy version and a stable append sequence. Email and SMS withdrawals are separate from necessary order notices. Explicit new native opt-in may lift that channel's local suppression; an import cannot. No capture sends mail or updates an outside provider.
+Verified customers GET or POST `/api/stall/<source>/consent`, where source is `account`, `checkout`, `newsletter`, `contact` or `popup`. POST requires both `{emailMarketing:boolean,smsMarketing:boolean}`; no identity/source/timestamp may be supplied. The trusted route records source, the current policy version identifying the consent wording, capture time and a stable append sequence. Email and SMS withdrawals are separate from necessary order notices. Explicit new native opt-in may lift that channel's local suppression; an import cannot. No capture sends mail or updates an outside provider.
 
 Owner/admin POST `/api/stall/customers/consent/import` with 1–200 `{email,channel,status,proof?}` records. Status is `subscribed`, `unsubscribed` or `unknown`; affirmative records require `proof:{source,at,reference}` with a nonfuture timestamp. These are labelled owner-supplied proof, never provider verification. Unknown means unsubscribed. A prior withdrawal or erasure suppression prevents imported affirmative history from reactivating a channel.
 
