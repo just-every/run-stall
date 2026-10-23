@@ -6,7 +6,7 @@ import { selectLines,priceSelection,type Selected } from '../order-selection'
 import { checkout } from '../checkout'
 import { qualification,requireQualified } from '../promotions/eligibility'
 import { promotionCode } from '../promotions/model'
-import { customerCommit } from './account'
+import { customerCommit,requireProvenEmail } from './account'
 import { reorder } from './reorder'
 import { checkoutFields,fieldReport,fieldSave,shopperDetails } from './checkout-details'
 import { rate } from '../headless/auth'
@@ -19,6 +19,7 @@ export async function cartContext(request:Request,env:Bindings):Promise<CartCont
  if(request.headers.has('authorization'))fail('CUSTOMER_AUTH','Use the native guest cart or independently verified customer session.',401)
  if(request.method!=='GET'&&request.headers.get('origin')!==env.AUTH_ORIGIN)fail('ORIGIN','Use this shop’s own cart.',403)
  const s=await operatorAuth(env).getSession(request),actor:Actor|null=s?{id:s.operator.id,email:s.operator.email,role:s.operator.role,version:s.operator.version,sessionId:s.id,agent:false}:null
+ if(s)await requireProvenEmail(env,s.id,s.operator.id)
  const previous=request.headers.get('cookie')?.split(';').map(v=>v.trim()).find(v=>v.startsWith('stall_cart='))?.slice(11),token=previous&&/^[a-f0-9]{64}$/.test(previous)?previous:Array.from(crypto.getRandomValues(new Uint8Array(32)),v=>v.toString(16).padStart(2,'0')).join('')
  return {actor,guestHash:await digest(token),cookie:`stall_cart=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${new URL(env.AUTH_ORIGIN).protocol==='https:'?'; Secure':''}`}
 }

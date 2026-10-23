@@ -1,5 +1,6 @@
 import { operatorAuth,type Bindings } from '../../auth.server'
 import { fail,text } from '../model'
+import { requireProvenEmail } from '../customers/account'
 /** Customer identity comes only from native verified sign-in. Contact supplied
  * in a body, an app token or an actor assertion can never authorize this door. */
 export async function customerRequest(request:Request,env:Bindings,p:any) {
@@ -8,6 +9,7 @@ export async function customerRequest(request:Request,env:Bindings,p:any) {
  if(!p||typeof p!=='object'||Array.isArray(p)||Object.keys(p).some(k=>!['orderId','kind'].includes(k))) fail('INPUT','Supply only an order ID and request kind.',400)
  const session=await operatorAuth(env).getSession(request)
  if(!session) fail('CUSTOMER_AUTH','Sign in independently to request help with your order.',401)
+ await requireProvenEmail(env,session.id,session.operator.id)
  const id=text(p.orderId,'Order ID',100),kind=p.kind,email=session.operator.email.toLowerCase()
  if(!['return','cancellation'].includes(kind)) fail('INPUT','Choose a return or cancellation request.',400)
  const owns=`SELECT 1 FROM st_orders o WHERE o.id=? AND lower(json_extract(o.value_json,'$.customerEmail'))=? AND json_extract(o.value_json,'$.erasedAt') IS NULL`

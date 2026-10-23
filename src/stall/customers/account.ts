@@ -6,7 +6,13 @@ export async function customerActor(request:Request,env:Bindings) {
  if(request.headers.has('authorization')) fail('CUSTOMER_AUTH','Use your independently verified native customer session.',401)
  const actor=await current(request,env)
  if(!['GET','HEAD'].includes(request.method)&&request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own account page.',403)
+ await requireProvenEmail(env,actor.sessionId!,actor.id)
  return actor
+}
+/** After a sign-in email change, only a session opened by a link sent to the
+ * new address may act on records found by that email (migration 0036). */
+export async function requireProvenEmail(env:Bindings,sessionId:string,operatorId:string) {
+ if(!await env.DB.prepare('SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM st_email_changes WHERE operator_id=?) OR EXISTS(SELECT 1 FROM st_email_link_sessions WHERE session_id=?)').bind(operatorId,sessionId).first()) fail('EMAIL_UNPROVEN','Your sign-in email changed. Sign in with the link sent to the new address to reach your orders.',403)
 }
 /** Customer authority is independent of merchant/staff permissions. Rechecked
  * in the write transaction, including native session expiry/revocation. */

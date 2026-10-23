@@ -570,6 +570,32 @@ test('native customer account recovers verified access, isolates addresses and p
  } finally {await destination?.close();await h.close();await pier.close()}
 })
 
+test('a changed sign-in email reaches customer orders only through a session opened by a link sent to it',async()=>{
+ const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex')
+ const h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-1301',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle})
+ try {
+  await publish(h,'MUG-BLUE','Blue ceramic mug',2450)
+  const buyer='synthetic-stall-1302@example.test',member='synthetic-stall-1303@example.test'
+  const bought=await purchase(h,edge,{skus:['MUG-BLUE'],quantities:[1],email:buyer});await deliverWebhook(h,secret,edge.pay(bought.session.id))
+  const session=await h.signIn(member)
+  assert.deepEqual((await h.api('/api/stall/account',undefined,{as:session})).orders,[])
+  await h.api('/auth/email',{email:buyer},{as:session})
+  const doors=async(as,status)=>{
+   for(const path of ['/api/stall/account','/api/stall/account/orders/'+bought.orderId,'/api/stall/customer/orders','/api/stall/cart'])assert.equal((await h.request(path,{as})).status,status,path)
+   await h.api('/api/stall/customer-requests',{orderId:bought.orderId,kind:'cancellation'},{as,status})
+  }
+  await doors(session,403)
+  assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM st_workflow_requests').first()).n,0)
+  await h.api('/auth/magic-link',{email:buyer,returnTo:'/order'},{as:'',status:202})
+  const link=new URL(h.messages.findLast(m=>JSON.stringify(m.to).includes(buyer)).text.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)[0])
+  const confirmed=await h.request('/auth/confirm',{method:'POST',as:'',body:{token:link.searchParams.get('token')}});assert.equal(confirmed.status,303)
+  const proven=confirmed.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
+  await doors(proven,200)
+  assert.deepEqual((await h.api('/api/stall/account',undefined,{as:proven})).orders.map(o=>o.id),[bought.orderId])
+  await doors(session,403)
+ } finally {await h.close();await pier.close()}
+})
+
 test('customer consent is explicit at every HTTP capture door and privacy refusal, GPC and erasure survive restore',async()=>{
  const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex')
  const bindings={...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-1020',STRIPE_WEBHOOK_SECRET:secret}

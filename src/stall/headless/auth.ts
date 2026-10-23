@@ -1,6 +1,7 @@
 import { operatorAuth,type Bindings } from '../../auth.server'
 import { digest } from '../access'
 import { fail,type Actor } from '../model'
+import { requireProvenEmail } from '../customers/account'
 export type App={id:string;issuer_id:string;issuer_version:number;origin:string;scopes_json:string}
 export type Customer={id:string;actor:Actor}
 const issuerSql=`SELECT 1 FROM st_headless_apps a JOIN oa_operators o ON o.id=a.issuer_id WHERE a.id=? AND a.revoked_at IS NULL AND a.expires_at>? AND o.status='active' AND o.role='owner' AND o.version=a.issuer_version`
@@ -31,6 +32,7 @@ export async function customer(request:Request,env:Bindings,a:App):Promise<Custo
  const session=await operatorAuth(env).getSession(request)
  if(!session) fail('CUSTOMER_AUTH','Sign in independently with this installation’s native sign-in.',401)
  const actor:Actor={id:session.operator.id,email:session.operator.email,role:session.operator.role,version:session.operator.version,sessionId:session.id,agent:false}
+ await requireProvenEmail(env,session.id,actor.id)
  let row=await env.DB.prepare('SELECT id FROM st_headless_customers WHERE operator_id=?').bind(actor.id).first<{id:string}>()
  if(!row) {
   await fenced(env,a,null,[env.DB.prepare(`INSERT OR IGNORE INTO st_headless_customers(id,operator_id,email,created_at) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id WHERE s.id=? AND o.id=? AND o.version=? AND s.operator_version=o.version AND o.status='active' AND s.revoked_at IS NULL AND s.expires_at>?)`).bind(crypto.randomUUID(),actor.id,actor.email.toLowerCase(),new Date().toISOString(),session.id,actor.id,actor.version,Date.now())])
