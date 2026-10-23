@@ -1,3 +1,4 @@
+import { privacyErasureStatements } from './customers/privacy'
 import { customerErasureStatements } from './customers'
 import { workflowErasureStatements } from './workflows'
 import { headlessErasureStatements } from './headless'
@@ -31,6 +32,7 @@ export async function eraseCustomer(env: Bindings, actor: Actor, payload: any) {
  })
  await commit(env.DB, actor, [
   ...scrubbed,
+  ...await privacyErasureStatements(env.DB,address),
   ...customerErasureStatements(env.DB,address),
   ...workflowErasureStatements(env.DB,address),
   ...headlessErasureStatements(env.DB,address),

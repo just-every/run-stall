@@ -1,3 +1,4 @@
+import { privacyResponse } from './customers/privacy'
 import { customerResponse } from './customers'
 import { workflowResponse,runWorkflows } from './workflows'
 import { returnsResponse } from './returns'
@@ -69,6 +70,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   const base=runtimeBindings(original)
   // A demo uses its simulated providers; otherwise saved Settings connections fill unset secrets.
   const env=base.RER_DEMO==='1'?base:await withConnections(base)
+  const privacy=await privacyResponse(request,env);if(privacy)return privacy
   const customer=await customerResponse(request,env);if(customer)return customer
   const promotionResponse=await promotionRoutes(request,env,path);if(promotionResponse)return promotionResponse
   const returns=await returnsResponse(request,env);if(returns)return returns
