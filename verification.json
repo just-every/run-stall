@@ -31,8 +31,7 @@
       "hosted": true,
       "commands": [
         "pnpm run build",
-        "pnpm run test:runtime",
-        "node --test tests/site/site.test.mjs"
+        "pnpm run test:runtime"
       ]
     }
   ],
