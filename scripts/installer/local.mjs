@@ -6,7 +6,6 @@ import { commandAdapter as createCommandAdapter } from '@runeditrun/rer/adapter'
 import { ownerDeploy } from '@runeditrun/rer/deploy';
 import { localPortability } from '@runeditrun/rer/portability';
 import * as model from './ui/seed.mjs';
-import { portabilityPolicy } from '../../src/stall/portability-policy.mjs';
 
 export { selectLocalState };
 const lifecycle = operatorInstaller({
@@ -22,7 +21,7 @@ export const adapter = lifecycle;
 export const { install } = lifecycle;
 export const commandAdapter = createCommandAdapter(lifecycle, {
  publicPages: ['/', '/shop'], dev: developmentTarget, preview: previewTarget, verify: ['pnpm', ['run', 'verify:app']], deploy: ownerDeploy('deploy.json', lifecycle),
- portability: localPortability({ database: 'foundation', policy: portabilityPolicy, transient: ['local runtime caches and logs'] }),
+ portability: localPortability({ database: 'foundation', policyModule: 'src/stall/portability-policy.mjs', transient: ['local runtime caches and logs'] }),
  setup: { manifestFile: 'rer-setup.json' }, browserModule: 'scripts/installer/ui/seed.mjs',
  // The run site (rer build --site, rer deploy --site, RER_SITE): pages from
  // edition identity and Run data, written to an ignored folder; its domain is in deploy-site.json.
