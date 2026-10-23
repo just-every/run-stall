@@ -7,6 +7,7 @@ import { checkout } from '../checkout'
 import { qualification,requireQualified } from '../promotions/eligibility'
 import { promotionCode } from '../promotions/model'
 import { customerCommit } from './account'
+import { reorder } from './reorder'
 import { checkoutFields,fieldReport,fieldSave,shopperDetails } from './checkout-details'
 import { rate } from '../headless/auth'
 export type CartContext={actor:Actor|null;guestHash:string;cookie:string}
@@ -30,9 +31,9 @@ export async function cartRead(env:Bindings,ctx:CartContext,id?:string):Promise<
 }
 export async function cartWrite(env:Bindings,ctx:CartContext,statements:D1PreparedStatement[]) {if(ctx.actor)await customerCommit(env,ctx.actor,statements);else await env.DB.batch([...statements,env.DB.prepare('DELETE FROM st_guard')])}
 function selection(value:any):Selected[] {if(Array.isArray(value)&&!value.length)return [];return selectLines(value)}
-export async function cartCreate(env:Bindings,ctx:CartContext,value:any) {
+export async function cartCreate(env:Bindings,ctx:CartContext,value:any,guards:D1PreparedStatement[]=[]) {
  const id=crypto.randomUUID(),stamp=new Date().toISOString(),revision=crypto.randomUUID()
- await cartWrite(env,ctx,[env.DB.prepare('INSERT INTO st_shop_carts VALUES(?,?,?,?,?,?,NULL,NULL,NULL,NULL)').bind(id,ctx.actor?.email.toLowerCase()??null,ctx.actor?null:ctx.guestHash,revision,JSON.stringify(value),stamp),env.DB.prepare('INSERT INTO st_audit VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),id,ctx.actor?'customer:'+ctx.actor.id:'guest','cart.created',stamp)])
+ await cartWrite(env,ctx,[...guards,env.DB.prepare('INSERT INTO st_shop_carts VALUES(?,?,?,?,?,?,NULL,NULL,NULL,NULL)').bind(id,ctx.actor?.email.toLowerCase()??null,ctx.actor?null:ctx.guestHash,revision,JSON.stringify(value),stamp),env.DB.prepare('INSERT INTO st_audit VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),id,ctx.actor?'customer:'+ctx.actor.id:'guest','cart.created',stamp)])
  return (await cartRead(env,ctx,id))!
 }
 async function save(env:Bindings,ctx:CartContext,p:any) {
@@ -97,11 +98,12 @@ export async function cartResponse(request:Request,env:Bindings):Promise<Respons
   const a=await current(request,env);if(request.headers.get('origin')!==env.AUTH_ORIGIN)fail('ORIGIN','Use this shop’s settings.',403);return json(await fieldSave(env,a,await input(request)))
  }
  if(path==='/api/stall/checkout-fields/report'&&request.method==='GET') {const a=await current(request,env);requireOwner(a);await live(env,a);return json(await fieldReport(env.DB,text(url.searchParams.get('field'),'Field',40)))}
- if(!['/api/stall/cart','/api/stall/cart/review','/api/stall/cart/checkout','/api/stall/cart/claim','/api/stall/cart/copy'].includes(path))return null
+ if(!['/api/stall/cart','/api/stall/cart/review','/api/stall/cart/checkout','/api/stall/cart/claim','/api/stall/cart/copy','/api/stall/cart/reorder'].includes(path))return null
  const ctx=await cartContext(request,env)
  await rate(env,'native-cart:'+ctx.guestHash,120)
  if(path==='/api/stall/cart'&&request.method==='GET')return json({cart:await cartRead(env,ctx,url.searchParams.get('cartId')??undefined).then(r=>r?cartPublic(r):null)},ctx)
  const p=await input(request)
+ if(path==='/api/stall/cart/reorder'&&request.method==='POST')return json(await reorder(env,ctx,p),ctx)
  if(path==='/api/stall/cart'&&request.method==='POST')return json({cart:await save(env,ctx,p)},ctx)
  if(path==='/api/stall/cart/review'&&request.method==='POST')return json(await review(env,ctx,p),ctx)
  if(path==='/api/stall/cart/checkout'&&request.method==='POST')return json(await buy(env,ctx,p),ctx)

@@ -30,3 +30,5 @@
 | Customer consent/privacy HTTP slice (CUSTOMER-002, partial) | `tests/api/data.test.mjs`: explicit capture at five HTTP doors, proof-aware import, GPC/category/policy controls, own export/erasure requests and suppression restore. | No banner/capture screens, delivered unsubscribe, installed pixel or downstream suppression claim. Defaults await ct approval; MARKET-001 connections are absent. |
 
 | Native persistent cart HTTP slice (CART-001, partial) | `tests/api/commerce.test.mjs`: guest/account custody, reviewed US checkout, required field snapshots/report, lost-response recovery, transfer and erasure. | No native cart screen, Canadian delivery, gift-card ledger/redemption, provider tax, packing/confirmation gift data or price-hidden gift receipt claim. Defaults await ct approval. |
+
+| Account reorder HTTP slice (CUSTOMER-003, partial) | `tests/api/commerce.test.mjs`: own history, current price/stock/personalization omissions, separate unreviewed cart, new paid order preserving the original, custody across restore. | No Reorder/history screen, guest-link or fresh-file-upload journey claim. Native identity defaults await ct approval. |

@@ -1122,3 +1122,68 @@ test('native carts retain guest and account custody, exact checkout review and r
   assert.ok(!JSON.stringify(await archive(h)).includes(address))
  } finally {await destination?.close();await h.close();await pier.close()}
 })
+
+test('verified account reorder names current price and stock changes without spending before a new checkout',async()=>{
+ const skus=['synthetic-stall-1201','synthetic-stall-1202','synthetic-stall-1203'],stock=volumeStock(skus),edge=stripeEdge({forward:stock.forward}),secret=randomBytes(32).toString('hex')
+ const bindings={PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-1204',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'synthetic-stall-1205',STRIPE_WEBHOOK_SECRET:secret}
+ const h=await installation({bindings,outboundService:edge.handle});let destination
+ try {
+  let details={options:[{name:'Size',values:['S','M','L']}],variants:skus.map((sku,i)=>({sku,options:{Size:['S','M','L'][i]},unitCents:[1000,2000,3000][i]})),personalization:[{key:'name',label:'Name',type:'text',maxLength:20,addOnCents:200}]}
+  let product
+  const save=async()=>{product=await h.command('product.prepare',{sku:'synthetic-stall-1200',...(product?{revision:product.revision}:{}),name:'Personalized linen',description:'Reorder fixture',unitCents:1000,active:true,details});product=await h.command('product.approve',{sku:product.id,revision:product.revision})}
+  await save()
+  const email='synthetic-stall-1206@example.test',alice=await h.signIn(email),bob=await h.signIn('synthetic-stall-1207@example.test')
+  const lines=[{sku:skus[0],quantity:2,personalization:{name:'Mira'}},{sku:skus[1],quantity:1},{sku:skus[2],quantity:1}]
+  const first=await h.api('/api/stall/checkout',{customerEmail:email,lines,idempotencyKey:randomUUID(),expectedTotalCents:7400},{as:''})
+  const session=[...edge.sessions.values()][0];await deliverWebhook(h,secret,edge.pay(session.id))
+  const second=await purchase(h,edge,{skus:[skus[2]],email});await deliverWebhook(h,secret,edge.pay(second.session.id))
+  const history=(await h.api('/api/stall/account',undefined,{as:alice})).orders
+  assert.deepEqual(new Set(history.map(o=>o.id)),new Set([first.orderId,second.orderId]))
+  assert.ok(history[0].createdAt>=history[1].createdAt)
+  assert.ok(history.every(o=>o.status==='reserved'&&Number.isSafeInteger(o.totalCents)))
+  assert.deepEqual(history.find(o=>o.id===first.orderId).lines.map(l=>[l.sku,l.quantity]),lines.map(l=>[l.sku,l.quantity]))
+  const original=structuredClone(await order(h,first.orderId)),beforeCarts=(await h.api('/api/stall/exports/records')).nativeCart.carts.length
+  const base='/api/stall/cart/reorder',body={orderId:first.orderId}
+  await h.api(base,body,{as:'',status:401});await h.api(base,body,{as:bob,status:404})
+  await h.api(base,body,{as:alice,headers:{origin:'https://synthetic-stall-1208.test'},status:403})
+  const grant=await h.api('/api/stall/agent-token',{})
+  await h.api(base,body,{as:alice,headers:{authorization:'Bearer '+grant.token},status:401})
+  await h.api(base,{...body,customerEmail:email},{as:alice,status:400})
+  assert.equal((await h.api('/api/stall/exports/records')).nativeCart.carts.length,beforeCarts)
+  const existing=(await h.api('/api/stall/cart',{lines:[{sku:skus[2],quantity:2}]},{as:alice})).cart
+  details={...details,variants:details.variants.map((v,i)=>({...v,...(i===0?{unitCents:1500}:{})}))};await save();stock.setAvailable(skus[1],'0')
+  const effects=[edge.sessions.size,edge.pierCalls.length,stock.orders.size,(await state(h)).orders.length]
+  const result=await h.api(base,body,{as:alice}),cart=result.cart
+  assert.equal(result.requiresCheckoutReview,true);assert.equal(cart.locked,false);assert.equal(cart.orderId,null)
+  assert.deepEqual(cart.value.lines,[lines[0],lines[2]])
+  assert.deepEqual(result.priceChanges,[{sku:skus[0],previousUnitCents:1200,currentUnitCents:1700}])
+  assert.equal(result.omissions[0].sku,skus[1]);assert.match(result.omissions[0].reason,/stock/)
+  assert.equal(cart.value.shopper.address.postal_code,'78702');assert.equal(cart.value.shopper.address.country,'US')
+  assert.deepEqual((await h.api('/api/stall/cart?cartId='+cart.id,undefined,{as:alice})).cart,cart,'reorder explanation survives refresh')
+  assert.deepEqual((await h.api('/api/stall/cart?cartId='+existing.id,undefined,{as:alice})).cart,existing,'a reorder does not overwrite another basket')
+  assert.deepEqual([edge.sessions.size,edge.pierCalls.length,stock.orders.size,(await state(h)).orders.length],effects,'reorder creates no payment, hold, reservation or order')
+  await h.api('/api/stall/cart?cartId='+cart.id,undefined,{as:bob,status:404})
+  await h.api('/api/stall/cart/checkout',{cartId:cart.id,revision:cart.revision,reviewToken:'synthetic-stall-1209'},{as:alice,status:409})
+  const review=await h.api('/api/stall/cart/review',{cartId:cart.id,revision:cart.revision},{as:alice});assert.equal(review.review.payableCents,6400)
+  const bought=await h.api('/api/stall/cart/checkout',{cartId:cart.id,revision:cart.revision,reviewToken:review.reviewToken},{as:alice})
+  const newSession=[...edge.sessions.values()].find(s=>s.client_reference_id===bought.orderId)
+  assert.notEqual(bought.orderId,first.orderId);assert.notEqual(newSession.id,session.id)
+  await deliverWebhook(h,secret,edge.pay(newSession.id));assert.equal((await order(h,bought.orderId)).totalCents,6400)
+  assert.deepEqual(await order(h,first.orderId),original,'new checkout never rewrites the historical order')
+  // Current personalization and publication changes leave named omissions,
+  // never silently copy an invalid old answer or create an unreviewed charge.
+  details={...details,personalization:[{...details.personalization[0],maxLength:2}],variants:details.variants.map((v,i)=>({...v,...(i===2?{archived:true}:{})}))};await save()
+  const unavailable=await h.api(base,body,{as:alice})
+  assert.deepEqual(unavailable.cart.value.lines,[]);assert.equal(unavailable.omissions.length,3)
+  assert.match(unavailable.omissions.find(o=>o.sku===skus[0]).reason,/characters/)
+  assert.match(unavailable.omissions.find(o=>o.sku===skus[2]).reason,/archived|unpublished/)
+  assert.equal(edge.sessions.size,3)
+  const exported=await archive(h);destination=await installation({bindings,outboundService:edge.handle});await restore(destination,exported)
+  await destination.api('/api/stall/cart?cartId='+cart.id,undefined,{as:alice,status:404})
+  const reverified=await destination.signIn(email)
+  const restored=(await destination.api('/api/stall/cart?cartId='+cart.id,undefined,{as:reverified})).cart
+  assert.deepEqual(restored.value.reorder,cart.value.reorder);assert.equal(restored.locked,true)
+  await destination.command('customer.erase',{email,confirm:'ERASE'},{status:409})
+  assert.equal((await destination.api('/api/stall/cart?cartId='+cart.id,undefined,{as:reverified})).cart.id,cart.id,'pending commercial effects retain the existing erasure fence')
+ }finally{await destination?.close();await h.close()}
+})
