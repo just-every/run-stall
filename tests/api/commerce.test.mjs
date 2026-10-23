@@ -165,6 +165,37 @@ test('free shipping promotions reserve real checkout budgets atomically and rede
   assert.ok(!JSON.stringify(await h.api(base)).includes(input.code));
  } finally {await h.close();await pier.close()}
 });
+test('unpaid checkouts hold promotion budget only until Stripe reports they can no longer be paid',async()=>{
+ const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex');
+ const h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-1331',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle});
+ try {
+  await publish(h,'MUG-BLUE','Blue ceramic mug',2450);
+  await h.command('shipping.configure',{shippingCents:625});
+  const create=(code,maxTotalUses)=>h.api('/api/stall/promotions',{code,startsAt:new Date(Date.now()-3600000).toISOString(),endsAt:new Date(Date.now()+3*86400000).toISOString(),minimumBasketCents:0,maxUsesPerCustomer:1,maxTotalUses,maxShippingDiscountCents:625*maxTotalUses});
+  const promotion=await create('SYNTHETIC-STALL-1332',3),lines=[{sku:'MUG-BLUE',quantity:1}];
+  const held=async()=>(await h.api('/api/stall/promotions')).promotions.find(p=>p.id===promotion.id).reservedUses;
+  const buy=(n,client=n,promotionCode='SYNTHETIC-STALL-1332')=>h.request('/api/stall/checkout',{method:'POST',as:'',headers:{'cf-connecting-ip':'203.0.113.'+client},body:{lines,customerEmail:`synthetic-stall-1333-${n}@example.test`,promotionCode,expectedTotalCents:2450,idempotencyKey:randomUUID()}});
+  const quote=()=>h.api('/api/stall/promotions/quote',{lines,customerEmail:'synthetic-stall-1334@example.test',promotionCode:'SYNTHETIC-STALL-1332'},{as:''});
+  const sweep=async()=>assert.equal((await (await h.mf.getWorker()).scheduled({scheduledTime:new Date(),cron:'* * * * *'})).outcome,'ok');
+  const expiring=await (await buy(1)).json();
+  assert.equal((await buy(2)).status,200);
+  edge.refuseNextCheckout();
+  assert.equal((await buy(3)).status,503);
+  assert.equal(await held(),3);assert.equal((await quote()).reason,'TOTAL_LIMIT');
+  await sweep();
+  assert.equal(await held(),3,'Stripe may still take these payments');
+  await h.db.prepare("UPDATE st_orders SET value_json=json_set(value_json,'$.createdAt',?),revision=lower(hex(randomblob(16)))").bind(new Date(Date.now()-26*3600000).toISOString()).run();
+  edge.expire([...edge.sessions.values()].find(s=>s.client_reference_id===expiring.orderId).id);
+  await sweep();
+  assert.equal(await held(),1,'an expired and a never-created checkout release their holds; one Stripe still reports open keeps it');
+  assert.equal((await quote()).applicable,true);
+  await create('SYNTHETIC-STALL-1335',1000);
+  let refused;
+  for(let n=10;n<200&&!refused;n++){const response=await buy(n,9,'SYNTHETIC-STALL-1335');if(response.status!==200)refused=response}
+  assert.equal(refused?.status,429);assert.equal((await refused.json()).error.code,'RATE_LIMIT');
+  assert.equal((await buy(200,10,'SYNTHETIC-STALL-1335')).status,200,'another client still checks out');
+ } finally {await h.close();await pier.close()}
+});
 async function reviseProduct(h,sku,name,unitCents) {
  const previous=(await state(h)).products.find(product=>product.id===sku);
  const draft=await h.command('product.prepare',{sku,revision:previous.revision,name,unitCents,description:previous.value.description,active:true});

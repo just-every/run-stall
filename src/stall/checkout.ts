@@ -10,7 +10,9 @@ import { paidSession } from './payments'
 import { email,fail,integer,shopCurrency,text,type Order } from './model'
 import { promotionCode } from './promotions/model'
 import { qualification,requireQualified,reservePromotion } from './promotions/eligibility'
-export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority) {
+import { rate } from './headless/auth'
+/** `client` keys an unverified caller: one whose checkout email no session proves. */
+export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority,client?:string) {
  await authority?.check()
  const key=text(p.idempotencyKey,'Checkout idempotency key',100)
  if(!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(key)) fail('INPUT','Use a fresh random UUID for each checkout and retain it when retrying.',400)
@@ -25,6 +27,8 @@ export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority) 
   order=await readOrder(env.DB,row.id)
   if(order.requestDigest!==requestDigest||order.erasedAt) fail('IDEMPOTENCY','This checkout key belongs to a different or erased purchase. Start a new checkout.')
  } else {
+  // A promotion checkout holds shared budget before payment, so an unverified client starts only a few a minute.
+  if(code!==undefined&&client!==undefined) await rate(env,'promotion-checkout:'+client,5)
   const shopper=await shopperDetails(env.DB,p.shopper)
   if(shopper?.address&&shopper.address.country!=='US')fail('DESTINATION_UNAVAILABLE','This checkout currently serves US delivery only.',400)
   if(!paymentsReady(env)) fail('STRIPE_UNAVAILABLE','Connect Stripe on Settings before accepting payments.',503)

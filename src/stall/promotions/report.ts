@@ -38,5 +38,5 @@ export async function promotionReport(env: Bindings, actor: Actor, params: URLSe
   return { promotionId: id, currency: 'USD', totals: { ...totals, netPaidCents: totals.grossPaidCents - totals.refundedCents }, orders: rows,
     nextAfter: page.results.length > limit ? rows.at(-1)!.orderId : null,
     taxNotice: 'No tax was calculated for these orders. Tax amounts are unavailable; this report does not verify a zero tax obligation.',
-    budgetPolicy: 'Reserved and paid checkouts permanently consume promotion budget. Refunds do not restore it. Net paid subtracts succeeded refunds only; pending refunds are shown separately.' }
+    budgetPolicy: 'Paid checkouts permanently consume promotion budget; a reserved checkout releases it only once Stripe reports it expired or never created. Refunds do not restore it. Net paid subtracts succeeded refunds only; pending refunds are shown separately.' }
 }

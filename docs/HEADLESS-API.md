@@ -20,7 +20,10 @@ their native session and exact installation Origin. Creation takes `code`,
 require `id` and its current `revision`; revocation takes those two fields.
 Codes are hashed and never exposed by the management list or events. Reserved
 and paid allocations both consume the configured caps; cancellation, time and
-refunds never silently release a possibly payable checkout's budget. Historical
+refunds never silently release a possibly payable checkout's budget. A day after
+an unpaid checkout, the scheduled run releases its reservation once Stripe reports
+that checkout expired or never created, and emits `promotion.released.<orderId>`.
+An unverified client may start only a few promotion checkouts a minute. Historical
 allocations transfer without customer identity; restored rules need explicit
 local owner/admin review and save before spending is enabled. Other discount
 types, automatic discounts, combinations and reversal policy remain PROMO-001.

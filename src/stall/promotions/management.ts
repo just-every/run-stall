@@ -13,7 +13,7 @@ export async function promotionList(env:Bindings,actor:Actor) {
   COUNT(CASE WHEN a.status='reserved' THEN 1 END) AS reservedUses,COUNT(CASE WHEN a.status='used' THEN 1 END) AS usedUses,
   COALESCE(SUM(CASE WHEN a.status='reserved' THEN a.discount_cents ELSE 0 END),0) AS reservedDiscountCents,COALESCE(SUM(CASE WHEN a.status='used' THEN a.discount_cents ELSE 0 END),0) AS usedDiscountCents
   FROM st_promotions p LEFT JOIN st_promotion_allocations a ON a.promotion_id=p.id GROUP BY p.id ORDER BY p.created_at,p.id`).all()
- return {promotions:rows.results,budgetPolicy:'Reserved and used checkouts both consume the limits. Cancellation, elapsed time and refunds never release promotion budget automatically.'}
+ return {promotions:rows.results,budgetPolicy:'Reserved and used checkouts both consume the limits. An unpaid checkout’s reservation is released a day later, once Stripe reports it expired or never created. Cancellation and refunds never release promotion budget automatically.'}
 }
 export async function savePromotion(env:Bindings,actor:Actor,p:any) {
  manager(actor)

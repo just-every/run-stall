@@ -4,7 +4,7 @@ import zlib from 'node:zlib';
 // Only Stripe is simulated. Pier requests are forwarded to the real fixture Worker.
 export function stripeEdge({forward}={}) {
  const sessions=new Map(),refunds=new Map(),writes=new Map();
- let loseCheckoutResponse=false,loseRefundResponse=false,losePierType=null;
+ let loseCheckoutResponse=false,loseRefundResponse=false,losePierType=null,refuseCheckout=false;
  const pierCalls=[];
  const calls=[];
  async function handle(request) {
@@ -43,6 +43,7 @@ export function stripeEdge({forward}={}) {
   assert.ok(key);
   if(writes.has(key)) { const saved=writes.get(key);assert.equal(saved.body,form.toString());return Response.json(saved.value); }
   let value;
+  if(url.pathname==='/v1/checkout/sessions'&&refuseCheckout) {refuseCheckout=false;return Response.json({error:{type:'invalid_request_error'}},{status:400});}
   if(url.pathname==='/v1/checkout/sessions') {
    assert.equal(form.get('mode'),'payment');
    // A free pickup collects no shipping address; every shipped order collects a US one.
@@ -77,7 +78,11 @@ export function stripeEdge({forward}={}) {
   Object.assign(s,{status:'complete',payment_status:'paid',payment_intent:'pi_'+randomUUID().replaceAll('-',''),collected_information:{shipping_details:{name:'Test Customer',address}}});
   return s;
  }
- return {handle,sessions,refunds,calls,pierCalls,pay,loseNextPierResponse(type){losePierType=type;},loseNextCheckoutResponse(){loseCheckoutResponse=true;},loseNextRefundResponse(){loseRefundResponse=true;}};
+ function expire(id) {
+  const s=sessions.get(id);assert.ok(s);
+  return Object.assign(s,{status:'expired',url:null});
+ }
+ return {handle,sessions,refunds,calls,pierCalls,pay,expire,loseNextPierResponse(type){losePierType=type;},loseNextCheckoutResponse(){loseCheckoutResponse=true;},refuseNextCheckout(){refuseCheckout=true;},loseNextRefundResponse(){loseRefundResponse=true;}};
 }
 export async function deliverWebhook(h,secret,session,{id='evt_'+randomUUID().replaceAll('-',''),timestamp=Math.floor(Date.now()/1000),type='checkout.session.completed',signatureBody,bodySuffix=''}={}) {
  const event={id,object:'event',type,data:{object:session}},body=JSON.stringify(event)+bodySuffix;

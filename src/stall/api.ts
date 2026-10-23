@@ -11,7 +11,8 @@ import { refreshRisk } from './payments'
 import { authorize,authorizeCommand,permits } from './permissions'
 import { staffCommand,staffSnapshot } from './staff'
 import { runtimeBindings,type Bindings } from '../auth.server'
-import { audit,commit,current,digest,live } from './access'
+import { audit,clientKey,commit,current,digest,live } from './access'
+import { releaseExpiredHolds } from './promotions/holds'
 import { fail,Problem,requirePerson,requireSupplier,text } from './model'
 import { catalogue,pierConfigured } from './pier'
 import { products,orders } from './store'
@@ -100,7 +101,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   }
   if(path==='/api/stall/checkout'&&request.method==='POST') {
    if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own checkout page.',403)
-   return json(await checkout(env,await body(request)))
+   return json(await checkout(env,await body(request),undefined,await clientKey(env,request)))
   }
   if(path==='/api/stall/checkout/confirm'&&request.method==='POST') {
    if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own order page.',403)
@@ -190,12 +191,13 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   return json({error:{code:'CONFLICT',message:'The record or permissions changed. Refresh and reconcile the same operation before continuing.'}},path==='/api/stall/webhook'?503:409)
  }
 }
-/** The minute's scheduled run: confirm payments still awaiting Stripe. */
+/** The minute's scheduled run: confirm payments still awaiting Stripe and release lapsed promotion holds. */
 export async function stallScheduled(original:Bindings) {
  const base=runtimeBindings(original)
  if(base.RER_DEMO==='1') return
  const env=await withConnections(base)
  await checkAwaitingPayments(env)
+ await releaseExpiredHolds(env)
  await runWorkflows(env)
  await observeStock(env)
 }
