@@ -14,7 +14,7 @@ export async function customerCommit(env:Bindings,a:Actor,statements:D1PreparedS
  await env.DB.batch([env.DB.prepare(`INSERT INTO st_guard(value) SELECT CASE WHEN EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id WHERE s.id=? AND o.id=? AND o.version=? AND s.operator_version=o.version AND lower(o.email)=? AND o.status='active' AND s.revoked_at IS NULL AND s.expires_at>?) THEN 1 ELSE 0 END`).bind(a.sessionId!,a.id,a.version,a.email.toLowerCase(),Date.now()),...statements,env.DB.prepare('DELETE FROM st_guard')])
 }
 export function customerOrder(o:Order) {
- return {id:o.id,createdAt:o.createdAt,status:o.status,totalCents:o.totalCents,currency:o.currency,shippingCents:o.shippingCents??0,shippingDetails:o.shippingDetails,
+ return {shopper:o.shopper,id:o.id,createdAt:o.createdAt,status:o.status,totalCents:o.totalCents,currency:o.currency,shippingCents:o.shippingCents??0,shippingDetails:o.shippingDetails,
  lines:o.lines.map(({sku,name,quantity,unitCents,variant,personalization})=>({sku,name,quantity,unitCents,variant,personalization:personalization?.map(({fileId,fileName,...answer})=>answer)})),
  shipment:o.shipment?{status:o.shipment.status,dispatches:o.shipment.dispatches?.map(({shippedAt,deliveryStatus,tracking})=>({shippedAt,deliveryStatus,tracking}))}:null,
  refunds:o.refunds.map(({id,status,amountCents,lines})=>({id,status,amountCents,lines}))}

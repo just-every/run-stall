@@ -1,3 +1,4 @@
+import { cartErasureStatements } from './customers/cart'
 import { privacyErasureStatements } from './customers/privacy'
 import { customerErasureStatements } from './customers'
 import { workflowErasureStatements } from './workflows'
@@ -32,6 +33,7 @@ export async function eraseCustomer(env: Bindings, actor: Actor, payload: any) {
  })
  await commit(env.DB, actor, [
   ...scrubbed,
+  ...cartErasureStatements(env.DB,address),
   ...await privacyErasureStatements(env.DB,address),
   ...customerErasureStatements(env.DB,address),
   ...workflowErasureStatements(env.DB,address),
@@ -48,7 +50,7 @@ export async function eraseCustomer(env: Bindings, actor: Actor, payload: any) {
     'id',json_extract(note.value,'$.id'),'by',json_extract(note.value,'$.by'),
     'at',json_extract(note.value,'$.at'),'text','Erased with customer contact'))
     FROM json_each(st_orders.value_json,'$.notes') note))),
-   '$.shippingDetails','$.tags','$.manualPayment.reference','$.shipping.postalCode','$.shipping.quote'),revision=lower(hex(randomblob(16)))
+   '$.shopper','$.shippingDetails','$.tags','$.manualPayment.reference','$.shipping.postalCode','$.shipping.quote'),revision=lower(hex(randomblob(16)))
    WHERE json_extract(value_json,'$.customerEmail')=?`).bind(erasedAt, address),
   audit(env.DB, actor, crypto.randomUUID(), 'customer.email-erased'),
  ])

@@ -33,7 +33,7 @@ function productValue(value: Omit<ProductValue, 'draft'>) {
 function commercialOrder(order: Order) {
  const shipment = order.shipment, shipping = order.shippingDetails
  return {
-  id: order.id, revision: order.revision, customerEmail: order.customerEmail, channel: order.channel ?? 'online', taxTreatment: order.taxTreatment,
+  id: order.id, revision: order.revision, shopper:order.shopper, customerEmail: order.customerEmail, channel: order.channel ?? 'online', taxTreatment: order.taxTreatment,
   notes: order.notes?.map(note=>({...note,at:utc(note.at)})), tags: order.tags,
   manualPayment: order.manualPayment ? {...order.manualPayment,at:utc(order.manualPayment.at)} : undefined,
   totalCents: order.totalCents, shippingCents: order.shippingCents ?? 0, shipping: order.shipping, currency: order.currency, status: order.status,
@@ -82,7 +82,7 @@ function reconciliation(order: Order) {
 const columns: Record<string, string[]> = {
  products: ['id', 'revision', 'state', 'sku', 'name', 'description', 'unitCents', 'currency', 'active', 'publishAt', 'archived', 'approval', 'details'],
  customers: ['email', 'orderCount', 'firstOrderAt', 'lastOrderAt', 'orderIds', 'currency', 'paidCents', 'refundedCents'],
- orders: ['notes', 'tags', 'channel', 'manualPayment', 'taxTreatment', 'assignments', 'id', 'revision', 'customerEmail', 'status', 'createdAt', 'erasedAt', 'totalCents', 'shippingCents', 'shipping', 'currency', 'shippingDetails', 'checkout', 'payment', 'reservation', 'shipment', 'refunds'],
+ orders: ['shopper','notes', 'tags', 'channel', 'manualPayment', 'taxTreatment', 'assignments', 'id', 'revision', 'customerEmail', 'status', 'createdAt', 'erasedAt', 'totalCents', 'shippingCents', 'shipping', 'currency', 'shippingDetails', 'checkout', 'payment', 'reservation', 'shipment', 'refunds'],
  lines: ['orderId', 'lineNumber', 'sku', 'productSku', 'name', 'variant', 'personalization', 'description', 'itemId', 'quantity', 'unitCents', 'addOnCents', 'lineTotalCents', 'currency'],
  payments: ['source', 'method', 'receivedOn', 'reference', 'recordedBy', 'label', 'orderId', 'sessionId', 'intentId', 'paidAt', 'amountCents', 'currency'],
  refunds: ['source', 'label', 'orderId', 'id', 'kind', 'taxTreatment', 'accountingCategory', 'amountCents', 'currency', 'reason', 'status', 'preparedBy', 'approval', 'startedAt', 'stripeId', 'lines'],

@@ -1,3 +1,4 @@
+import { cartBusinessRecords } from './customers/cart'
 import { privacyBusinessRecords } from './customers/privacy'
 import { customerBusinessRecords } from './customers'
 /** Owner-only commercial exports. Installation authority, endpoint consent,
@@ -22,6 +23,7 @@ export async function businessExtensions(db:D1Database) {
   db.prepare('SELECT order_id,promotion_id,promotion_revision,discount_cents,status,reserved_at,used_at FROM st_promotion_allocations ORDER BY reserved_at,order_id').all(),
  ])
  return {
+  nativeCart:await cartBusinessRecords(db),
   customerDirectory:await customerBusinessRecords(db),
   customerPrivacy:await privacyBusinessRecords(db),
   risk:{rules:rules?JSON.parse(rules.value_json):null,observations:observations.results.map(r=>JSON.parse(r.value_json)),decisions:decisions.results,notifications:alerts.results},
