@@ -1,3 +1,4 @@
+import { customerErasureStatements } from './customers'
 import { workflowErasureStatements } from './workflows'
 import { headlessErasureStatements } from './headless'
 import type { Bindings } from '../auth.server'
@@ -30,6 +31,7 @@ export async function eraseCustomer(env: Bindings, actor: Actor, payload: any) {
  })
  await commit(env.DB, actor, [
   ...scrubbed,
+  ...customerErasureStatements(env.DB,address),
   ...workflowErasureStatements(env.DB,address),
   ...headlessErasureStatements(env.DB,address),
   env.DB.prepare("UPDATE st_promotion_allocations SET customer_key='erased:'||order_id WHERE order_id IN (SELECT id FROM st_orders WHERE lower(json_extract(value_json,'$.customerEmail'))=?)").bind(address),

@@ -459,3 +459,113 @@ test('staff, customer carts, events and workflow history transfer without restor
   assert.ok(!JSON.stringify(await archive(destination)).includes(address))
  } finally {await destination?.close();await h.close();await pier.close()}
 })
+
+test('customer directory resolves duplicates without granting account access and derives live net-value segments',async()=>{
+ const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex')
+ const h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-1001',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle})
+ try {
+  await publish(h,'MUG-BLUE','Blue ceramic mug',2450)
+  const firstEmail='synthetic-stall-1002@example.test',otherEmail='synthetic-stall-1003@example.test'
+  const rows=[{email:firstEmail,name:'Sam',tags:['vip']},{email:otherEmail,name:'Sam',tags:['repeat']},{email:firstEmail.toUpperCase(),name:'Different spelling',tags:['ignored']}]
+  const operators=(await h.api('/auth/operators')).length
+  const preview=await h.api('/api/stall/customers/import/preview',{rows})
+  assert.deepEqual([preview.newCount,preview.duplicateCount],[2,1])
+  let dir=await h.api('/api/stall/customers/import/apply',{rows,fingerprint:preview.fingerprint})
+  assert.equal(dir.imported,2);assert.equal(dir.customers.length,2)
+  assert.equal((await h.api('/auth/operators')).length,operators,'commercial import creates no login authority')
+  await h.api('/api/stall/customers/import/apply',{rows:[...rows,{email:'synthetic-stall-1004@example.test'}],fingerprint:preview.fingerprint},{status:409})
+  const repeat=await h.api('/api/stall/customers/import/preview',{rows})
+  assert.equal(repeat.newCount,0)
+  dir=await h.api('/api/stall/customers/import/apply',{rows,fingerprint:repeat.fingerprint});assert.equal(dir.customers.length,2)
+  const alice=await h.signIn(firstEmail),bob=await h.signIn(otherEmail),support=await h.signIn('synthetic-stall-1005@example.test'),marketing=await h.signIn('synthetic-stall-1006@example.test')
+  for(const [cookie,staffRole] of [[support,'customer_support'],[marketing,'marketing']])await h.command('staff.configure',{actorId:(await h.api('/auth/session',undefined,{as:cookie})).operator.id,staffRole})
+  for(const opts of [{as:'',status:401},{as:alice,status:403},{as:marketing,status:403}])await h.api('/api/stall/customers',undefined,opts)
+  await h.api('/api/stall/customers',undefined,{as:support})
+  await h.api('/api/stall/customers/import/preview',{rows},{as:support,status:403})
+  const grant=await h.api('/api/stall/agent-token',{})
+  await h.api('/api/stall/customers',undefined,{as:'',headers:{authorization:`Bearer ${grant.token}`},status:403})
+  const bought=[]
+  for(const [address,quantity] of [[firstEmail,1],[otherEmail,2]]) {
+   const order=await purchase(h,edge,{skus:['MUG-BLUE'],quantities:[quantity],email:address});await deliverWebhook(h,secret,edge.pay(order.session.id));bought.push(order)
+  }
+  dir=await h.api('/api/stall/customers')
+  let first=dir.customers.find(c=>c.emails.includes(firstEmail)),other=dir.customers.find(c=>c.emails.includes(otherEmail))
+  assert.deepEqual([first.orderCount,first.lifetimeValueCents,other.orderCount,other.lifetimeValueCents],[1,2450,1,4900])
+  const old=first.revision
+  dir=await h.api('/api/stall/customers',{type:'note.add',id:first.id,revision:first.revision,text:'synthetic-stall-1007 <script>plain text</script>'},{as:support})
+  first=dir.customers.find(c=>c.id===first.id)
+  assert.equal(first.notes[0].by,(await h.api('/auth/session',undefined,{as:support})).operator.id)
+  await h.api('/api/stall/customers',{type:'profile.save',id:first.id,revision:old,name:'Stale',tags:[]},{status:409})
+  await h.api('/api/stall/customers',{type:'merge',id:other.id,revision:other.revision,targetId:first.id,targetRevision:first.revision},{as:support,status:403})
+  dir=await h.api('/api/stall/customers',{type:'merge',id:other.id,revision:other.revision,targetId:first.id,targetRevision:first.revision})
+  assert.equal(dir.customers.length,1);first=dir.customers[0]
+  assert.deepEqual([first.orderCount,first.paidCents,first.refundedCents,first.lifetimeValueCents],[2,7350,0,7350])
+  assert.deepEqual(new Set(first.tags),new Set(['vip','repeat']))
+  assert.deepEqual((await h.api('/api/stall/account',undefined,{as:alice})).orders.map(o=>o.id),[bought[0].orderId])
+  await h.api('/api/stall/account/orders/'+bought[1].orderId,undefined,{as:alice,status:404})
+  await h.api('/api/stall/account/orders/'+bought[0].orderId,undefined,{as:bob,status:404})
+  dir=await h.api('/api/stall/customers',{type:'segment.save',segment:{name:'Repeat Texas VIP',tag:'vip',minimumSpentCents:8000,minimumOrders:3,state:'TX'}})
+  const segment=dir.segments[0];assert.deepEqual(segment.members,[])
+  const third=await purchase(h,edge,{skus:['MUG-BLUE'],quantities:[1],email:firstEmail});await deliverWebhook(h,secret,edge.pay(third.session.id))
+  dir=await h.api('/api/stall/customers');assert.deepEqual(dir.segments[0].members,[first.id]);assert.equal(dir.customers[0].lifetimeValueCents,9800)
+  let order=(await h.api('/api/stall/state')).orders.find(o=>o.id===bought[0].orderId)
+  order=await h.command('shipment.prepare',{orderId:order.id,revision:order.revision,reference:'synthetic-stall-1008'})
+  order=await h.command('shipment.approve',{orderId:order.id,revision:order.revision})
+  order=await h.command('refund.prepare',{orderId:order.id,revision:order.revision,lines:[{sku:'MUG-BLUE',quantity:1}],reason:'synthetic-stall-1009'})
+  order=await h.command('refund.approve',{orderId:order.id,revision:order.revision})
+  dir=await h.api('/api/stall/customers')
+  assert.deepEqual([dir.customers[0].orderCount,dir.customers[0].refundedCents,dir.customers[0].lifetimeValueCents],[3,2450,7350])
+  assert.deepEqual(dir.segments[0].members,[],'successful refunds immediately recalculate dynamic segment membership')
+  await h.command('staff.configure',{actorId:(await h.api('/auth/session',undefined,{as:support})).operator.id,staffRole:'catalog'})
+  await h.api('/api/stall/customers',undefined,{as:support,status:403})
+ } finally {await h.close();await pier.close()}
+})
+
+test('native customer account recovers verified access, isolates addresses and preserves directory erasure through transfer',async()=>{
+ const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex')
+ const bindings={...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-1010',STRIPE_WEBHOOK_SECRET:secret}
+ const h=await installation({bindings,outboundService:edge.handle});let destination
+ try {
+  await publish(h,'MUG-BLUE','Blue ceramic mug',2450)
+  const email='synthetic-stall-1011@example.test',otherEmail='synthetic-stall-1012@example.test'
+  const rows=[{email,name:'synthetic-stall-1013',tags:['customer']},{email:otherEmail,name:'synthetic-stall-1013'}]
+  const preview=await h.api('/api/stall/customers/import/preview',{rows});await h.api('/api/stall/customers/import/apply',{rows,fingerprint:preview.fingerprint})
+  const bought=await purchase(h,edge,{skus:['MUG-BLUE'],quantities:[1],email});await deliverWebhook(h,secret,edge.pay(bought.session.id))
+  await h.api('/api/stall/account',undefined,{as:'',status:401})
+  const alice=await h.signIn(email),bob=await h.signIn(otherEmail)
+  let mine=await h.api('/api/stall/account',undefined,{as:alice})
+  assert.deepEqual(mine.orders.map(o=>o.id),[bought.orderId]);assert.deepEqual((await h.api('/api/stall/account',undefined,{as:bob})).orders,[])
+  const us={name:'synthetic-stall-1014',line1:'1 Maker Lane',city:'Austin',state:'TX',postal_code:'78702',country:'US'}
+  mine=await h.api('/api/stall/account/addresses',{address:us},{as:alice});const saved=mine.addresses[0]
+  assert.deepEqual((await h.api('/api/stall/account',undefined,{as:bob})).addresses,[])
+  for(const method of ['POST','DELETE'])await h.api('/api/stall/account/addresses',{id:saved.id,revision:saved.revision,...(method==='POST'?{address:us}:{})},{as:bob,method,status:404})
+  await h.api('/api/stall/account/addresses',{address:us,email:otherEmail},{as:alice,status:400})
+  await h.api('/api/stall/account/addresses',{address:us},{as:alice,headers:{origin:'https://synthetic-stall-1015.test'},status:403})
+  const ca={...us,line1:'2 Maker Lane',city:'Vancouver',state:'BC',postal_code:'V6B 1A1',country:'CA'}
+  mine=await h.api('/api/stall/account/addresses',{id:saved.id,revision:saved.revision,address:ca},{as:alice})
+  assert.equal(mine.addresses[0].address.country,'CA')
+  await h.api('/api/stall/account/addresses',{id:saved.id,revision:saved.revision,address:us},{as:alice,status:404})
+  await h.api('/auth/magic-link',{email,returnTo:'/order'},{as:'',status:202})
+  const message=h.messages.findLast(m=>JSON.stringify(m.to).includes(email)),link=new URL(message.text.match(/https?:\/\/[^\s<>]+\/auth\/confirm\?token=[^\s<>]+/)[0])
+  const confirm=await h.request('/auth/confirm',{method:'POST',as:'',body:{token:link.searchParams.get('token')}});assert.equal(confirm.status,303)
+  const recovered=confirm.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
+  assert.deepEqual((await h.api('/api/stall/account',undefined,{as:recovered})).addresses,mine.addresses)
+  assert.equal((await h.request('/auth/confirm',{method:'POST',as:'',body:{token:link.searchParams.get('token')}})).status,400,'access recovery proof is one-use')
+  let order=(await h.api('/api/stall/state')).orders.find(o=>o.id===bought.orderId)
+  order=await h.command('order.note.add',{orderId:order.id,revision:order.revision,text:'synthetic-stall-1016 internal note'})
+  const own=await h.api('/api/stall/account/orders/'+order.id,undefined,{as:alice})
+  assert.ok(!JSON.stringify(own).includes('internal note'));assert.ok(!JSON.stringify(own).includes('requestDigest'));assert.equal(own.order.shippingDetails.address.state,'TX')
+  await h.api('/api/stall/customer-requests',{orderId:order.id,kind:'return'},{as:alice})
+  assert.equal((await h.api('/api/stall/account',undefined,{as:alice})).requests[0].kind,'return')
+  order=await h.command('shipment.prepare',{orderId:order.id,revision:order.revision,reference:'synthetic-stall-1017'});await h.command('shipment.approve',{orderId:order.id,revision:order.revision})
+  const original=await archive(h),business=await h.api('/api/stall/exports/records')
+  assert.equal(business.customerDirectory.addresses[0].value.country,'CA');assert.equal(business.customerDirectory.profiles.length,2)
+  destination=await installation({bindings,outboundService:edge.handle});await restore(destination,original)
+  assert.deepEqual((await destination.api('/api/stall/exports/records')).customerDirectory,business.customerDirectory)
+  await destination.api('/api/stall/account',undefined,{as:alice,status:401})
+  await destination.command('customer.erase',{email,confirm:'ERASE'})
+  const erased=await destination.api('/api/stall/exports/records')
+  assert.equal(erased.customerDirectory.addresses.length,0);assert.ok(!JSON.stringify(erased.customerDirectory).includes(email));assert.ok(!JSON.stringify(erased.customerDirectory).includes('synthetic-stall-1014'))
+  assert.ok(!JSON.stringify(await archive(destination)).includes(email))
+ } finally {await destination?.close();await h.close();await pier.close()}
+})

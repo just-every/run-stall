@@ -1,3 +1,4 @@
+import { customerBusinessRecords } from './customers'
 /** Owner-only commercial exports. Installation authority, endpoint consent,
  * native identity bindings and checkout fingerprints are deliberately omitted. */
 export async function businessExtensions(db:D1Database) {
@@ -20,6 +21,7 @@ export async function businessExtensions(db:D1Database) {
   db.prepare('SELECT order_id,promotion_id,promotion_revision,discount_cents,status,reserved_at,used_at FROM st_promotion_allocations ORDER BY reserved_at,order_id').all(),
  ])
  return {
+  customerDirectory:await customerBusinessRecords(db),
   risk:{rules:rules?JSON.parse(rules.value_json):null,observations:observations.results.map(r=>JSON.parse(r.value_json)),decisions:decisions.results,notifications:alerts.results},
   headless:{customers:customers.results,carts:carts.results.map(({value_json,...r})=>({...r,lines:JSON.parse(value_json)})),events:events.results,deliveries:deliveries.results},
   workflows:{rules:workflowRules.results.map(({value_json,...r})=>({...r,value:JSON.parse(value_json)})),tasks:tasks.results,notifications:notifications.results,requests:requests.results,drafts:drafts.results},
