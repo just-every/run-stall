@@ -13,13 +13,13 @@ import { startOwnedDev, finishCleanup } from '../owned-dev.mjs'
 
 const exec = promisify(execFile)
 /** An owned `rer dev` checkout serving the real UI, with its API requests sent to a migrated Worker over a fake stock desk and Stripe edge. */
-export async function startJourney({ name, skus, screenshots = process.env.STALL_SCREENSHOTS ?? `test-results/${name}` }) {
+export async function startJourney({ name, skus, stock, screenshots = process.env.STALL_SCREENSHOTS ?? `test-results/${name}` }) {
   const scratch = await mkdtemp(join(tmpdir(), `stall-${name}-`)), checkout = join(scratch, 'run-stall'), rerHome = join(scratch, 'rer-home')
-  const kit = { stock: volumeStock(skus) }
+  const kit = { stock: stock ?? volumeStock(skus) }
   await mkdir(resolve(screenshots), { recursive: true }); await mkdir(rerHome)
   let cleaning
   const cleanup = () => cleaning ??= (async () => {
-    const results = await Promise.allSettled([kit.browser?.close(), kit.h?.close(), kit.dev?.stop()].filter(Boolean))
+    const results = await Promise.allSettled([kit.browser?.close(), kit.h?.close(), kit.dev?.stop(), kit.stock?.close?.()].filter(Boolean))
     const failures = results.filter(result => result.status === 'rejected').map(result => result.reason)
     if (failures.length) throw new AggregateError(failures, `Owned ${name} journey cleanup failed`)
     await rm(scratch, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 })
@@ -32,7 +32,7 @@ export async function startJourney({ name, skus, screenshots = process.env.STALL
   kit.dev = await startOwnedDev({ launcher: resolve('node_modules/@runeditrun/rer/global/rer.mjs'), checkout, env: { ...process.env, HOME: rerHome, RER_SERVER_JOURNEY: '1', RER_LOCAL_OPERATION: '' } })
   kit.ready = await kit.dev.ready
   kit.edge = stripeEdge({ forward: kit.stock.forward }); kit.secret = randomBytes(32).toString('hex')
-  kit.h = await installation({ bindings: { PIER_ORIGIN: 'https://stock.example.test', PIER_SESSION: 'test-stock-network-edge', PIER_CUSTOMER_ID: 'shop', STRIPE_SECRET_KEY: 'test-network-edge', STRIPE_WEBHOOK_SECRET: kit.secret }, outboundService: kit.edge.handle })
+  kit.h = await installation({ bindings: { ...(kit.stock.bindings ?? { PIER_ORIGIN: 'https://stock.example.test', PIER_SESSION: 'test-stock-network-edge', PIER_CUSTOMER_ID: 'shop' }), STRIPE_SECRET_KEY: 'test-network-edge', STRIPE_WEBHOOK_SECRET: kit.secret }, outboundService: kit.edge.handle })
   kit.browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
   kit.context = await kit.browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' }); kit.page = await kit.context.newPage(); kit.errors = []
   kit.page.on('pageerror', error => kit.errors.push(error.message))

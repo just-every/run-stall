@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { pierInstallation } from '../api/pier.mjs'
 import { startJourney } from './journey-kit.mjs'
 import { resolve } from 'node:path'
 import { publish, deliverWebhook } from '../api/network.mjs'
@@ -6,7 +7,7 @@ import { publish, deliverWebhook } from '../api/network.mjs'
 // PROMO-001's existing free-shipping slice through the actual desk and checkout.
 let journey, journeyError
 try {
-  journey = await startJourney({ name: 'promotions', skus: ['MUG-BLUE'] })
+  journey = await startJourney({ name: 'promotions', skus: ['MUG-BLUE'], stock: await pierInstallation() })
   const { h, page, ready, edge, secret, capture } = journey
   await publish(h, 'MUG-BLUE', 'Blue ceramic mug', 2450)
   await h.command('shipping.configure', { shippingCents: 625 })
@@ -15,6 +16,15 @@ try {
     await page.goto(ready.url + '/app#promotions')
     await page.getByRole('heading', { name: 'Promotions', level: 1 }).waitFor()
     if (width === 1440) await capture('PROMO-001-empty')
+    const account = page.getByRole('button', { name: /^Account menu for/ }), tooltip = page.getByRole('tooltip', { includeHidden: true })
+    await account.focus(); await tooltip.waitFor({ state: 'visible' }); assert.equal(await tooltip.textContent(), 'Account menu')
+    await page.screenshot({ path: resolve(process.env.STALL_SCREENSHOTS ?? './test-results/promotions', `PROMO-001-tooltip-focus-${width}.png`) })
+    await account.evaluate(element => element.blur()); await page.mouse.move(0, 0); await tooltip.waitFor({ state: 'hidden' })
+    await account.hover(); assert.equal(await tooltip.isVisible(), false, 'hover tooltip waits before appearing')
+    await tooltip.waitFor({ state: 'visible' });
+    await page.screenshot({ path: resolve(process.env.STALL_SCREENSHOTS ?? './test-results/promotions', `PROMO-001-tooltip-hover-${width}.png`) })
+    await page.mouse.move(0, 0)
+
     await page.getByRole('button', { name: 'New promotion', exact: true }).click()
     const form = page.getByRole('form', { name: 'New promotion', exact: true }), code = `SYNTHETIC-STALL-${width}`
     await form.getByLabel('Code', { exact: true }).fill(code)
@@ -74,6 +84,24 @@ try {
     const paidCard = page.getByRole('article', { name: `Promotion ${id}`, exact: true })
     await paidCard.getByText('Reserved: 0 ($0.00) · Paid: 1 ($6.25)', { exact: true }).waitFor()
     await capture(`PROMO-001-paid-${width}`, paidCard)
+    await paidCard.getByRole('button', { name: 'View usage report', exact: true }).click()
+    const report = paidCard.getByRole('region', { name: 'Promotion usage report', exact: true })
+    await report.getByText('1 total · 0 reserved · 1 paid', { exact: true }).waitFor()
+    await report.locator('summary').click()
+    await report.getByText('promotion.redeemed.' + session.client_reference_id, { exact: true }).waitFor()
+    await report.getByText('No tax was calculated for these orders.', { exact: false }).waitFor()
+    assert.equal(await report.locator('dt').filter({ hasText: /^Gross paid$/ }).locator('..').locator('dd').textContent(), '$24.50')
+    await capture(`PROMO-001-report-${width}`, report)
+    let current = (await h.api('/api/stall/state')).orders.find(order => order.id === session.client_reference_id)
+    current = await h.command('shipment.prepare', { orderId: current.id, revision: current.revision, reference: `synthetic-stall-${width}-report` })
+    current = await h.command('shipment.approve', { orderId: current.id, revision: current.revision })
+    let refunded = await h.command('refund.prepare', { orderId: current.id, revision: current.revision, kind: 'goodwill', amountCents: 500, reason: 'Partial refund in the promotion report' })
+    refunded = await h.command('refund.approve', { orderId: refunded.id, revision: refunded.revision })
+    await report.getByRole('button', { name: 'Refresh usage report', exact: true }).click()
+    await report.locator('dt').filter({ hasText: /^Net paid$/ }).locator('..').getByText('$19.50', { exact: true }).waitFor()
+    assert.equal(await report.locator('dt').filter({ hasText: /^Consumed budget$/ }).locator('..').locator('dd').textContent(), '$6.25')
+    await capture(`PROMO-001-refund-report-${width}`, report)
+
     await page.setViewportSize({ width, height: 1000 })
     page.once('dialog', dialog => dialog.accept())
     await paidCard.getByRole('button', { name: 'Revoke promotion', exact: true }).click()
@@ -88,12 +116,12 @@ try {
       const target = path === '/contract' ? site.getByRole('row').filter({ hasText: 'Discounts, automatic promotions and controlled budgets' }) : site.locator('main')
       await target.scrollIntoViewIfNeeded()
       assert.ok(await site.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
-      await site.screenshot({ path: resolve(process.env.STALL_SCREENSHOTS ?? 'test-results/promotions', `PROMO-001-${label}-${width}.png`) })
+      await site.screenshot({ path: resolve(process.env.STALL_SCREENSHOTS ?? './test-results/promotions', `PROMO-001-${label}-${width}.png`) })
     }
   }
   await site.close()
   assert.deepEqual(journey.errors, [])
   await journey.dev.assertRunning()
   console.log('PASS PROMO-001 free-shipping desk and checkout at 1440 and 390')
-} catch (error) { journeyError = error; if (journey?.page) { await journey.page.screenshot({ path: (process.env.STALL_SCREENSHOTS ?? 'test-results/promotions') + '/failure.png', fullPage: true }); console.log('Visible failure:', (await journey.page.locator('main').innerText()).slice(0, 4000)) } throw error }
+} catch (error) { journeyError = error; if (journey?.page) { await journey.page.screenshot({ path: (process.env.STALL_SCREENSHOTS ?? './test-results/promotions') + '/failure.png', fullPage: true }); console.log('Visible failure:', (await journey.page.locator('main').innerText()).slice(0, 4000)) } throw error }
 finally { await journey?.finish(journeyError) }
