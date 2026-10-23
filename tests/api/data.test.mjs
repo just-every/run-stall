@@ -404,6 +404,32 @@ test('CATALOG-001: personalization is validated, priced and carried to the order
  } finally {await destination?.close();await h?.close();await pier.close()}
 })
 
+test('shopper files awaiting payment hold the shared and per-client upload allowances until their checkout lapses',async()=>{
+ const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex')
+ const h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-1321',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle})
+ try {
+  const prepared=await h.command('product.prepare',{sku:'MUG-BLUE',name:'Glazed mug',description:'Cobalt glaze',unitCents:2450,active:true,details:{personalization:[{key:'artwork',label:'Artwork',type:'file',fileTypes:['png'],maxBytes:2000}]}})
+  await h.command('product.approve',{sku:'MUG-BLUE',revision:prepared.revision})
+  const upload=client=>sendFile(h,'/api/stall/personalization/upload?sku=MUG-BLUE&field=artwork&name=art.png',png(),'image/png',{as:'',headers:{'cf-connecting-ip':client}})
+  const fill=async client=>{for(let n=0;n<1000;n++){const response=await upload(client);if(response.status===429){assert.equal((await response.json()).error.code,'UPLOADS_BUSY');return n}assert.equal(response.status,200)}assert.fail('uploads never refused')}
+  const checkout=fileId=>h.request('/api/stall/checkout',{method:'POST',as:'',body:{customerEmail:'synthetic-stall-1322@example.test',lines:[{sku:'MUG-BLUE',quantity:1,personalization:{artwork:fileId}}],idempotencyKey:randomUUID()}})
+  const kept=(await (await upload('198.51.100.1')).json()).fileId,bought=await (await checkout(kept)).json()
+  await deliverWebhook(h,secret,edge.pay([...edge.sessions.values()].find(s=>s.client_reference_id===bought.orderId).id))
+  const waiting=(await (await upload('198.51.100.2')).json()).fileId
+  await fill('198.51.100.2')
+  assert.equal((await upload('198.51.100.3')).status,200,'one client cannot hold the shared allowance')
+  for(let client=4;await fill('198.51.100.'+client)>0;client++);
+  edge.loseNextCheckoutResponse()
+  assert.equal((await checkout(waiting)).status,503)
+  assert.equal((await upload('198.51.100.249')).status,429,'a file attached to an unpaid checkout keeps its place')
+  assert.equal((await h.request('/api/stall/uploads/'+waiting)).status,200)
+  await h.db.prepare('UPDATE st_uploads SET created_at=?').bind(new Date(Date.now()-30*86400000).toISOString()).run()
+  assert.equal((await upload('198.51.100.250')).status,200,'lapsed checkouts free the allowance')
+  assert.equal((await h.request('/api/stall/uploads/'+waiting)).status,404)
+  assert.equal((await h.request('/api/stall/uploads/'+kept)).status,200,'paid files stay')
+ } finally {await h.close();await pier.close()}
+})
+
 test('staff, customer carts, events and workflow history transfer without restoring authority and erase attributable follow-up',async()=>{
  const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex')
  const bindings={...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-801',STRIPE_WEBHOOK_SECRET:secret}

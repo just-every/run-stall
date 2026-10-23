@@ -14,6 +14,7 @@ export const portabilityPolicy = {
   if(table==='st_headless_customers') return {...row,operator_id:'restored:'+row.id}
   if(table==='st_headless_requests') return {...row,key_hash:'restored:'+row.id,commerce_key:'restored:'+row.id,checkout_hash:null,request_digest:''}
   if(table==='st_promotion_allocations') return {...row,customer_key:'restored:'+row.order_id}
+  if(table==='st_uploads') return {...row,client:null}
   return row
  },
  requiredConfiguration: ['OWNER_EMAIL','SESSION_SECRET','SETUP_TOKEN','AUTH_ORIGIN','MAIL_PROVIDER','MAIL_FROM','PIER_ORIGIN','PIER_SESSION','PIER_CUSTOMER_ID','STRIPE_SECRET_KEY','STRIPE_WEBHOOK_SECRET'],

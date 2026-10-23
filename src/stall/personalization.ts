@@ -1,11 +1,14 @@
 import type { Bindings } from '../auth.server'
 import { decode, encode, fileHeaders, rawBytes, safeName, sniff } from './files'
+import { clientKey } from './access'
 import { fail, type Personalized } from './model'
 import { fileKinds, listingState, sellables, type PersonalizationField } from './listing'
 import { products } from './store'
 
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/
 const day = 86400000
+// A file waits until a paid order claims it: unclaimed, or in a checkout not yet paid.
+const waiting = `(order_id IS NULL OR NOT EXISTS(SELECT 1 FROM st_orders o WHERE o.id=st_uploads.order_id AND json_extract(o.value_json,'$.payment') IS NOT NULL))`
 
 /** Shopper upload for a file field of a published product; held privately until an order claims it. */
 export async function uploadPersonalization(env: Bindings, request: Request) {
@@ -16,10 +19,13 @@ export async function uploadPersonalization(env: Bindings, request: Request) {
  if (field?.type !== 'file') fail('PERSONALIZATION', 'This product does not take a file upload here.', 404)
  const bytes = await rawBytes(request, field.maxBytes), mime = sniff(bytes), declared = request.headers.get('content-type')?.split(';')[0].trim()
  if (!mime || mime !== declared || !field.fileTypes.some(type => fileKinds[type] === mime)) fail('FILE_TYPE', `This file must be one of: ${field.fileTypes.join(', ')}.`, 415)
- await env.DB.prepare('DELETE FROM st_uploads WHERE order_id IS NULL AND created_at<?').bind(new Date(Date.now() - day).toISOString()).run()
- if (((await env.DB.prepare('SELECT COUNT(*) AS n FROM st_uploads WHERE order_id IS NULL').first<{ n: number }>())?.n ?? 0) >= 300) fail('UPLOADS_BUSY', 'Too many files are waiting. Try again later.', 429)
- const id = crypto.randomUUID(), name = safeName(url.searchParams.get('name'))
- await env.DB.prepare('INSERT INTO st_uploads VALUES(?,?,?,?,?,?,?,?,NULL)').bind(id, sku, key, name, mime, bytes.length, encode(bytes), new Date().toISOString()).run()
+ // Unclaimed files lapse after a day. A checkout's files lapse once it can no longer be
+ // paid or confirmed: its Stripe session expires within a day, event retries end after three.
+ await env.DB.prepare(`DELETE FROM st_uploads WHERE ${waiting} AND created_at<? AND (order_id IS NULL OR created_at<?)`).bind(new Date(Date.now() - day).toISOString(), new Date(Date.now() - 4 * day).toISOString()).run()
+ const id = crypto.randomUUID(), name = safeName(url.searchParams.get('name')), client = await clientKey(env, request)
+ // One statement checks both allowances and stores the file, so concurrent uploads cannot overrun them.
+ const stored = await env.DB.prepare(`INSERT INTO st_uploads(id,sku,field,name,mime,size,data,created_at,order_id,client) SELECT ?,?,?,?,?,?,?,?,NULL,? WHERE (SELECT COUNT(*) FROM st_uploads WHERE ${waiting})<300 AND (SELECT COUNT(*) FROM st_uploads WHERE client=? AND ${waiting})<20`).bind(id, sku, key, name, mime, bytes.length, encode(bytes), new Date().toISOString(), client, client).run()
+ if (!stored.meta.changes) fail('UPLOADS_BUSY', 'Too many files are waiting. Try again later.', 429)
  return { fileId: id, name, size: bytes.length }
 }
 /** Check a shopper's answers against the product's reviewed fields; the add-on prices come only from them. */
