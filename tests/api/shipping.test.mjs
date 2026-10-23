@@ -59,7 +59,7 @@ test('SHIP-004: profiles price mixed baskets per service, refuse unserved lines 
   const paidOrder=await h.api('/api/stall/checkout',{customerEmail:'buyer@example.test',lines:[{sku:'TEE',quantity:1},{sku:'DESK-A',quantity:1}],shipping:{service:'ups-ground',postalCode:'10001',quote:open.quote},expectedTotalCents:2500+30000+3100,idempotencyKey:randomUUID()},{as:''});
   const session=[...edge.sessions.values()].find(entry=>entry.client_reference_id===paidOrder.orderId);
   assert.equal(session.total_details.amount_shipping,3100);
-  const delivered=await deliverWebhook(h,secret,edge.pay(session.id));assert.equal(delivered.value.status,'reserved');
+  const delivered=await deliverWebhook(h,secret,edge.pay(session.id,{line1:'1 Main St',line2:null,city:'New York',state:'NY',postal_code:'10001',country:'US'}));assert.equal(delivered.value.status,'reserved');
   const original=(await state(h)).orders.find(entry=>entry.id===paidOrder.orderId);
   assert.equal(original.shippingCents,3100);assert.equal(original.shipping.service.code,'ups-ground');assert.equal(original.shipping.postalCode,'10001');
   assert.deepEqual(original.shipping.profiles.map(entry=>[entry.id,entry.revision]).sort(),[['general',saved.general.revision],['oversized',saved.oversized.revision]]);

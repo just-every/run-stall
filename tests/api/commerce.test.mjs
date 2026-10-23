@@ -506,6 +506,27 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
  }finally {if(h) await h.close();await pier.close();}
 });
 
+test('stock is reserved only for the delivery ZIP code the shopper was quoted',async()=>{
+ const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex');
+ const h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-1311',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle});
+ try {
+  await publish(h,'MUG-BLUE','Blue ceramic mug',2450);
+  await h.command('shipping.place',{kind:'delivery',value:{zipPrefixes:['100'],feeCents:500,minimumCents:0,instructions:'synthetic-stall-1312'}});
+  const lines=[{sku:'MUG-BLUE',quantity:1}],quote=postalCode=>h.api('/api/stall/shipping/quote',{lines,postalCode},{as:''});
+  assert.ok(!(await quote('90210')).services.some(service=>service.kind==='delivery'));
+  const local=(await quote('10001')).services.find(service=>service.kind==='delivery');
+  const buy=async()=>{const {orderId}=await h.api('/api/stall/checkout',{customerEmail:'synthetic-stall-1313@example.test',lines,shipping:{service:local.code,postalCode:'10001',quote:local.quote},expectedTotalCents:2950,idempotencyKey:randomUUID()},{as:''});return [...edge.sessions.values()].find(s=>s.client_reference_id===orderId)};
+  const address=postal_code=>({line1:'synthetic-stall-1314',line2:null,city:'New York',state:'NY',postal_code,country:'US'});
+  const elsewhere=await buy(),held=await deliverWebhook(h,secret,edge.pay(elsewhere.id,address('90210')));
+  assert.equal(held.response.status,409);assert.equal(held.value.error.code,'DESTINATION_CHANGED');
+  const paid=await order(h,elsewhere.client_reference_id);
+  assert.equal(paid.status,'paid');assert.equal(paid.reservation,undefined);assert.equal(paid.shippingDetails.address.postal_code,'90210');
+  assert.equal((await h.command('order.reconcile',{orderId:paid.id},{status:409})).error.code,'DESTINATION_CHANGED');
+  const reviewed=await buy();
+  assert.equal((await deliverWebhook(h,secret,edge.pay(reviewed.id,address('10001-2345')))).value.status,'reserved');
+ }finally {await h.close();await pier.close();}
+});
+
 test('AGENT-001: agents prepare exact product, shipment and refund drafts; only people approve; expired and revoked grants fail',async()=>{
  const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward});
  const secret=randomBytes(32).toString('hex');

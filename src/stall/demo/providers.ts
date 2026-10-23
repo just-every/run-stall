@@ -85,10 +85,10 @@ export function sessionObject(s: StripeSession) {
 }
 export const refundObject = (r: StripeRefund) => ({ id: r.id, object: 'refund', amount: r.amount, currency: shopCurrency, payment_intent: r.intent, metadata: { stall_order_id: r.orderId, stall_refund_id: r.refundId }, status: r.status })
 
-// A demo shopper's details, as Stripe's hosted Checkout would collect them.
-function shopper(email: string) {
+// A demo shopper's details, as Stripe's hosted Checkout would collect them for the ZIP code they were quoted.
+function shopper(email: string, postalCode = '87501') {
  const name = email.split('@')[0].split(/[._-]+/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ') || 'Demo shopper'
- return { name, address: { line1: '412 Agua Fria Street', line2: '', city: 'Santa Fe', state: 'NM', postal_code: '87501', country: shopCountry } }
+ return { name, address: { line1: '412 Agua Fria Street', line2: '', city: 'Santa Fe', state: 'NM', postal_code: postalCode, country: shopCountry } }
 }
 
 // Stripe's Checkout and refund endpoints. A demo's hosted Checkout is paid at once.
@@ -100,8 +100,8 @@ export async function demoStripe(db: D1Database, path: string, form?: URLSearchP
   let amount = 0
   for (let i = 0; form.has(`line_items[${i}][quantity]`); i++) amount += Number(form.get(`line_items[${i}][quantity]`)) * Number(form.get(`line_items[${i}][price_data][unit_amount]`))
   amount += Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]') ?? 0)
-  const sessionId = `cs_demo_${hex(orderId)}`
-  state.sessions[sessionId] ??= { id: sessionId, orderId, email, amount, shippingCents: Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]') ?? 0), paid: true, status: 'complete', intent: `pi_demo_${hex(orderId)}`, shipping: shopper(email) }
+  const sessionId = `cs_demo_${hex(orderId)}`, quoted = await db.prepare("SELECT json_extract(value_json,'$.shipping.postalCode') AS zip FROM st_orders WHERE id=?").bind(orderId).first<{ zip: string | null }>()
+  state.sessions[sessionId] ??= { id: sessionId, orderId, email, amount, shippingCents: Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]') ?? 0), paid: true, status: 'complete', intent: `pi_demo_${hex(orderId)}`, shipping: shopper(email, quoted?.zip ?? undefined) }
   await write(db, demoStripeKey, state)
   return { ...sessionObject(state.sessions[sessionId]), url: `https://checkout.stripe.com/c/pay/${sessionId}` }
  }

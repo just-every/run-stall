@@ -72,9 +72,9 @@ export function stripeEdge({forward}={}) {
   if(url.pathname==='/v1/refunds'&&loseRefundResponse) {loseRefundResponse=false;return Response.json({error:'response lost'},{status:503});}
   return Response.json(value);
  }
- function pay(id) {
+ function pay(id,address={line1:'1 Maker Lane',line2:null,city:'Austin',state:'TX',postal_code:'78702',country:'US'}) {
   const s=sessions.get(id);assert.ok(s);
-  Object.assign(s,{status:'complete',payment_status:'paid',payment_intent:'pi_'+randomUUID().replaceAll('-',''),collected_information:{shipping_details:{name:'Test Customer',address:{line1:'1 Maker Lane',line2:null,city:'Austin',state:'TX',postal_code:'78702',country:'US'}}}});
+  Object.assign(s,{status:'complete',payment_status:'paid',payment_intent:'pi_'+randomUUID().replaceAll('-',''),collected_information:{shipping_details:{name:'Test Customer',address}}});
   return s;
  }
  return {handle,sessions,refunds,calls,pierCalls,pay,loseNextPierResponse(type){losePierType=type;},loseNextCheckoutResponse(){loseCheckoutResponse=true;},loseNextRefundResponse(){loseRefundResponse=true;}};

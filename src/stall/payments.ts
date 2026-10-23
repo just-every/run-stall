@@ -27,6 +27,7 @@ export async function paidSession(env:Bindings,order:Order,id:string,actor?:Acto
 export async function reservePaid(env:Bindings,order:Order,actor?:Actor):Promise<Order> {
  if(!order.payment) fail('PAYMENT','The order has no verified payment.')
  if(order.shipment?.status==='shipped') return order
+ requireQuotedDestination(order)
  assertOriginalPier(env,order)
  if(actor) await live(env,actor)
  order=await observeShipment(env,actor,order)
@@ -42,6 +43,13 @@ export async function reservePaid(env:Bindings,order:Order,actor?:Actor):Promise
  const reservation={id:result.id,reference:result.reference,lines:result.lines},status=full?'reserved' as const:'shortfall' as const
  if(order.status===status&&JSON.stringify(order.reservation)===JSON.stringify(reservation)) return order
  return saveOrder(env,{...order,reservation,status},full?'stock.reserved':'stock.shortfall',actor)
+}
+/** Stripe collects the delivery address after the shopper was quoted for one ZIP
+ * code. Stock is reserved only for that destination; another needs a fresh quote
+ * and checkout, so staff refund this payment instead. */
+function requireQuotedDestination(order:Order) {
+ const quoted=order.shipping?.service.kind==='pickup'?undefined:order.shipping?.postalCode
+ if(quoted!==undefined&&order.shippingDetails?.address.postal_code.slice(0,5)!==quoted) fail('DESTINATION_CHANGED','The delivery address paid in Stripe is outside the ZIP code this order was quoted for. Refund this payment; the shopper checks out again for that address.',409)
 }
 export async function refreshRisk(env:Bindings,order:Order) {
  if(order.payment?.source==='staff'||!order.payment?.intentId||!await riskEnabled(env.DB)) return {observed:false}
