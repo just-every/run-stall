@@ -1,6 +1,7 @@
 /* Stall's app components: type, buttons, fields, pills, notices, tables,
    disclosures and dialogs, shared by the shop desk and the storefront.
-   Tokens live once in /rer-theme.css. Look: the owner's pick (desk 17 Oct
+   Tokens live once in /rer-theme.css (the --rer-* theme) and
+   /fonts/fonts.css (Stall's own). Look: the owner's pick (desk 17 Oct
    2026), a white canvas, hairline dividers, near-black Inter Tight headings,
    Inter body with tabular figures and tangerine as the one accent. */
 body:has(.st-app) { margin: 0; padding: 0; background: var(--surface); }

@@ -1,43 +1,114 @@
-/* Inter Tight (headings and the wordmark), Inter (body text) and JetBrains Mono (commands), all under the
-   SIL Open Font License 1.1 and self-hosted from public/fonts/. No page makes a third-party font request. */
-@font-face {
-  font-family: 'Inter Tight';
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url('/fonts/inter-tight/inter-tight-latin-wght-normal.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'Inter Tight';
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url('/fonts/inter-tight/inter-tight-latin-ext-wght-normal.woff2') format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url('/fonts/inter/inter-latin-wght-normal.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url('/fonts/inter/inter-latin-ext-wght-normal.woff2') format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 100 800;
-  font-display: swap;
-  src: url('/fonts/jetbrains-mono/jetbrains-mono-latin-wght-normal.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
+/* Stall's look beyond its theme. /rer-theme.css holds only what Base's theme grammar allows
+   (the --rer-* tokens and the faces; the installer reads it), so everything else is here: the
+   form controls' font, Stall's own tokens, and the rules that dress Base's sign-in,
+   confirmation, /setup and settings frames, the Lobby's button and the Run and not-found pages
+   in the app's look. The root document (the app and the shop), /setup, the Lobby, Base's Run,
+   contract and not-found pages and the run site link it before the theme; the sign-in and
+   confirmation pages (src/base/font-response.ts) and the development sign-in and hand-off
+   pages (src/server.dev.ts) link it after their own style; the hosted demo's gate inlines it
+   before the theme. */
 button, input, select, textarea { font-family: inherit; }
+
+/* Stall's tokens, defined once: the app (public/stall/), the run site (src/site/styles) and
+   the rules below read them with the --rer-* tokens in /rer-theme.css. */
+:root {
+  --rer-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --rer-button-radius: 999px;
+  --rer-code-background: #141416;
+  --rer-code-text: #ecebe8;
+  --rer-wordmark-weight: 800;
+  --rer-wordmark-tracking: -.035em;
+
+  --paper: var(--rer-page);
+  --surface: var(--rer-surface);
+  --ink: var(--rer-text);
+  --body: #353a45;
+  --muted: var(--rer-muted);
+  --faint: #8b8f98;
+  --line: #ebe8e4;
+  --line-soft: #f1efec;
+  --row: #f6f5f3;
+  --chip: #f2f1ef;
+  --tangerine: #ff6a13;
+  --tangerine-press: #f25b07;
+  --tangerine-text: #c2410c;
+  --tangerine-tint: #fff0e5;
+  --tangerine-wash: #fff6f0;
+  --tangerine-line: #ffd2b5;
+  --alert-ink: #8e2a0a;
+  --alert-tint: #fff1e8;
+  --kraft: #d4904f;
+  --kraft-deep: #bf7a3d;
+  --cream: #fbe8cb;
+  --cobalt: #1f3a68;
+  --fog: #e5ddd2;
+  --green: #2f9e57;
+  --terminal: var(--rer-code-background);
+  --terminal-line: #2a2a2e;
+
+  --font-head: var(--rer-font-heading);
+  --font-body: var(--rer-font-body);
+  --font-mono: var(--rer-font-mono);
+  --radius-card: 18px;
+  --radius-inner: 12px;
+  --shadow-card: 0 1px 2px rgba(20, 16, 12, .04), 0 22px 44px -26px rgba(20, 16, 12, .2);
+  --shadow-float: 0 2px 4px rgba(20, 16, 12, .05), 0 30px 60px -28px rgba(20, 16, 12, .28);
+  --wrap: 1296px;
+  --gutter: clamp(16px, 5vw, 72px);
+
+  /* The app (public/stall/*.css): quiet 1px field edges with a tangerine
+     focus ring, status pills (green only for Paid), and the cork strip. */
+  --field-line: #c4c8cf;
+  --field-fill: #fcfcfd;
+  --focus-ring: 0 0 0 3px rgba(255, 106, 19, .22);
+  --green-tint: #ebf7ef;
+  --green-ink: #1f6b3a;
+  --danger: #b42318;
+  --danger-tint: #fef1ef;
+  --cork: url('/brand/cork.webp');
+}
+
+/* Sign-in, confirmation, first-run setup and account settings in the app's
+   look: a white page, one hairline card under the lockup, quiet 1px fields
+   with a tangerine focus ring, the tangerine pill and the cork strip along
+   the foot. html.rer-themed outranks each frame's own rules. */
+html.rer-themed body { display: grid; place-items: start center; min-height: 100vh; padding: 12vh 16px 96px; background: var(--rer-surface); font: 400 15px/1.55 var(--rer-font-body); -webkit-font-smoothing: antialiased; }
+html.rer-themed body::after { content: ''; position: fixed; left: 0; right: 0; bottom: 0; height: 14px; background: var(--cork) right top / 470px auto repeat-x, var(--kraft); }
+html.rer-themed main { position: relative; width: 100%; max-width: 460px; margin: 0 auto; padding: 36px 36px 32px; border: 1px solid var(--line); border-radius: 16px; background: var(--rer-surface); box-shadow: 0 1px 2px rgba(20, 16, 12, .04), 0 18px 40px -30px rgba(20, 16, 12, .25); }
+html.rer-themed .brand, html.rer-themed .rer-brand { justify-content: flex-start; gap: 10px; margin: 0 0 28px; font: var(--rer-wordmark-weight) 28px/1 var(--rer-font-heading); letter-spacing: var(--rer-wordmark-tracking); color: var(--rer-text); }
+html.rer-themed .brand::before, html.rer-themed .rer-brand::before { width: 36px; height: 37px; }
+html.rer-themed h1 { text-align: left; font: 800 28px/1.15 var(--rer-font-heading); letter-spacing: -.035em; margin: 0 0 10px; color: var(--rer-text); }
+html.rer-themed p, html.rer-themed dt { color: var(--muted); }
+html.rer-themed button, html.rer-themed .action { min-height: 44px; border: 1px solid var(--tangerine-press); border-radius: 999px; background: var(--tangerine-press); color: #fff; font-weight: 600; }
+html.rer-themed button:hover, html.rer-themed .action:hover { background: #e45204; }
+html.rer-themed button.secondary { border-color: var(--field-line); background: var(--rer-surface); color: var(--rer-text); font-weight: 500; }
+html.rer-themed input:not([type=checkbox]):not([type=hidden]) { min-height: 42px; padding: 8px 12px; border: 1px solid var(--field-line); border-radius: 10px; background: var(--field-fill); color: var(--rer-text); }
+html.rer-themed input:not([type=checkbox]):not([type=hidden]):focus { outline: none; border-color: var(--tangerine); box-shadow: var(--focus-ring); background: var(--rer-surface); }
+html.rer-themed input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--tangerine-press); }
+html.rer-themed label { font-size: 14px; font-weight: 500; color: var(--body); }
+html.rer-themed a { color: var(--rer-link); text-underline-offset: 3px; }
+/* Base's sign-in pages load this file after their own style. Their secondary links (settings' "Back to app") keep
+   Base's 3px ring, which won when this rule loaded before that style; :where() keeps the rule at 0,2,1 elsewhere. */
+html.rer-themed :focus-visible:not(:where(.secondary-link a)) { outline: 2px solid var(--rer-focus); outline-offset: 2px; }
+html.rer-themed dl { grid-template-columns: 1fr; gap: 0; margin: 18px 0 22px; border-top: 1px solid var(--line); }
+html.rer-themed dt { padding: 10px 0 0; font-size: 13px; }
+html.rer-themed dd { padding: 0 0 10px; margin: 0; border-bottom: 1px solid var(--line); color: var(--rer-text); font-weight: 500; }
+@media (max-width: 600px) { html.rer-themed body { padding: 40px 16px 64px; } html.rer-themed main { padding: 28px 20px 24px; } html.rer-themed h1 { font-size: 26px; } html.rer-themed .brand, html.rer-themed .rer-brand { font-size: 24px; margin-bottom: 22px; } }
+
+/* The Lobby's one button is the app's tangerine pill: flat fill, no drop
+   shadow. html[data-state] outranks the Lobby's own .btn rule. */
+html[data-state] .door .btn { background: var(--tangerine-press); color: #fff; box-shadow: none; }
+html[data-state] .door .btn:hover { background: #e45204; }
+
+/* Base's Run page (/run) and not-found page, in the homepage's look: the
+   heavy headline, white step cards, tangerine numerals and the dark code cards. */
+body:has(> header.bar) { background: radial-gradient(55% 40% at 50% 0, var(--tangerine-wash), transparent 70%), var(--paper); }
+body:has(> header.bar) .bar { padding-bottom: 22px; border-bottom: 1px solid var(--line); max-width: none; }
+body:has(> header.bar) .brand { font-weight: 800; letter-spacing: -.035em; }
+body:has(> header.bar) h1 { font-weight: 800; letter-spacing: -.045em; word-spacing: .06em; }
+body:has(> main > .intro) .intro { padding-top: 64px; }
+body:has(> main > .intro) .step { border-radius: var(--radius-card); border-color: var(--line); background: var(--surface); box-shadow: var(--shadow-card); }
+body:has(> main > .intro) .num { background: var(--tangerine-press); color: #fff; font-weight: 800; }
+body:has(> main > .intro) .step h2 { font-weight: 800; letter-spacing: -.035em; }
+body:has(> main > .intro) .code { background: var(--terminal); }
+body:has(> header.bar) .link { text-decoration-color: var(--tangerine); text-decoration-thickness: 2px; }

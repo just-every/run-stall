@@ -1,5 +1,6 @@
 /* The run site's frame: page, header, footer, actions and the type every page
-   shares. Tokens come from public/rer-theme.css. Sizes are the desk's at 1440
+   shares. Tokens come from public/rer-theme.css (the --rer-* theme) and
+   public/fonts/fonts.css (Stall's own). Sizes are the desk's at 1440
    (its 1536 canvas x 0.9375). */
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; scroll-padding-top: 24px; }
