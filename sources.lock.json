@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "parent": null,
   "edition": "just-every/run-stall",
-  "manifest": "e4248453bd2b740cc83a1bef0c826949a198afca0d9c03ddefaa33e9206ee04c",
+  "manifest": "50440793962174fb72dd77e6aadc0d5cd6e65d6df97d6bbec29a8f544dc50593",
   "toolchain": {
     "id": "runeditrun/edition-authoring",
     "version": "1.1.0",
-    "sha256": "c52b4ddbfad26af8c28cdcad563e101f44d5a455a4f8133ca7235408c752a844"
+    "sha256": "7f0d7a760e90334bf2f1e03112b1b40e1dd2c71a34b202d980c4dac3dc0d7f1d"
   },
   "components": [
     {
@@ -23,7 +23,17 @@
           "src/modules/import-kit/src/d1/README.md",
           "src/modules/import-kit/src/door/ADOPTING.md",
           "src/modules/import-kit/src/provenance/credentials.ts",
-          "src/modules/operator-auth/README.md"
+          "src/modules/operator-auth/README.md",
+          "scripts/delivery/base/capabilities.mjs",
+          "scripts/delivery/base/payloads.mjs",
+          "scripts/delivery/base/sql-statements.mjs",
+          "scripts/delivery/base/generators/validation.mjs",
+          "scripts/edition-authoring/cli.mjs",
+          "scripts/edition-authoring/manifest.mjs",
+          "src/modules/dependencies/sealing.mjs",
+          "src/modules/import-kit/src/d1/reversal-journal.ts",
+          "src/modules/import-kit/src/door/refusals.ts",
+          "src/modules/operator-auth/SCHEDULED-POLICY.md"
         ],
         "origin": {
           "repository": "https://github.com/runeditrun/base.git",
@@ -39,7 +49,17 @@
             "modules/import-kit/src/d1/README.md",
             "modules/import-kit/src/door/ADOPTING.md",
             "modules/import-kit/src/provenance/credentials.ts",
-            "modules/operator-auth/README.md"
+            "modules/operator-auth/README.md",
+            "modules/delivery-producer/capabilities.mjs",
+            "modules/delivery-producer/payloads.mjs",
+            "modules/delivery-producer/sql-statements.mjs",
+            "modules/delivery-producer/generators/validation.mjs",
+            "edition-authoring/cli.mjs",
+            "edition-authoring/manifest.mjs",
+            "modules/dependencies/sealing.mjs",
+            "modules/import-kit/src/d1/reversal-journal.ts",
+            "modules/import-kit/src/door/refusals.ts",
+            "modules/operator-auth/SCHEDULED-POLICY.md"
           ]
         },
         "mappings": [
@@ -82,13 +102,53 @@
           {
             "path": "src/modules/operator-auth/README.md",
             "originPath": "modules/operator-auth/README.md"
+          },
+          {
+            "path": "scripts/delivery/base/capabilities.mjs",
+            "originPath": "modules/delivery-producer/capabilities.mjs"
+          },
+          {
+            "path": "scripts/delivery/base/payloads.mjs",
+            "originPath": "modules/delivery-producer/payloads.mjs"
+          },
+          {
+            "path": "scripts/delivery/base/sql-statements.mjs",
+            "originPath": "modules/delivery-producer/sql-statements.mjs"
+          },
+          {
+            "path": "scripts/delivery/base/generators/validation.mjs",
+            "originPath": "modules/delivery-producer/generators/validation.mjs"
+          },
+          {
+            "path": "scripts/edition-authoring/cli.mjs",
+            "originPath": "edition-authoring/cli.mjs"
+          },
+          {
+            "path": "scripts/edition-authoring/manifest.mjs",
+            "originPath": "edition-authoring/manifest.mjs"
+          },
+          {
+            "path": "src/modules/dependencies/sealing.mjs",
+            "originPath": "modules/dependencies/sealing.mjs"
+          },
+          {
+            "path": "src/modules/import-kit/src/d1/reversal-journal.ts",
+            "originPath": "modules/import-kit/src/d1/reversal-journal.ts"
+          },
+          {
+            "path": "src/modules/import-kit/src/door/refusals.ts",
+            "originPath": "modules/import-kit/src/door/refusals.ts"
+          },
+          {
+            "path": "src/modules/operator-auth/SCHEDULED-POLICY.md",
+            "originPath": "modules/operator-auth/SCHEDULED-POLICY.md"
           }
         ]
       },
       "baseline": {
-        "key": "cd2f9511917e33873e388210c8595d6d1e910acaa1e53b4d4fa30b9de75ee3f4",
-        "digest": "d50df78b1db254ce6d436f751542b0f61c1ecdfd6cc1df460e7ea63abc692ce0",
-        "sha256": "2c98366b0069c064ebaedbb1d5dbaf634ab4a56cdae87640c3a00845306a5de1"
+        "key": "01be03740cf15659eee6b59181b2bebe066cab8e280200b7886267fa7d98ee39",
+        "digest": "ff18b8a6c5df3375f437dcc44c0c8071a349de57935f4342006506874608d39f",
+        "sha256": "df62a3fc84f9d055ff38a7926e35f2e16da326123973f84d755a238f3d358317"
       }
     },
     {
@@ -148,7 +208,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "f59f7726ba5fe3255a6ec4a702a68ac55f232371e5be1f7b85e59150936358e7",
+      "sha256": "6f56e73ba37ffc910a5b9894e07e46836f910e4e2e8feabd83b5ac892a6f13f6",
       "executable": false
     },
     "CHANGELOG.md": {
@@ -252,7 +312,7 @@
       "executable": false
     },
     "edition.json": {
-      "sha256": "e4248453bd2b740cc83a1bef0c826949a198afca0d9c03ddefaa33e9206ee04c",
+      "sha256": "50440793962174fb72dd77e6aadc0d5cd6e65d6df97d6bbec29a8f544dc50593",
       "executable": false
     },
     "fixtures/shopify-products.csv": {
@@ -700,7 +760,7 @@
       "executable": false
     },
     "scripts/delivery/base/capabilities.mjs": {
-      "sha256": "5e4db1f4428f107c91b51be3c9c18e7757d7e23574dd977a872f6944abd32a1d",
+      "sha256": "c09cbfd74f1497b038676e1f886eb8f7b05dc67741dd7ed08ac348ef92a11934",
       "executable": false
     },
     "scripts/delivery/base/cli.mjs": {
@@ -728,7 +788,7 @@
       "executable": false
     },
     "scripts/delivery/base/generators/validation.mjs": {
-      "sha256": "ec5e0cdd38e4143530fd1366930b9e8e0e081a0729687926ed13a256834519a9",
+      "sha256": "f5eb21576a800e5a50b741b94dcf608e9c73233224f1eee8a4268f5e3d1cebaa",
       "executable": false
     },
     "scripts/delivery/base/mail.mjs": {
@@ -756,7 +816,7 @@
       "executable": false
     },
     "scripts/delivery/base/payloads.mjs": {
-      "sha256": "da3a9d09860c33bdd0b287bca9abc6210b12d13439e569d178a5b31fec563ee5",
+      "sha256": "7d45913a406dee21619f407aec32fbcf4b1c078ac0fd759868ff8eb6fe8ed914",
       "executable": false
     },
     "scripts/delivery/base/schema/dependencies.mjs": {
@@ -788,7 +848,7 @@
       "executable": false
     },
     "scripts/delivery/base/sql-statements.mjs": {
-      "sha256": "8819f7f91b7781905796ea35b01dd1a55e08ed3893ff6d8aafaf03d2f35c1c9a",
+      "sha256": "afc15f607f3afc9a954aa024aaae5a0c76917ed1b7c84d425a525f2ebc370c93",
       "executable": false
     },
     "scripts/edition-authoring/base-copies.mjs": {
@@ -796,7 +856,7 @@
       "executable": false
     },
     "scripts/edition-authoring/cli.mjs": {
-      "sha256": "d9bc25b361c056ec4bebe2b8e506baff95fdd06ec4d4f54a63f20d873025a89b",
+      "sha256": "2e25263a7d0b0c71e38ee9ed2ed0573d7ef4398a3ecaaa204ac080b475467167",
       "executable": false
     },
     "scripts/edition-authoring/files.mjs": {
@@ -804,7 +864,7 @@
       "executable": false
     },
     "scripts/edition-authoring/manifest.mjs": {
-      "sha256": "0c93bd39b1dd869b23a9d2727671fe8f9c933a9d56c7a3df1ba83c4a6f816e7b",
+      "sha256": "bf6687a1655522641751e80a569555e0c3777e74995546d186004e67b0beca7e",
       "executable": false
     },
     "scripts/edition-authoring/parent-comparison.mjs": {
@@ -1156,7 +1216,7 @@
       "executable": false
     },
     "src/modules/dependencies/sealing.mjs": {
-      "sha256": "e91021a57168c8cd26b3be283ee17e8b5d8822c9c9bd2475e6d563f898fc5b8d",
+      "sha256": "e5a476e91bf2a46e224ca81763219091d002e6892a1b6800bb52986aabf39c60",
       "executable": false
     },
     "src/modules/dependencies/store.mjs": {
@@ -1560,7 +1620,7 @@
       "executable": false
     },
     "src/modules/import-kit/src/d1/reversal-journal.ts": {
-      "sha256": "ff0a626e1e6fce79191a00de53323400f07884f7124aef3e7b6006b0879c9332",
+      "sha256": "a1662dfc4f309915750f78aed7111f8ee614a5beedf85859322babc8b564e3a2",
       "executable": false
     },
     "src/modules/import-kit/src/d1/reverse.ts": {
@@ -1780,7 +1840,7 @@
       "executable": false
     },
     "src/modules/import-kit/src/door/refusals.ts": {
-      "sha256": "1c03c2366bac97733ba30ad9e0f69311191735dcddced839a5e804dc2e4f6d6e",
+      "sha256": "0f81b202b7a90a63e799415e75fc3ac9a4f9decff70b531241779d5e122e7c40",
       "executable": false
     },
     "src/modules/import-kit/src/door/schema.ts": {
@@ -2596,7 +2656,7 @@
       "executable": false
     },
     "src/modules/operator-auth/SCHEDULED-POLICY.md": {
-      "sha256": "59c8fb08ab84dbcb720086fce458ef07b94933737c5777e07b79909d95b27862",
+      "sha256": "cfb34b2065b063fa25523efb6e06ad06ec401e33411847dc7a27f15e47a85a18",
       "executable": false
     },
     "src/modules/operator-auth/scheduled/definition.mjs": {
