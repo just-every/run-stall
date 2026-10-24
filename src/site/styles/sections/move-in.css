@@ -1,4 +1,4 @@
-/* 02 · Move in: copy and the five-line terminal left, the Shopify import right, a tangerine glow behind it. */
+/* 02 · Move in: copy and the one-line terminal left, the Shopify import right, a tangerine glow behind it. */
 .move-in .column { grid-template-columns: minmax(0, 1fr) minmax(0, 560px); }
 .move-copy { display: grid; gap: 44px; }
 .terminal { padding: 18px 20px 22px; border-radius: 14px; background: var(--terminal); box-shadow: 0 0 0 1px #2c2c30 inset, var(--shadow-float); }
@@ -6,6 +6,7 @@
 .terminal pre { margin-top: 22px; font: 500 14px/1.85 var(--font-mono); font-variant-ligatures: none; color: #ecebe8; white-space: pre-wrap; }
 .terminal .line { display: block; padding-left: 1.3em; text-indent: -1.3em; }
 .terminal .prompt { color: #9c9ca3; }
+.terminal .comment { color: #9c9ca3; }
 .move-art { position: relative; }
 .move-art::before { content: ''; position: absolute; left: -12%; top: -14%; width: 60%; height: 60%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 106, 19, .16), transparent); pointer-events: none; }
 .import { padding: 28px 32px 22px; }

@@ -40,7 +40,9 @@ export const imported = [
   { label: 'Redirects', count: 212 },
 ]
 export const importFix = { noWeight: 4, setTo: '0.9 lb', took: '6 min 12 s' }
-export const moveInCommands = ['git clone https://github.com/just-every/run-stall.git stall', 'cd stall', 'rer install', 'rer setup', 'rer dev']
+// The one start line every Run Edit Run page shows, and the alternative for people who already have Node.
+export const startLine = 'curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-stall'
+export const npxLine = 'npx -y @runeditrun/rer dev just-every/run-stall'
 
 // 03 · Friday, Oct 16, 9:40 PM: the batch is listed and scheduled.
 export const batch = { name: 'Kiln batch 12', channels: ['Online store', 'Google Shopping', 'Instagram'], publishes: `Publishes Fri, Oct\u00a016${SEP}10:00\u00a0PM\u00a0ET` }

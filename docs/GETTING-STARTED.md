@@ -4,19 +4,13 @@ Start beside your existing shop with two products and a Stripe test payment. A f
 
 ## Open your local installation
 
-Two lines, the same as [run-stall.com/run](https://run-stall.com/run), on macOS, Linux or Windows with WSL2, with git installed. First install rer, the tool that runs Stall. It brings its own Node if you have no Node 22 or later:
+One line, the same as [run-stall.com/run](https://run-stall.com/run), on macOS, Linux or Windows with WSL2. It installs rer, the tool that runs Stall (with its own Node if you have no Node 22 or later), then clones Stall into `run-stall`, installs everything, makes you the owner and prints a link that opens Stall signed in:
 
 ```sh
-curl -fsSL https://runeditrun.com/install.sh | sh
+curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-stall
 ```
 
-Then start Stall. rer clones it, installs everything, makes you the owner and prints a link that opens Stall signed in:
-
-```sh
-rer dev just-every/run-stall
-```
-
-Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-stall` does both in one line. If the installer prints an `export PATH=…` line, run it before the second line. To start Stall again later, run `cd run-stall && rer dev`.
+Git is required; rer brings Node and pnpm. Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-stall` does the same. If the installer prints an `export PATH=…` line, run that line too. To start Stall again later, run the same line from the same folder, or `cd run-stall && rer dev`.
 
 RER prepares the checkout, dependencies, database and local owner. The first run can take several minutes. If interrupted, run `rer dev` again to resume.
 

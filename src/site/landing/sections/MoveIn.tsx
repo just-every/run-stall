@@ -1,6 +1,6 @@
 import { Fragment } from 'react'
 import { Drawing, Heading, Lights, Mark, Section } from '../parts'
-import { importFix, imported, moveInCommands, shop } from '../kiln'
+import { importFix, imported, npxLine, shop, startLine } from '../kiln'
 import '../../styles/sections/move-in.css'
 
 /** A command's unbreakable runs: words break only at spaces and after `github.com/`, and the last word stays with
@@ -12,7 +12,7 @@ function commandParts(line: string) {
   return parts.map((part, k) => <Fragment key={k}>{part.before === 'wbr' ? <wbr /> : part.before}<span className="nowrap">{part.text}</span></Fragment>)
 }
 
-/** 02 · Sunday, move in: the Shopify import and the five lines that start Stall. */
+/** 02 · Sunday, move in: the Shopify import and the one line that starts Stall, with the npx alternative. */
 export function MoveIn() {
   return <Section id="move-in" className="move-in">
     <div className="move-copy">
@@ -21,7 +21,7 @@ export function MoveIn() {
       </Heading>
       <figure className="terminal" aria-label="Start Stall on your own computer">
         <Lights />
-        <pre><code>{moveInCommands.map(line => <span className="line" key={line}><span className="prompt" aria-hidden="true">$ </span>{commandParts(line)}</span>)}</code></pre>
+        <pre><code><span className="line"><span className="prompt" aria-hidden="true">$ </span>{commandParts(startLine)}</span><span className="line comment"><span className="prompt" aria-hidden="true"># </span>{commandParts(`Already have Node 22 or later? ${npxLine}`)}</span></code></pre>
       </figure>
     </div>
     <Drawing className="move-art" label={`The import from ${shop.shopify}: ${imported.map(row => `${row.count.toLocaleString('en-US')} ${row.label.toLowerCase()}`).join(', ')}. ${importFix.noWeight} products had no weight and were set to ${importFix.setTo}. Imported in ${importFix.took}.`}>
