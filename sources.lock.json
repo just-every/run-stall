@@ -864,7 +864,7 @@
       "executable": false
     },
     "seed.json": {
-      "sha256": "b2f6761f97d8b9c237bdfdc4db41784a0ee3ae70a2d602a65c528ea494744004",
+      "sha256": "79fb406a0d89e3e5a4b7cdb72acc147751ffa899acd27315a86dbba191492320",
       "executable": false
     },
     "src/auth.server.ts": {

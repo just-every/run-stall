@@ -114,5 +114,11 @@
       "operator-auth",
       "owner-claim"
     ]
-  }
+  },
+  "replaces": [
+    "Shopify",
+    "Squarespace Commerce",
+    "BigCommerce",
+    "WooCommerce"
+  ]
 }
