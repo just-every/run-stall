@@ -3,5 +3,25 @@
   "projectId": "just-every/run-stall",
   "name": "Stall",
   "sourceRepository": "https://github.com/just-every/run-stall",
-  "license": "MIT"
+  "license": "MIT",
+  "deployment": {
+    "target": "cloudflare-workers",
+    "artifactFile": "rer-worker-artifact.json"
+  },
+  "operations": {
+    "setup": "pnpm install --frozen-lockfile && pnpm exec rer install",
+    "build": "pnpm run build",
+    "verify": "pnpm run verify && pnpm exec rer check --profile first-party && pnpm check:deployment-spec && node scripts/edition-authoring/cli.mjs check && node scripts/edition-authoring/cli.mjs verify-base --offline",
+    "artifact": "node scripts/delivery/base/cli.mjs artifact --config packaging.json",
+    "recovery": "Follow OPERATIONS.md: pause writes and scheduled work, retain exact source and private configuration, export supported domain data, restore into empty resources, establish the native owner, re-export and compare before routing traffic. Preserve applied migration names and bytes."
+  },
+  "verification": {
+    "migrationDirectories": [
+      "migrations/core"
+    ]
+  },
+  "setup": {
+    "path": "rer-setup.json",
+    "sha256": "a80485924dc72615bf5d5ae5a8d0b3c94f9495131f3dcb3ddad3bd14b331d96f"
+  }
 }

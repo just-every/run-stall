@@ -15,3 +15,6 @@ dist/
 
 .rer/
 test-results/
+
+rer-package/
+delivery-artifact/

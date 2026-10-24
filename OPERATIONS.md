@@ -66,3 +66,9 @@ instructions under `node_modules/@runeditrun/rer/modules/deploy-kit`; account sc
 resource ownership, migrations, receipt and health checks are defined there.
 Local validation does not prove hosted acceptance, provider delivery or remote
 health.
+
+## Hosted delivery
+
+The seed policy in `packaging.json` packages the real build, unchanged SQL migrations and the setup manifest. Run `pnpm delivery:spec` after a real build, and `pnpm check:deployment-spec` to verify the committed import projection. The dispatch-only Managed workflow delegates to the pinned trusted build. Generated package and artifact folders are disposable.
+
+Managed hosting assigns the RER mail provider, sender, relay URL and private mail API key. Assisted hosting collects the selected RER, Resend, SendGrid or Cloudflare provider settings in `rer-setup.json`. Local development and demo mode suppress mail before selecting a remote sender; the development option is for those modes only. Provider configuration does not prove hosted delivery.
