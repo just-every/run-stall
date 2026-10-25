@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { hostingPageHtml } from '../base/hosting-page'
 import { SiteHeader } from './shell/SiteHeader'
 import { contractPageHtml } from '../base/contract-page'
-import { runPageHtml, siteNotFoundHtml, type RunData, type SiteBuild, type SiteContext } from '../base/run-site'
+import { docsMovedHtml, runPageHtml, siteNotFoundHtml, type RunData, type SiteBuild, type SiteContext } from '../base/run-site'
 import { identity } from '../identity'
 import { DocsArticle } from './docs/DocsArticle'
 import { DocsIndex } from './docs/DocsIndex'
@@ -57,6 +57,7 @@ export function sitePages({ styles, contract, hosting }: SiteContext): SiteBuild
       { path: '/', html: document('Stall — Your stall never closes', 'Free, open source online shops for US makers and small shops: storefront and checkout, sales tax, labels and tracking, returns and abandoned carts. An alternative to Shopify, Squarespace Commerce and BigCommerce.', <Landing />) },
       { path: '/run', html: runPageHtml(identity, data, contract, homepageHeader).replace('<main>', '<main id="main">') },
       ...(contract ? [{ path: '/contract', html: contractPageHtml(identity, data, contract) }] : []),
+      { path: '/docs/install', html: docsMovedHtml(identity, data, '/docs/getting-started', 'Getting started', contract) },
       { path: '/docs/hosting', html: hostingPageHtml(identity, data, hosting ?? null, contract, docsHeader).replace('<main>', '<main id="main">') },
       { path: '/docs', html: document('Docs · Stall', 'Guides for running your shop on Stall.', <DocsIndex />) },
       ...guides.map(guide => ({ path: guide.path, html: document(`${guide.title} · Stall docs`, guide.description, <DocsArticle slug={guide.slug} />, COPY) })),
