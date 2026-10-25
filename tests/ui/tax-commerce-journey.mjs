@@ -86,5 +86,5 @@ try {
  await row.click();await page.locator('.st-order-panel').waitFor()
  assert.deepEqual(kit.errors,[])
  console.log('TAX-001 owner enablement, jurisdictional checkout, paid order, partial tax refund, filing reports, drilldown and tooltips at 1440 and 390 passed')
-}catch(error){journeyError=error}
+}catch(error){journeyError=error;await kit.page.screenshot({path:`${process.env.STALL_SCREENSHOTS??'test-results/tax-commerce'}/failure.png`,fullPage:true});throw error}
 finally{await kit.finish(journeyError)}
