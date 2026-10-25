@@ -2836,7 +2836,7 @@
       "executable": false
     },
     "src/site/docs/DocsNav.tsx": {
-      "sha256": "44fa1b084844d9d8f57359f6bab68c4c175dcaf87cf56461fefcbaa569821bee",
+      "sha256": "94748cd7a3299fc841146a892226aa2a0edb53dc3996f8fedf9e21c8bd1210f1",
       "executable": false
     },
     "src/site/docs/render.ts": {
@@ -2904,7 +2904,7 @@
       "executable": false
     },
     "src/site/pages.tsx": {
-      "sha256": "cc9e9f16ac75c25427c89e01d62a22324de8414080278472b6b5afc8333eb024",
+      "sha256": "108bf91fafc0c0d3c7f39bd6c5df623e606d606c2b306eec48d7bf82f760971b",
       "executable": false
     },
     "src/site/run.json": {

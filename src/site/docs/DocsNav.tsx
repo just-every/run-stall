@@ -13,7 +13,7 @@ export function DocsNav({ current }: { current?: string }) {
     </div>)}
     <div>
       <p className="docs-nav-section">Project</p>
-      <ul><li><a href={links.contract}>Contract</a></li></ul>
+      <ul><li><a href="/docs/hosting">Put Stall online</a></li><li><a href={links.contract}>Contract</a></li></ul>
     </div>
   </nav>
 }

@@ -3,6 +3,8 @@
 // page string and command is in run.json; nothing here reads installation data.
 import type { ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { hostingPageHtml } from '../base/hosting-page'
+import { SiteHeader } from './shell/SiteHeader'
 import { contractPageHtml } from '../base/contract-page'
 import { runPageHtml, siteNotFoundHtml, type RunData, type SiteBuild, type SiteContext } from '../base/run-site'
 import { identity } from '../identity'
@@ -18,8 +20,10 @@ const COPY = "document.querySelectorAll('.prose pre').forEach(pre=>{const b=docu
 
 const SHARE_IMAGE = `${identity.runSite}/site/share.jpg`
 
-export function sitePages({ styles, contract }: SiteContext): SiteBuild {
+export function sitePages({ styles, contract, hosting }: SiteContext): SiteBuild {
   const data: RunData = run
+  const homepageHeader = { html: renderToStaticMarkup(<SiteHeader />), styles }
+  const docsHeader = { html: renderToStaticMarkup(<SiteHeader current="docs" />), styles }
   const document = (title: string, description: string, body: ReactElement, script = '') => '<!doctype html>' + renderToStaticMarkup(
     <html lang="en">
       <head>
@@ -51,8 +55,9 @@ export function sitePages({ styles, contract }: SiteContext): SiteBuild {
   return {
     pages: [
       { path: '/', html: document('Stall — Your stall never closes', 'Free, open source online shops for US makers and small shops: storefront and checkout, sales tax, labels and tracking, returns and abandoned carts. An alternative to Shopify, Squarespace Commerce and BigCommerce.', <Landing />) },
-      { path: '/run', html: runPageHtml(identity, data, contract) },
+      { path: '/run', html: runPageHtml(identity, data, contract, homepageHeader).replace('<main>', '<main id="main">') },
       ...(contract ? [{ path: '/contract', html: contractPageHtml(identity, data, contract) }] : []),
+      { path: '/docs/hosting', html: hostingPageHtml(identity, data, hosting ?? null, contract, docsHeader).replace('<main>', '<main id="main">') },
       { path: '/docs', html: document('Docs · Stall', 'Guides for running your shop on Stall.', <DocsIndex />) },
       ...guides.map(guide => ({ path: guide.path, html: document(`${guide.title} · Stall docs`, guide.description, <DocsArticle slug={guide.slug} />, COPY) })),
       { path: '/404', html: siteNotFoundHtml(identity, data, contract) },
