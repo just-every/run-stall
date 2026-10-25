@@ -10,6 +10,7 @@ export function taxEdge() {
   assert.equal(request.headers.get('authorization'),'Bearer synthetic-stall-806')
   if(fault==='credential')return Response.json({error:'synthetic-stall-key-refused'},{status:403})
   if(fault==='offline')return Response.json({error:'synthetic-stall-provider-failure'},{status:503})
+  if(url.pathname==='/v1/account')return Response.json({id:'acct_syntheticstall806',country:'US'})
   if(url.pathname==='/v1/tax/settings')return Response.json({status:ready?'active':'pending',head_office:{address:ready?{line1:'synthetic-stall-head-office'}:{}},defaults:{tax_code:ready?'txcd_99999999':null}})
   if(url.pathname==='/v1/tax/registrations')return Response.json({object:'list',has_more:false,data:registered?['TX','CA'].map(state=>({id:'synthetic-stall-registration-'+state,status:'active',country:'US',country_options:{us:{state}}})):[]})
   if(request.method==='GET') {

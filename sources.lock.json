@@ -200,7 +200,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "4e183024a5e88662a68c7bc1308101505503acbaca800c96a07c530173ed6919",
+      "sha256": "d647816d92db86522cc4eb6e12554524ce27537390ac068208d8d397848e491e",
       "executable": false
     },
     "AGENTS.md": {
@@ -220,7 +220,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "696aa4e3c500ebc8a5f553e875856b8a8ad49dcf77b6b6ef2ffc72523e1a08b3",
+      "sha256": "cbb2ff9f10f36a62b41d49accde6c0b185de46ead4d05105af97198fbf54111c",
       "executable": false
     },
     "deploy-demo.json": {
@@ -244,7 +244,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "26d7ac1657a57d841366e48f9002663d66de9540a64ad6f45e86287f2e14ac32",
+      "sha256": "9a286e69d34ae3ecebd639cbc45f85d2e7dbe25a35efa9d9b43dd2d232686106",
       "executable": false
     },
     "docs/COMMANDS.md": {
@@ -2944,7 +2944,7 @@
       "executable": false
     },
     "src/stall/api.ts": {
-      "sha256": "8c211e7240c8cede0d5014b15e55ef900c9eefc899304f31d1a01311559be8c6",
+      "sha256": "649e51eaf98562667df12f9514bac5c5b4be5ffb4a7f9bc2254c1f6b00a197ad",
       "executable": false
     },
     "src/stall/base-exports.d.ts": {
@@ -3304,7 +3304,7 @@
       "executable": false
     },
     "src/stall/tax/index.ts": {
-      "sha256": "16bd8b8957f4c06172a5b3e339c239780e9e490f5a13389730b268c12e31bfd6",
+      "sha256": "a6d1037e8a4c0d102188a6434722abc636d07a722b4301b7f1ac6b2cef3a1308",
       "executable": false
     },
     "src/stall/tools.ts": {
@@ -3676,7 +3676,7 @@
       "executable": false
     },
     "tests/api/operations.test.mjs": {
-      "sha256": "775aa4de641c1add5b7297b80a0729585e4d6d326efb9eec770a49d14009a529",
+      "sha256": "23e350b4434b4e35873bc25bba7b6205a653b996b82d25d73e3711f221cb748a",
       "executable": false
     },
     "tests/api/pier-work.test.mjs": {
@@ -3692,7 +3692,7 @@
       "executable": false
     },
     "tests/api/tax-edge.mjs": {
-      "sha256": "a5166eada115cd848371de3762e38b93cc1006efc40f437b2bbc7c6ba454594b",
+      "sha256": "dfde074325f492a847dd90391ebf04174757ec27bcd33591a29c875696956a8a",
       "executable": false
     },
     "tests/api/volume-stock.mjs": {

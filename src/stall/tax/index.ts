@@ -3,7 +3,7 @@ import { audit,commit,live } from '../access'
 import { fail,integer,requirePerson,text,type Actor } from '../model'
 
 const boundary='Send these US addresses, line amounts, product tax codes and shipping amount to my connected Stripe account for a tax preview only.'
-export const taxBoundary={provider:'Stripe Tax',purpose:'Preview only; no payment, tax transaction, registration or filing',sends:['Destination street address','Ship-from street address','Line amounts and quantities','Product tax codes','Shipping amount'],retains:['Opaque preview ID','Keyed intent fingerprint','Attempt and outcome','Calculation reference','USD totals and jurisdiction breakdown'],consent:boundary}
+export const taxBoundary={provider:'Stripe Tax',purpose:'Preview only; no payment, tax transaction, registration or filing',sends:['Destination and ship-from street, city, state, ZIP and country','Opaque line references, amounts and quantities','Product tax codes','Already-discounted shipping amount','Opaque preview and intent references for original calculation custody'],retains:['Opaque preview ID','Keyed intent fingerprint','Attempt and outcome','Calculation reference','USD totals and jurisdiction breakdown'],providerRetention:'Stripe handles the outbound address data under its own retention policy. Stall preview records retain no street addresses or raw address-bearing payloads. Separate commerce order and shipping records have their own custody.',consent:boundary}
 const uuid=(value:unknown)=>{const id=text(value,'Preview ID',36);if(!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(id))fail('INPUT','Retain a random UUID for this preview and every recovery.',400);return id}
 export function taxOwner(actor:Actor) {
  requirePerson(actor)
@@ -28,13 +28,18 @@ async function call(env:Bindings,path:string,form?:URLSearchParams,key?:string) 
  }
  try {return await response.json() as any}catch {return fail('TAX_RESPONSE','Stripe Tax returned an unreadable result. No tax rate is assumed.',502)}
 }
+export async function taxBoundaryFor(env:Bindings) {
+ const account=await call(env,'/account')
+ if(typeof account?.id!=='string'||!/^acct_[A-Za-z0-9]+$/.test(account.id))fail('TAX_RESPONSE','Stripe did not identify the connected account.',502)
+ return {...taxBoundary,accountId:account.id,consent:boundary+' Connected account: '+account.id+'.'}
+}
 export async function taxReadiness(env:Bindings) {
  const settings=await call(env,'/tax/settings'),registrations=await call(env,'/tax/registrations?status=active&limit=100')
  if(settings?.status!=='active'||!settings.head_office?.address?.line1||!settings.defaults?.tax_code)fail('TAX_CONFIGURATION','Finish Stripe Tax head office and default tax code settings in the connected Stripe account.',503)
  if(!Array.isArray(registrations?.data)||registrations.has_more!==false)fail('TAX_CONFIGURATION','Stripe Tax registrations could not be completely inspected.',503)
  const states=registrations.data.filter((r:any)=>r.status==='active'&&r.country==='US'&&/^[A-Z]{2}$/.test(r.country_options?.us?.state)).map((r:any)=>r.country_options.us.state as string)
  if(!states.length)fail('TAX_CONFIGURATION','Configure an active US tax registration in Stripe Tax before previewing a registered sale.',503)
- return {observedAt:new Date().toISOString(),states:[...new Set<string>(states)].sort(),boundary:taxBoundary}
+ return {observedAt:new Date().toISOString(),states:[...new Set<string>(states)].sort(),boundary:await taxBoundaryFor(env)}
 }
 async function fingerprint(env:Bindings,value:string) {
  if(!env.SESSION_SECRET)fail('CONFIG','A session secret is required to protect preview intent.',503)
@@ -52,18 +57,19 @@ function projection(value:any,subtotal:number) {
   return {amountCents:integer(entry.amount,'Jurisdiction tax cents',0,99999999),taxableCents:integer(entry.taxable_amount,'Taxable cents',0,99999999),country:details.country??null,state:details.state??null,taxType:details.tax_type??null,ratePercent:details.percentage_decimal,reason:text(entry.taxability_reason,'Provider tax reason',100)}
  })
  if(breakdown.reduce((sum:number,j:{amountCents:number})=>sum+j.amountCents,0)!==taxCents)fail('TAX_RESPONSE','Stripe Tax jurisdiction amounts do not reconcile.',502)
- return {calculationId:value.id as string,currency:'usd',subtotalCents:subtotal,taxCents,totalCents:subtotal+taxCents,expiresAt:integer(value.expires_at,'Provider calculation expiry',1,Number.MAX_SAFE_INTEGER),breakdown,previewOnly:true}
+ return {calculationId:value.id as string,currency:'usd',subtotalCents:subtotal,taxCents,totalCents:subtotal+taxCents,expiresAt:integer(value.expires_at,'Provider calculation expiry',1,Number.MAX_SAFE_INTEGER),breakdown,previewOnly:true,currentCheckoutTax:false}
 }
+function observation(result:any,restored:number) { return {...result,previewOnly:true,currentCheckoutTax:false,historicalObservation:!!restored||result.expiresAt<=Math.floor(Date.now()/1000)} }
 type Preview={restored:number;id:string;intent_hash:string;status:string;attempts:number;attempted_at:string|null;observed_at:string|null;provider_id:string|null;result_json:string|null;error_code:string|null}
 export async function taxHistory(env:Bindings) {
  const rows=(await env.DB.prepare('SELECT * FROM st_tax_previews ORDER BY attempted_at DESC,id LIMIT 100').all<Preview>()).results
  const count=await env.DB.prepare('SELECT count(*) AS total FROM st_tax_previews').first<{total:number}>()
- return {total:count!.total,limit:100,truncated:count!.total>100,previews:rows.map(({intent_hash,result_json,...row})=>({...row,result:result_json?JSON.parse(result_json):null}))}
+ return {total:count!.total,limit:100,truncated:count!.total>100,previews:rows.map(({intent_hash,result_json,...row})=>({...row,result:result_json?observation(JSON.parse(result_json),row.restored):null}))}
 }
 /** This is an owner-reviewed calculation door, never authority to charge a shopper. */
 export async function previewTax(env:Bindings,actor:Actor,p:any) {
  taxOwner(actor)
- if(p.consent!==boundary)fail('TAX_CONSENT','Review and explicitly accept the tax data boundary before sending a preview.',400)
+ if(p.consent!==(await taxBoundaryFor(env)).consent)fail('TAX_CONSENT','Review and explicitly accept the tax data boundary before sending a preview.',400)
  const id=uuid(p.id),destination=address(p.destination),shipFrom=address(p.shipFrom)
  if(!Array.isArray(p.lines)||!p.lines.length||p.lines.length>50)fail('INPUT','Preview between one and 50 lines.',400)
  const seen=new Set<string>(),lines=p.lines.map((line:any)=>{
@@ -76,12 +82,15 @@ export async function previewTax(env:Bindings,actor:Actor,p:any) {
  let row=await env.DB.prepare('SELECT * FROM st_tax_previews WHERE id=?').bind(id).first<Preview>()
  const intentHash=row?.restored?row.intent_hash:computedHash
  if(row&&!row.restored&&row.intent_hash!==intentHash)fail('IDEMPOTENCY','This preview ID belongs to a different tax intent. Recover the original calculation without replacing it.')
- if(row?.status==='observed'&&!row.restored)return JSON.parse(row.result_json!)
+ if(row?.status==='observed'&&!row.restored)return observation(JSON.parse(row.result_json!),0)
  if(row?.restored&&!p.calculationId&&!row.provider_id)fail('TAX_RECOVERY','Restored previews are observation-only. Recover the original calculation ID; no new calculation can be sent.')
  // Never replay an uncertain calculation POST: Stripe may have expired its key.
  // Recovery requires the original provider ID, with the original full input.
  if(row?.status==='uncertain'&&!p.calculationId&&!row.provider_id)fail('TAX_RECOVERY','The original calculation may exist. Supply its Stripe calculation ID with the unchanged original input; Stall will only retrieve it.')
  if(!row) {
+  if(p.calculationId)fail('TAX_RECOVERY','Use the original preview identity to recover its calculation. A new identity never replaces an uncertain calculation.')
+  const uncertain=await env.DB.prepare("SELECT id FROM st_tax_previews WHERE (intent_hash=? OR restored=1) AND status='uncertain' LIMIT 1").bind(computedHash).first<{id:string}>()
+  if(uncertain)fail('TAX_RECOVERY','This intent has an uncertain original preview. Recover that original identity and provider reference; no replacement calculation was sent.')
   const readiness=await taxReadiness(env)
   if(!readiness.states.includes(destination.state))fail('TAX_CONFIGURATION','This preview requires an active Stripe Tax registration for its destination state.',503)
   await commit(env.DB,actor,[env.DB.prepare("INSERT OR IGNORE INTO st_tax_previews(id,intent_hash,status) VALUES(?,?,'prepared')").bind(id,intentHash),audit(env.DB,actor,id,'tax.preview-prepared')])
@@ -111,7 +120,7 @@ export async function previewTax(env:Bindings,actor:Actor,p:any) {
   const sameAddress=(actual:any,expected:Record<string,string>)=>['line1','line2','city','state','postal_code','country'].every(key=>(actual?.[key]??'')===(expected[key]??''))
   if(!sameAddress(value.customer_details?.address,destination)||!sameAddress(value.ship_from_details?.address,shipFrom)||value.customer_details?.address_source!=='shipping'||value.shipping_cost?.amount!==shippingCents||value.shipping_cost?.tax_behavior!=='exclusive')fail('TAX_MISMATCH','Stripe calculated a different address or shipping amount.',409)
   await env.DB.prepare('UPDATE st_tax_previews SET provider_id=? WHERE id=? AND (provider_id IS NULL OR provider_id=?)').bind(value.id,id,value.id).run()
-  const result=projection(value,subtotal)
+  const result={...projection(value,subtotal),historicalObservation:!!row.restored||value.expires_at<=Math.floor(Date.now()/1000)}
   await env.DB.prepare("UPDATE st_tax_previews SET status='observed',observed_at=?,provider_id=?,result_json=?,error_code=NULL WHERE id=? AND (provider_id IS NULL OR provider_id=?)").bind(new Date().toISOString(),result.calculationId,JSON.stringify(result),id,result.calculationId).run()
   return result
  } catch(error:any) {

@@ -583,7 +583,7 @@ test('FLOW-001: current-source rules, native customer requests, cron, quiet paus
 
 test('TAX-001: address-level Stripe previews preserve categories and discounted shipping without inventing rates',async()=>{
  const {taxEdge}=await import('./tax-edge.mjs'),{randomUUID}=await import('node:crypto'),edge=taxEdge()
- const h=await installation({bindings:{STRIPE_SECRET_KEY:'synthetic-stall-806'},outboundService:edge.handle})
+ const h=await installation({bindings:{STRIPE_SECRET_KEY:'synthetic-stall-806'},outboundService:edge.handle});let restored
  try {
   const boundary=await h.api('/api/stall/tax/boundary'),destination={line1:'1 synthetic-stall-street',city:'Austin',state:'TX',postal_code:'78702',country:'US'}
   const base={consent:boundary.consent,destination,shipFrom:{...destination,line1:'synthetic-stall-warehouse'},lines:[{reference:'synthetic-stall-taxable',unitCents:1000,quantity:2,taxCode:'txcd_99999999'},{reference:'synthetic-stall-exempt',unitCents:500,quantity:1,taxCode:'txcd_00000000'}],shippingCents:200}
@@ -603,7 +603,14 @@ test('TAX-001: address-level Stripe previews preserve categories and discounted 
   assert.ok(!JSON.stringify(history).includes(destination.line1));assert.ok(!JSON.stringify(history).includes('intent_hash'))
   const storage=await h.db.prepare('SELECT * FROM st_tax_previews').all()
   assert.ok(!JSON.stringify(storage).includes(destination.line1));assert.ok(!JSON.stringify(storage).includes('synthetic-stall-806'))
- }finally {await h.close()}
+  const exported=JSON.stringify(await archive(h)),audit=JSON.stringify((await h.db.prepare('SELECT * FROM st_audit').all()).results)
+  for(const street of [destination.line1,base.shipFrom.line1])for(const data of [JSON.stringify(history),JSON.stringify(storage),exported,audit])assert.ok(!data.includes(street),'preview history, storage, audit and portable records retain no street addresses')
+  const beforeRestore=edge.calls.length
+  restored=await installation({outboundService:edge.handle});await restore(restored,JSON.parse(exported))
+  const restoredHistory=await restored.api('/api/stall/tax/previews')
+  assert.ok(restoredHistory.previews.every(p=>p.restored===1&&p.result.historicalObservation===true&&p.result.currentCheckoutTax===false))
+  assert.equal(edge.calls.length,beforeRestore,'restoring and reading historical observations sends no provider request and needs no credentials')
+ }finally {await restored?.close();await h.close()}
 })
 
 test('TAX-001: uncertain Stripe calculations recover only original intent after restart and archive restore',async()=>{
@@ -617,13 +624,22 @@ test('TAX-001: uncertain Stripe calculations recover only original intent after 
   assert.equal((await h.api('/api/stall/tax/preview',input,{status:409})).error.code,'TAX_RECOVERY')
   const receipt=[...edge.calculations.keys()][0],history=await h.api('/api/stall/tax/previews')
   assert.equal(history.previews[0].status,'uncertain');assert.equal(history.previews[0].attempts,1)
+  assert.equal((await h.api('/api/stall/tax/preview',{...input,id:randomUUID()},{status:409})).error.code,'TAX_RECOVERY')
+  assert.equal((await h.api('/api/stall/tax/preview',{...input,id:randomUUID(),calculationId:receipt},{status:409})).error.code,'TAX_RECOVERY')
   const saved=await archive(h)
   destination=await installation({bindings:{STRIPE_SECRET_KEY:'synthetic-stall-806'},outboundService:edge.handle})
   await restore(destination,saved)
+  assert.equal((await destination.api('/api/stall/tax/preview',{...input,id:randomUUID()},{status:409})).error.code,'TAX_RECOVERY')
   assert.equal((await destination.api('/api/stall/tax/preview',input,{status:409})).error.code,'TAX_RECOVERY')
   assert.equal((await destination.api('/api/stall/tax/preview',{...input,calculationId:receipt,destination:{...address,line1:'synthetic-stall-wrong-address'}},{status:409})).error.code,'TAX_MISMATCH')
   const recovered=await destination.api('/api/stall/tax/preview',{...input,calculationId:receipt})
   assert.equal(recovered.calculationId,receipt);assert.equal(recovered.taxCents,63)
+  assert.equal(recovered.historicalObservation,true);assert.equal(recovered.currentCheckoutTax,false);assert.equal(recovered.previewOnly,true)
+  const again=await destination.api('/api/stall/tax/preview',{...input,calculationId:receipt})
+  assert.equal(again.historicalObservation,true);assert.equal(again.currentCheckoutTax,false)
+  await destination.api('/api/stall/tax/preview',{...input,consent:undefined,calculationId:receipt},{status:400})
+  const observation=(await destination.api('/api/stall/tax/previews')).previews[0]
+  assert.equal(observation.restored,1);assert.equal(observation.result.currentCheckoutTax,false)
   assert.equal(edge.calls.filter(c=>c.method==='POST').length,1,'restore and retries never replace the uncertain provider effect')
   assert.equal((await h.api('/api/stall/tax/preview',{...input,calculationId:receipt})).calculationId,receipt)
   assert.equal(edge.calls.filter(c=>c.method==='POST').length,1)
@@ -641,12 +657,13 @@ test('TAX-001: preview authority, consent, incomplete configuration and provider
  try {
   const boundary=await h.api('/api/stall/tax/boundary'),address={line1:'synthetic-stall-address',city:'Austin',state:'TX',postal_code:'78702',country:'US'}
   const input={consent:boundary.consent,destination:address,shipFrom:address,lines:[{reference:'synthetic-stall-item',unitCents:1000,quantity:1,taxCode:'txcd_99999999'}],shippingCents:0},preview=(overrides={},opts={})=>h.api('/api/stall/tax/preview',{...input,id:randomUUID(),...overrides},opts)
+  const authorizedReads=edge.calls.length
   const member=await h.signIn('synthetic-stall-member@example.test'),admin=await h.signIn('synthetic-stall-admin@example.test','admin'),agent=await h.api('/api/stall/agent-token',{})
   for(const opts of [{as:'',status:401},{as:member,status:403},{as:admin,status:403},{headers:{authorization:'Bearer '+agent.token},status:403}]) {
    await preview({},opts);await h.api('/api/stall/tax/previews',undefined,opts);await h.api('/api/stall/tax/readiness',undefined,opts)
   }
   await preview({},{headers:{origin:'https://synthetic-stall-outside.test'},status:403})
-  assert.equal(edge.calls.length,0,'denied callers send no data to Stripe')
+  assert.equal(edge.calls.length,authorizedReads,'denied callers send no data to Stripe')
   assert.equal((await preview({consent:undefined},{status:400})).error.code,'TAX_CONSENT')
   assert.equal((await preview({destination:{...address,line1:''}},{status:400})).error.code,'INPUT')
   edge.ready=false;assert.equal((await preview({},{status:503})).error.code,'TAX_CONFIGURATION');edge.ready=true
