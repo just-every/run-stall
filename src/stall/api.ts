@@ -1,3 +1,4 @@
+import { readTaxConfiguration,saveTaxConfiguration,readTaxExemptions,saveTaxExemption } from './tax/configuration'
 import { taxOwner,taxBoundaryFor,taxReadiness,taxHistory,previewTax } from './tax'
 import { cartResponse } from './customers/cart'
 import { privacyResponse } from './customers/privacy'
@@ -114,6 +115,10 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   if(!['GET','HEAD'].includes(request.method)&&request.headers.get('origin')!==env.AUTH_ORIGIN&&(!actor.agent||request.headers.has('origin'))) fail('ORIGIN','Use this installation’s own page to change records.',403)
   if(path.startsWith('/api/stall/tax/')) {
    taxOwner(actor);await live(env,actor)
+   if(path==='/api/stall/tax/configuration'&&request.method==='GET')return json(await readTaxConfiguration(env))
+   if(path==='/api/stall/tax/configuration'&&request.method==='POST')return json(await saveTaxConfiguration(env,actor,await body(request)))
+   if(path==='/api/stall/tax/exemptions'&&request.method==='GET')return json(await readTaxExemptions(env))
+   if(path==='/api/stall/tax/exemptions'&&request.method==='POST')return json(await saveTaxExemption(env,actor,await body(request)))
    if(path==='/api/stall/tax/boundary'&&request.method==='GET')return json(await taxBoundaryFor(env))
    if(path==='/api/stall/tax/readiness'&&request.method==='GET')return json(await taxReadiness(env))
    if(path==='/api/stall/tax/previews'&&request.method==='GET')return json(await taxHistory(env))

@@ -1,3 +1,4 @@
+import { TaxSettings } from './tax-settings'
 import { Workflows } from './workflows'
 import { RiskReview } from './risk-review'
 import { StaffAccess } from './staff-access'
@@ -33,6 +34,7 @@ export function Settings({ state, owner, busy, run, reload }: { state: State; ow
     </Section>
     {!state.actor.agent && <ShopTimeZone timeZone={state.timeZone ?? defaultTimeZone} busy={busy} run={run} />}
     {owner && (state.shippingCents == null ? <Section title="Shipping charge"><p>Shipping is priced by profiles. <a href="#shipping">Edit shipping profiles</a>.</p></Section> : <ShippingCharge shippingCents={state.shippingCents} busy={busy} run={run} />)}
+    {owner && <TaxSettings />}
     <RiskReview state={state} busy={busy} run={run} />
     <Workflows />
     <Operations />

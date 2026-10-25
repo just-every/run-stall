@@ -200,7 +200,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "d647816d92db86522cc4eb6e12554524ce27537390ac068208d8d397848e491e",
+      "sha256": "05f4d16a64d9c3a0e726ac009bf55106ee6e752afa212d9fdd519a449ad6facc",
       "executable": false
     },
     "AGENTS.md": {
@@ -220,7 +220,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "cbb2ff9f10f36a62b41d49accde6c0b185de46ead4d05105af97198fbf54111c",
+      "sha256": "48b7e6e70d16054b005c4f528a4f9a323a4f74f11263e0c62648f015756d6477",
       "executable": false
     },
     "deploy-demo.json": {
@@ -244,7 +244,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "9a286e69d34ae3ecebd639cbc45f85d2e7dbe25a35efa9d9b43dd2d232686106",
+      "sha256": "883ef50ea639128f08ad9f0a543947cee248a0008bfa839f87083350d6eb6e9d",
       "executable": false
     },
     "docs/COMMANDS.md": {
@@ -489,6 +489,10 @@
     },
     "migrations/core/0039_tax_previews.sql": {
       "sha256": "e9cae97b3adbb9341a40cbf3b28a00c73e469b49367afe29984c4afce91c18e2",
+      "executable": false
+    },
+    "migrations/core/0040_tax_configuration.sql": {
+      "sha256": "6bd2991cd20fc987b3f4b85e431afe93fc199c57764fec015627ca585e8d062a",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -2944,7 +2948,7 @@
       "executable": false
     },
     "src/stall/api.ts": {
-      "sha256": "649e51eaf98562667df12f9514bac5c5b4be5ffb4a7f9bc2254c1f6b00a197ad",
+      "sha256": "9deeca8009bcb599fede0fd99f9cbe1e6d69063f6367eb28490217487350e022",
       "executable": false
     },
     "src/stall/base-exports.d.ts": {
@@ -3020,7 +3024,7 @@
       "executable": false
     },
     "src/stall/erasure.ts": {
-      "sha256": "ad8fe90e0f2acb8afbcece3fcebd9ae55fe824c9e45840632d6f90bd78d0c306",
+      "sha256": "e100b3ba8b25014a7a558bdbdb2edd6fc6dff70cd5e92a64f754ec5dd88c3da6",
       "executable": false
     },
     "src/stall/exports.ts": {
@@ -3208,7 +3212,7 @@
       "executable": false
     },
     "src/stall/portability-policy.mjs": {
-      "sha256": "8a1bac4f95d7bb324f28f4dc35ccbdb2131221f16b1f20fdc6568037f73258e6",
+      "sha256": "cf96574fc9534c15a6b79b53ef1cb53ddf61d6c2b4ecd299c46c2521e80d24fb",
       "executable": false
     },
     "src/stall/preferences.ts": {
@@ -3301,6 +3305,10 @@
     },
     "src/stall/stripe.ts": {
       "sha256": "ab20b423697435e29c4fb3e8d3b007e864446161131313454ad1ec8fae0a9451",
+      "executable": false
+    },
+    "src/stall/tax/configuration.ts": {
+      "sha256": "1f7d862bb861f01e5d5c1aa69e1ef0ae77d14002578eaccf944ea4880984e620",
       "executable": false
     },
     "src/stall/tax/index.ts": {
@@ -3520,7 +3528,7 @@
       "executable": false
     },
     "src/stall/ui/settings.tsx": {
-      "sha256": "e99e0d101dd6982c4403a4ff7e4f921a1e83311e0a6b82c8aefb5364065e1a23",
+      "sha256": "8b94110b1e16f02e79aaec50fe8e7dbea11698cb7a31f2bbd650dd108d2b13cd",
       "executable": false
     },
     "src/stall/ui/shell.tsx": {
@@ -3561,6 +3569,14 @@
     },
     "src/stall/ui/styles.ts": {
       "sha256": "5671cdde3de8094023ec761f449022ac165a8097ea5b0f95fbe6f12507850fce",
+      "executable": false
+    },
+    "src/stall/ui/tax-preview.tsx": {
+      "sha256": "eae91d14ede296a64902e5df016accafacb66ab2fb40e539d43d3fde815c0473",
+      "executable": false
+    },
+    "src/stall/ui/tax-settings.tsx": {
+      "sha256": "b648055e690780242aa1f60885ec37c3b719b26749ed0d64069670378dd8d2bf",
       "executable": false
     },
     "src/stall/ui/time-zone.tsx": {
@@ -3676,7 +3692,7 @@
       "executable": false
     },
     "tests/api/operations.test.mjs": {
-      "sha256": "23e350b4434b4e35873bc25bba7b6205a653b996b82d25d73e3711f221cb748a",
+      "sha256": "fddc7470b2062aefab3bf0bfb4ada6493e7fa9775ce0402a77354b3ba2e408c1",
       "executable": false
     },
     "tests/api/pier-work.test.mjs": {
@@ -3769,6 +3785,10 @@
     },
     "tests/ui/staff-journey.mjs": {
       "sha256": "5e1691480c0719d81f0211c2be986957d7c8cea54f561a486b9763201b2c3546",
+      "executable": false
+    },
+    "tests/ui/tax-settings-journey.mjs": {
+      "sha256": "c8c4fe71ddd3e3d9e8c81070201826a76f0c2cbcdaf195f87c67e3e13548cb9c",
       "executable": false
     },
     "tests/ui/workflow-journey.mjs": {

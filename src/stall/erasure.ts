@@ -33,6 +33,7 @@ export async function eraseCustomer(env: Bindings, actor: Actor, payload: any) {
  })
  await commit(env.DB, actor, [
   ...scrubbed,
+  env.DB.prepare('DELETE FROM st_tax_exemptions WHERE customer_email=?').bind(address),
   ...cartErasureStatements(env.DB,address),
   ...await privacyErasureStatements(env.DB,address),
   ...customerErasureStatements(env.DB,address),

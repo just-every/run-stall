@@ -677,3 +677,45 @@ test('TAX-001: preview authority, consent, incomplete configuration and provider
   assert.ok(history.previews[0].provider_id,'a readable original reference survives a malformed total')
  }finally {await h.close()}
 })
+
+test('tax settings save exact local ship-from, SKU categories and nexus thresholds behind current owner authority',async()=>{
+ const h=await installation({outboundService:()=>{assert.fail('Local tax configuration must not call a provider')}})
+ try {
+  const path='/api/stall/tax/configuration',initial=await h.api(path)
+  const value={shipFrom:{line1:'1200 Cedar Avenue',line2:'Unit 4',city:'Austin',state:'TX',postal_code:'78702',country:'US'},categories:[{sku:'LINEN-TEE',taxCode:'txcd_99999999'},{sku:'GIFT-PAPER',taxCode:'txcd_00000000'}],thresholds:[{state:'TX',salesCents:10000000,transactions:200,warningPercent:80}]}
+  const admin=await h.signIn('synthetic-stall-tax-admin@example.test','admin'),member=await h.signIn('synthetic-stall-tax-member@example.test'),agent=await h.api('/api/stall/agent-token',{})
+  for(const opts of [{as:'',status:401},{as:admin,status:403},{as:member,status:403},{as:'',headers:{authorization:'Bearer '+agent.token},status:403}]) {
+   await h.api(path,undefined,opts);await h.api(path,{revision:initial.revision,value},opts)
+  }
+  await h.api(path,{revision:initial.revision,value},{headers:{origin:'https://synthetic-stall-outside.test'},status:403})
+  const saved=await h.api(path,{revision:initial.revision,value})
+  assert.deepEqual({...saved,revision:undefined},{...value,revision:undefined})
+  await h.api(path,{revision:initial.revision,value:{...value,categories:[]}},{status:409})
+  await h.api(path,{revision:saved.revision,value:{...value,categories:[{sku:'LINEN-TEE',taxCode:'unclassified'}]}},{status:400})
+  assert.deepEqual(await h.api(path),saved)
+  assert.ok((await h.api('/api/stall/state')).audit.some(event=>event.action==='tax.configuration-saved'))
+  let restored
+  try {restored=await installation();await restore(restored,await archive(h));assert.deepEqual(await restored.api(path),saved)}finally{await restored?.close()}
+ }finally{await h.close()}
+})
+
+test('customer tax exemption evidence keeps exact owner review, optimistic revisions and inert portable custody',async()=>{
+ const h=await installation();let restored
+ try {
+  const path='/api/stall/tax/exemptions',input={customerEmail:'SYNTHETIC-STALL-TAX@example.test',state:'tx',evidenceReference:'Customer exemption certificate 2026-17',expiresOn:'2035-12-31'}
+  const admin=await h.signIn('synthetic-stall-tax-reviewer@example.test','admin')
+  await h.api(path,input,{as:admin,status:403});await h.api(path,undefined,{as:'',status:401})
+  const saved=await h.api(path,input)
+  assert.equal(saved.customerEmail,input.customerEmail.toLowerCase());assert.equal(saved.state,'TX');assert.equal(saved.restored,false);assert.ok(saved.reviewedBy&&saved.reviewedAt)
+  const revoked=await h.api(path,{...input,id:saved.id,revision:saved.revision,revoked:true})
+  await h.api(path,{...input,id:saved.id,revision:saved.revision,revoked:false},{status:409})
+  assert.equal((await h.api(path)).exemptions[0].revoked,true)
+  await h.api(path,{...input,expiresOn:'2035-02-31'},{status:400})
+  const lines=await archive(h)
+  restored=await installation();await restore(restored,lines)
+  const portable=(await restored.api(path)).exemptions[0]
+  assert.equal(portable.id,revoked.id);assert.equal(portable.evidenceReference,input.evidenceReference);assert.equal(portable.restored,true);assert.equal(portable.revoked,true)
+  await h.command('customer.erase',{email:input.customerEmail,confirm:'ERASE'})
+  assert.equal((await h.api(path)).total,0)
+ }finally{await restored?.close();await h.close()}
+})
