@@ -5,7 +5,7 @@ import { stripeEdge } from '../api/network.mjs'
 import { startJourney } from './journey-kit.mjs'
 
 let tax
-const kit=await startJourney({name:'tax-settings',skus:['LINEN-TEE','GIFT-PAPER'],installationFactory:async kit=>{
+const kit=await startJourney({name:'tax-settings',skus:['LINEN-TEE','GIFT-PAPER'],captureFullPage:false,installationFactory:async kit=>{
  tax=taxEdge();const stripe=stripeEdge({forward:kit.stock.forward})
  return installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-stock',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'synthetic-stall-806',STRIPE_WEBHOOK_SECRET:'synthetic-stall-webhook'},outboundService:request=>new URL(request.url).hostname==='api.stripe.com'&&(/^\/v1\/tax\//.test(new URL(request.url).pathname)||new URL(request.url).pathname==='/v1/account')?tax.handle(request):stripe.handle(request)})
 }})
@@ -41,10 +41,13 @@ try {
  await evidence.getByLabel('Jurisdiction state',{exact:true}).fill('TX')
  await evidence.getByLabel('Evidence reference or document name',{exact:true}).fill('Resale certificate Cedar 2026-18')
  await evidence.getByLabel('Evidence expires on',{exact:true}).fill('2035-12-31')
- await evidence.getByLabel('Evidence expires on',{exact:true}).press('Tab')
+ assert.equal(await evidence.getByLabel('Evidence expires on',{exact:true}).inputValue(),'2035-12-31')
+ await evidence.getByLabel('Evidence revoked',{exact:true}).focus()
  await evidence.getByText('Saved',{exact:true}).waitFor()
  assert.equal((await kit.h.api('/api/stall/tax/exemptions')).total,1)
  await kit.capture('saved-tax-settings',settings)
+ await kit.capture('saved-tax-thresholds',settings.getByText('Economic nexus thresholds · 1',{exact:true}).locator('..'))
+ await kit.capture('saved-exemption-evidence',evidence)
  await settings.getByText('Connected Stripe Tax readiness',{exact:true}).click()
  await settings.getByRole('button',{name:'Check Stripe Tax readiness',exact:true}).click()
  await settings.getByText(/CA.*TX/).last().waitFor()
@@ -57,12 +60,12 @@ try {
  await settings.getByLabel('Preview product tax code 1',{exact:true}).fill('txcd_99999999')
  await settings.locator('input[name="tax-preview-consent"]').check()
  await settings.getByRole('button',{name:'Request tax preview',exact:true}).click()
- await settings.getByLabel('Tax preview observation').waitFor()
- await kit.capture('tax-preview',settings)
+ await settings.getByLabel('Tax preview observation').first().waitFor()
+ await kit.capture('tax-preview',settings.getByLabel('Tax preview observation').first())
  tax.ready=false
  await settings.getByRole('button',{name:'Check Stripe Tax readiness',exact:true}).click()
  await settings.getByText(/Finish Stripe Tax head office/).waitFor()
- await kit.capture('tax-configuration-refusal',settings)
+ await kit.capture('tax-configuration-refusal',settings.getByText('Connected Stripe Tax readiness',{exact:true}).locator('..'))
  const account=page.getByRole('button',{name:/^Account menu for /})
  for(const width of [1440,390]) {
   await page.setViewportSize({width,height:1000});await account.focus()
@@ -73,5 +76,5 @@ try {
  }
  assert.deepEqual(kit.errors,[])
  console.log('TAX-001 saved configuration, exemption evidence, consented preview, refusal and tooltips at 1440 and 390 passed')
-}catch(error){journeyError=error;await kit.page.screenshot({path:`${process.env.STALL_SCREENSHOTS??'test-results/tax-settings'}/failure.png`,fullPage:true});throw error}
+}catch(error){journeyError=error;await kit.page.screenshot({path:`${process.env.STALL_SCREENSHOTS??'test-results/tax-settings'}/failure.png`,fullPage:false});throw error}
 finally{await kit.finish(journeyError)}

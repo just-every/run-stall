@@ -78,7 +78,7 @@ export function OrderPanel({ order, staff, busy, run, canApprove, owner, previou
     <section className="st-panel-block st-sums">
       <p><span>Shipping charged{order.shipping ? ` · ${order.shipping.service.name}` : ''}</span><span>{money(order.shippingCents ?? 0)}</span></p>
       {order.shipping && <p className="st-small">{[order.shipping.postalCode && `Quoted for ZIP ${order.shipping.postalCode}`, `Profiles: ${order.shipping.profiles.map(profile => `${profile.name} (revision ${shortId(profile.revision)})`).join(', ')}`, order.shipping.place?.address && `Pickup: ${order.shipping.place.name}, ${order.shipping.place.address}`].filter(Boolean).join(' · ')}</p>}
-      {order.tax&&<p><span>Sales tax</span><span>{money(order.tax.taxCents)}</span></p>}
+      {order.tax&&<><p><span>Sales tax</span><span>{money(order.tax.taxCents)}</span></p><details><summary>Tax calculation and transaction</summary><dl className="st-definition"><div><dt>Calculation</dt><dd>{order.tax.calculationId}</dd></div><div><dt>Tax transaction</dt><dd>{order.tax.transactionId??'Awaiting original transaction evidence'}</dd></div></dl></details></>}
       <p><span>Order total · USD</span><strong>{money(order.totalCents)}</strong></p>
       <p><span>Payment</span><span>{order.payment?.source==='staff' ? `Recorded ${shortTime(order.payment.paidAt)}` : order.payment ? `Paid ${shortTime(order.payment.paidAt)} · Stripe` : humanLabel(order.status)}</span></p>
       {order.payment?.source==='staff'&&<p className="st-small">{staffPaymentLabel}</p>}
@@ -103,7 +103,7 @@ export function OrderPanel({ order, staff, busy, run, canApprove, owner, previou
     <details className="st-more"><summary>More actions</summary>
       {!!order.payment && can('refund.prepare') && <details><summary>Prepare a refund</summary><RefundForm order={order} busy={busy} run={run} /></details>}
       {can('order.reconcile')&&<details><summary>Recover an existing provider operation</summary><RecoverForm order={order} busy={busy} run={run} /></details>}
-      <RecordDetail label="Payment, stock reservation & provider details" value={{ tax:order.tax, payment: order.payment?.source==='staff'?{...order.payment,label:staffPaymentLabel}:order.payment, manualPayment:order.manualPayment, reservation: order.reservation, shipment: order.shipment, refunds: order.refunds }} />
+      <RecordDetail label="Payment, stock reservation & provider details" value={{ payment: order.payment?.source==='staff'?{...order.payment,label:staffPaymentLabel}:order.payment, manualPayment:order.manualPayment, reservation: order.reservation, shipment: order.shipment, refunds: order.refunds }} />
     </details>
   </div>
 }

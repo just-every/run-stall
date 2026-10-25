@@ -4,7 +4,7 @@ import { deliverWebhook } from '../api/network.mjs'
 import { startJourney } from './journey-kit.mjs'
 
 let commerce
-const kit=await startJourney({name:'tax-commerce',skus:['MUG-BLUE','TOWEL-NAT'],installationFactory:async()=>{
+const kit=await startJourney({name:'tax-commerce',skus:['MUG-BLUE','TOWEL-NAT'],captureFullPage:false,installationFactory:async()=>{
  commerce=await taxCommerceInstallation()
  return {...commerce.h,close:()=>commerce.close()}
 }})
@@ -19,7 +19,7 @@ try {
  await page.getByLabel('I reviewed this separate taxed-sales authority.').check()
  await page.getByRole('button',{name:'Enable taxed sales',exact:true}).click()
  await page.getByText('Taxed sales · Enabled',{exact:true}).waitFor()
- await kit.capture('tax-sale-authority',page.locator('#tax-settings').locator('..'))
+ await kit.capture('tax-sale-authority',page.getByText('Taxed sales · Enabled',{exact:true}).locator('..'))
  await page.goto(kit.ready.url+'/shop')
  await page.getByRole('spinbutton',{name:'Quantity for Blue ceramic mug',exact:true}).fill('2')
  await page.getByRole('spinbutton',{name:'Quantity for Natural linen towel',exact:true}).fill('1')
@@ -33,6 +33,7 @@ try {
  await page.getByRole('button',{name:'Review order',exact:true}).click()
  await page.getByRole('heading',{name:'Review your order',exact:true}).waitFor()
  await kit.capture('taxed-checkout-review',page.locator('.st-checkout'))
+ await kit.capture('tax-jurisdictions-before-payment',quote.getByText('Tax by jurisdiction',{exact:true}).locator('..'))
  await quote.getByLabel('Street address',{exact:true}).fill('2 synthetic-stall-street')
  assert.equal(await disclosure.isChecked(),false)
  assert.equal(await page.getByRole('button',{name:'Review order',exact:true}).isDisabled(),true)
@@ -54,6 +55,8 @@ try {
  await page.getByText('Sales tax',{exact:true}).waitFor()
  panel=page.locator('.st-order-panel')
  await kit.capture('paid-tax-order',panel)
+ await panel.getByText('Tax calculation and transaction',{exact:true}).click()
+ await kit.capture('paid-order-tax-references',panel.getByText('Tax calculation and transaction',{exact:true}).locator('..'))
  for(const width of [1440,390]) {
   await page.setViewportSize({width,height:1000})
   const next=panel.getByRole('button',{name:'Next order',exact:true}),control=await next.isEnabled()?next:panel.getByRole('button',{name:'Previous order',exact:true}),label=await control.getAttribute('aria-label')
@@ -86,5 +89,5 @@ try {
  await row.click();await page.locator('.st-order-panel').waitFor()
  assert.deepEqual(kit.errors,[])
  console.log('TAX-001 owner enablement, jurisdictional checkout, paid order, partial tax refund, filing reports, drilldown and tooltips at 1440 and 390 passed')
-}catch(error){journeyError=error;await kit.page.screenshot({path:`${process.env.STALL_SCREENSHOTS??'test-results/tax-commerce'}/failure.png`,fullPage:true});throw error}
+}catch(error){journeyError=error;await kit.page.screenshot({path:`${process.env.STALL_SCREENSHOTS??'test-results/tax-commerce'}/failure.png`,fullPage:false});throw error}
 finally{await kit.finish(journeyError)}

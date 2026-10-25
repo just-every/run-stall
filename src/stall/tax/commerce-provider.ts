@@ -45,5 +45,5 @@ export async function protectedTaxHash(env:Bindings,value:unknown) {
 }
 export function taxDestinationHash(env:Bindings,address:any) {return protectedTaxHash(env,['line1','line2','city','state','postal_code','country'].map(key=>String(address?.[key]??'').trim().toLowerCase()))}
 export async function requireTaxDestination(env:Bindings,tax:TaxSnapshot,address:any) {
- if(tax.destinationHash!==await taxDestinationHash(env,address))fail('TAX_DESTINATION_CHANGED','The address paid in Stripe differs from the reviewed full tax address. Refund the payment and obtain a fresh quote before fulfillment.',409)
+ if(tax.destinationHash!==await taxDestinationHash(env,address))fail('TAX_DESTINATION_CHANGED','The address paid in Stripe differs from the reviewed full tax address. Refund the original payment in Stripe and obtain a fresh quote before fulfillment.',409)
 }
