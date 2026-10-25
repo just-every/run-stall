@@ -3752,7 +3752,7 @@
       "executable": false
     },
     "tests/ui/journey-kit.mjs": {
-      "sha256": "662a0d34086e794f3e33447b2ac6f50ae9cbf8e39677875bcc14bf6fabb3da3d",
+      "sha256": "a7bcb8c25c185be8ca830bd9d6c5adf007e3a3d6c5fd0093af9a15314d9ee9c4",
       "executable": false
     },
     "tests/ui/journey.mjs": {
@@ -3788,7 +3788,7 @@
       "executable": false
     },
     "tests/ui/tax-settings-journey.mjs": {
-      "sha256": "c8c4fe71ddd3e3d9e8c81070201826a76f0c2cbcdaf195f87c67e3e13548cb9c",
+      "sha256": "9324bd0115f481ff8cc3081bb73cd96bf4c42a21c958106e702ea6d900184a8b",
       "executable": false
     },
     "tests/ui/workflow-journey.mjs": {
