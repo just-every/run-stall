@@ -127,6 +127,7 @@
 .st-sums { gap: 6px; }
 .st-sums p { display: flex; justify-content: space-between; gap: 16px; color: var(--body); }
 .st-sums p:first-child { color: var(--ink); font-weight: 600; font-size: 16px; }
+.st-sums .st-money { flex-shrink: 0; white-space: nowrap; }
 .st-sums strong { font: 700 19px/1.2 var(--font-head); }
 .st-reference { font-weight: 500; overflow-wrap: anywhere; }
 .st-ship-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }

@@ -200,7 +200,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "268d4cfe5258642fa4c9ba091b3a374aa2aa70636b27106a8e4e8c05cc844a0c",
+      "sha256": "a905d85540fb20809cb9329724423830b4fe3fab8f9b981050ced090897b2829",
       "executable": false
     },
     "AGENTS.md": {
@@ -220,7 +220,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "ba55c0f944ba46f7e5034b9a47ceb8a66e0f44e34009bff191485aa8fd697851",
+      "sha256": "c0475aebfb8decea6fff4761cc08cd2298a540a536ada5af62532e92587d6450",
       "executable": false
     },
     "deploy-demo.json": {
@@ -740,7 +740,7 @@
       "executable": false
     },
     "public/stall/desk.css": {
-      "sha256": "ace373b73c861f6e5f40e04927b40283e9ea2c3b7320c7b8edf9876f115bd77e",
+      "sha256": "530447fa50a1617154a9c38f6d3c7f19176291556a703de12ae6980886a72873",
       "executable": false
     },
     "public/stall/store.css": {
@@ -3476,7 +3476,7 @@
       "executable": false
     },
     "src/stall/ui/order-panel.tsx": {
-      "sha256": "8284b5abe8d0f7ea3cabac52fb3cf54bed0d4d10829d1f82cbf83327e4eb53b7",
+      "sha256": "d4e31e4fad2056bde52ed2746b5800c5272f270f6b1d0938c08f2c5493c7b8c2",
       "executable": false
     },
     "src/stall/ui/order-return.tsx": {
