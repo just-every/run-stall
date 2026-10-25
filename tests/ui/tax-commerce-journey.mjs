@@ -3,12 +3,13 @@ import { taxCommerceInstallation,taxAddress } from '../api/tax-commerce.mjs'
 import { deliverWebhook } from '../api/network.mjs'
 import { startJourney } from './journey-kit.mjs'
 
-const kit=await startJourney({name:'tax-commerce',skus:['MUG-BLUE','TOWEL-NAT']})
+let commerce
+const kit=await startJourney({name:'tax-commerce',skus:['MUG-BLUE','TOWEL-NAT'],installationFactory:async()=>{
+ commerce=await taxCommerceInstallation()
+ return {...commerce.h,close:()=>commerce.close()}
+}})
 let journeyError
 try {
- await kit.h.close()
- const commerce=await taxCommerceInstallation()
- kit.h={...commerce.h,close:()=>commerce.close()}
  const {page}=kit,{h,tax,stripe}=commerce
  let mode=await h.api('/api/stall/tax/commerce')
  await h.api('/api/stall/tax/commerce',{enabled:false,revision:mode.revision,consent:mode.consent})

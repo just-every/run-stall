@@ -799,6 +799,16 @@ test('tax refunds post in their own shop-zone filing period and liability CSVs a
    const response=await h.request(`/api/stall/tax/liability.csv?from=2026-01-01&to=2026-03-01&level=${level}`)
    assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/text\/csv/)
    const rows=readCsv(await response.text());assert.ok(rows.length>1)
+   const exportedTax=rows.reduce((sum,row)=>sum+Number(row.taxCents),0)
+   assert.equal(exportedTax,level==='jurisdiction'?january.totals.taxCents:january.totals.taxCents+february.totals.taxCents)
+   if(level==='transaction') {
+    assert.deepEqual(new Set(rows.map(row=>row.id)),new Set([tx.order.tax.transactionId,ca.order.tax.transactionId,refund.taxReversalId]))
+    assert.ok(rows.every(row=>[tx.order.id,ca.order.id].includes(row.orderId)&&row.calculationId))
+   }
+   if(level==='jurisdiction')for(const row of rows) {
+    const source=january.jurisdictions.find(j=>j.state===row.state&&j.name===row.name&&j.level===row.level&&j.ratePercent===row.ratePercent)
+    assert.ok(source);assert.equal(Number(row.taxCents),source.taxCents);assert.equal(Number(row.taxableCents),source.taxableCents)
+   }
   }
   const nexus=await h.api('/api/stall/tax/nexus?from=2026-01-01&to=2026-02-01'),texas=nexus.states.find(s=>s.state==='TX')
   assert.equal(texas.netGrossCents,2500);assert.equal(texas.transactionCount,1);assert.equal(texas.status,'warning')

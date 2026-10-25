@@ -4,12 +4,13 @@ import { taxEdge } from '../api/tax-edge.mjs'
 import { stripeEdge } from '../api/network.mjs'
 import { startJourney } from './journey-kit.mjs'
 
-const kit=await startJourney({name:'tax-settings',skus:['LINEN-TEE','GIFT-PAPER']})
+let tax
+const kit=await startJourney({name:'tax-settings',skus:['LINEN-TEE','GIFT-PAPER'],installationFactory:async kit=>{
+ tax=taxEdge();const stripe=stripeEdge({forward:kit.stock.forward})
+ return installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-stock',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'synthetic-stall-806',STRIPE_WEBHOOK_SECRET:'synthetic-stall-webhook'},outboundService:request=>new URL(request.url).hostname==='api.stripe.com'&&(/^\/v1\/tax\//.test(new URL(request.url).pathname)||new URL(request.url).pathname==='/v1/account')?tax.handle(request):stripe.handle(request)})
+}})
 let journeyError
 try {
- await kit.h.close()
- const tax=taxEdge(),stripe=stripeEdge({forward:kit.stock.forward})
- kit.h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-stock',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'synthetic-stall-806',STRIPE_WEBHOOK_SECRET:'synthetic-stall-webhook'},outboundService:request=>new URL(request.url).hostname==='api.stripe.com'&&(/^\/v1\/tax\//.test(new URL(request.url).pathname)||new URL(request.url).pathname==='/v1/account')?tax.handle(request):stripe.handle(request)})
  const {page}=kit
  await page.goto(kit.ready.url+'/app#settings')
  await page.getByRole('heading',{name:'Tax settings',exact:true}).waitFor()
