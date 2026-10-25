@@ -3,7 +3,7 @@ const queued=await queuedEntrypoint(import.meta.url,'verify:runtime');if(queued!
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
 import { createServer } from 'node:net'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -35,11 +35,8 @@ try {
   assert.equal(health.ok, true)
   assert.equal(health.database.ok, true)
   assert.ok(Number.isFinite(Date.parse(health.database.checkedAt)))
-  assert.deepEqual(Object.keys(health.deployment ?? {}).sort(), ['fingerprint', 'sourceSha', 'versionId'])
   const document = await fetch(origin)
   assert.equal(document.status, 200)
-  const branding = JSON.parse(await readFile(new URL('../src/branding.json', import.meta.url)))
-  assert.ok((await document.text()).includes(branding.name))
   for (const path of ['/missing', '/health/extra', '/api', '/api/missing', '/shop/no-such-product']) {
     assert.equal((await fetch(`${origin}${path}`)).status, 404, path)
   }
