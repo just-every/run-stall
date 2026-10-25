@@ -244,7 +244,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "31c84777c1eda211780c7bf1544d3c9315b9ee7774ede279e3f747cd16c24f07",
+      "sha256": "228a7d02a55d385cbbc32ecb54f6859719b9e7a8af195884d5b55490b0b046d2",
       "executable": false
     },
     "docs/COMMANDS.md": {
@@ -3836,7 +3836,7 @@
       "executable": false
     },
     "tests/ui/tax-commerce-journey.mjs": {
-      "sha256": "9cdffb534aff895faf997cc84537b2254e31728835a13362d8c0d7eb65f37e13",
+      "sha256": "fb478b220758484903313cad10e1d2b1cdd4cca1873a44e874518912e43a98eb",
       "executable": false
     },
     "tests/ui/tax-settings-journey.mjs": {
