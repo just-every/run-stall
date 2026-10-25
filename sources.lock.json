@@ -740,7 +740,7 @@
       "executable": false
     },
     "public/stall/desk.css": {
-      "sha256": "530447fa50a1617154a9c38f6d3c7f19176291556a703de12ae6980886a72873",
+      "sha256": "18b1b83fa6458868c1bae6c0a650aaeda06237354147f96f700418d22041a1f3",
       "executable": false
     },
     "public/stall/store.css": {
@@ -3596,7 +3596,7 @@
       "executable": false
     },
     "src/stall/ui/shop.tsx": {
-      "sha256": "cc8aeb09d98e0261eaa61635a9383089e8add771e56df6db23c010f21fd25b3e",
+      "sha256": "21ddf04a4c1ed5dd9ec04598eb9d89d90cb6d6b01467420b86cbef0d20126d03",
       "executable": false
     },
     "src/stall/ui/staff-access.tsx": {
@@ -3616,7 +3616,7 @@
       "executable": false
     },
     "src/stall/ui/tax-reports.tsx": {
-      "sha256": "9324a6969503ae2d12aaefdbc6c4181730f809e54df0f8d52b5c5a5a98478ef0",
+      "sha256": "fc225e30bc0693d8fb52fd1c60928aeda428440d49c00d34f4275408f37d1e8d",
       "executable": false
     },
     "src/stall/ui/tax-settings.tsx": {
@@ -3836,7 +3836,7 @@
       "executable": false
     },
     "tests/ui/tax-commerce-journey.mjs": {
-      "sha256": "fb478b220758484903313cad10e1d2b1cdd4cca1873a44e874518912e43a98eb",
+      "sha256": "b2c23843fd66902924c8bcdb594704ccea32b7e0c41d921122be03d36f2184b8",
       "executable": false
     },
     "tests/ui/tax-settings-journey.mjs": {

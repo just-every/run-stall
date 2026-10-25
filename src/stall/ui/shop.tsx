@@ -69,7 +69,7 @@ export function Shop() {
       {catalogue && <div className="st-browse st-stack"><SearchBox value={browse.params.get('q') ?? ''} onSubmit={value => browse.go(next => value ? next.set('q', value) : next.delete('q'))} />
         {browse.problem && <Notice error>{browse.problem}</Notice>}
         {browse.result && <><ResultsBar result={browse.result} params={browse.params} go={browse.go} /><details className="st-filters" open={typeof matchMedia === 'undefined' ? true : !matchMedia('(max-width: 900px)').matches}><summary>Filters</summary><Facets result={browse.result} params={browse.params} go={browse.go} /></details></>}</div>}
-      {loading && <p role="status">Checking available products with Pier…</p>}
+      <p role="status" hidden={!loading}>Checking available products with Pier…</p>
       {error && <Notice error>{error}</Notice>}
       {!loading && !catalogue && <Empty><h3>The shop is not ready for orders</h3><p>Live stock and payment connections need to be available before checkout can open. Please try again later.</p></Empty>}
       {catalogue && !catalogue.checkoutReady && <Notice>Payments are not available yet. The shop owner needs to connect Stripe checkout before orders can be accepted.</Notice>}

@@ -88,6 +88,8 @@ try {
  assert.equal(await reports.getByText('Approaching threshold',{exact:true}).isVisible(),true)
  await kit.capture('tax-liability-and-nexus',reports)
  await kit.capture('configured-nexus-warning',reports.getByRole('table',{name:'Configured state thresholds'}))
+ await reports.getByRole('table',{name:'Configured state thresholds'}).locator('..').evaluate(element=>{element.scrollLeft=element.scrollWidth})
+ await kit.capture('configured-nexus-warning-status',reports.getByRole('table',{name:'Configured state thresholds'}))
  await reports.getByRole('button',{name:'Austin',exact:true}).click()
  await kit.capture('jurisdiction-transaction-drilldown',reports.getByRole('table',{name:'Contributing transactions'}))
  await reports.getByLabel('To, exclusive',{exact:true}).fill('2026-03-01')

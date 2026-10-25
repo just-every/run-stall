@@ -316,3 +316,14 @@
 
 .st-tooltip { position: relative; display: inline-flex; }
 .st-tooltip > [role="tooltip"] { position: absolute; right: 0; top: calc(100% + 8px); z-index: 10; width: max-content; max-width: 220px; padding: 6px 9px; border-radius: 6px; background: var(--ink); color: var(--surface); font-size: 13px; pointer-events: none; }
+
+@media (max-width: 640px) {
+  #tax-reports .st-tax-table, #tax-reports .st-tax-table tbody { display: block; }
+  #tax-reports .st-tax-table caption { display: block; text-align: left; padding: 12px 0; }
+  #tax-reports .st-tax-table thead { display: none; }
+  #tax-reports .st-tax-table tr { display: block; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  #tax-reports .st-tax-table td { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; padding: 6px 0; border: 0; }
+  #tax-reports .st-tax-table td::before { content: attr(data-label); color: var(--muted); font-size: 13px; }
+  #tax-reports .st-tax-table td[colspan] { display: block; }
+  #tax-reports .st-tax-table td[colspan]::before { content: none; }
+}
