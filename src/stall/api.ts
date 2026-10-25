@@ -1,3 +1,4 @@
+import { taxOwner,taxBoundary,taxReadiness,taxHistory,previewTax } from './tax'
 import { cartResponse } from './customers/cart'
 import { privacyResponse } from './customers/privacy'
 import { customerResponse } from './customers'
@@ -111,6 +112,13 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   if(path==='/api/stall/customer/orders'&&request.method==='GET') { requirePerson(actor);await requireProvenEmail(env,actor.sessionId!,actor.id);return json({orders:(await orders(env.DB)).filter(o=>!o.erasedAt&&o.customerEmail===actor.email).map(({id,createdAt,status,lines,totalCents,currency})=>({id,createdAt,status,lines:lines.map(({sku,name,quantity,unitCents})=>({sku,name,quantity,unitCents})),totalCents,currency}))}) }
   requireSupplier(actor)
   if(!['GET','HEAD'].includes(request.method)&&request.headers.get('origin')!==env.AUTH_ORIGIN&&(!actor.agent||request.headers.has('origin'))) fail('ORIGIN','Use this installation’s own page to change records.',403)
+  if(path.startsWith('/api/stall/tax/')) {
+   taxOwner(actor);await live(env,actor)
+   if(path==='/api/stall/tax/boundary'&&request.method==='GET')return json(taxBoundary)
+   if(path==='/api/stall/tax/readiness'&&request.method==='GET')return json(await taxReadiness(env))
+   if(path==='/api/stall/tax/previews'&&request.method==='GET')return json(await taxHistory(env))
+   if(path==='/api/stall/tax/preview'&&request.method==='POST')return json(await previewTax(env,actor,await body(request)))
+  }
   if(path==='/api/stall/risk'&&request.method==='GET') return json(await riskSnapshot(env,actor))
   if(path==='/api/stall/staff'&&request.method==='GET') return json(await staffSnapshot(env,actor))
 
