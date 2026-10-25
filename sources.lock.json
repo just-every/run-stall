@@ -548,7 +548,7 @@
       "executable": false
     },
     "public/fonts/fonts.css": {
-      "sha256": "5213ee5de3b901a68ec750cb479fa08e3bb798c9c65f1391817262cc4d66f89c",
+      "sha256": "ac54ba6833509030c6e6040c241273a45ff2bc8d668db3147c9052e41937fc8b",
       "executable": false
     },
     "public/fonts/inter-tight/inter-tight-latin-ext-wght-normal.woff2": {
@@ -2908,7 +2908,7 @@
       "executable": false
     },
     "src/site/run.json": {
-      "sha256": "5ef751643b5245168c52175ec9fb735803029f65f9c16d6ea04943ea02c5db5f",
+      "sha256": "419123a8d04f7dcbdfa95aceb32fbf5e984e49496778575173c86d2479df758e",
       "executable": false
     },
     "src/site/shell/Actions.tsx": {

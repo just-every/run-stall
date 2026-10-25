@@ -101,14 +101,11 @@ html[data-state] .door .btn { background: var(--tangerine-press); color: #fff; b
 html[data-state] .door .btn:hover { background: #e45204; }
 
 /* Base's Run page (/run) and not-found page, in the homepage's look: the
-   heavy headline, white step cards, tangerine numerals and the dark code cards. */
+   heavy headline and the dark code cards. */
 body:has(> header.bar) { background: radial-gradient(55% 40% at 50% 0, var(--tangerine-wash), transparent 70%), var(--paper); }
 body:has(> header.bar) .bar { padding-bottom: 22px; border-bottom: 1px solid var(--line); max-width: none; }
 body:has(> header.bar) .brand { font-weight: 800; letter-spacing: -.035em; }
 body:has(> header.bar) h1 { font-weight: 800; letter-spacing: -.045em; word-spacing: .06em; }
 body:has(> main > .intro) .intro { padding-top: 64px; }
-body:has(> main > .intro) .step { border-radius: var(--radius-card); border-color: var(--line); background: var(--surface); box-shadow: var(--shadow-card); }
-body:has(> main > .intro) .num { background: var(--tangerine-press); color: #fff; font-weight: 800; }
-body:has(> main > .intro) .step h2 { font-weight: 800; letter-spacing: -.035em; }
 body:has(> main > .intro) .code { background: var(--terminal); }
 body:has(> header.bar) .link { text-decoration-color: var(--tangerine); text-decoration-thickness: 2px; }
