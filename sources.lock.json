@@ -3836,7 +3836,7 @@
       "executable": false
     },
     "tests/ui/tax-commerce-journey.mjs": {
-      "sha256": "7f9b5c6d1cc8190280903c98987e8786daa8fb2433f756e581e764ecdf19ebc8",
+      "sha256": "46ce4ce6a3984bc9b8f8f51438354a154cbd566401ba40049475f37f24d7eebc",
       "executable": false
     },
     "tests/ui/tax-settings-journey.mjs": {
