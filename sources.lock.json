@@ -200,7 +200,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "9f41d156838404731d06a8335cf6ea0c32b41c296267b7412c48b25e9778bbbd",
+      "sha256": "d6cc09f63a2cac6a60d5f0a08f2a80dad7c8301f466d0430fcc849e961891d63",
       "executable": false
     },
     "AGENTS.md": {
@@ -220,7 +220,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "ed8c313a14479401b29c780a4ce3657867b03afbfcb443796363b186bfe6e242",
+      "sha256": "3aad963352c31160af275f8cb18688d21c2f4e1beac4be83a95cf855fa178ada",
       "executable": false
     },
     "deploy-demo.json": {
@@ -3696,7 +3696,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "d1172ef466f2ea9236288d637b9faec3e93c9278cb4584721ae3a474ddefda86",
+      "sha256": "f6b410a8845863ef5e373289836b90aeafe413eeb04c3030a9663b5bbc340e96",
       "executable": false
     },
     "tests/ui/bulk-products-journey.mjs": {
@@ -3764,7 +3764,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "a106d5d2e0f4bae29e3debe35a462f77d559cb411487187c963222c0416ba430",
+      "sha256": "fae18af99569a970768493a32320e419e51ed1a2f614fcf6088de2a27fad346f",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
