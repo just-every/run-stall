@@ -64,6 +64,15 @@
       "commands": [
         "node tests/ui/shipping-journey.mjs"
       ]
+    },
+    {
+      "name": "tax-browser",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "node tests/ui/real-home.mjs tests/ui/tax-settings-journey.mjs",
+        "node tests/ui/real-home.mjs tests/ui/tax-commerce-journey.mjs"
+      ]
     }
   ]
 }

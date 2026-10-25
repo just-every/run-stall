@@ -1,3 +1,5 @@
+import { taxTestMode } from './tax/commerce-provider'
+import { ensureRefundTax } from './tax/transactions'
 import { refundAuthority } from './permissions'
 import type { Bindings } from '../auth.server'
 import { actorLabel,approval,fail,requirePerson,shopCurrency,text,type Actor,type Order,type Refund } from './model'
@@ -25,7 +27,8 @@ export async function refundCommand(env:Bindings,actor:Actor,type:string,p:any) 
  let refund=p.refundId?order.refunds.find(r=>r.id===p.refundId):order.refunds.at(-1)
  if(!refund) fail('REFUND','Prepare and review a refund first.')
  refundAuthority(actor,refund.amountCents,refund.preparedBy)
- if(['succeeded','failed','canceled'].includes(refund.status)) return order
+ if(refund.status==='succeeded')return ensureRefundTax(env,order,refund)
+ if(['failed','canceled'].includes(refund.status))return order
  const allowCreate=refund.status==='draft'
  if(refund.status==='draft') {
   exactRevision(order,p)
@@ -41,6 +44,7 @@ export async function refundCommand(env:Bindings,actor:Actor,type:string,p:any) 
  return finishRefund(env,actor,order,refund,undefined,allowCreate)
 }
 export async function finishRefund(env:Bindings,actor:Actor,order:Order,r:Refund,recoveredStripeId?:string,allowCreate=false) {
+ if(order.tax)taxTestMode(env)
  refundAuthority(actor,r.amountCents,r.preparedBy)
  await liveApproval(env,actor,r.approval,'finance')
  if(order.payment?.source==='staff') {
@@ -50,5 +54,6 @@ export async function finishRefund(env:Bindings,actor:Actor,order:Order,r:Refund
  const result=r.stripeId||recoveredStripeId?await retrieveRefund(env,r.stripeId??recoveredStripeId!):await createRefund(env,order,r,allowCreate)
  const next=refundResult(order,r,result)
  await observedStripeWork(env.DB,`stall-refund-${r.id}`,next.stripeId!)
- return saveOrder(env,{...order,refunds:order.refunds.map(x=>x.id===r.id?next:x)},`refund.${next.status}`,actor)
+ order=await saveOrder(env,{...order,refunds:order.refunds.map(x=>x.id===r.id?next:x)},`refund.${next.status}`,actor)
+ return ensureRefundTax(env,order,next)
 }

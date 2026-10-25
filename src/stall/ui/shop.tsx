@@ -1,3 +1,4 @@
+import { TaxCheckout,useTaxCheckout } from './tax-checkout'
 import type { CustomField } from '../product-details'
 import { CustomFields } from './product-details'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
@@ -44,17 +45,19 @@ export function Shop() {
   const shippingInput = service ? { service: service.code, ...(zipOf(zip) ? { postalCode: zipOf(zip) } : {}), quote: service.quote } : undefined
   const promotion = usePromotionCode({ lines, customerEmail: email.trim(), shipping: shippingInput, subtotal, shippingCents: shipping })
   useEffect(() => { setReview(false); key.current = '' }, [service?.code, service?.quote])
-  const total = subtotal + shipping - (promotion.applied?.discountCents ?? 0)
+  const tax=useTaxCheckout({lines,customerEmail:email.trim(),shipping:shippingInput,...(promotion.applied?{promotionCode:promotion.code.trim()}:{})},zip,value=>{setReview(false);key.current='';setZip(value)})
+  const total = tax.quote?.totalCents??(subtotal + shipping - (promotion.applied?.discountCents ?? 0))
+  useEffect(()=>{setReview(false);key.current=''},[tax.quote?.quoteId])
   const invalid = items.some(item => quantities[item.sku] && (!Number.isSafeInteger(Number(quantities[item.sku])) || Number(quantities[item.sku]) < 0 || Number(quantities[item.sku]) > Number(item.available)))
   function changed() { setReview(false); key.current = ''; setError('') }
   async function checkout(event: FormEvent) {
     event.preventDefault()
-    if (lock.current || !chosen.length || invalid || !service || promotion.blocked) return
+    if (lock.current || !chosen.length || invalid || !service || promotion.blocked || tax.blocked) return
     if (!review) { setReview(true); return }
     lock.current = true; setBusy(true); setError('')
     key.current ||= crypto.randomUUID()
     try {
-      const result = await request<{ url: string }>('/api/stall/checkout', { ...(promotion.applied ? { promotionCode: promotion.code.trim() } : {}), customerEmail: email.trim(), lines: chosen.map(item => ({ sku: item.sku, quantity: Number(quantities[item.sku]), ...(extras[item.sku]?.personalization ? { personalization: extras[item.sku].personalization } : {}) })), expectedTotalCents: total, shipping: { service: service!.code, ...(zipOf(zip) ? { postalCode: zipOf(zip) } : {}), quote: service!.quote }, idempotencyKey: key.current })
+      const result = await request<{ url: string }>('/api/stall/checkout', { ...(tax.quote?{taxQuoteId:tax.quote.quoteId}:{}),...(promotion.applied ? { promotionCode: promotion.code.trim() } : {}), customerEmail: email.trim(), lines: chosen.map(item => ({ sku: item.sku, quantity: Number(quantities[item.sku]), ...(extras[item.sku]?.personalization ? { personalization: extras[item.sku].personalization } : {}) })), expectedTotalCents: total, shipping: { service: service!.code, ...(zipOf(zip) ? { postalCode: zipOf(zip) } : {}), quote: service!.quote }, idempotencyKey: key.current })
       const url = new URL(result.url, window.location.origin)
       if (!(url.protocol === 'https:' && url.hostname === 'checkout.stripe.com') && !(url.origin === window.location.origin && url.pathname === '/order')) throw new Error('The payment provider did not return a valid hosted Stripe checkout. Contact the shop.')
       window.location.assign(url.href)
@@ -92,9 +95,10 @@ export function Shop() {
           {chosen.length ? <ul className="st-lines">{chosen.map(item => <li key={item.sku}><span>{item.name} × {quantities[item.sku]}{extras[item.sku]?.detail?.map(line => <small key={line} className="st-line-detail">{line}</small>)}{extras[item.sku] && <button type="button" className="st-link" disabled={busy} onClick={() => { changed(); setQuantities(current => ({ ...current, [item.sku]: '0' })); setExtras(current => { const { [item.sku]: _gone, ...rest } = current; return rest }) }}>Remove<span className="st-sr-only"> {item.name}</span></button>}</span><strong>{money((item.unitCents + (extras[item.sku]?.addOnCents ?? 0)) * Number(quantities[item.sku]))}</strong></li>)}</ul> : <p>Choose a quantity above to start your order.</p>}
           <div className="st-row"><span>Product subtotal</span><strong>{money(subtotal)}</strong></div><ShippingChoice state={options} zip={zip} setZip={value => { changed(); setZip(value) }} busy={busy} /><div className="st-row"><span>{service?.name ?? 'Shipping'}</span><strong>{service ? money(shipping) : 'Choose an option'}</strong></div>
           <PromotionCode state={promotion} busy={busy} changed={changed} />
+          <TaxCheckout state={tax} disabled={busy||!service||!chosen.length||promotion.blocked} />
           <div className="st-total"><span>Total · USD</span><strong>{money(total)}</strong></div><p className="st-small">This total includes the products and the shipping option you chose. Payment opens on Stripe’s secure hosted checkout. Your order is confirmed after payment is verified.</p>
           {review && <Notice>Check these quantities, your email and the exact total before continuing.</Notice>}
-          <div className="st-actions"><button disabled={busy || loading || options.loading || promotion.blocked || !service || !catalogue?.checkoutReady || !chosen.length || invalid}>{busy ? 'Opening Stripe…' : review ? `Pay ${money(total)} with Stripe` : 'Review order'}</button>{review && <button type="button" className="st-secondary" disabled={busy} onClick={() => setReview(false)}>Edit order</button>}</div>
+          <div className="st-actions"><button disabled={busy || loading || options.loading || promotion.blocked || tax.blocked || !service || !catalogue?.checkoutReady || !chosen.length || invalid}>{busy ? 'Opening Stripe…' : review ? `Pay ${money(total)} with Stripe` : 'Review order'}</button>{review && <button type="button" className="st-secondary" disabled={busy} onClick={() => setReview(false)}>Edit order</button>}</div>
         </div>
       </form>}
     </Section>

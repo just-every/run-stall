@@ -56,7 +56,7 @@ export function stripeEdge({forward}={}) {
    }
    total+=Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]')??0);
    const id='cs_test_'+randomUUID().replaceAll('-','');
-   value={id,created:Math.floor(Date.now()/1000),object:'checkout.session',mode:'payment',shipping_address_collection:form.has('shipping_address_collection[allowed_countries][0]')?{allowed_countries:['US']}:null,client_reference_id:form.get('client_reference_id'),metadata:{stall_order_id:form.get('metadata[stall_order_id]')},amount_total:total,total_details:{amount_shipping:Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]')??0)},currency:'usd',status:'open',payment_status:'unpaid',payment_intent:null,url:'https://checkout.stripe.com/c/pay/'+id};
+   value={id,created:Math.floor(Date.now()/1000),object:'checkout.session',livemode:false,mode:'payment',shipping_address_collection:form.has('shipping_address_collection[allowed_countries][0]')?{allowed_countries:['US']}:null,client_reference_id:form.get('client_reference_id'),metadata:{stall_order_id:form.get('metadata[stall_order_id]')},amount_total:total,total_details:{amount_shipping:Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]')??0)},currency:'usd',status:'open',payment_status:'unpaid',payment_intent:null,url:'https://checkout.stripe.com/c/pay/'+id};
    sessions.set(id,value);
   } else if(url.pathname==='/v1/refunds') {
    const intent=form.get('payment_intent'),amount=Number(form.get('amount'));

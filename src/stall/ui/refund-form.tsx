@@ -1,3 +1,5 @@
+import { refundTaxAllocation } from '../tax/transactions-refunds'
+import { Notice } from './primitives'
 import { useState, type FormEvent } from 'react'
 import type { Refund, RefundKind } from '../model'
 import type { Order, Run } from './types'
@@ -18,17 +20,20 @@ export function RefundForm({ order, busy, run, initial, onCancel }: { order: Ord
  const [reason, setReason] = useState(initial?.reason ?? '')
  const committed = order.refunds.filter(refund => ['pending', 'succeeded'].includes(refund.status))
  const remaining = order.totalCents - committed.reduce((sum, refund) => sum + refund.amountCents, 0)
- const shippingRemaining = (order.shippingCents ?? 0) - committed.filter(refund => refund.kind === 'shipping').reduce((sum, refund) => sum + refund.amountCents, 0)
+ const shippingRemaining = (order.shippingCents ?? 0) - committed.filter(refund => refund.kind === 'shipping').reduce((sum, refund) => sum + (refund.taxAllocation?.shippingCents??refund.amountCents), 0)
  const line = order.lines.find(item => item.sku === sku)
  const quantityLeft = (line?.quantity ?? 0) - committed.reduce((sum, refund) => sum + (refund.lines.find(item => item.sku === sku)?.quantity ?? 0), 0)
- const refundTotal = kind === 'lines' ? Number(quantity) * (line?.unitCents ?? 0) : cents(amount)
- const valid = Number.isSafeInteger(refundTotal) && refundTotal > 0 && refundTotal <= remaining && !committed.some(refund => refund.status === 'pending')
+ const baseTotal = kind === 'lines' ? Number(quantity) * (line?.unitCents ?? 0) : cents(amount)
+ let taxCents=0,taxProblem=''
+ if(order.tax&&Number.isSafeInteger(baseTotal)&&baseTotal>0)try {taxCents=refundTaxAllocation(order,{kind,lines:kind==='lines'?[{sku,quantity:Number(quantity)}]:[],amountCents:baseTotal})?.taxCents??0}catch(error){taxProblem=error instanceof Error?error.message:'The original tax allocation needs reconciliation.'}
+ const refundTotal=baseTotal+taxCents
+ const valid = !taxProblem && Number.isSafeInteger(refundTotal) && refundTotal > 0 && refundTotal <= remaining && !committed.some(refund => refund.status === 'pending')
   && (kind !== 'lines' || (Number.isSafeInteger(Number(quantity)) && Number(quantity) > 0 && Number(quantity) <= quantityLeft))
-  && (kind !== 'shipping' || refundTotal <= shippingRemaining)
+  && (kind !== 'shipping' || baseTotal <= shippingRemaining)
  async function prepare(event: FormEvent) {
   event.preventDefault()
   if (valid && await run('refund.prepare', { orderId: order.id, revision: order.revision, kind, reason,
-   ...(kind === 'lines' ? { lines: [{ sku, quantity: Number(quantity) }] } : { amountCents: refundTotal }) })) onCancel?.()
+   ...(kind === 'lines' ? { lines: [{ sku, quantity: Number(quantity) }] } : { amountCents: baseTotal }) })) onCancel?.()
  }
  return <form className="st-stack" onSubmit={event => void prepare(event)}>
   <p className="st-small">{order.payment?.source==='staff'?'A person approves the saved amount and reason. Refund recorded by staff; Stall moved no money.':'A person approves the saved amount and reason before Stripe is called.'} A refund does not record returned stock or restock items.</p>
@@ -37,6 +42,7 @@ export function RefundForm({ order, busy, run, initial, onCancel }: { order: Ord
    : <label>Refund amount · USD<input required type="text" inputMode="decimal" value={amount} disabled={busy} placeholder="5.00" onChange={event => setAmount(event.target.value)} /></label>}
   <p className="st-small">Refundable value: {money(remaining)}{kind === 'shipping' && <> · Shipping remaining: {money(shippingRemaining)}</>}. Pending refunds count against these limits.</p>
   <label>Reason<input required maxLength={500} value={reason} disabled={busy} onChange={event => setReason(event.target.value)} /></label>
+  {taxProblem&&<Notice error>{taxProblem}</Notice>}{order.tax&&!taxProblem&&<p>Includes {money(taxCents)} sales tax from the original purchase.</p>}
   <div className="st-row"><strong>Refund · {money(Number.isFinite(refundTotal) ? refundTotal : 0)}</strong><div className="st-actions"><button disabled={busy || !valid}>Prepare refund</button>{onCancel && <button type="button" className="st-secondary" disabled={busy} onClick={onCancel}>Cancel</button>}</div></div>
  </form>
 }

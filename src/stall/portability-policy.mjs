@@ -9,6 +9,7 @@ export const portabilityPolicy = {
  excludeTables: ['st_headless_apps','st_headless_subscriptions','st_headless_limits','st_workflow_authority','st_promotion_authority','st_staff','st_agent_tokens','st_connections','st_guard','st_email_changes','st_email_link_sessions','rer_dependency_keys','rer_dependency_pending','rer_dependency_codes'],
  // Preserve customer/cart and delivery history without transferring authority.
  exportRow(table,row) {
+  if(['st_tax_commerce','st_tax_quotes','st_tax_transactions'].includes(table)) return {...row,restored:1}
   if(table==='st_tax_exemptions') return {...row,restored:1}
   if(table==='st_tax_previews') return {...row,restored:1}
   if(table==='st_shop_carts') return {...row,...(row.guest_hash?{guest_hash:'restored:'+row.id}:{}),checkout_key:'restored:'+row.id,checkout_intent:null,review_digest:null}

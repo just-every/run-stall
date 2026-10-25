@@ -1,3 +1,4 @@
+import { Tooltip } from './tooltip'
 import { useCan } from './authority'
 // The selected order's panel (the owner's pick): customer, lines with any
 // stock shortfall, totals and payment, delivery address, shipping, then the
@@ -68,7 +69,7 @@ export function OrderPanel({ order, staff, busy, run, canApprove, owner, previou
   const refunded = order.refunds.filter(refund => refund.status === 'succeeded').reduce((sum, refund) => sum + refund.amountCents, 0)
   const shipmentDraft = order.shipment?.status === 'draft'
   return <div className="st-panel-body">
-    <div className="st-panel-head"><h2>Order {shortId(order.id)}{needs(order) && <span className="st-flag" title="Needs a person" aria-hidden="true" />}</h2><div className="st-step-buttons"><button className="st-secondary" aria-label="Previous order" disabled={!previous} onClick={previous}><Icon name="left" /></button><button className="st-secondary" aria-label="Next order" disabled={!next} onClick={next}><Icon name="right" /></button></div></div>
+    <div className="st-panel-head"><h2>Order {shortId(order.id)}{needs(order) && <span className="st-flag" title="Needs a person" aria-hidden="true" />}</h2><div className="st-step-buttons"><Tooltip label="Previous order"><button className="st-secondary" aria-label="Previous order" disabled={!previous} onClick={previous}><Icon name="left" /></button></Tooltip><Tooltip label="Next order"><button className="st-secondary" aria-label="Next order" disabled={!next} onClick={next}><Icon name="right" /></button></Tooltip></div></div>
     <div className="st-panel-customer"><div><h3>{details?.name ?? order.customerEmail ?? 'Customer details erased'}</h3><p>{placeLine(address) || (order.customerEmail ?? 'Customer details erased')}</p></div><div className="st-ordered"><span>Ordered {shortTime(order.createdAt)}</span><small>{details?.name && order.customerEmail ? order.customerEmail : `revision ${shortId(order.revision)}`}</small></div></div>
     <section className="st-panel-block"><h3>Items ({order.lines.reduce((sum, line) => sum + line.quantity, 0)})</h3>
       <ul className="st-items">{order.lines.map(line => { const gap = short[line.itemId]; return <li key={line.sku}><div><span>{line.name}</span><small>{line.sku}</small>{line.description && <small>{line.description}</small>}{line.variant && <small>{Object.entries(line.variant).map(([name, value]) => `${name}: ${value}`).join(', ')}</small>}{line.personalization?.map(answer => <small key={answer.key}>{answer.label}: {answer.fileId ? <a href={`/api/stall/uploads/${answer.fileId}`} target="_blank" rel="noreferrer">{answer.value}</a> : answer.value}{answer.addOnCents ? ` (+${money(answer.addOnCents)} each)` : ''}</small>)}</div><span className="st-num">{money(line.unitCents)}</span><span className="st-qty">× {line.quantity}</span><span className="st-num">{money(line.quantity * line.unitCents)}</span>{gap && <p className="st-short">Short in Pier ({gap.reserved} of {gap.quantity} reserved)</p>}</li> })}</ul>
@@ -77,6 +78,7 @@ export function OrderPanel({ order, staff, busy, run, canApprove, owner, previou
     <section className="st-panel-block st-sums">
       <p><span>Shipping charged{order.shipping ? ` · ${order.shipping.service.name}` : ''}</span><span>{money(order.shippingCents ?? 0)}</span></p>
       {order.shipping && <p className="st-small">{[order.shipping.postalCode && `Quoted for ZIP ${order.shipping.postalCode}`, `Profiles: ${order.shipping.profiles.map(profile => `${profile.name} (revision ${shortId(profile.revision)})`).join(', ')}`, order.shipping.place?.address && `Pickup: ${order.shipping.place.name}, ${order.shipping.place.address}`].filter(Boolean).join(' · ')}</p>}
+      {order.tax&&<p><span>Sales tax</span><span>{money(order.tax.taxCents)}</span></p>}
       <p><span>Order total · USD</span><strong>{money(order.totalCents)}</strong></p>
       <p><span>Payment</span><span>{order.payment?.source==='staff' ? `Recorded ${shortTime(order.payment.paidAt)}` : order.payment ? `Paid ${shortTime(order.payment.paidAt)} · Stripe` : humanLabel(order.status)}</span></p>
       {order.payment?.source==='staff'&&<p className="st-small">{staffPaymentLabel}</p>}
@@ -92,7 +94,7 @@ export function OrderPanel({ order, staff, busy, run, canApprove, owner, previou
         : order.status === 'reserved' && can('shipment.prepare') ? <><p className="st-small">No dispatch recorded yet. To ship from Stall, add the carrier’s reference for a person to approve.</p><ShipForm order={order} busy={busy} run={run} /></>
         : <p className="st-small">{order.status==='reserved'?'Your shop role does not include shipment preparation.':'Shipping opens once payment is confirmed and Pier holds the stock.'}</p>}
     </section>
-    {order.refunds.filter(refund => refund.status !== 'draft').map(refund => <section key={refund.id} className="st-panel-block"><div className="st-row"><h3>Refund · {money(refund.amountCents)}</h3><Badge value={refund.status} /></div><p className="st-small">{refund.source==='staff'&&<>{staffRefundLabel}. </>}{refundDescription(refund, order)} · {refund.reason}</p><p className="st-small">Prepared by {person(refund.preparedBy)}</p><ApprovalRecord approval={refund.approval} /></section>)}
+    {order.refunds.filter(refund => refund.status !== 'draft').map(refund => <section key={refund.id} className="st-panel-block"><div className="st-row"><h3>Refund · {money(refund.amountCents)}</h3><Badge value={refund.status} /></div><p className="st-small">{refund.source==='staff'&&<>{staffRefundLabel}. </>}{refundDescription(refund, order)} · {refund.reason}</p>{refund.taxAllocation&&<p>Tax refunded: {money(refund.taxAllocation.taxCents)} · {refund.taxReversalId??'Original Tax reversal awaiting reconciliation'}</p>}<p className="st-small">Prepared by {person(refund.preparedBy)}</p><ApprovalRecord approval={refund.approval} /></section>)}
     <NextStep order={order} busy={busy} run={run} canApprove={canApprove} editing={editing} edit={setEditing} />
     {canApprove && can('order.note.add') && <OrderNotes order={order} busy={busy} run={run} owner={owner} />}
     {canApprove && can('order.assign') && <OrderAssignment order={order} staff={staff} busy={busy} run={run} />}
@@ -101,7 +103,7 @@ export function OrderPanel({ order, staff, busy, run, canApprove, owner, previou
     <details className="st-more"><summary>More actions</summary>
       {!!order.payment && can('refund.prepare') && <details><summary>Prepare a refund</summary><RefundForm order={order} busy={busy} run={run} /></details>}
       {can('order.reconcile')&&<details><summary>Recover an existing provider operation</summary><RecoverForm order={order} busy={busy} run={run} /></details>}
-      <RecordDetail label="Payment, stock reservation & provider details" value={{ payment: order.payment?.source==='staff'?{...order.payment,label:staffPaymentLabel}:order.payment, manualPayment:order.manualPayment, reservation: order.reservation, shipment: order.shipment, refunds: order.refunds }} />
+      <RecordDetail label="Payment, stock reservation & provider details" value={{ tax:order.tax, payment: order.payment?.source==='staff'?{...order.payment,label:staffPaymentLabel}:order.payment, manualPayment:order.manualPayment, reservation: order.reservation, shipment: order.shipment, refunds: order.refunds }} />
     </details>
   </div>
 }

@@ -1,3 +1,4 @@
+import { ensureRefundTax } from './tax/transactions'
 import type { Bindings } from '../auth.server'
 import { fail,requirePerson,text,type Actor } from './model'
 import { live } from './access'
@@ -34,5 +35,6 @@ export async function reconcileOrder(env:Bindings,actor:Actor,p:any) {
   const recovered=p.refundId===refund.id&&p.stripeRefundId?text(p.stripeRefundId,'Stripe refund ID'):undefined
   order=await finishRefund(env,actor,order,refund,recovered)
  }
+ for(const refund of order.refunds.filter(r=>r.status==='succeeded'&&!r.taxReversalId))order=await ensureRefundTax(env,order,refund)
  return order
 }

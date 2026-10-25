@@ -1,4 +1,8 @@
+import { recoverTaxTransaction } from './tax/transactions'
+import { taxCommerceState,ownerTaxCommerceState,publicTaxCommerce,ownerTaxCommerce } from './tax/commerce'
+import { quoteTax } from './tax/commerce-quote'
 import { readTaxConfiguration,saveTaxConfiguration,readTaxExemptions,saveTaxExemption } from './tax/configuration'
+import { taxLiability,taxReportCsv,taxNexus } from './tax/reports'
 import { taxOwner,taxBoundaryFor,taxReadiness,taxHistory,previewTax } from './tax'
 import { cartResponse } from './customers/cart'
 import { privacyResponse } from './customers/privacy'
@@ -54,6 +58,12 @@ function privateOrder(actor:import('./model').Actor,{requestDigest,checkoutKey,c
  const {notes,tags,manualPayment,...visible}=record
  return {...visible,...(manualPayment?{manualPayment:{...manualPayment,reference:undefined}}:{})}
 }
+async function verifiedTaxCustomer(request:Request,env:Bindings) {
+ if(!request.headers.get('cookie')||request.headers.has('authorization'))return undefined
+ const actor=await current(request,env)
+ requirePerson(actor);await requireProvenEmail(env,actor.sessionId!,actor.id);await live(env,actor)
+ return actor.email
+}
 async function discoverySource(env:Bindings):Promise<Source> {
  const [stock,saved,config]=await Promise.all([catalogue(env),collections(env.DB),merchandising(env.DB)])
  return {products:stock.products,items:stock.items,collections:saved,config:config.value}
@@ -101,9 +111,14 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own checkout page.',403)
    return json(await shippingQuote(env,await body(request)))
   }
+  if(path==='/api/stall/tax/mode'&&request.method==='GET')return json(await publicTaxCommerce(env))
+  if(path==='/api/stall/tax/quote'&&request.method==='POST') {
+   if(request.headers.get('origin')!==env.AUTH_ORIGIN)fail('ORIGIN','Use this shop’s checkout to review tax.',403)
+   return json(await quoteTax(env,await body(request),await verifiedTaxCustomer(request,env)))
+  }
   if(path==='/api/stall/checkout'&&request.method==='POST') {
    if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own checkout page.',403)
-   return json(await checkout(env,await body(request),undefined,await clientKey(env,request)))
+   return json(await checkout(env,await body(request),undefined,await clientKey(env,request),await verifiedTaxCustomer(request,env)))
   }
   if(path==='/api/stall/checkout/confirm'&&request.method==='POST') {
    if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own order page.',403)
@@ -115,10 +130,17 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   if(!['GET','HEAD'].includes(request.method)&&request.headers.get('origin')!==env.AUTH_ORIGIN&&(!actor.agent||request.headers.has('origin'))) fail('ORIGIN','Use this installation’s own page to change records.',403)
   if(path.startsWith('/api/stall/tax/')) {
    taxOwner(actor);await live(env,actor)
+   const search=new URL(request.url).searchParams
+   if(path==='/api/stall/tax/recover'&&request.method==='POST')return json(await recoverTaxTransaction(env,actor,await body(request)))
+   if(path==='/api/stall/tax/commerce'&&request.method==='GET')return json(await (search.get('review')==='1'?ownerTaxCommerceState(env):taxCommerceState(env)))
+   if(path==='/api/stall/tax/commerce'&&request.method==='POST')return json(await ownerTaxCommerce(env,actor,await body(request)))
    if(path==='/api/stall/tax/configuration'&&request.method==='GET')return json(await readTaxConfiguration(env))
    if(path==='/api/stall/tax/configuration'&&request.method==='POST')return json(await saveTaxConfiguration(env,actor,await body(request)))
    if(path==='/api/stall/tax/exemptions'&&request.method==='GET')return json(await readTaxExemptions(env))
    if(path==='/api/stall/tax/exemptions'&&request.method==='POST')return json(await saveTaxExemption(env,actor,await body(request)))
+   if(path==='/api/stall/tax/liability'&&request.method==='GET')return json(await taxLiability(env,search))
+   if(path==='/api/stall/tax/liability.csv'&&request.method==='GET')return taxReportCsv(env,search)
+   if(path==='/api/stall/tax/nexus'&&request.method==='GET')return json(await taxNexus(env,search))
    if(path==='/api/stall/tax/boundary'&&request.method==='GET')return json(await taxBoundaryFor(env))
    if(path==='/api/stall/tax/readiness'&&request.method==='GET')return json(await taxReadiness(env))
    if(path==='/api/stall/tax/previews'&&request.method==='GET')return json(await taxHistory(env))

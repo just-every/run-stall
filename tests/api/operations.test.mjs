@@ -719,3 +719,123 @@ test('customer tax exemption evidence keeps exact owner review, optimistic revis
   assert.equal((await h.api(path)).total,0)
  }finally{await restored?.close();await h.close()}
 })
+
+test('taxed checkout binds address-level tax to exact payment and original paid-order references',async()=>{
+ const {taxCommerceInstallation,taxAddress}=await import('./tax-commerce.mjs'),{randomUUID}=await import('node:crypto'),kit=await taxCommerceInstallation(),{h,tax,stripe}=kit
+ try {
+  const quoted=await kit.quote(),otherStreet=await kit.quote({destination:{...taxAddress,line1:'2 synthetic-stall-street'}}),california=await kit.quote({destination:{...taxAddress,line1:'400 Spring Street',state:'CA',city:'Los Angeles',postal_code:'90013'}})
+  assert.ok(quoted.result.taxCents>0);assert.notEqual(quoted.result.taxCents,otherStreet.result.taxCents)
+  assert.ok(california.result.taxCents>0)
+  assert.deepEqual(new Set(quoted.result.jurisdictions.map(j=>j.level)),new Set(['state','county','city','district']))
+  assert.equal(quoted.result.jurisdictions.reduce((sum,j)=>sum+j.amountCents,0),quoted.result.taxCents)
+  assert.equal((await h.api('/api/stall/checkout',{idempotencyKey:randomUUID(),customerEmail:quoted.input.customerEmail,lines:quoted.input.lines,shipping:quoted.input.shipping,expectedTotalCents:2700},{as:'',status:409})).error.code,'TAX_QUOTE_REQUIRED')
+  const paid=await kit.buy(quoted)
+  assert.equal(paid.order.totalCents,quoted.result.totalCents);assert.equal(paid.session.amount_total,quoted.result.totalCents)
+  assert.equal(paid.order.tax.calculationId,quoted.result.calculationId);assert.ok(paid.order.tax.transactionId)
+  assert.equal(paid.order.tax.lines.find(l=>l.taxCode==='txcd_00000000').taxCents,0)
+  assert.ok(!JSON.stringify(paid.order.tax).includes(taxAddress.line1),'tax custody stays minimized; normal shipping records carry delivery addresses')
+  await h.api('/api/stall/promotions',{code:'SYNTHETIC-STALL-TAX-SHIP',startsAt:'2000-01-01T00:00:00Z',endsAt:'2100-01-01T00:00:00Z',minimumBasketCents:0,maxUsesPerCustomer:5,maxTotalUses:10,maxShippingDiscountCents:2000})
+  const discounted=await kit.quote({promotionCode:'SYNTHETIC-STALL-TAX-SHIP'})
+  assert.equal(discounted.result.totalCents,2500+discounted.result.taxCents)
+  assert.equal(discounted.result.taxCents,quoted.result.taxCents-paid.order.tax.shippingTaxCents,'tax consumes the existing net shipping amount exactly once')
+  const before=tax.transactions.size
+  assert.equal((await deliverWebhook(h,kit.secret,paid.session)).response.status,200)
+  await h.command('order.reconcile',{orderId:paid.order.id})
+  assert.equal(tax.transactions.size,before,'paid callback and reconciliation never duplicate a tax transaction')
+  await h.api('/api/stall/checkout',{...paid.payload,idempotencyKey:randomUUID()},{as:'',status:409})
+  tax.fault='offline'
+  await h.api('/api/stall/tax/quote',{...otherStreet.input,id:randomUUID()},{as:'',status:503})
+  const sessions=stripe.sessions.size,unpriced={...california.input,idempotencyKey:randomUUID(),expectedTotalCents:california.result.totalCents,taxQuoteId:california.result.quoteId}
+  await h.api('/api/stall/checkout',unpriced,{as:'',status:503})
+  assert.equal(stripe.sessions.size,sessions,'provider refusal blocks payment even for an earlier quote')
+  tax.fault=null
+  await h.api('/api/stall/checkout',unpriced,{as:''})
+  assert.equal(stripe.sessions.size,sessions+1,'a demonstrably unsent original checkout can resume after provider recovery')
+  await h.api('/api/stall/checkout',{...otherStreet.input,idempotencyKey:randomUUID(),expectedTotalCents:otherStreet.result.totalCents,taxQuoteId:otherStreet.result.quoteId,lines:[{sku:'MUG-BLUE',quantity:1}]},{as:'',status:409})
+  assert.equal(stripe.sessions.size,sessions+1,'changed purchase cannot open payment on stale tax')
+  const anonymous=await h.api('/api/stall/tax/commerce',undefined,{as:'',status:401});assert.ok(anonymous.error)
+ }finally{await kit.close()}
+})
+
+test('tax exemptions require current evidence and an independently proven customer identity at quote and payment',async()=>{
+ const {taxCommerceInstallation}=await import('./tax-commerce.mjs'),kit=await taxCommerceInstallation(),{h}=kit
+ try {
+  const customerEmail='synthetic-stall-exempt@example.test',native=await h.signIn(customerEmail),record=await h.api('/api/stall/tax/exemptions',{customerEmail,state:'TX',evidenceReference:'Certificate reviewed by merchant 2026-18',expiresOn:'2035-12-31'})
+  const guest=await kit.quote({customerEmail}),verified=await kit.quote({customerEmail,as:native})
+  assert.ok(guest.result.taxCents>0);assert.equal(guest.result.exempt,false)
+  assert.equal(verified.result.taxCents,0);assert.equal(verified.result.exempt,true)
+  const payload={idempotencyKey:crypto.randomUUID(),customerEmail,lines:verified.input.lines,shipping:verified.input.shipping,expectedTotalCents:verified.result.totalCents,taxQuoteId:verified.result.quoteId}
+  assert.equal((await h.api('/api/stall/checkout',payload,{as:'',status:403})).error.code,'TAX_IDENTITY')
+  const paid=await kit.buy(verified,{as:native})
+  assert.equal(paid.order.tax.exemption.id,record.id);assert.equal(paid.order.tax.taxCents,0);assert.ok(paid.order.tax.transactionId)
+  await h.api('/api/stall/tax/exemptions',{...record,revoked:true})
+  const revoked=await kit.quote({customerEmail,as:native});assert.ok(revoked.result.taxCents>0);assert.equal(revoked.result.exempt,false)
+ }finally{await kit.close()}
+})
+
+test('tax refunds post in their own shop-zone filing period and liability CSVs and nexus reconcile to original orders',async()=>{
+ const {taxCommerceInstallation,taxAddress}=await import('./tax-commerce.mjs'),kit=await taxCommerceInstallation(),{h,tax}=kit
+ try {
+  await h.command('shop.configure',{timeZone:'America/Chicago'})
+  tax.transactionTime=Date.parse('2026-02-01T05:59:00Z')/1000
+  const tx=await kit.buy(await kit.quote()),ca=await kit.buy(await kit.quote({destination:{...taxAddress,state:'CA',city:'Los Angeles',postal_code:'90013'}}))
+  await kit.ship(tx.order.id)
+  tax.transactionTime=Date.parse('2026-02-01T06:01:00Z')/1000
+  const refunded=await kit.refund(tx.order.id),refund=refunded.refunds[0]
+  assert.equal(refund.status,'succeeded');assert.ok(refund.taxReversalId);assert.equal(refund.amountCents,1000+refund.taxAllocation.taxCents)
+  const january=await h.api('/api/stall/tax/liability?from=2026-01-01&to=2026-02-01'),february=await h.api('/api/stall/tax/liability?from=2026-02-01&to=2026-03-01')
+  assert.equal(january.transactions.length,2);assert.equal(january.totals.taxCents,tx.order.tax.taxCents+ca.order.tax.taxCents)
+  assert.equal(january.totals.grossSalesCents,5000);assert.equal(january.totals.nonTaxableSalesCents,1000)
+  assert.deepEqual(new Set(january.jurisdictions.map(j=>j.level)),new Set(['state','county','city','district']))
+  assert.equal(february.transactions.length,1);assert.equal(february.transactions[0].originalTransactionId,tx.order.tax.transactionId)
+  assert.equal(february.totals.refundGrossCents,-1000);assert.equal(february.totals.taxCents,-refund.taxAllocation.taxCents)
+  assert.equal(february.transactions[0].id,refund.taxReversalId)
+  assert.equal(february.totals.unallocatedTaxCents,-refund.taxAllocation.taxCents,'the real transaction resource does not provide reversal jurisdiction detail')
+  assert.equal(january.transactions.find(t=>t.orderId===ca.order.id).calculationId,ca.order.tax.calculationId)
+  for(const report of [january,february])assert.equal(report.states.reduce((n,row)=>n+row.taxCents,0),report.totals.taxCents)
+  for(const level of ['state','jurisdiction','transaction']) {
+   const response=await h.request(`/api/stall/tax/liability.csv?from=2026-01-01&to=2026-03-01&level=${level}`)
+   assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/text\/csv/)
+   const rows=readCsv(await response.text());assert.ok(rows.length>1)
+  }
+  const nexus=await h.api('/api/stall/tax/nexus?from=2026-01-01&to=2026-02-01'),texas=nexus.states.find(s=>s.state==='TX')
+  assert.equal(texas.netGrossCents,2500);assert.equal(texas.transactionCount,1);assert.equal(texas.status,'warning')
+  const next=await kit.buy(await kit.quote());assert.ok(next.order.tax.transactionId)
+  const full=await h.api('/api/stall/tax/nexus?from=2026-01-01&to=2026-03-01');assert.equal(full.states.find(s=>s.state==='TX').status,'crossed')
+  let shipping=await kit.order(tx.order.id)
+  for(const expectedTax of [9,8]) {
+   shipping=await h.command('refund.prepare',{orderId:shipping.id,revision:shipping.revision,kind:'shipping',amountCents:100,reason:'Half of shipping paid'})
+   assert.equal(shipping.refunds.at(-1).taxAllocation.taxCents,expectedTax)
+   shipping=await h.command('refund.approve',{orderId:shipping.id,revision:shipping.revision})
+   assert.ok(shipping.refunds.at(-1).taxReversalId)
+  }
+  assert.equal(shipping.refunds.filter(r=>r.kind==='shipping').reduce((sum,r)=>sum+r.amountCents,0),217,'partial shipping returns every original tax cent exactly once')
+  await h.api('/api/stall/tax/liability?from=2026-02-01&to=2026-01-01',undefined,{status:400})
+  await h.api('/api/stall/tax/liability?from=2026-01-01&to=2026-03-01',undefined,{as:'',status:401})
+ }finally{await kit.close()}
+})
+
+test('uncertain sale tax survives archive restore as original-reference observation without replacement or checkout authority',async()=>{
+ const {taxCommerceInstallation}=await import('./tax-commerce.mjs'),kit=await taxCommerceInstallation(),{h,tax,stripe}=kit
+ let receiving
+ try {
+  const quoted=await kit.quote(),pending=await kit.buy(quoted,{pay:false})
+  stripe.pay(pending.session.id,quoted.input.destination);tax.fault='lost-sale'
+  assert.equal((await deliverWebhook(h,kit.secret,pending.session)).response.status,503)
+  assert.equal(tax.transactions.size,1)
+  const original=[...tax.transactions.keys()][0],before=tax.calls.filter(c=>c.method==='POST').length,saved=await archive(h)
+  receiving=await installation({bindings:{...kit.pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-806',STRIPE_WEBHOOK_SECRET:kit.secret},outboundService:request=>new URL(request.url).hostname==='api.stripe.com'&&(/^\/v1\/tax\//.test(new URL(request.url).pathname)||new URL(request.url).pathname==='/v1/account')?tax.handle(request):stripe.handle(request)})
+  await restore(receiving,saved)
+  const mode=await receiving.api('/api/stall/tax/mode',undefined,{as:''});assert.equal(mode.enabled,false);assert.equal(mode.requiresReview,true)
+  await receiving.api('/api/stall/checkout',{...pending.payload,idempotencyKey:crypto.randomUUID()},{as:'',status:503})
+  await receiving.api('/api/stall/tax/recover',{orderId:pending.order.id,transactionId:'tax_missing'},{status:503})
+  const recovered=await receiving.api('/api/stall/tax/recover',{orderId:pending.order.id,transactionId:original})
+  assert.equal(recovered.tax.transactionId,original)
+  assert.equal(tax.calls.filter(c=>c.method==='POST').length,before,'restored recovery only reads original provider evidence')
+  const report=await receiving.api('/api/stall/tax/liability?from=2026-01-01&to=2031-01-01')
+  assert.equal(report.transactions.length,1);assert.equal(report.transactions[0].id,original)
+  assert.equal((await receiving.api('/api/stall/tax/mode',undefined,{as:''})).requiresReview,true,'historical recovery does not reactivate tax checkout')
+  assert.equal((await h.api('/api/stall/tax/recover',{orderId:pending.order.id,transactionId:original})).tax.transactionId,original)
+  assert.equal(tax.transactions.size,1)
+ }finally{await receiving?.close();await kit.close()}
+})

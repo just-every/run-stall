@@ -1,3 +1,6 @@
+import { taxTestMode,commerceCall } from './tax/commerce-provider'
+import { taxCommerceState } from './tax/commerce'
+import { readTaxConfiguration } from './tax/configuration'
 import type { Bindings } from '../auth.server'
 import { fail,shopCountry,shopCurrency,type Order,type Refund } from './model'
 import { demoEffect } from '../modules/demo/index.mjs'
@@ -26,6 +29,7 @@ function writeWindow(at:string) { if(Date.now()-Date.parse(at)>23*3600000) fail(
 export async function createCheckout(env:Bindings,o:Order,allowCreate=false,beforeEffect?:()=>Promise<void>) {
  const form=new URLSearchParams({mode:'payment',customer_email:o.customerEmail!,client_reference_id:o.id,'metadata[stall_order_id]':o.id,'payment_intent_data[metadata][stall_order_id]':o.id,success_url:env.AUTH_ORIGIN+'/order?checkout=success&orderId='+encodeURIComponent(o.id),cancel_url:env.AUTH_ORIGIN+'/order?checkout=cancelled&orderId='+encodeURIComponent(o.id),...(o.shipping?.service.kind==='pickup'?{}:{'shipping_address_collection[allowed_countries][0]':shopCountry})})
  o.lines.forEach((l,i)=>{form.set(`line_items[${i}][quantity]`,String(l.quantity));form.set(`line_items[${i}][price_data][currency]`,shopCurrency);form.set(`line_items[${i}][price_data][unit_amount]`,String(l.unitCents));form.set(`line_items[${i}][price_data][product_data][name]`,l.name);if(l.personalization?.length)form.set(`line_items[${i}][price_data][product_data][description]`,l.personalization.map(a=>`${a.label}: ${a.value}`).join('; ').slice(0,500))})
+ if(o.tax?.taxCents) {const i=o.lines.length;form.set(`line_items[${i}][quantity]`,'1');form.set(`line_items[${i}][price_data][currency]`,shopCurrency);form.set(`line_items[${i}][price_data][unit_amount]`,String(o.tax.taxCents));form.set(`line_items[${i}][price_data][product_data][name]`,'Sales tax');form.set('metadata[stall_tax_calculation]',o.tax.calculationId);form.set('payment_intent_data[metadata][stall_tax_calculation]',o.tax.calculationId)}
  const shippingCents=o.shippingCents??0
  if(shippingCents>0) {
   form.set('shipping_options[0][shipping_rate_data][type]','fixed_amount')
@@ -33,7 +37,12 @@ export async function createCheckout(env:Bindings,o:Order,allowCreate=false,befo
   form.set('shipping_options[0][shipping_rate_data][fixed_amount][currency]',shopCurrency)
   form.set('shipping_options[0][shipping_rate_data][display_name]',o.shipping?.service.name??'Domestic shipping')
  }
- return stripeWrite(env,{id:`stall-checkout-${o.id}`,orderId:o.id,kind:'checkout',value:{lines:o.lines,totalCents:o.totalCents,shippingCents:o.shippingCents??0,currency:o.currency}},()=>stripe(env,'/checkout/sessions',form,`stall-checkout-${o.id}`),id=>originalCheckout(env,o,id),allowCreate,async()=>{await beforeEffect?.();writeWindow(o.createdAt);if(!env.STRIPE_SECRET_KEY)fail('STRIPE_UNAVAILABLE','Connect Stripe before sending this saved operation.',503)})
+ return stripeWrite(env,{id:`stall-checkout-${o.id}`,orderId:o.id,kind:'checkout',value:{lines:o.lines,totalCents:o.totalCents,shippingCents:o.shippingCents??0,currency:o.currency,...(o.tax?{taxCalculationId:o.tax.calculationId,taxCents:o.tax.taxCents}:{})}},()=>stripe(env,'/checkout/sessions',form,`stall-checkout-${o.id}`),id=>originalCheckout(env,o,id),allowCreate,async()=>{await beforeEffect?.(); if(o.tax) {
+  taxTestMode(env)
+  const [account,mode,config]=await Promise.all([commerceCall(env,'/account'),taxCommerceState(env),readTaxConfiguration(env)])
+  if(account.id!==o.tax.accountId||!mode.enabled||mode.revision!==o.tax.commerceRevision||config.revision!==o.tax.configRevision||o.tax.expiresAt<=Date.now()/1000)fail('TAX_CHANGED','Tax account, sale authority, configuration or quote expiry changed. Review a fresh quote before payment.')
+ }
+writeWindow(o.createdAt);if(!env.STRIPE_SECRET_KEY)fail('STRIPE_UNAVAILABLE','Connect Stripe before sending this saved operation.',503)})
 }
 export const checkoutSession=(env:Bindings,id:string)=>stripe(env,'/checkout/sessions/'+encodeURIComponent(id))
 export async function createRefund(env:Bindings,o:Order,r:Refund,allowCreate=false) {
@@ -44,6 +53,7 @@ export const retrieveRefund=(env:Bindings,id:string)=>stripe(env,'/refunds/'+enc
 export function validateSession(o:Order,s:any,paid=false) {
  if(typeof s?.id!=='string'||!/^cs_[A-Za-z0-9_]+$/.test(s.id)||s.object!=='checkout.session'||s.mode!=='payment'||s.client_reference_id!==o.id||s.metadata?.stall_order_id!==o.id||s.currency!==shopCurrency||s.amount_total!==o.totalCents||(o.checkout&&o.checkout.id!==s.id)||(o.payment&&o.payment.sessionId!==s.id)) fail('PAYMENT_MISMATCH','Stripe session does not match this order.',400)
  if((o.shippingCents??0)>0&&s.total_details?.amount_shipping!==o.shippingCents) fail('PAYMENT_MISMATCH','Stripe shipping does not match the reviewed shipping charge.',400)
+ if(o.tax&&s.livemode!==false)fail('TAX_MODE','Taxed payments must remain in Stripe test mode.',400)
  if(paid&&(s.payment_status!=='paid'||s.status!=='complete'||typeof s.payment_intent!=='string'||!/^pi_[A-Za-z0-9_]+$/.test(s.payment_intent)||(o.payment&&o.payment.intentId!==s.payment_intent))) fail('PAYMENT_MISMATCH','Stripe has not confirmed the expected completed payment.',400)
 }
 export async function signedEvent(request:Request,env:Bindings) {

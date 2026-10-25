@@ -1,7 +1,8 @@
+import { refundTaxAllocation } from './tax/transactions-refunds'
 import { fail, integer, text, type Order, type Refund, type RefundKind } from './model'
 
 /** Pending money is already committed; failed/canceled attempts free its budget. */
-export function refundValue(order: Order, input: any): Pick<Refund, 'kind'|'lines'|'amountCents'|'taxTreatment'|'accountingCategory'> {
+export function refundValue(order: Order, input: any): Pick<Refund, 'kind'|'lines'|'amountCents'|'taxTreatment'|'accountingCategory'|'taxAllocation'> {
  const kind: RefundKind = input.kind ?? 'lines'
  if (!['lines', 'shipping', 'goodwill'].includes(kind)) fail('REFUND_KIND', 'Choose purchased items, shipping or goodwill.', 400)
  const committed = order.refunds.filter(refund => ['pending', 'succeeded'].includes(refund.status))
@@ -24,10 +25,12 @@ export function refundValue(order: Order, input: any): Pick<Refund, 'kind'|'line
   if (input.lines !== undefined && (!Array.isArray(input.lines) || input.lines.length)) fail('LINES', 'Shipping and goodwill refunds do not return purchased items.', 400)
   amountCents = integer(input.amountCents, 'Refund amount cents', 1, order.totalCents)
   if (kind === 'shipping') {
-   const used = committed.filter(refund => refund.kind === 'shipping').reduce((sum, refund) => sum + refund.amountCents, 0)
+   const used = committed.filter(refund => refund.kind === 'shipping').reduce((sum, refund) => sum + (refund.taxAllocation?.shippingCents??refund.amountCents), 0)
    if (used + amountCents > (order.shippingCents ?? 0)) fail('REFUND_LIMIT', 'The shipping refund exceeds the unrefunded shipping paid.')
   }
  }
+ const taxAllocation=refundTaxAllocation(order,{kind,lines,amountCents})
+ amountCents+=taxAllocation?.taxCents??0
  if (committed.reduce((sum, refund) => sum + refund.amountCents, 0) + amountCents > order.totalCents) fail('REFUND_LIMIT', 'Refunds cannot exceed the paid amount.')
- return { kind, lines, amountCents, taxTreatment: 'no_tax_recorded', accountingCategory: kind === 'lines' ? 'merchandise' : kind }
+ return { kind, lines, amountCents, taxTreatment: taxAllocation?'original_tax_allocated':'no_tax_recorded',...(taxAllocation?{taxAllocation}:{}), accountingCategory: kind === 'lines' ? 'merchandise' : kind }
 }

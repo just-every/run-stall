@@ -1,3 +1,5 @@
+import { requireTaxDestination } from './tax/commerce-provider'
+import { ensureSaleTax } from './tax/transactions'
 import { riskEnabled,inspectRisk } from './risk'
 import type { Bindings } from '../auth.server'
 import { digest,live } from './access'
@@ -25,6 +27,8 @@ export async function paidSession(env:Bindings,order:Order,id:string,actor?:Acto
  return reservePaid(env,order,actor)
 }
 export async function reservePaid(env:Bindings,order:Order,actor?:Actor):Promise<Order> {
+ if(order.tax)await requireTaxDestination(env,order.tax,order.shippingDetails?.address)
+ order=await ensureSaleTax(env,order)
  if(!order.payment) fail('PAYMENT','The order has no verified payment.')
  if(order.shipment?.status==='shipped') return order
  requireQuotedDestination(order)
@@ -48,6 +52,7 @@ export async function reservePaid(env:Bindings,order:Order,actor?:Actor):Promise
  * code. Stock is reserved only for that destination; another needs a fresh quote
  * and checkout, so staff refund this payment instead. */
 function requireQuotedDestination(order:Order) {
+
  const quoted=order.shipping?.service.kind==='pickup'?undefined:order.shipping?.postalCode
  if(quoted!==undefined&&order.shippingDetails?.address.postal_code.slice(0,5)!==quoted) fail('DESTINATION_CHANGED','The delivery address paid in Stripe is outside the ZIP code this order was quoted for. Refund this payment; the shopper checks out again for that address.',409)
 }
@@ -104,7 +109,7 @@ export async function confirmReturn(env:Bindings,orderId:string) {
   order=await readOrder(env.DB,orderId)
   if(!order.payment) throw error
  }
- return {status:order.payment?'paid':'awaiting_payment',summary:{lines:order.lines.map(line=>({name:line.name,quantity:line.quantity,unitCents:line.unitCents,detail:lineDetail(line)})),shippingCents:order.shippingCents??0,totalCents:order.totalCents}}
+ return {status:order.payment?'paid':'awaiting_payment',summary:{lines:order.lines.map(line=>({name:line.name,quantity:line.quantity,unitCents:line.unitCents,detail:lineDetail(line)})),shippingCents:order.shippingCents??0,...(order.tax?{taxCents:order.tax.taxCents}:{}),totalCents:order.totalCents}}
 }
 /** The scheduled check (every minute, also under rer dev): orders still awaiting
  * payment from the last day, while their Checkout Sessions can still be paid. */

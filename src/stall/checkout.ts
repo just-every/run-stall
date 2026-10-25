@@ -1,3 +1,5 @@
+import { checkoutTax,claimTaxQuote } from './tax/commerce-quote'
+import { publicTaxCommerce } from './tax/commerce'
 import { shopperDetails } from './customers/checkout-details'
 import type { CommerceAuthority } from './commerce-authority'
 import type { Bindings } from '../auth.server'
@@ -12,15 +14,16 @@ import { promotionCode } from './promotions/model'
 import { qualification,requireQualified,reservePromotion } from './promotions/eligibility'
 import { rate } from './headless/auth'
 /** `client` keys an unverified caller: one whose checkout email no session proves. */
-export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority,client?:string) {
+export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority,client?:string,verifiedCustomerEmail?:string) {
  await authority?.check()
+ if((await publicTaxCommerce(env)).requiresReview)fail('TAX_CONFIGURATION','The owner must explicitly review restored tax sale authority before accepting payments.',503)
  const key=text(p.idempotencyKey,'Checkout idempotency key',100)
  if(!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(key)) fail('INPUT','Use a fresh random UUID for each checkout and retain it when retrying.',400)
  const customerEmail=email(p.customerEmail)
  const selection=selectLines(p.lines)
  const code=p.promotionCode===undefined?undefined:promotionCode(p.promotionCode)
  if(code!==undefined&&p.expectedTotalCents===undefined) fail('REVIEW_REQUIRED','Review the promotion and exact total before creating checkout.',400)
- const checkoutKey=await digest(key),requestDigest=await digest(JSON.stringify({customerEmail,lines:selection,expectedTotalCents:p.expectedTotalCents??null,...(p.shopper!==undefined?{shopper:p.shopper}:{}),...(code!==undefined?{promotionCode:code}:{}),...(p.shipping!==undefined?{shipping:p.shipping}:{})}))
+ const checkoutKey=await digest(key),requestDigest=await digest(JSON.stringify({customerEmail,lines:selection,expectedTotalCents:p.expectedTotalCents??null,taxQuoteId:p.taxQuoteId??null,...(p.shopper!==undefined?{shopper:p.shopper}:{}),...(code!==undefined?{promotionCode:code}:{}),...(p.shipping!==undefined?{shipping:p.shipping}:{})}))
  let row=await env.DB.prepare("SELECT id FROM st_orders WHERE json_extract(value_json,'$.checkoutKey')=?").bind(checkoutKey).first<any>()
  let order:Order,allowCreate=false
  if(row) {
@@ -32,15 +35,17 @@ export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority,c
   const shopper=await shopperDetails(env.DB,p.shopper)
   if(shopper?.address&&shopper.address.country!=='US')fail('DESTINATION_UNAVAILABLE','This checkout currently serves US delivery only.',400)
   if(!paymentsReady(env)) fail('STRIPE_UNAVAILABLE','Connect Stripe on Settings before accepting payments.',503)
-  const priced=await priceSelection(env,selection,code===undefined?p.expectedTotalCents:undefined,p.shipping)
+  const taxEnabled=(await publicTaxCommerce(env)).enabled
+  const priced=await priceSelection(env,selection,code===undefined&&!taxEnabled?p.expectedTotalCents:undefined,p.shipping)
   const qualified=code===undefined?undefined:requireQualified(await qualification(env,code,customerEmail,priced.totalCents-priced.shippingCents,priced.shippingCents,priced.shipping.service.kind))
-  const {lines,shipping}=priced,shippingCents=priced.shippingCents-(qualified?.discountCents??0),totalCents=priced.totalCents-(qualified?.discountCents??0)
-  if(code!==undefined&&integer(p.expectedTotalCents,'Reviewed total cents',50,99999999)!==totalCents) fail('PRICE_CHANGED','The promotion or total changed. Review the current quote before paying.')
+  const {lines,shipping}=priced,shippingCents=priced.shippingCents-(qualified?.discountCents??0),netTotalCents=priced.totalCents-(qualified?.discountCents??0)
+  const tax=await checkoutTax(env,p,lines,shippingCents,customerEmail,shipping,qualified?.snapshot,verifiedCustomerEmail),totalCents=tax?.totalCents??netTotalCents
+  if(!tax&&code!==undefined&&integer(p.expectedTotalCents,'Reviewed total cents',50,99999999)!==totalCents) fail('PRICE_CHANGED','The promotion or total changed. Review the current quote before paying.')
   const id=crypto.randomUUID(),revision=crypto.randomUUID()
-  order={id,revision,customerEmail,...(shopper?{shopper}:{}),lines,totalCents,shippingCents,shipping,...(qualified?{promotion:qualified.snapshot}:{}),currency:shopCurrency,status:'checkout_pending',createdAt:new Date().toISOString(),requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,refunds:[]}
+  order={id,revision,customerEmail,...(tax?{tax}:{}),...(shopper?{shopper}:{}),lines,totalCents,shippingCents,shipping,...(qualified?{promotion:qualified.snapshot}:{}),currency:shopCurrency,status:'checkout_pending',createdAt:new Date().toISOString(),requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,refunds:[]}
   // Unique checkout key prevents two orders even if concurrent requests observed no row.
   const files=lines.flatMap(line=>line.personalization?.flatMap(answer=>answer.fileId?[answer.fileId]:[])??[])
-  try { await env.DB.batch([...(authority?.statements()??[]),env.DB.prepare('INSERT INTO st_orders VALUES(?,?,?)').bind(id,JSON.stringify(order),revision),...(qualified?[reservePromotion(env.DB,order,qualified.snapshot,qualified.customerKey)]:[]),systemAudit(env.DB,id,'checkout.prepared','customer'),...files.map(file=>env.DB.prepare('UPDATE st_uploads SET order_id=? WHERE id=? AND order_id IS NULL').bind(id,file)),env.DB.prepare('INSERT INTO st_guard(value) SELECT CASE WHEN (SELECT COUNT(*) FROM st_uploads WHERE order_id=?)=? THEN 1 ELSE 0 END').bind(id,files.length),env.DB.prepare('DELETE FROM st_guard')]);allowCreate=true }
+  try { await env.DB.batch([...(authority?.statements()??[]),...claimTaxQuote(env,order),env.DB.prepare('INSERT INTO st_orders VALUES(?,?,?)').bind(id,JSON.stringify(order),revision),...(qualified?[reservePromotion(env.DB,order,qualified.snapshot,qualified.customerKey)]:[]),systemAudit(env.DB,id,'checkout.prepared','customer'),...files.map(file=>env.DB.prepare('UPDATE st_uploads SET order_id=? WHERE id=? AND order_id IS NULL').bind(id,file)),env.DB.prepare('INSERT INTO st_guard(value) SELECT CASE WHEN (SELECT COUNT(*) FROM st_uploads WHERE order_id=?)=? THEN 1 ELSE 0 END').bind(id,files.length),env.DB.prepare('DELETE FROM st_guard')]);allowCreate=true }
   catch(error) {
    const winner=await env.DB.prepare("SELECT id FROM st_orders WHERE json_extract(value_json,'$.checkoutKey')=?").bind(checkoutKey).first<any>()
    if(!winner) {
@@ -51,6 +56,8 @@ export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority,c
    if(order.requestDigest!==requestDigest||order.erasedAt) fail('IDEMPOTENCY','This checkout key belongs to a different or erased purchase.')
   }
  }
+ if(!order.payment&&(await publicTaxCommerce(env)).enabled&&!order.tax)fail('TAX_QUOTE_REQUIRED','Taxed sales were enabled after this order was prepared. Review a fresh address-level quote and checkout.')
+ if(order.tax?.exemption&&verifiedCustomerEmail!==order.customerEmail)fail('TAX_IDENTITY','Sign in with the proven customer email to use this exemption.',403)
  if(order.payment) return {orderId:order.id,url:'/order?checkout=success&orderId='+encodeURIComponent(order.id),status:order.status}
  if(!order.checkout) {
   if(order.erasedAt||!order.customerEmail) fail('ERASED','This customer record was erased.')
