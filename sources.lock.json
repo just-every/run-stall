@@ -3560,7 +3560,7 @@
       "executable": false
     },
     "src/stall/ui/shop.tsx": {
-      "sha256": "ffc0c123d1c3ec57885f9d70adbf55e75d63d2b22fc0633679f587c818bd3587",
+      "sha256": "d1c40ee34c7948356a6bb760e432a4d7282195e84535fcb3406c4205b310117c",
       "executable": false
     },
     "src/stall/ui/staff-access.tsx": {
