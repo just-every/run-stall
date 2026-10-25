@@ -13,7 +13,7 @@ import { startOwnedDev, finishCleanup } from '../owned-dev.mjs'
 
 const exec = promisify(execFile)
 /** An owned `rer dev` checkout serving the real UI, with its API requests sent to a migrated Worker over a fake stock desk and Stripe edge. */
-export async function startJourney({ name, skus, stock, installationFactory, screenshots = process.env.STALL_SCREENSHOTS ?? `test-results/${name}` }) {
+export async function startJourney({ name, skus, stock, installationFactory, captureFullPage = true, screenshots = process.env.STALL_SCREENSHOTS ?? `test-results/${name}` }) {
   const scratch = await mkdtemp(join(tmpdir(), `stall-${name}-`)), checkout = join(scratch, 'run-stall'), rerHome = join(scratch, 'rer-home')
   const kit = { stock: stock ?? volumeStock(skus) }
   await mkdir(resolve(screenshots), { recursive: true }); await mkdir(rerHome)
@@ -55,7 +55,7 @@ export async function startJourney({ name, skus, stock, installationFactory, scr
       await shown.setViewportSize({ width, height: 1000 })
       await target.evaluate(element => window.scrollTo(0, element.getBoundingClientRect().top + scrollY - 20))
       assert.ok(await shown.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${label} overflow at ${width}`)
-      await shown.screenshot({ path: join(resolve(screenshots), `${label}-${width}.png`), fullPage: true })
+      await shown.screenshot({ path: join(resolve(screenshots), `${label}-${width}.png`), fullPage: captureFullPage })
     }
     await shown.setViewportSize(previousViewport ?? { width: 1440, height: 1000 })
   }
