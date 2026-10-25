@@ -2904,7 +2904,7 @@
       "executable": false
     },
     "src/site/pages.tsx": {
-      "sha256": "f5b6b8f3b997a875048978ab503ed9ffbd26e5973b8eeeb151ae4dd8d8e294ff",
+      "sha256": "f207d3c5a67e99465bfa4c0f38b0b1fdc949bc84e02a6d56730bfe5855956396",
       "executable": false
     },
     "src/site/run.json": {
@@ -2932,7 +2932,7 @@
       "executable": false
     },
     "src/site/styles/docs.css": {
-      "sha256": "27ec36e03fe0cd94f27dfb73e940dba38ba384c1eec90dd3b57269b09868bae1",
+      "sha256": "c7937805d932f51baba07027c1e75af28181b1c152af05195831b4ae63ae2b6b",
       "executable": false
     },
     "src/site/styles/landing.css": {

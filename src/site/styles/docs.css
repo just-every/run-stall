@@ -3,7 +3,7 @@
 .docs { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 64px; max-width: 1280px; padding-top: 64px; padding-bottom: 120px; }
 .docs-nav { position: sticky; top: 24px; align-self: start; font-size: 15.5px; }
 .docs-nav-home { display: block; padding: 8px 12px; border-radius: 10px; font-weight: 600; text-decoration: none; }
-.docs-nav-section { margin: 26px 12px 6px; font: 700 12.5px/1.2 var(--font-body); letter-spacing: .2em; text-transform: uppercase; color: var(--tangerine-text); }
+.docs-nav-section { margin: 26px 12px 6px; font: 700 13px/1.2 var(--font-body); letter-spacing: .2em; text-transform: uppercase; color: var(--tangerine-text); }
 .docs-nav ul { display: grid; gap: 2px; }
 .docs-nav li a { display: block; padding: 8px 12px; border-radius: 10px; color: var(--body); text-decoration: none; }
 .docs-nav a:hover { background: var(--row); }
@@ -18,7 +18,7 @@
 .docs-card h2 { margin-top: 12px; font: 800 25px/1.15 var(--font-head); letter-spacing: -.035em; }
 .docs-card p { margin-top: 10px; font-size: 15.5px; line-height: 1.55; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .docs-contents { margin-top: 28px; padding: 18px 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
-.docs-contents p { font: 700 12.5px/1.2 var(--font-body); letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+.docs-contents p { font: 700 13px/1.2 var(--font-body); letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
 .docs-contents ul { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 10px; font-size: 15.5px; }
 .docs-contents a { text-decoration-color: var(--tangerine); text-underline-offset: 4px; }
 
@@ -38,7 +38,7 @@
 .prose li > p + p { margin-top: 10px; }
 .prose code { padding: 2px 6px; border-radius: 6px; background: var(--chip); font: 500 .86em var(--font-mono); color: #1b1d21; overflow-wrap: anywhere; }
 .prose pre { position: relative; padding: 20px 96px 20px 22px; border-radius: 14px; background: var(--terminal); color: var(--rer-code-text); overflow-x: auto; box-shadow: var(--shadow-card); }
-.prose pre code { padding: 0; background: none; color: inherit; font-size: 15px; line-height: 1.75; white-space: pre; overflow-wrap: normal; }
+.prose pre code { padding: 0; background: none; color: inherit; font-size: 15px; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
 .prose pre .copy { position: absolute; top: 12px; right: 12px; min-height: 34px; padding: 0 14px; border: 1px solid rgba(255, 255, 255, .25); border-radius: 999px; background: transparent; color: #fff; font: 500 13.5px var(--font-body); cursor: pointer; }
 .prose pre .copy:hover { background: rgba(255, 255, 255, .1); }
 .prose blockquote { padding: 16px 20px; border-left: 3px solid var(--tangerine); border-radius: 0 12px 12px 0; background: var(--tangerine-wash); }
@@ -52,7 +52,7 @@
 .docs-source a { text-underline-offset: 4px; }
 .docs-pager { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 28px; }
 .docs-pager a { display: grid; gap: 4px; padding: 18px 22px; text-decoration: none; font: 800 20px/1.2 var(--font-head); letter-spacing: -.03em; }
-.docs-pager a span { font: 600 12.5px var(--font-body); letter-spacing: .18em; text-transform: uppercase; color: var(--tangerine-text); }
+.docs-pager a span { font: 600 13px var(--font-body); letter-spacing: .18em; text-transform: uppercase; color: var(--tangerine-text); }
 .docs-pager .next { text-align: right; }
 .docs-pager a:hover { border-color: var(--tangerine-line); }
 

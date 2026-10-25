@@ -14,6 +14,7 @@ import { guides } from './docs/render'
 import { Landing } from './landing/Landing'
 import run from './run.json'
 import './styles/docs.css'
+import frameStyles from './styles/site.css?inline'
 
 // Code blocks get a Copy button only when script runs; without it the command is still there to select.
 const COPY = "document.querySelectorAll('.prose pre').forEach(pre=>{const b=document.createElement('button');b.type='button';b.className='copy';b.textContent='Copy';b.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(pre.querySelector('code').textContent);b.textContent='Copied';setTimeout(()=>{b.textContent='Copy'},1600)}catch{}});pre.append(b)})"
@@ -22,8 +23,11 @@ const SHARE_IMAGE = `${identity.runSite}/site/share.jpg`
 
 export function sitePages({ styles, contract, hosting }: SiteContext): SiteBuild {
   const data: RunData = run
-  const homepageHeader = { html: renderToStaticMarkup(<SiteHeader />), styles }
-  const docsHeader = { html: renderToStaticMarkup(<SiteHeader current="docs" />), styles }
+  // Base pages need the shared frame, without the homepage illustration rules
+  // whose .badge and .timeline names also occur in the chooser.
+  const homepageHeader = { html: renderToStaticMarkup(<SiteHeader />), styles: [] }
+  const docsHeader = { html: renderToStaticMarkup(<SiteHeader current="docs" />), styles: [] }
+  const framed = (html: string) => html.replace('</head>', `<style>${frameStyles}</style></head>`).replace('<main>', '<main id="main">')
   const document = (title: string, description: string, body: ReactElement, script = '') => '<!doctype html>' + renderToStaticMarkup(
     <html lang="en">
       <head>
@@ -55,10 +59,10 @@ export function sitePages({ styles, contract, hosting }: SiteContext): SiteBuild
   return {
     pages: [
       { path: '/', html: document('Stall — Your stall never closes', 'Free, open source online shops for US makers and small shops: storefront and checkout, sales tax, labels and tracking, returns and abandoned carts. An alternative to Shopify, Squarespace Commerce and BigCommerce.', <Landing />) },
-      { path: '/run', html: runPageHtml(identity, data, contract, homepageHeader).replace('<main>', '<main id="main">') },
+      { path: '/run', html: framed(runPageHtml(identity, data, contract, homepageHeader)) },
       ...(contract ? [{ path: '/contract', html: contractPageHtml(identity, data, contract) }] : []),
       { path: '/docs/install', html: docsMovedHtml(identity, data, '/docs/getting-started', 'Getting started', contract) },
-      { path: '/docs/hosting', html: hostingPageHtml(identity, data, hosting ?? null, contract, docsHeader).replace('<main>', '<main id="main">') },
+      { path: '/docs/hosting', html: framed(hostingPageHtml(identity, data, hosting ?? null, contract, docsHeader)) },
       { path: '/docs', html: document('Docs · Stall', 'Guides for running your shop on Stall.', <DocsIndex />) },
       ...guides.map(guide => ({ path: guide.path, html: document(`${guide.title} · Stall docs`, guide.description, <DocsArticle slug={guide.slug} />, COPY) })),
       { path: '/404', html: siteNotFoundHtml(identity, data, contract) },
