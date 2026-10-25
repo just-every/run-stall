@@ -105,6 +105,7 @@ export function productTargets(reversing = false, review?: { plan: ImportPlan; j
       return rows.results.map(decode);
     },
     matchesCount(count, destination) { checkScope(destination); return sql('(SELECT COUNT(*) FROM st_products)=?', count); },
-    ...(reversing && preserveUndo ? { preparePreservedUndo } : {}),
+    // Base admits conflict-preserving undo before forward publication too.
+    preparePreservedUndo,
   };
 }
