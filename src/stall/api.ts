@@ -7,7 +7,7 @@ import { taxOwner,taxBoundaryFor,taxReadiness,taxHistory,previewTax } from './ta
 import { cartResponse } from './customers/cart'
 import { privacyResponse } from './customers/privacy'
 import { customerResponse } from './customers'
-import { requireProvenEmail } from './customers/account'
+import { customerCommit,requireProvenEmail } from './customers/account'
 import { workflowResponse,runWorkflows } from './workflows'
 import { returnsResponse } from './returns'
 import { promotionRoutes } from './promotions'
@@ -61,7 +61,7 @@ function privateOrder(actor:import('./model').Actor,{requestDigest,checkoutKey,c
 async function verifiedTaxCustomer(request:Request,env:Bindings) {
  if(!request.headers.get('cookie')||request.headers.has('authorization'))return undefined
  const actor=await current(request,env)
- requirePerson(actor);await requireProvenEmail(env,actor.sessionId!,actor.id);await live(env,actor)
+ requirePerson(actor);await requireProvenEmail(env,actor.sessionId!,actor.id);await customerCommit(env,actor)
  return actor.email
 }
 async function discoverySource(env:Bindings):Promise<Source> {

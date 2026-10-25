@@ -2956,7 +2956,7 @@
       "executable": false
     },
     "src/stall/api.ts": {
-      "sha256": "118fd9d72bdaa678590492da546d27c98036c50c5841a302c56708c359c3a1d9",
+      "sha256": "f6ddbf98831dbcfe7fe0c60a0a7663586b2477959653715e936a292c7b0f25eb",
       "executable": false
     },
     "src/stall/base-exports.d.ts": {
@@ -3736,7 +3736,7 @@
       "executable": false
     },
     "tests/api/operations.test.mjs": {
-      "sha256": "f67302dfa4489f7578f9b4d67f58544d2b92e93d298aea70410ea9d7d5a69ff3",
+      "sha256": "f87288ea032f6df2e7297a92a55f0e3487c8562cb9c66a6f1819ef0dfe4a7e15",
       "executable": false
     },
     "tests/api/pier-work.test.mjs": {

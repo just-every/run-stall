@@ -768,8 +768,10 @@ test('tax exemptions require current evidence and an independently proven custom
   assert.equal((await h.api('/api/stall/checkout',payload,{as:'',status:403})).error.code,'TAX_IDENTITY')
   const paid=await kit.buy(verified,{as:native})
   assert.equal(paid.order.tax.exemption.id,record.id);assert.equal(paid.order.tax.taxCents,0);assert.ok(paid.order.tax.transactionId)
-  await h.api('/api/stall/tax/exemptions',{...record,revoked:true})
+  const revokedRecord=await h.api('/api/stall/tax/exemptions',{...record,revoked:true})
   const revoked=await kit.quote({customerEmail,as:native});assert.ok(revoked.result.taxCents>0);assert.equal(revoked.result.exempt,false)
+  await h.api('/api/stall/tax/exemptions',{...revokedRecord,revoked:false,expiresOn:'2000-01-01'})
+  const expired=await kit.quote({customerEmail,as:native});assert.ok(expired.result.taxCents>0);assert.equal(expired.result.exempt,false)
  }finally{await kit.close()}
 })
 
