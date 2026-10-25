@@ -2956,7 +2956,7 @@
       "executable": false
     },
     "src/stall/api.ts": {
-      "sha256": "f6ddbf98831dbcfe7fe0c60a0a7663586b2477959653715e936a292c7b0f25eb",
+      "sha256": "9b6c3bb7f5ccfce489e90159a07b688866bdf9870af2ce9f83c5456103a9d769",
       "executable": false
     },
     "src/stall/base-exports.d.ts": {
