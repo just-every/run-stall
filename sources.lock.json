@@ -3948,7 +3948,7 @@
       "executable": false
     },
     "tests/ui/customer-order-status-journey.mjs": {
-      "sha256": "adf89d2a44d9c76e2065da212e377ad78dc7e9447ad3b0b87b3441202638aaeb",
+      "sha256": "197eef808c8f498f8fe01f0386607490a2f7cb9e4821175a0e6c25217056dcfa",
       "executable": false
     },
     "tests/ui/customer-registration-journey.mjs": {
