@@ -70,7 +70,7 @@ try {
   const link = await h.api('/api/stall/account/guest-order-link', { orderId: shipped }, { as: ana })
   as = ''; await page.goto(ready.url + '/order#orderLink=' + link.token)
   await page.getByRole('heading', { name: 'Your guest order', exact: true }).waitFor()
-  await page.getByText('Returns, exchanges and cancellation', { exact: true }).click()
+  // The order already has a request, so its help opens by itself.
   const guestPanel = page.getByLabel(`Returns and exchanges for order ${shipped}`, { exact: true }), guestForm = guestPanel.getByRole('form', { name: 'Request help with this order', exact: true })
   await guestPanel.getByText('awaiting a person’s review', { exact: false }).waitFor()
   await guestForm.getByRole('checkbox', { name: /Stoneware — Small/ }).check()
