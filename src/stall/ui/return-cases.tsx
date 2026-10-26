@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { errorMessage,request } from './api'
 import { Badge,Notice } from './primitives'
 import { humanLabel,shortId,When } from './presentation'
-import { ReturnProgress } from './return-help'
+import { PhotoLink, ReturnProgress } from './return-help'
 import type { ReturnCase } from './customer-types'
 export type StaffCase=ReturnCase&{revision:string;channel:string;decidedBy:string|null}
 /** The owner or an administrator reads each request with its reasons and records one explained decision. */
@@ -25,6 +25,7 @@ export function ReturnCases({cases,reload}:{cases:StaffCase[];reload:()=>Promise
    {item.note&&<p>Shopper’s note: {item.note}</p>}
    <a href={`#orders/${encodeURIComponent(item.orderId)}`}>Open order {item.orderId}</a>
    {item.state==='requested'?<div className="st-stack">
+    {!!item.attachments?.length&&<p>Photos: {item.attachments.map(photo=><PhotoLink key={photo.id} id={photo.id} name={photo.name} headers={{}} />)}</p>}
     <label>Explanation the shopper will read<textarea maxLength={500} value={explanations[item.id]??''} disabled={busy===item.id} onChange={e=>setExplanations({...explanations,[item.id]:e.target.value})} /></label>
     <div className="st-actions"><button disabled={busy===item.id||!(explanations[item.id]??'').trim()} onClick={()=>void decide(item,'accept')}>Accept request<span className="st-sr-only"> {shortId(item.id)}</span></button>
      <button className="st-secondary" disabled={busy===item.id||!(explanations[item.id]??'').trim()} onClick={()=>void decide(item,'refuse')}>Refuse request<span className="st-sr-only"> {shortId(item.id)}</span></button></div>

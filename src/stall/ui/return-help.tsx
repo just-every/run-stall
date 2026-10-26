@@ -8,7 +8,7 @@ type Policy={configured:true;windowDays:number;condition:string;feeCents:number;
 type View={policy:Policy;cancellation:{eligible:boolean;reason?:string};returnsOpen:{endsAt:string|null}|null;exchangeStock:string;lines:LineView[];cases:ReturnCase[]}
 const reasons:Record<string,string>={wrong_size:'Wrong size or fit',defective:'Damaged or defective',not_as_described:'Not as described',changed_mind:'Changed my mind',other:'Another reason'}
 const label=(value:string)=>value.replaceAll('_',' ')
-function PhotoLink({id,name,headers}:{id:string;name:string;headers:Record<string,string>}) {
+export function PhotoLink({id,name,headers}:{id:string;name:string;headers:Record<string,string>}) {
  const [error,setError]=useState('')
  async function open(){setError('');try{const response=await fetch('/api/stall/returns/attachments/'+encodeURIComponent(id),{headers,credentials:'same-origin',cache:'no-store'});if(!response.ok)throw Error('The photo is unavailable.');window.open(URL.createObjectURL(await response.blob()),'_blank','noopener')}catch(e){setError(errorMessage(e))}}
  return <span><button type="button" className="st-secondary" onClick={()=>void open()}>View photo<span className="st-sr-only"> {name}</span></button>{error&&<span role="alert"> {error}</span>}</span>
