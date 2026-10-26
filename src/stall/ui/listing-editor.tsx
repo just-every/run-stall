@@ -17,7 +17,7 @@ export function useListing(initial?: ProductDetails) {
   const [options, setOptions] = useState<OptionRow[]>(initial?.options?.map(option => ({ name: option.name, values: option.values.join(', ') })) ?? []), [variants, setVariants] = useState<VariantRow[]>(initial?.variants?.map(rowOf) ?? [])
   const [fields, setFields] = useState<FieldRow[]>(initial?.personalization?.map(fieldRowOf) ?? [])
   function read(): Listing {
-    const result: Listing = {}
+    const result: Listing = { ...(initial?.seo ? { seo: initial.seo } : {}) }
     if (handle.trim()) result.handle = handle.trim()
     if (compareAt.trim()) result.compareAtCents = dollars(compareAt.trim(), 'Compare-at price')
     if (list(categories).length) result.categories = list(categories)
@@ -51,9 +51,11 @@ export function ListingEditor({ input, sku, busy }: { input: ReturnType<typeof u
   </div>
 }
 export function ListingView({ details }: { details?: ProductDetails }) {
-  if (!details || !(details.handle || details.categories || details.tags || details.attributes || details.media || details.variants || details.personalization || details.compareAtCents)) return <p className="st-small">No shop listing details.</p>
+  if (!details || !(details.seo || details.handle || details.categories || details.tags || details.attributes || details.media || details.variants || details.personalization || details.compareAtCents)) return <p className="st-small">No shop listing details.</p>
   return <div className="st-stack">
     <dl>
+      {details.seo?.title && <div><dt>SEO title</dt><dd>{details.seo.title}</dd></div>}
+      {details.seo?.description && <div><dt>SEO description</dt><dd>{details.seo.description}</dd></div>}
       {details.handle && <div><dt>Handle</dt><dd>{details.handle}</dd></div>}
       {details.compareAtCents !== undefined && <div><dt>Compare-at price · USD</dt><dd>{money(details.compareAtCents)}</dd></div>}
       {details.categories && <div><dt>Categories</dt><dd>{details.categories.join(', ')}</dd></div>}

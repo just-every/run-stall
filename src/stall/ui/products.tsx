@@ -1,7 +1,7 @@
 // Products in the pick's workspace: a dense table of products and the selected
 // product's panel, where a revision is prepared and a person publishes it. A
 // revision the shop agent prepared carries the Agent note, as orders do.
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useContext, useEffect, useRef, useState, type FormEvent } from 'react'
 import { HydrationUnit } from '../../base/hydration/unit'
 import type { Product, ProductValue, Run, ShippingState, State } from './types'
 import { ProductShipping } from './shipping-assign'
@@ -13,6 +13,8 @@ import { listingState } from '../listing'
 import { shortId, useBusinessTime, usePerson, When } from './presentation'
 import { Icon } from './icons'
 import { BulkProducts } from './bulk-products'
+import { MerchProposals } from './merch-proposals'
+import { Authority } from './authority'
 
 const blank: ProductValue = { sku: '', name: '', description: '', unitCents: 0, active: true }
 const statusOf = (product: Product) => { const state = listingState(product.value); return state === 'archived' ? 'Archived' : state === 'scheduled' ? 'Scheduled' : !product.value.approval ? 'Staged' : state === 'published' ? 'Published' : 'Inactive' }
@@ -48,6 +50,7 @@ function Editor({ editing, busy, run, done }: { editing: Product | null; busy: b
 
 function ProductPanel({ product, preparedBy, busy, run, canApprove, onEdit, shipping, reload }: { shipping?: ShippingState; reload: () => Promise<void>; product: Product; preparedBy?: { actor: string; at: string }; busy: boolean; run: Run; canApprove: boolean; onEdit: () => void }) {
   const { shortTime } = useBusinessTime()
+  const authority = useContext(Authority), canReviewMerch = ['owner', 'admin'].includes(authority.role) && !authority.staffRole
   const person = usePerson(), draft = product.value.draft, agent = !!preparedBy?.actor.startsWith('agent:')
   return <div className="st-panel-body st-product">
     <div className="st-panel-head"><h2>{product.value.name}</h2><Badge value={statusOf(product)} /></div>
@@ -66,6 +69,7 @@ function ProductPanel({ product, preparedBy, busy, run, canApprove, onEdit, ship
       <p className="st-small">Approving publishes these exact details.</p>
     </div></div>}
     <div className="st-actions st-panel-actions">{draft && canApprove && <button disabled={busy} onClick={() => void run('product.approve', { sku: product.id, revision: product.revision })}>Approve & publish revision {shortId(product.revision)}</button>}<button className="st-secondary" disabled={busy} onClick={onEdit}>Edit<span className="st-sr-only"> product</span></button></div>
+    {canReviewMerch && <MerchProposals key={product.id} product={product} busy={busy} run={run} canApprove={canApprove} />}
   </div>
 }
 

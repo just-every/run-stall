@@ -13,10 +13,11 @@ export type PersonalizationField = { key: string; label: string; required?: bool
  { type: 'text'; maxLength: number } | { type: 'choice'; choices: string[] } | { type: 'file'; fileTypes: FileKind[]; maxBytes: number }
 )
 export type Listing = {
+ seo?: { title?: string; description?: string }
  handle?: string; categories?: string[]; tags?: string[]; attributes?: { name: string; value: string }[]; compareAtCents?: number; customsDescription?: string
  media?: Media[]; options?: Option[]; variants?: Variant[]; personalization?: PersonalizationField[]
 }
-export const listingKeys = ['handle', 'categories', 'tags', 'attributes', 'compareAtCents', 'customsDescription', 'media', 'options', 'variants', 'personalization']
+export const listingKeys = ['seo', 'handle', 'categories', 'tags', 'attributes', 'compareAtCents', 'customsDescription', 'media', 'options', 'variants', 'personalization']
 export const maxUploadBytes = 700000
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/
 const list = (value: unknown, name: string, max: number) => Array.isArray(value) && value.length <= max ? value : fail('PRODUCT_DETAILS', `${name} may hold at most ${max} entries.`, 400)
@@ -29,6 +30,10 @@ const words = (value: unknown, name: string, max: number, each: number) => {
 /** Merchant-authored public listing facts; the shop shows only what an approved revision carries. */
 export function listingFields(value: Record<string, unknown>): Listing {
  const result: Listing = {}
+ if (value.seo !== undefined) {
+  const seo = strictObject(value.seo, ['title', 'description'], 'SEO')
+  result.seo = { ...(seo.title !== undefined ? { title: text(seo.title, 'SEO title', 160) } : {}), ...(seo.description !== undefined ? { description: text(seo.description, 'SEO description', 400) } : {}) }
+ }
  if (value.handle !== undefined) {
   const handle = text(value.handle, 'Handle', 80)
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(handle)) fail('PRODUCT_DETAILS', 'A handle uses lowercase letters, digits and single hyphens, such as linen-tee.', 400)

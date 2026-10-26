@@ -314,8 +314,6 @@
 .st-menu-row { display: grid; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .st-menu-children { display: grid; gap: 8px; padding-left: 20px; }
 
-.st-tooltip { position: relative; display: inline-flex; }
-.st-tooltip > [role="tooltip"] { position: absolute; right: 0; top: calc(100% + 8px); z-index: 10; width: max-content; max-width: 220px; padding: 6px 9px; border-radius: 6px; background: var(--ink); color: var(--surface); font-size: 13px; pointer-events: none; }
 
 @media (max-width: 640px) {
   #tax-reports .st-tax-table, #tax-reports .st-tax-table tbody { display: block; }

@@ -693,3 +693,37 @@ test('customer consent is explicit at every HTTP capture door and privacy refusa
   await restore(oldTarget,older,{status:400,laterJournal:{sourceIdentity:erased[0].sourceIdentity,epoch:erased[0].epoch,journal:erased[0].journal}})
  } finally {await oldTarget?.close();await restored?.close();await h.close();await pier.close()}
 })
+
+test('AI-005: product-only proposal provenance travels without agent or approval authority', async () => {
+ const { merchandisingFixture, merchSku, merchVariant } = await import('./merch-proposal-fixture.mjs')
+ const { volumeStock } = await import('./volume-stock.mjs')
+ const stock=volumeStock([merchVariant]), h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-908',PIER_CUSTOMER_ID:'shop'},outboundService:stock.forward})
+ let destination
+ try {
+  const f=await merchandisingFixture(h), proposal=await h.command('merch.prepare',f.input,f.agent)
+  const published=await h.command('merch.approve',{id:proposal.id,revision:proposal.revision,selected:['5','8']})
+  const source=await h.api(`/api/stall/merchandising?sku=${merchSku}`,undefined,f.agent)
+  const pending=await h.command('merch.prepare',{sku:merchSku,revision:source.revision,changes:[{field:'seoDescription',value:'Hand-thrown mug',citations:['description']}]},f.agent)
+  const exported=await h.api('/api/stall/exports/records')
+  assert.deepEqual(exported.merchandisingProposals.map(p=>p.id),[proposal.id,pending.id])
+  assert.deepEqual(exported.merchandisingProposals[0].sources,proposal.sources)
+  assert.deepEqual(exported.merchandisingProposals[0].feed,published.feed)
+  const member=await h.signIn('synthetic-stall-909@example.test')
+  const noCustomer=await h.command('merch.prepare',{sku:merchSku,revision:source.revision,changes:[{field:'description',value:'synthetic-stall-909@example.test',citations:['customer:synthetic-stall-909']}]},{...f.agent,status:400})
+  assert.equal(noCustomer.error.code,'UNSUPPORTED_CLAIM')
+  await h.command('customer.erase',{email:'synthetic-stall-909@example.test',confirm:'ERASE'})
+  assert.equal(JSON.stringify((await h.api('/api/stall/exports/records')).merchandisingProposals).includes('synthetic-stall-909@example.test'),false)
+  const lines=await archive(h)
+  assert.equal(JSON.stringify(lines).includes(f.grant.token),false)
+  destination=await installation()
+  await restore(destination,lines)
+  const restored=await destination.api(`/api/stall/merchandising?sku=${merchSku}`)
+  assert.equal(restored.proposals.length,2)
+  assert.ok(restored.proposals.every(p=>p.status==='restored'&&!p.approval))
+  assert.deepEqual(restored.proposals.find(p=>p.id===proposal.id).sources,proposal.sources)
+  for(const p of restored.proposals) await destination.command('merch.approve',{id:p.id,revision:p.revision,selected:['1']},{status:409})
+  assert.equal((await destination.api('/api/stall/agent-token')).grants.length,0)
+  await destination.api(`/api/stall/merchandising?sku=${merchSku}`,undefined,{...f.agent,status:401})
+  await h.api('/api/stall/exports/records',undefined,{as:member,status:403})
+ } finally { await destination?.close(); await h.close() }
+})

@@ -130,3 +130,6 @@ body:has(.st-app) { margin: 0; padding: 0; background: var(--surface); }
   .st-actions > button { flex: 1 1 auto; }
 }
 @media (prefers-reduced-motion: reduce) { .st-app * { transition: none !important; scroll-behavior: auto !important; } }
+
+.st-tooltip { position: relative; display: inline-flex; }
+.st-tooltip > [role="tooltip"] { position: absolute; right: 0; top: calc(100% + 8px); z-index: 10; width: max-content; max-width: 220px; padding: 6px 9px; border-radius: 6px; background: var(--ink); color: var(--surface); font-size: 13px; pointer-events: none; }

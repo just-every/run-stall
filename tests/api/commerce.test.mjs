@@ -1282,3 +1282,77 @@ test('verified account reorder names current price and stock changes without spe
   assert.equal((await destination.api('/api/stall/cart?cartId='+cart.id,undefined,{as:reverified})).cart.id,cart.id,'pending commercial effects retain the existing erasure fence')
  }finally{await destination?.close();await h.close()}
 })
+
+test('AI-005: an agent proposes cited merchandising and a human publishes only selected exact changes', async () => {
+ const { merchandisingFixture, merchSku, merchVariant } = await import('./merch-proposal-fixture.mjs');
+ const stock=volumeStock([merchVariant]), h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-903',PIER_CUSTOMER_ID:'shop'},outboundService:stock.forward});
+ try {
+  const f=await merchandisingFixture(h), proposal=await h.command('merch.prepare',f.input,f.agent);
+  assert.equal(proposal.preparedBy,`agent:${f.grant.id}`);
+  assert.equal(proposal.changes.length,8);
+  assert.equal(proposal.questions.length,3);
+  assert.equal(proposal.unsupported.length,3);
+  assert.equal(JSON.stringify(proposal.sources).includes('costCents'),false);
+  assert.ok(proposal.sources.some(source=>source.id===`variant:${merchVariant}:Color`&&source.value==='Clay'));
+  for(const change of proposal.changes) assert.ok(change.citations.every(id=>proposal.sources.some(source=>source.id===id)));
+  assert.equal((await state(h)).products.find(p=>p.id===merchSku).value.name,'Studio mug','preparation has no publication effect');
+  const selected=['2','3','4','5','6','7','8'], payload={id:proposal.id,revision:proposal.revision,selected};
+  const preview=await h.api('/api/stall/merchandising/preview',payload);
+  assert.equal(preview.product.name,'Studio mug');
+  assert.equal(preview.feed.connected,false);
+  assert.equal(preview.feed.valid,false);
+  assert.ok(preview.feed.errors.some(error=>error.includes('Availability')));
+  assert.deepEqual(preview.feed.items.map(item=>[item.id,item.price,item.attributes.Color]),[[merchVariant,'26.00 USD','Clay']]);
+  assert.equal('availability' in preview.feed.items[0],false,'no invented inventory');
+  const attempts=await Promise.all([0,1].map(()=>h.request('/api/stall/commands',{method:'POST',body:{type:'merch.approve',payload}})));
+  assert.deepEqual(attempts.map(response=>response.status).sort(),[200,409],'one exact approval wins concurrent publication');
+  const published=(await attempts.find(response=>response.status===200).json()).result;
+  const saved=(await state(h)).products.find(p=>p.id===merchSku);
+  assert.deepEqual([saved.value.name,saved.value.description,saved.value.details.attributes[0].value,saved.value.details.seo.title],['Studio mug','Hand-thrown mug · Matte glaze','Matte glaze','Studio mug · Matte glaze']);
+  assert.equal(saved.value.details.media[0].alt,'Side view of Studio mug · Studio mug');
+  assert.deepEqual((await state(h)).merchandising.collections[0].value.skus,[merchSku]);
+  assert.deepEqual(published.selected,selected);
+  assert.equal(published.approval.revision,proposal.revision);
+  const catalogue=await h.api('/api/stall/catalogue',undefined,{as:''});
+  assert.equal(catalogue.products[0].description,preview.product.description);
+  assert.equal(catalogue.products[0].media[0].alt,preview.product.details.media[0].alt);
+  await h.command('merch.approve',payload,{status:409});
+  assert.equal((await state(h)).audit.filter(event=>event.action==='merch.published').length,1);
+ } finally { await h.close() }
+});
+
+test('AI-005: unsupported claims, stale sources and revoked authority cannot publish merchandising', async () => {
+ const { merchandisingFixture, merchSku, merchVariant } = await import('./merch-proposal-fixture.mjs');
+ const stock=volumeStock([merchVariant]), h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-904',PIER_CUSTOMER_ID:'shop'},outboundService:stock.forward});
+ try {
+  const f=await merchandisingFixture(h), p=await h.command('merch.prepare',f.input,f.agent), approval={id:p.id,revision:p.revision,selected:['2']};
+  for(const changes of [
+   [{field:'description',value:'Certified food-safe with 500 five-star reviews and 100 available',citations:['description']}],
+   [{field:'inventory',value:'100',citations:['sku']}],
+   [{field:'certification',value:'Certified',citations:['name']}],
+   [{field:'reviews',value:'Five stars',citations:['name']}],
+   [{field:'alt',target:f.media.id,value:'Studio mug',citations:['name']}],
+   [{field:'seoTitle',value:'Unproven fact',citations:['missing']}],
+  ]) assert.equal((await h.command('merch.prepare',{...f.input,changes},{...f.agent,status:400})).error.code,'UNSUPPORTED_CLAIM');
+  const member=await h.signIn('synthetic-stall-905@example.test');
+  for(const opts of [{as:'',status:401},{as:member,status:403},{...f.agent,status:403},{headers:{origin:'https://synthetic-stall-906.test'},status:403}]) await h.command('merch.approve',approval,opts);
+  await h.api(`/api/stall/merchandising?sku=${merchSku}`,undefined,{as:'',status:401});
+  await h.api(`/api/stall/merchandising?sku=${merchSku}`,undefined,{as:member,status:403});
+  await h.command('merch.prepare',f.input,{status:403});
+  await h.api('/api/stall/exports/records',undefined,{...f.agent,status:403});
+  const admin=await h.signIn('synthetic-stall-907@example.test','admin');
+  let revised=await h.command('product.prepare',{...f.product.value,description:'Merchant corrected the description',revision:f.product.revision});
+  await h.command('product.approve',{sku:merchSku,revision:revised.revision});
+  assert.equal((await h.command('merch.approve',approval,{as:admin,status:409})).error.code,'SOURCE_CHANGED');
+  await h.api('/api/stall/merchandising/preview',approval,{status:409});
+  const source=await h.api(`/api/stall/merchandising?sku=${merchSku}`,undefined,f.agent);
+  const next=await h.command('merch.prepare',{sku:merchSku,revision:source.revision,changes:[{field:'seoTitle',value:'Studio mug',citations:['name']}]},f.agent);
+  const collection=(await state(h)).merchandising.collections[0];
+  await h.command('collection.save',{...collection.value,title:'New collection title',revision:collection.revision});
+  assert.equal((await h.command('merch.approve',{id:next.id,revision:next.revision,selected:['1']},{status:409})).error.code,'SOURCE_CHANGED');
+  await h.api('/api/stall/agent-token/revoke',{grantId:f.grant.id});
+  await h.api(`/api/stall/merchandising?sku=${merchSku}`,undefined,{...f.agent,status:401});
+  await h.command('merch.prepare',f.input,{...f.agent,status:401});
+  assert.equal((await state(h)).audit.filter(event=>event.action==='merch.published').length,0);
+ } finally { await h.close() }
+});

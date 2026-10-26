@@ -1,3 +1,4 @@
+import { proposalBundle, previewProposal, proposalCommand } from './proposals'
 import { recoverTaxTransaction } from './tax/transactions'
 import { taxCommerceState,ownerTaxCommerceState,publicTaxCommerce,ownerTaxCommerce } from './tax/commerce'
 import { quoteTax } from './tax/commerce-quote'
@@ -153,6 +154,12 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   if(path==='/api/stall/risk'&&request.method==='GET') return json(await riskSnapshot(env,actor))
   if(path==='/api/stall/staff'&&request.method==='GET') return json(await staffSnapshot(env,actor))
 
+  if(path.startsWith('/api/stall/merchandising')) {
+   if(!['owner','admin'].includes(actor.role)||actor.staffRole) fail('FORBIDDEN','Only the owner or administrator may read merchandising proposals.',403)
+   await live(env,actor)
+   if(path==='/api/stall/merchandising'&&request.method==='GET')return json(await proposalBundle(env.DB,text(new URL(request.url).searchParams.get('sku'),'Product SKU',100)))
+   if(path==='/api/stall/merchandising/preview'&&request.method==='POST')return json(await previewProposal(env,await body(request)))
+  }
   if(path==='/api/stall/search-report'&&request.method==='GET') { authorize(actor,'marketing');requirePerson(actor);return json(await searchReport(env.DB)) }
   if(path==='/api/stall/media'&&request.method==='POST') { authorize(actor,'catalog');return json(await uploadMedia(env,actor,request)) }
   if(path.startsWith('/api/stall/uploads/')&&request.method==='GET') { authorize(actor,'orders');requirePerson(actor);return await uploadResponse(env,decodeURIComponent(path.slice(19))) }
@@ -198,13 +205,14 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   if(path==='/api/stall/commands'&&request.method==='POST') {
    const p=await body(request),type=p.type,payload=p.payload
    if(typeof type!=='string'||!payload||typeof payload!=='object'||Array.isArray(payload)) fail('INPUT','A command has a type and payload.',400)
-   if(actor.agent&&!['product.prepare','shipment.prepare','refund.prepare'].includes(type)) fail('PERSON_REQUIRED','Agents prepare drafts; a person must review and approve.',403)
+   if(actor.agent&&!['product.prepare','shipment.prepare','refund.prepare','merch.prepare'].includes(type)) fail('PERSON_REQUIRED','Agents prepare drafts; a person must review and approve.',403)
    authorizeCommand(actor,type)
    await live(env,actor)
    let result:unknown
    if(type==='risk.refresh') { await riskSnapshot(env,actor);result=await refreshRisk(env,await (await import('./store')).readOrder(env.DB,text(payload.orderId,'Order'))) }
    else if(type.startsWith('risk.')) result=await riskCommand(env,actor,type,payload)
    else if(type==='staff.configure') result=await staffCommand(env,actor,payload)
+   else if(['merch.prepare','merch.approve'].includes(type)) result=await proposalCommand(env,actor,type,payload)
    else if(['product.prepare','product.approve'].includes(type)) result=await productCommand(env,actor,type,payload)
    else if(['shipment.prepare','shipment.approve'].includes(type)) result=await shipmentCommand(env,actor,type,payload)
    else if(['refund.prepare','refund.approve'].includes(type)) result=await refundCommand(env,actor,type,payload)

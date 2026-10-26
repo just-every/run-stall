@@ -9,6 +9,7 @@ import { FooterMenu } from './menus'
 import { CustomFields } from './product-details'
 import { Personalization, type Answers } from './personalization-form'
 import type { Catalogue, Item } from './shop'
+import { Tooltip } from './tooltip'
 
 const same = (a: Record<string, string>, b: Record<string, string>) => Object.keys(a).length === Object.keys(b).length && Object.entries(a).every(([key, value]) => b[key] === value)
 export function ProductPage() {
@@ -41,7 +42,7 @@ export function ProductPage() {
     {!loading && !product && <Empty><h3>This product is not available</h3><p>It may have been unpublished or moved. <a href="/shop">Browse the shop</a>.</p></Empty>}
     {product && <HydrationUnit><section className="st-pdp"><div className="st-gallery">
       {current ? current.kind === 'video' ? <video key={current.id} controls src={current.url} aria-label={current.alt} /> : <img key={current.id} src={current.url} alt={current.alt} /> : <div className="st-gallery-empty" aria-hidden="true" />}
-      {media.length > 1 && <div className="st-thumbs" role="group" aria-label="Product images and videos">{media.map((entry, index) => <button key={entry.id} type="button" className="st-thumb" aria-pressed={index === shown} aria-label={`Show ${entry.kind} ${index + 1}: ${entry.alt}`} onClick={() => setShown(index)}>{entry.kind === 'image' ? <img src={entry.url} alt="" /> : <span aria-hidden="true">▶</span>}</button>)}</div>}
+      {media.length > 1 && <div className="st-thumbs" role="group" aria-label="Product images and videos">{media.map((entry, index) => <Tooltip key={entry.id} label={`Show ${entry.kind} ${index + 1}`}><button type="button" className="st-thumb" aria-pressed={index === shown} aria-label={`Show ${entry.kind} ${index + 1}`} onClick={() => setShown(index)}>{entry.kind === 'image' ? <img src={entry.url} alt="" /> : <span aria-hidden="true">▶</span>}</button></Tooltip>)}</div>}
     </div>
     <div className="st-stack st-pdp-info"><p className="st-eyebrow">{product.categories?.join(' · ')}</p><h1>{product.name}</h1>
       <p className="st-pdp-price" aria-live="polite">{item ? <><strong>{money(unit)}</strong>{item.compareAtCents && <s><span className="st-sr-only">Was </span>{money(item.compareAtCents)}</s>}</> : options.length ? <span>Choose {options.map(option => option.name.toLowerCase()).join(' and ')} to see the price.</span> : null}</p>
