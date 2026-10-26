@@ -18,7 +18,7 @@ export function CustomerRequests() {
     finally { lock.current = false; setBusy(false) }
   }
   return <Section title="Request order help">
-    <p>Invited accounts can request staff review of a return or cancellation. Sign in with the email used for the order. If you do not have access, contact the shop; guest links and open shopper registration are not available yet.</p>
+    <p>Invited accounts can request staff review of a return or cancellation. Sign in with the email used for the order. Sign in to send a request, or contact the shop if you need an invitation.</p>
     <p>This is request intake only. It does not approve a return, cancel an order, issue a refund or move stock. Line-by-line returns, exchanges and progress tracking are not available here yet.</p>
     {error && <Notice error>{error} <a href="/signin?returnTo=%2Forder">Sign in to your invited account</a></Notice>}
     {!orders && !error && <p role="status">Loading orders for your account…</p>}

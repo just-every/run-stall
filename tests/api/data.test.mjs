@@ -517,6 +517,22 @@ test('customer directory resolves duplicates without granting account access and
   dir=await h.api('/api/stall/customers')
   let first=dir.customers.find(c=>c.emails.includes(firstEmail)),other=dir.customers.find(c=>c.emails.includes(otherEmail))
   assert.deepEqual([first.orderCount,first.lifetimeValueCents,other.orderCount,other.lifetimeValueCents],[1,2450,1,4900])
+  const address={name:'synthetic-stall-2150',line1:'1 Maker Lane',city:'Austin',state:'TX',postal_code:'78702',country:'US'}
+  const addressPayload={customerId:first.id,customerRevision:first.revision,email:firstEmail,address}
+  await h.api('/api/stall/customers/addresses',{...addressPayload,email:otherEmail},{status:404})
+  for(const refused of [{as:alice,status:403},{as:support,status:403},{as:'',headers:{authorization:`Bearer ${grant.token}`},status:403}])await h.api('/api/stall/customers/addresses',addressPayload,refused)
+  await h.api('/api/stall/customers/addresses',addressPayload,{headers:{origin:'https://synthetic-stall-2151.test'},status:403})
+  await h.api('/api/stall/customers/addresses',{...addressPayload,address:{...address,country:'GB'}},{status:400})
+  dir=await h.api('/api/stall/customers/addresses',addressPayload);first=dir.customers.find(c=>c.id===first.id)
+  const saved=first.addresses[0]
+  assert.deepEqual((await h.api('/api/stall/account',undefined,{as:alice})).addresses.map(a=>a.address),[address])
+  assert.deepEqual((await h.api('/api/stall/account',undefined,{as:bob})).addresses,[])
+  assert.ok(!(await h.api('/api/stall/customers',undefined,{as:support})).customers.some(c=>'addresses' in c))
+  await h.api('/api/stall/customers/addresses',addressPayload,{status:409})
+  await h.api('/api/stall/customers/addresses',{...addressPayload,customerId:other.id,customerRevision:other.revision,email:otherEmail,id:saved.id,revision:saved.revision},{status:404})
+  dir=await h.api('/api/stall/customers/addresses',{...addressPayload,customerRevision:first.revision,id:saved.id,revision:saved.revision,address:{...address,line2:'Suite 2'}});first=dir.customers.find(c=>c.id===first.id)
+  await h.api('/api/stall/customers/addresses',{...addressPayload,customerRevision:first.revision,id:saved.id,revision:saved.revision},{status:404})
+  dir=await h.api('/api/stall/customers/addresses',{customerId:other.id,customerRevision:other.revision,email:otherEmail,address:{...address,name:'synthetic-stall-2152'}});other=dir.customers.find(c=>c.id===other.id)
   const old=first.revision
   dir=await h.api('/api/stall/customers',{type:'note.add',id:first.id,revision:first.revision,text:'synthetic-stall-1007 <script>plain text</script>'},{as:support})
   first=dir.customers.find(c=>c.id===first.id)
@@ -527,6 +543,13 @@ test('customer directory resolves duplicates without granting account access and
   assert.equal(dir.customers.length,1);first=dir.customers[0]
   assert.deepEqual([first.orderCount,first.paidCents,first.refundedCents,first.lifetimeValueCents],[2,7350,0,7350])
   assert.deepEqual(new Set(first.tags),new Set(['vip','repeat']))
+  assert.equal(first.addresses.length,2)
+  assert.deepEqual((await h.api('/api/stall/account',undefined,{as:alice})).addresses.map(a=>a.address.name),['synthetic-stall-2150'])
+  const bobAddress=(await h.api('/api/stall/account',undefined,{as:bob})).addresses[0]
+  assert.equal(bobAddress.address.name,'synthetic-stall-2152')
+  await h.api('/api/stall/account/addresses',{id:bobAddress.id,revision:bobAddress.revision},{as:alice,method:'DELETE',status:404})
+  dir=await h.api('/api/stall/customers/addresses',{customerId:first.id,customerRevision:first.revision,email:otherEmail,id:bobAddress.id,revision:bobAddress.revision},{method:'DELETE'});first=dir.customers[0]
+  assert.deepEqual((await h.api('/api/stall/account',undefined,{as:bob})).addresses,[])
   assert.deepEqual((await h.api('/api/stall/account',undefined,{as:alice})).orders.map(o=>o.id),[bought[0].orderId])
   await h.api('/api/stall/account/orders/'+bought[1].orderId,undefined,{as:alice,status:404})
   await h.api('/api/stall/account/orders/'+bought[0].orderId,undefined,{as:bob,status:404})

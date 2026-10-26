@@ -28,6 +28,12 @@ try {
   assert.equal(await page.getByRole('article',{name:'Order '+hidden.orderId,exact:true}).count(),0)
   assert.match(await firstCard.innerText(),/Linen napkins × 2/);assert.match(await firstCard.innerText(),/\$84\.00/)
   await capture(`history-${width}`)
+  const addressForm=page.getByRole('form',{name:'Your address',exact:true})
+  const addAddress=page.locator('summary').filter({hasText:'Add an address'})
+  if(!await addressForm.isVisible())await addAddress.click()
+  for(const [label,value] of [['Recipient','Morgan Lane'],['Address line 1','12 Market Street'],['City','Austin'],['State or province','TX'],['Postal code','78702']])await addressForm.getByLabel(label,{exact:true}).fill(value)
+  await addressForm.getByRole('button',{name:'Save address',exact:true}).click();await page.getByText('Address saved.',{exact:true}).waitFor();await capture(`address-book-${width}`)
+
   const effects=[edge.sessions.size,edge.pierCalls.length,stock.orders.size,(await h.api('/api/stall/state')).orders.length]
   await firstCard.getByRole('button',{name:/^Reorder/}).click()
   await page.getByRole('heading',{name:'Review your reorder',exact:true}).waitFor()

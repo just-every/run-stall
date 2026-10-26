@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHmac,randomBytes,randomUUID } from 'node:crypto';
+import { createHash,createHmac,randomBytes,randomUUID } from 'node:crypto';
 import { installation,archive,restore } from './harness.mjs';
 import { pierInstallation } from './pier.mjs';
 import { stripeEdge,deliverWebhook,publish,purchase,sendFile,png } from './network.mjs';
@@ -1198,8 +1198,14 @@ test('native carts retain guest and account custody, exact checkout review and r
   const guestReview=await h.api('/api/stall/cart/review',{cartId:guestCart.id,revision:guestCart.revision},{as:cookie})
   const guestBought=await h.api('/api/stall/cart/checkout',{cartId:guestCart.id,revision:guestCart.revision,reviewToken:guestReview.reviewToken},{as:cookie})
   assert.notEqual(guestBought.orderId,bought.orderId);assert.equal((await h.api('/api/stall/account',undefined,{as:alice})).orders.length,1)
+  const guestAccount=await h.signIn('synthetic-stall-1108@example.test')
+  await h.api('/api/stall/account/guest-order-link',{orderId:guestBought.orderId},{as:guestAccount,status:409})
+  const orderLink=await h.api('/api/stall/account/guest-order-link',{orderId:bought.orderId},{as:alice})
+  assert.equal((await h.api('/api/stall/guest-order',undefined,{as:'',headers:{'x-stall-order-token':orderLink.token}})).order.id,bought.orderId)
   const exported=await h.api('/api/stall/exports/records'),saved=await archive(h)
   assert.ok(!JSON.stringify(saved).includes(cookie.split('=')[1]),'a guest cart capability never travels')
+  assert.equal(JSON.stringify(exported).includes(orderLink.token),false)
+  assert.equal(JSON.stringify(saved).includes(orderLink.token),false)
   destination=await installation({bindings,outboundService:edge.handle});await restore(destination,saved)
   assert.deepEqual((await destination.api('/api/stall/exports/records')).nativeCart,exported.nativeCart)
   await destination.api('/api/stall/cart?cartId='+guestCart.id,undefined,{as:cookie,status:404})
@@ -1210,7 +1216,10 @@ test('native carts retain guest and account custody, exact checkout review and r
   assert.equal(edge.sessions.size,2,'restored cart history grants no spending or replay authority')
   let shipped=(await h.api('/api/stall/state')).orders.find(o=>o.id===bought.orderId)
   shipped=await h.command('shipment.prepare',{orderId:shipped.id,revision:shipped.revision,reference:'synthetic-stall-1109'});await h.command('shipment.approve',{orderId:shipped.id,revision:shipped.revision})
+  assert.equal((await h.api('/api/stall/guest-order',undefined,{as:'',headers:{'x-stall-order-token':orderLink.token}})).order.status,'shipped','ordinary fulfillment does not invalidate an order link')
   await h.command('customer.erase',{email:address,confirm:'ERASE'})
+  await h.api('/api/stall/guest-order',undefined,{as:'',headers:{'x-stall-order-token':orderLink.token},status:404})
+  await h.api('/api/stall/cart/reorder',{orderId:bought.orderId,guestToken:orderLink.token},{as:'',status:404})
   assert.equal((await h.api('/api/stall/cart',undefined,{as:alice})).cart,null)
   const erased=await h.api('/api/stall/exports/records')
   assert.equal(erased.orders.find(o=>o.id===bought.orderId).shopper,undefined)
@@ -1219,8 +1228,8 @@ test('native carts retain guest and account custody, exact checkout review and r
 })
 
 test('verified account reorder names current price and stock changes without spending before a new checkout',async()=>{
- const skus=['synthetic-stall-1201','synthetic-stall-1202','synthetic-stall-1203'],stock=volumeStock(skus),edge=stripeEdge({forward:stock.forward}),secret=randomBytes(32).toString('hex')
- const bindings={PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-1204',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'synthetic-stall-1205',STRIPE_WEBHOOK_SECRET:secret}
+ const skus=['synthetic-stall-1201','synthetic-stall-1202','synthetic-stall-1203'],stock=volumeStock([...skus,'synthetic-stall-1212']),edge=stripeEdge({forward:stock.forward}),secret=randomBytes(32).toString('hex')
+ const bindings={PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-1204',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'synthetic-stall-1205',STRIPE_WEBHOOK_SECRET:secret,SESSION_SECRET:randomBytes(32).toString('hex')}
  const h=await installation({bindings,outboundService:edge.handle});let destination
  try {
   let details={options:[{name:'Size',values:['S','M','L']}],variants:skus.map((sku,i)=>({sku,options:{Size:['S','M','L'][i]},unitCents:[1000,2000,3000][i]})),personalization:[{key:'name',label:'Name',type:'text',maxLength:20,addOnCents:200}]}
@@ -1300,7 +1309,6 @@ test('verified account reorder names current price and stock changes without spe
   await h.api(linkDoor,body,{as:alice,method:'DELETE'})
   await guestRejected(link.token);await h.api(base,{...body,guestToken:link.token},{as:guestCookie,status:404})
   const short=await h.api(linkDoor,{...body,expiresInSeconds:1},{as:alice})
-  await guestRead(short.token)
   await new Promise(resolve=>setTimeout(resolve,1100))
   await guestRejected(short.token);await h.api(base,{...body,guestToken:short.token},{as:guestCookie,status:404})
   const restoredLink=await h.api(linkDoor,body,{as:alice})
@@ -1318,7 +1326,7 @@ test('verified account reorder names current price and stock changes without spe
   const fileSku='synthetic-stall-1212'
   let fileProduct=await h.command('product.prepare',{sku:fileSku,name:'Printed linen',description:'Private personalization fixture',unitCents:1000,active:true,details:{personalization:[{key:'art',label:'Artwork',type:'file',required:true,fileTypes:['png'],maxBytes:1000}]}})
   await h.command('product.approve',{sku:fileSku,revision:fileProduct.revision})
-  const upload=await sendFile(h,'/api/stall/uploads?sku='+fileSku+'&field=art&name=synthetic-stall-1213.png',png(),'image/png',{as:''})
+  const upload=await sendFile(h,'/api/stall/personalization/upload?sku='+fileSku+'&field=art&name=synthetic-stall-1213.png',png(),'image/png',{as:''})
   assert.equal(upload.status,200)
   const file=await upload.json()
   // Published stock is supplied by the existing external stock boundary.
@@ -1338,6 +1346,8 @@ test('verified account reorder names current price and stock changes without spe
   assert.deepEqual([edge.sessions.size,edge.pierCalls.length,stock.orders.size],fileEffects)
   const exported=await archive(h)
   assert.equal(JSON.stringify(exported).includes(replaced.token),false)
+  const linkDigest=createHash('sha256').update(bindings.SESSION_SECRET+'\nguest-order\n'+replaced.token).digest('hex')
+  assert.equal(JSON.stringify(exported).includes(linkDigest),false,'private link authority is excluded even when restoring with the same installation secret')
   destination=await installation({bindings,outboundService:edge.handle});await restore(destination,exported)
   await destination.api(guestDoor,undefined,{as:'',headers:{'x-stall-order-token':replaced.token},status:404})
   await destination.api(base,{...body,guestToken:replaced.token},{as:'',status:404})

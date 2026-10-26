@@ -3,8 +3,11 @@ import { HydrationUnit } from '../../base/hydration/unit'
 import { errorMessage, money, request } from './api'
 import { Notice } from './primitives'
 import { When, usePerson } from './presentation'
+import { AddressFields, blankAddress } from './address-book'
+import type { Address } from './customer-types'
 
-type Customer = { id: string; revision: string; name: string; emails: string[]; tags: string[]; notes: { id: string; text: string; by: string; at: string }[]; states: string[]; orderCount: number; paidCents: number; refundedCents: number; lifetimeValueCents: number }
+type SavedAddress = { id: string; email: string; revision: string; address: Address }
+type Customer = { id: string; revision: string; name: string; emails: string[]; tags: string[]; notes: { id: string; text: string; by: string; at: string }[]; addresses?: SavedAddress[]; states: string[]; orderCount: number; paidCents: number; refundedCents: number; lifetimeValueCents: number }
 type Segment = { id: string; revision: string; members: string[]; value: { name: string; tag: string; minimumSpentCents: number; minimumOrders: number; state: string } }
 type Directory = { customers: Customer[]; segments: Segment[] }
 type Preview = { rows: { row: number; email: string; name: string; tags: string[]; status: string; customerId?: string }[]; fingerprint: string; newCount: number; duplicateCount: number }
@@ -76,6 +79,25 @@ function CustomerMerge({ source, customers, busy, save }: { source: Customer; cu
   </details>
 }
 
+function MerchantAddresses({ customer, addresses, busy, save }: { customer: Customer; addresses: SavedAddress[]; busy: boolean; save: (body: unknown, message: string, method?: string) => Promise<boolean> }) {
+  const [editing, setEditing] = useState<SavedAddress>(), [address, setAddress] = useState<Address>(blankAddress), [mailbox, setMailbox] = useState(customer.emails[0] ?? '')
+  const identity = { customerId: customer.id, customerRevision: customer.revision, email: mailbox }
+  return <section className="st-stack" aria-label="Customer addresses"><h3>Saved addresses</h3><p className="st-small">Each saved address stays with its named mailbox. Changes here do not replace addresses recorded on past orders.</p>
+    {!addresses.length && <p>No saved addresses.</p>}
+    {addresses.map(saved => <article key={saved.id} className="st-stack" aria-label={`Saved address for ${saved.address.name}`}>
+      <p>{saved.email}</p><address>{saved.address.name}<br />{saved.address.line1}<br />{saved.address.line2 && <>{saved.address.line2}<br /></>}{saved.address.city}, {saved.address.state} {saved.address.postal_code}<br />{saved.address.country}</address>
+      <div className="st-actions"><button className="st-secondary" disabled={busy} onClick={() => { setEditing(saved); setAddress(saved.address); setMailbox(saved.email) }}>Edit saved address</button><button className="st-secondary" disabled={busy} onClick={() => void save({ customerId: customer.id, customerRevision: customer.revision, email: saved.email, id: saved.id, revision: saved.revision }, 'Customer address removed.', 'DELETE')}>Remove saved address</button></div>
+    </article>)}
+    <details open={!!editing || !addresses.length}><summary>{editing ? 'Edit customer address' : 'Add customer address'}</summary>
+      <form className="st-stack" aria-label="Merchant customer address" onSubmit={event => { event.preventDefault(); void save({ ...identity, ...(editing ? { id: editing.id, revision: editing.revision } : {}), address }, 'Customer address saved.') }}>
+        <label>Address mailbox<select required value={mailbox} disabled={busy || !!editing} onChange={event => setMailbox(event.target.value)}>{customer.emails.map(email => <option key={email} value={email}>{email}</option>)}</select></label>
+        <div className="st-form-grid"><AddressFields value={address} change={setAddress} disabled={busy} /></div>
+        <div className="st-actions"><button disabled={busy}>Save customer address</button>{editing && <button type="button" className="st-secondary" disabled={busy} onClick={() => { setEditing(undefined); setAddress(blankAddress) }}>Cancel address edit</button>}</div>
+      </form>
+    </details>
+  </section>
+}
+
 function SegmentEditor({ segment, busy, save, close }: { segment?: Segment; busy: boolean; save: Save; close: () => void }) {
   const [name, setName] = useState(segment?.value.name ?? ''), [tag, setTag] = useState(segment?.value.tag ?? ''), [spent, setSpent] = useState(((segment?.value.minimumSpentCents ?? 0) / 100).toFixed(2)), [orders, setOrders] = useState(String(segment?.value.minimumOrders ?? 0)), [state, setState] = useState(segment?.value.state ?? '')
   return <form className="st-stack st-editor" aria-label="Customer segment" onSubmit={event => { event.preventDefault(); void save({ type: 'segment.save', ...(segment ? { id: segment.id, revision: segment.revision } : {}), segment: { name, tag, minimumSpentCents: Math.round(Number(spent) * 100), minimumOrders: Number(orders), state } }, 'Customer segment saved. Membership reflects current orders and refunds.').then(ok => { if (ok) close() }) }}>
@@ -102,16 +124,16 @@ export function CustomerDirectory({ canManage, query }: { canManage: boolean; qu
     finally { lock.current = false; setBusy(false) }
   }
   useEffect(() => { void refresh() }, [])
-  async function apply(body: unknown, message: string, path = '/api/stall/customers') {
+  async function apply(body: unknown, message: string, path = '/api/stall/customers', method = 'POST') {
     if (lock.current) return false
     lock.current = true; setBusy(true); setError(''); setNotice('')
-    try { setData(await request<Directory>(path, body)); setNotice(message); return true }
+    try { setData(await request<Directory>(path, body, method)); setNotice(message); return true }
     catch (error) { setError(errorMessage(error)); return false }
     finally { lock.current = false; setBusy(false) }
   }
   const chosen = data?.customers.find(customer => customer.id === selected), segment = data?.segments.find(item => item.id === segmentId), term = (query ?? search).trim().toLowerCase()
   const visible = data?.customers.filter(customer => (!segment || segment.members.includes(customer.id)) && (!term || [customer.name, ...customer.emails, ...customer.tags].some(value => value.toLowerCase().includes(term)))) ?? []
-  return <HydrationUnit><section className="st-orders st-stack" aria-labelledby="customers-title">
+  return <HydrationUnit><section className="st-orders st-stack" style={{ overflowWrap: 'anywhere' }} aria-labelledby="customers-title">
     <div className="st-view-head"><h1 id="customers-title">Customers</h1><button className="st-secondary" disabled={busy} onClick={() => void refresh()}>Refresh customers</button></div>
     <p>Manage customer profiles, merchant notes and live segments.</p>
     {error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}
@@ -133,7 +155,7 @@ export function CustomerDirectory({ canManage, query }: { canManage: boolean; qu
         <dl className="st-definition"><div><dt>Paid orders</dt><dd>{customer.orderCount}</dd></div><div><dt>Paid total</dt><dd>{money(customer.paidCents)}</dd></div><div><dt>Succeeded refunds</dt><dd>{money(customer.refundedCents)}</dd></div><div><dt>Net lifetime value</dt><dd>{money(customer.lifetimeValueCents)}</dd></div></dl>
         <p>Observed states and provinces: {customer.states.join(', ') || 'None recorded'}</p>
         <div className="st-actions"><button className="st-secondary" disabled={busy} aria-expanded={selected === customer.id} onClick={() => setSelected(selected === customer.id ? '' : customer.id)}>{selected === customer.id ? 'Close customer details' : 'Manage customer'}</button></div>
-        {chosen?.id === customer.id && <div key={customer.revision} className="st-stack"><CustomerEditor customer={customer} busy={busy} save={apply} />{canManage && <CustomerMerge source={customer} customers={data.customers} busy={busy} save={apply} />}</div>}
+        {chosen?.id === customer.id && <div key={customer.revision} className="st-stack"><CustomerEditor customer={customer} busy={busy} save={apply} />{canManage && customer.addresses && <MerchantAddresses customer={customer} addresses={customer.addresses} busy={busy} save={(body, message, method) => apply(body, message, '/api/stall/customers/addresses', method)} />}{canManage && <CustomerMerge source={customer} customers={data.customers} busy={busy} save={apply} />}</div>}
       </article>)}</div>
     </>}
   </section></HydrationUnit>

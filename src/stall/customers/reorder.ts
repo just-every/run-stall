@@ -8,7 +8,7 @@ import type { Selected } from '../order-selection'
 import { guestOrder,guestOrderGuard } from './guest-orders'
 
 /** Reorder copies an authorized past purchase into a new unreviewed
- * cart. It reads stock only; checkout alone may create payment/reservation work. */
+ * cart. It reads stock only; checkout alone may create payment and reservation work. */
 export async function reorder(env:Bindings,ctx:CartContext,p:any) {
  if(!ctx.actor&&p.guestToken===undefined)fail('CUSTOMER_AUTH','Sign in or use your private order link to reorder your own purchase.',401)
  if(Object.keys(p).some(k=>!['orderId','guestToken'].includes(k)))fail('INPUT','Supply only your own past order ID and optional private order link.',400)

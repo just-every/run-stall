@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { startJourney } from './journey-kit.mjs'
 import { pierInstallation } from '../api/pier.mjs'
 import { publish, purchase, deliverWebhook } from '../api/network.mjs'
+import { resolve } from 'node:path'
 
 let journey, journeyError
 try {
@@ -13,6 +14,14 @@ try {
     await page.setViewportSize({ width, height: 1000 })
     await page.goto(ready.url + '/app#customers')
     await page.getByRole('heading', { name: 'Customers', exact: true, level: 1 }).waitFor()
+    const accountMenu = page.getByRole('button', { name: /^Account menu for/ }), tooltip = page.getByRole('tooltip', { includeHidden: true })
+    await accountMenu.focus(); await tooltip.waitFor({ state: 'visible' }); assert.equal(await tooltip.textContent(), 'Account menu')
+    await page.screenshot({ path: resolve(process.env.STALL_SCREENSHOTS ?? './test-results/customer-directory', `CUSTOMER-001-tooltip-focus-${width}.png`) })
+    await accountMenu.evaluate(element => element.blur()); await page.mouse.move(0, 0); await tooltip.waitFor({ state: 'hidden' })
+    await accountMenu.hover(); assert.equal(await tooltip.isVisible(), false)
+    await tooltip.waitFor({ state: 'visible' })
+    await page.screenshot({ path: resolve(process.env.STALL_SCREENSHOTS ?? './test-results/customer-directory', `CUSTOMER-001-tooltip-hover-${width}.png`) })
+    await page.mouse.move(0, 0)
     await page.getByText('Import customers', { exact: true }).click()
     const importer = page.getByRole('form', { name: 'Import customers', exact: true })
     await importer.getByLabel('Customer rows · JSON', { exact: true }).fill(JSON.stringify([
@@ -39,8 +48,20 @@ try {
     await second.getByLabel('New merchant note', { exact: true }).fill(note)
     await second.getByRole('button', { name: 'Add note', exact: true }).click()
     await second.getByRole('article').getByText(note, { exact: true }).waitFor()
+    const addressEditor = second.getByRole('form', { name: 'Merchant customer address', exact: true }), recipient = `synthetic-stall-${fixture + 7}`
+    for (const [label, value] of [['Recipient', recipient], ['Address line 1', '1 Maker Lane'], ['City', 'Austin'], ['State or province', 'TX'], ['Postal code', '78702']]) await addressEditor.getByLabel(label, { exact: true }).fill(value)
+    await addressEditor.getByRole('button', { name: 'Save customer address', exact: true }).click()
+    const addressCard = second.getByRole('article', { name: `Saved address for ${recipient}`, exact: true })
+    await addressCard.waitFor()
+    await addressCard.getByRole('button', { name: 'Edit saved address', exact: true }).click()
+    await addressEditor.getByLabel('Address line 1', { exact: true }).fill('2 Maker Lane')
+    await addressEditor.getByRole('button', { name: 'Save customer address', exact: true }).click()
+    await addressCard.getByText('2 Maker Lane', { exact: false }).waitFor()
+    if (!index) await capture('CUSTOMER-001-merchant-address', addressCard)
+    await page.setViewportSize({ width, height: 1000 })
     await second.locator('summary').filter({ hasText: 'Review a customer merge' }).click()
     const directory = await h.api('/api/stall/customers'), target = directory.customers.find(customer => customer.emails.includes(firstEmail))
+    await h.api('/api/stall/customers/addresses', { customerId: target.id, customerRevision: target.revision, email: secondEmail, address: { name: recipient, line1: '3 Maker Lane', city: 'Austin', state: 'TX', postal_code: '78702', country: 'US' } }, { status: 404 })
     await second.getByLabel('Keep customer', { exact: true }).selectOption(target.id)
     assert.ok(await second.getByRole('button', { name: 'Merge reviewed records', exact: true }).isDisabled())
     await second.getByRole('checkbox', { name: 'I reviewed these two records and approve this metadata merge.', exact: true }).check()
@@ -51,6 +72,7 @@ try {
     await first.getByText('Tags: vip, repeat', { exact: true }).waitFor()
     await first.getByRole('button', { name: 'Manage customer', exact: true }).click()
     await first.getByRole('article').getByText(note, { exact: true }).waitFor()
+    await first.getByRole('article', { name: `Saved address for ${recipient}`, exact: true }).getByText(secondEmail, { exact: true }).waitFor()
     const profile = first.getByRole('form', { name: 'Customer profile', exact: true })
     await profile.getByLabel('Tags · separated by commas', { exact: true }).fill('vip, repeat, reviewed')
     await profile.getByRole('button', { name: 'Save customer profile', exact: true }).click()
@@ -102,6 +124,7 @@ try {
   const customer = page.getByRole('article', { name: 'Customer synthetic-stall-2110@example.test', exact: true })
   await customer.getByRole('button', { name: 'Manage customer', exact: true }).click()
   assert.equal(await customer.getByText('Review a customer merge', { exact: true }).count(), 0)
+  assert.equal(await customer.getByRole('region', { name: 'Customer addresses', exact: true }).count(), 0)
   await customer.getByLabel('New merchant note', { exact: true }).fill('synthetic-stall-2141')
   await customer.getByRole('button', { name: 'Add note', exact: true }).click()
   await customer.getByRole('article').getByText('synthetic-stall-2141', { exact: true }).waitFor()

@@ -4,6 +4,7 @@ import { fail,Problem } from '../model'
 import { rawBody } from '../stripe'
 import { account,customerActor,customerOrder,ownOrder,saveAddress } from './account'
 import { directory,importCustomers,preview,customerCommand,directoryAuthority } from './directory'
+import { merchantAddress } from './merchant-address'
 const json=(value:unknown)=>Response.json(value,{headers:{'cache-control':'no-store','referrer-policy':'no-referrer','x-content-type-options':'nosniff'}})
 async function input(request:Request) {try{const p=JSON.parse(await rawBody(request,100000));if(!p||typeof p!=='object'||Array.isArray(p))fail('INPUT','Supply a JSON object.',400);return p}catch(error){if(error instanceof Problem)throw error;return fail('INPUT','Invalid JSON.',400)}}
 export async function customerResponse(request:Request,env:Bindings):Promise<Response|null> {
@@ -20,6 +21,7 @@ export async function customerResponse(request:Request,env:Bindings):Promise<Res
   if(request.method!=='GET'&&request.headers.get('origin')!==env.AUTH_ORIGIN)fail('ORIGIN','Use this installation’s customer desk.',403)
   await live(env,actor)
   if(path==='/api/stall/customers'&&request.method==='GET')return json(await directory(env,actor))
+  if(path==='/api/stall/customers/addresses'&&['POST','DELETE'].includes(request.method))return json(await merchantAddress(env,actor,await input(request),request.method==='DELETE'))
   if(path==='/api/stall/customers/import/preview'&&request.method==='POST')return json(await preview(env,actor,await input(request)))
   if(path==='/api/stall/customers/import/apply'&&request.method==='POST')return json(await importCustomers(env,actor,await input(request)))
   if(path==='/api/stall/customers'&&request.method==='POST')return json(await customerCommand(env,actor,await input(request)))

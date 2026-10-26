@@ -6,7 +6,7 @@ import { orders } from '../store'
 export type Profile={name:string;tags:string[];notes:{id:string;text:string;by:string;at:string}[]}
 const optional=(value:unknown,label:string,max:number)=>value===undefined||value===''?'':text(value,label,max)
 function tags(value:any) {if(!Array.isArray(value)||value.length>50)fail('INPUT','Use at most 50 customer tags.',400);return [...new Set(value.map(v=>text(v,'Tag',40)))]}
-export function directoryAuthority(a:Actor,owner=false) {requirePerson(a);authorize(a,'support');if(owner&&!['owner','admin'].includes(a.role))fail('FORBIDDEN','Only an owner or administrator may import or merge customer records.',403)}
+export function directoryAuthority(a:Actor,owner=false) {requirePerson(a);authorize(a,'support');if(owner&&!['owner','admin'].includes(a.role))fail('FORBIDDEN','Only an owner or administrator may import, merge or manage customer addresses.',403)}
 async function profile(env:Bindings,id:string) {
  const r=await env.DB.prepare('SELECT * FROM st_customers WHERE id=?').bind(id).first<any>()
  if(!r)fail('NOT_FOUND','Customer not found.',404)
@@ -14,12 +14,13 @@ async function profile(env:Bindings,id:string) {
 }
 export async function directory(env:Bindings,a:Actor) {
  directoryAuthority(a)
- const [profiles,emails,history,addresses,segments]=await Promise.all([env.DB.prepare('SELECT * FROM st_customers ORDER BY created_at,id').all<any>(),env.DB.prepare('SELECT email,customer_id FROM st_customer_emails ORDER BY email').all<any>(),orders(env.DB),env.DB.prepare('SELECT email,value_json FROM st_customer_addresses ORDER BY id').all<any>(),env.DB.prepare('SELECT id,revision,value_json FROM st_customer_segments ORDER BY id').all<any>()])
+ const [profiles,emails,history,addresses,segments]=await Promise.all([env.DB.prepare('SELECT * FROM st_customers ORDER BY created_at,id').all<any>(),env.DB.prepare('SELECT email,customer_id FROM st_customer_emails ORDER BY email').all<any>(),orders(env.DB),env.DB.prepare('SELECT id,email,revision,value_json FROM st_customer_addresses ORDER BY id').all<any>(),env.DB.prepare('SELECT id,revision,value_json FROM st_customer_segments ORDER BY id').all<any>()])
  const customers=profiles.results.map(r=>{
   const value=JSON.parse(r.value_json) as Profile,mailboxes=emails.results.filter(e=>e.customer_id===r.id).map(e=>e.email),purchases=history.filter(o=>!o.erasedAt&&o.customerEmail&&mailboxes.includes(o.customerEmail.toLowerCase())&&o.payment)
   const paidCents=purchases.reduce((sum,o)=>sum+o.totalCents,0),refundedCents=purchases.reduce((sum,o)=>sum+o.refunds.filter(f=>f.status==='succeeded').reduce((n,f)=>n+f.amountCents,0),0)
   const states=[...new Set([...purchases.map(o=>o.shippingDetails?.address.state),...addresses.results.filter(a=>mailboxes.includes(a.email)).map(a=>JSON.parse(a.value_json).state)].filter(Boolean))]
-  return {id:r.id,revision:r.revision,...value,emails:mailboxes,orderCount:purchases.length,paidCents,refundedCents,lifetimeValueCents:paidCents-refundedCents,states}
+  const book=addresses.results.filter(address=>mailboxes.includes(address.email)).map(({value_json,...address})=>({...address,address:JSON.parse(value_json)}))
+  return {id:r.id,revision:r.revision,...value,emails:mailboxes,orderCount:purchases.length,paidCents,refundedCents,lifetimeValueCents:paidCents-refundedCents,states,...(['owner','admin'].includes(a.role)?{addresses:book}:{})}
  })
  const saved=segments.results.map(({value_json,...s})=>{const value=JSON.parse(value_json);return {...s,value,members:customers.filter(c=>(!value.tag||c.tags.includes(value.tag))&&c.lifetimeValueCents>=value.minimumSpentCents&&c.orderCount>=value.minimumOrders&&(!value.state||c.states.includes(value.state))).map(c=>c.id)}})
  await live(env,a)
