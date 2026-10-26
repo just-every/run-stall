@@ -54,7 +54,7 @@ export function ShopDesk() {
       {allowed&&view === 'products' && <ProductsView products={state.products} audit={state.audit} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} reload={reload} shipping={state.shipping} />}
       {allowed&&view === 'shopfront' && state.merchandising && <MerchandisingView data={state.merchandising} products={state.products} busy={busy} run={run} canApprove={canApprove} />}
       {allowed&&view === 'shipping' && state.shipping && (canApprove ? <ShippingView data={state.shipping} busy={busy} run={run} reload={reload} /> : <Section title="Shipping"><p>Only an owner or administrator can change shipping profiles.</p></Section>)}
-      {allowed&&view === 'customers' && <CustomerDirectory canManage={!state.actor.agent&&['owner','admin'].includes(role)} query={query} />}
+      {allowed&&view === 'customers' && <CustomerDirectory canReviewRegistration={!state.actor.agent&&role==='owner'} canManage={!state.actor.agent&&['owner','admin'].includes(role)} query={query} />}
       {allowed&&view === 'requests' && <RequestIntake />}
       {allowed&&view === 'promotions' && <Promotions />}
       {allowed&&view === 'move-in' && (canApprove ? <MoveIn reload={reload} /> : <Section title="Move in from Shopify"><p>Only an owner or administrator can import products.</p></Section>)}

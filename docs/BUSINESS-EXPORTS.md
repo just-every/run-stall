@@ -72,7 +72,7 @@ and allocations. These are current partial capabilities, not full return,
 exchange or discount engines. Promotion codes/hashes, customer usage keys and
 local activation authority are excluded from this download. Archives retain
 business history with inert customer bindings and exclude local activation.
-Native consent, gift-card, redirect and saved-report records remain absent.
+Gift-card sale and redemption, redirect and saved-report records remain absent. Complete JSON includes native consent records, the customer directory, historical order facts and mailbox-bound gift and goodwill ledger records.
 Provider
 data not retained locally (including card details, fees, payouts, full provider
 customer/stock/delivery history and settlement status) is excluded. Nothing is
@@ -98,3 +98,5 @@ Purchased descriptions are retained for new checkouts; older orders may omit the
 ORDER-001: orders include internal notes with their authors/UTC times and redaction evidence, tags, channel, manual-payment facts and explicit `no_tax_recorded`. CSV nested cells and complete JSON retain them. Staff payments and refunds carry their unverified/recorded labels; a succeeded recorded refund is a staff record, not processor settlement. Customer erasure retains note ID/author/time with “Erased with customer contact”, drops redaction text/reasons and tags, and removes manual payment references. Archives preserve the same result.
 
 The complete JSON also carries risk rules/observations/reviewer decisions and alerts; headless customer/cart and minimal event/delivery history; and workflow rules, requests, tasks and alerts. It excludes native identity bindings, app credentials, endpoint consent/signing keys, checkout fingerprints and local scheduling grants. The archive retains those business records with inert restored customer/checkout links and no app or workflow activation authority. Customer erasure removes attributable carts/requests and stops open follow-up, including after restore. See [staff permissions](STAFF-PERMISSIONS.md), [risk review](RISK-REVIEW.md), [headless API](HEADLESS-API.md) and [workflows](WORKFLOWS.md).
+
+Complete JSON includes `customerOrderHistory` and `customerBalances`, with source deduplication identity, exact USD financial facts, mailbox custody and customer-visible balance reasons. Customer erasure removes attributable history contact and tracking, mailbox balance custody and balance annotations; opaque financial facts and command tombstones remain. Public registration requests, rate limits and guest order link capabilities are excluded from archives and business exports. They carry no transferable business authority.

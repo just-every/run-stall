@@ -1,3 +1,6 @@
+import { HistoricalOrderImport } from './customer-history-import'
+import { MerchantCustomerBalances } from './customer-balances'
+import { RegistrationRequests } from './customer-registration'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { HydrationUnit } from '../../base/hydration/unit'
 import { errorMessage, money, request } from './api'
@@ -113,7 +116,7 @@ function SegmentEditor({ segment, busy, save, close }: { segment?: Segment; busy
   </form>
 }
 
-export function CustomerDirectory({ canManage, query }: { canManage: boolean; query?: string }) {
+export function CustomerDirectory({ canManage, canReviewRegistration=false, query }: { canManage: boolean; canReviewRegistration?:boolean; query?: string }) {
   const [data, setData] = useState<Directory>(), [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false), [search, setSearch] = useState(''), [selected, setSelected] = useState(''), [segmentId, setSegmentId] = useState(''), [editing, setEditing] = useState<Segment | null | undefined>()
   const lock = useRef(false)
   async function refresh() {
@@ -139,7 +142,9 @@ export function CustomerDirectory({ canManage, query }: { canManage: boolean; qu
     {error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}
     {!data && !error && <p role="status">Loading customers…</p>}
     {data && <>
+      {canReviewRegistration&&<RegistrationRequests/>}
       {canManage && <CustomerImport busy={busy} apply={apply} />}
+      <HistoricalOrderImport canManage={canManage} onImported={refresh}/>
       <section className="st-panel st-stack" aria-label="Saved customer segments"><h2>Saved segments</h2>
         <div className="st-actions"><button className="st-secondary" disabled={busy} onClick={() => setEditing(null)}>New segment</button></div>
         {editing !== undefined && <SegmentEditor key={editing?.revision ?? 'new'} segment={editing ?? undefined} busy={busy} save={apply} close={() => setEditing(undefined)} />}
@@ -155,7 +160,7 @@ export function CustomerDirectory({ canManage, query }: { canManage: boolean; qu
         <dl className="st-definition"><div><dt>Paid orders</dt><dd>{customer.orderCount}</dd></div><div><dt>Paid total</dt><dd>{money(customer.paidCents)}</dd></div><div><dt>Succeeded refunds</dt><dd>{money(customer.refundedCents)}</dd></div><div><dt>Net lifetime value</dt><dd>{money(customer.lifetimeValueCents)}</dd></div></dl>
         <p>Observed states and provinces: {customer.states.join(', ') || 'None recorded'}</p>
         <div className="st-actions"><button className="st-secondary" disabled={busy} aria-expanded={selected === customer.id} onClick={() => setSelected(selected === customer.id ? '' : customer.id)}>{selected === customer.id ? 'Close customer details' : 'Manage customer'}</button></div>
-        {chosen?.id === customer.id && <div key={customer.revision} className="st-stack"><CustomerEditor customer={customer} busy={busy} save={apply} />{canManage && customer.addresses && <MerchantAddresses customer={customer} addresses={customer.addresses} busy={busy} save={(body, message, method) => apply(body, message, '/api/stall/customers/addresses', method)} />}{canManage && <CustomerMerge source={customer} customers={data.customers} busy={busy} save={apply} />}</div>}
+        {chosen?.id === customer.id && <div key={customer.revision} className="st-stack"><CustomerEditor customer={customer} busy={busy} save={apply} />{canManage && customer.addresses && <MerchantAddresses customer={customer} addresses={customer.addresses} busy={busy} save={(body, message, method) => apply(body, message, '/api/stall/customers/addresses', method)} />}{canManage && <MerchantCustomerBalances emails={customer.emails}/>} {canManage && <CustomerMerge source={customer} customers={data.customers} busy={busy} save={apply} />}</div>}
       </article>)}</div>
     </>}
   </section></HydrationUnit>

@@ -67,4 +67,4 @@ try {
   await capture(`foreign-order-refused-${width}`)
  }
  assert.deepEqual(journey.errors,[]);console.log('PASS customer account history, fresh reorder checkout, guest links and upload refusal at 1440 and 390')
-} catch(error){journeyError=error;if(journey?.page){await journey.page.screenshot({path:(process.env.STALL_SCREENSHOTS??'test-results/customer-account')+'/failure.png',fullPage:true});if(await journey.page.locator('main').count())console.log('Visible failure:',(await journey.page.locator('main').innerText()).slice(0,4000));console.log('Journey failure:',error)}throw error}finally{await journey?.finish(journeyError)}
+} catch(error){journeyError=error;if(journey?.page){await journey.page.screenshot({path:(process.env.STALL_SCREENSHOTS??'./test-results/customer-account')+'/failure.png',fullPage:true});if(await journey.page.locator('main').count())console.log('Visible failure:',(await journey.page.locator('main').innerText()).slice(0,4000));console.log('Journey failure:',error)}throw error}finally{await journey?.finish(journeyError)}

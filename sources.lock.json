@@ -200,7 +200,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "afd5f93135686ce3cebca5dd1381f48f2af2e9e16dba658010b3759daa36d183",
+      "sha256": "1f49ecbef56a193cd9c5d0dc5c547bb2f786cb446b6829bb9e198885b4103d5b",
       "executable": false
     },
     "AGENTS.md": {
@@ -220,7 +220,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "dbe9dbfc53724caeb4255fb0ff5b836674e5c78d7ffbb2026c47823034283f7c",
+      "sha256": "63f220624ec0151e4a9b1903b948c00a309d30474de2a01ce075abdca6aa7249",
       "executable": false
     },
     "deploy-demo.json": {
@@ -240,11 +240,11 @@
       "executable": false
     },
     "docs/BUSINESS-EXPORTS.md": {
-      "sha256": "d0d34e8a082100f47b1c6ef0cfc431509f34b8d9efb852ce557d56f90af74516",
+      "sha256": "918897229f499d093be0c61bcb562d256adf34c48a16486f27353962bbad379a",
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "2c8678d58f40f921fc067d34f8ff80c18c08225a4191debafe2f27f0edd6f857",
+      "sha256": "a8c6d71775e591a08e124953b157dd305c7ab61d308af6a11dedac10180429c5",
       "executable": false
     },
     "docs/COMMANDS.md": {
@@ -256,7 +256,7 @@
       "executable": false
     },
     "docs/CUSTOMERS.md": {
-      "sha256": "217685c8e27d44526763bf934c34bd84d0ac8165f82b8aa772a03dfc4daf9ae1",
+      "sha256": "f8490b68c9f16c5b944d279f4b80207449a2993d989cec4752c4d05979ed753d",
       "executable": false
     },
     "docs/GETTING-STARTED.md": {
@@ -517,6 +517,18 @@
     },
     "migrations/core/0044_guest_order_links.sql": {
       "sha256": "7bf40d9ba15225163a02a435dbd5a6afb1e487bd0293ea2a087e415a54e9865b",
+      "executable": false
+    },
+    "migrations/core/0045_customer_registration.sql": {
+      "sha256": "654fd957ddf03b9cb3b6393cef9902b122c19f9ddd8d5def62f701a05c254ab0",
+      "executable": false
+    },
+    "migrations/core/0046_customer_balances.sql": {
+      "sha256": "412312e7fb7f1218c3dd46bbf46d0fcd16fd8b45ca77ad14e668cf6eeb97be41",
+      "executable": false
+    },
+    "migrations/core/0047_customer_order_history.sql": {
+      "sha256": "d5458f9a573e07865b83e13dd107b0121a37eb80c7393dfae170a14441751fd1",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -2976,7 +2988,7 @@
       "executable": false
     },
     "src/stall/api.ts": {
-      "sha256": "bc3e56a3da933c0054e28a5d3fc899d3cd690fb14c5f98d2197e7ea1833ebe6e",
+      "sha256": "2cf24bb07518c58d6e2ac98c8638dd09fb9db4aa13ef4e6b31c431d893302759",
       "executable": false
     },
     "src/stall/base-exports.d.ts": {
@@ -2984,7 +2996,7 @@
       "executable": false
     },
     "src/stall/business-extensions.ts": {
-      "sha256": "1bb818ee24785dbea23dd3d52fe14039454b3ec46838d588ff525865f8408bbe",
+      "sha256": "9c396715cdc79d3c0555e8890556c9a9e1e50fdd8ca3a886861dccc798c179c7",
       "executable": false
     },
     "src/stall/checkout.ts": {
@@ -3004,7 +3016,11 @@
       "executable": false
     },
     "src/stall/customers/account.ts": {
-      "sha256": "e00c8966b6f9e673290af68afe14aa3682ad6f4c914301e2d8301841c342b0e6",
+      "sha256": "4f599094184ac779cff16684232f02b39f4f5db09bbf13c6f242154105404c77",
+      "executable": false
+    },
+    "src/stall/customers/balances.ts": {
+      "sha256": "bf94865f17d135750d2fde8eff97a2c82ed490c920af2da381982e0de45a7a09",
       "executable": false
     },
     "src/stall/customers/cart.ts": {
@@ -3016,7 +3032,7 @@
       "executable": false
     },
     "src/stall/customers/directory.ts": {
-      "sha256": "b2d89a0c3da64b32b90d1e244097afef533c2f384c76d4e5f4ad740e02ed2040",
+      "sha256": "9b4b4e8a3e84a6881f4f77ad560a920f085bc37b2ddd0384974ac118d190afa3",
       "executable": false
     },
     "src/stall/customers/guest-orders.ts": {
@@ -3024,19 +3040,27 @@
       "executable": false
     },
     "src/stall/customers/index.ts": {
-      "sha256": "680c2dabe2a61351b800a7d3b0ff082ce380ce29e9de586ba1fefa34fa6dc4b0",
+      "sha256": "e9f674c0b8a1d0cfb526474dd0f4918e7074f23ba1de004c7b81930bcfbd67ac",
       "executable": false
     },
     "src/stall/customers/merchant-address.ts": {
       "sha256": "c30be21503c16372b1d6ce3c77877c18c9914f9cc3c42224f798af365e86ea86",
       "executable": false
     },
+    "src/stall/customers/order-history.ts": {
+      "sha256": "7e4247b47a562633fa34546573d35f5cd3298430abe95b6fc380101dcb991f66",
+      "executable": false
+    },
     "src/stall/customers/privacy.ts": {
       "sha256": "2fcbadc085994b84dd713dc68b81740a9538ab2dc1777102b08f659fb9bfb5ec",
       "executable": false
     },
+    "src/stall/customers/registration.ts": {
+      "sha256": "163d7b1832d71b1f5b2ad2b934d82b749d2e4a23247b1534dc4009c02e362c2c",
+      "executable": false
+    },
     "src/stall/customers/reorder.ts": {
-      "sha256": "aa09618c67d5d16d3c8a1ec7c37390c4dfbe3dbc5d87f153107c77900b2b8715",
+      "sha256": "082c8543e6d5e6f0f11a06970c3b73a99ddca5a9ed8a1f3d2952e67b95e3827f",
       "executable": false
     },
     "src/stall/demo/channel-payment.ts": {
@@ -3060,7 +3084,7 @@
       "executable": false
     },
     "src/stall/erasure.ts": {
-      "sha256": "e100b3ba8b25014a7a558bdbdb2edd6fc6dff70cd5e92a64f754ec5dd88c3da6",
+      "sha256": "9414fc79330b2c3ae1063c22279d710483fb6866fef1d6d7052fdd75a7864d5a",
       "executable": false
     },
     "src/stall/exports.ts": {
@@ -3248,7 +3272,7 @@
       "executable": false
     },
     "src/stall/portability-policy.mjs": {
-      "sha256": "c815a2b059531ce0b57c2d67d5f54d9f96eb7e4a66a979990290669b08c3bebd",
+      "sha256": "76b85a2a0975242a7eeab10786a200677f6b211bfc91df9230c67cab364362cd",
       "executable": false
     },
     "src/stall/preferences.ts": {
@@ -3432,7 +3456,7 @@
       "executable": false
     },
     "src/stall/ui/app.tsx": {
-      "sha256": "e0284e75b181a57c258db56f47e480e8711df9e840bfc66a070982690a44539f",
+      "sha256": "eaa3bd65c8b54a2c61e2a8ef50f66e0720f2f6fddb1e1fd3a78712421af82e0b",
       "executable": false
     },
     "src/stall/ui/authority.tsx": {
@@ -3464,19 +3488,31 @@
       "executable": false
     },
     "src/stall/ui/customer-account.tsx": {
-      "sha256": "fceee4bd04d1edc2bfef42863ea863174fe9087ecf7332c781506052fe3345fe",
+      "sha256": "8d11ab7caac1f6f56e414f0c6de08362c6d16037dc2d2ff35152793f695d4c6b",
+      "executable": false
+    },
+    "src/stall/ui/customer-balances.tsx": {
+      "sha256": "3de9ec2ed032bbd8016fc2a47743efe57f70ea9264954ec86470575d68fe89e0",
       "executable": false
     },
     "src/stall/ui/customer-directory.tsx": {
-      "sha256": "778463211b417821da20cc732cddf070ad454e7d9a8488097ba124e1567eef15",
+      "sha256": "0999db4fb4ebec50c6edc84fcebbf8c25f8b847771f2fa69de55c04628914dd9",
+      "executable": false
+    },
+    "src/stall/ui/customer-history-import.tsx": {
+      "sha256": "d06ad7ffca387172e1bb2be70a196dd554c1e1e02a9bc3f944f48e1ec455aa41",
+      "executable": false
+    },
+    "src/stall/ui/customer-registration.tsx": {
+      "sha256": "1c018c36d6ed4e3636c4c1ac4cd5f926ce168f85f23ca51b9a23558061af4c98",
       "executable": false
     },
     "src/stall/ui/customer-requests.tsx": {
-      "sha256": "a9fc0ab1342ca4d340b8664db1f2ee5f33536313251baca9e6ac6f49fb377323",
+      "sha256": "00cca9bf020b9687c0033fda74b6822917c0181ddb31d8ec05394fe3c448d91e",
       "executable": false
     },
     "src/stall/ui/customer-types.ts": {
-      "sha256": "e3a3291bdf9d3954e1846df612cd9ddd411d6bd3d6fccd7030c1dcd5a7fdb614",
+      "sha256": "63ffdd755f169623bb41a13113c7eb5c255213afb0fd204bde746ed721180f58",
       "executable": false
     },
     "src/stall/ui/data.tsx": {
@@ -3791,6 +3827,18 @@
       "sha256": "c66d7919aa365705053295d845d3c17286cd536bf7aa16fb260f8a13f7961272",
       "executable": false
     },
+    "tests/api/customer-balances.test.mjs": {
+      "sha256": "e0d5cc7493ea8275426ab4417011477d2766fce183b10ae924f24945e6921645",
+      "executable": false
+    },
+    "tests/api/customer-history.test.mjs": {
+      "sha256": "db63d4df434534684b74910f2073e062394967ffa4c6fa01ef67748d4fb9db9b",
+      "executable": false
+    },
+    "tests/api/customer-registration.test.mjs": {
+      "sha256": "474851580badb16df05a8158db29f8ae89a203502978778f6ffcda26264efa7c",
+      "executable": false
+    },
     "tests/api/data.test.mjs": {
       "sha256": "b08b70f1f62ee19075dd132ca6b72a16935f2ab51dc7dac5135554a0692dc6c6",
       "executable": false
@@ -3884,11 +3932,27 @@
       "executable": false
     },
     "tests/ui/customer-account-journey.mjs": {
-      "sha256": "7e61a8758ce5ddd7e8533a0e3df88421248bea3d051e23ff7864b151e23f113e",
+      "sha256": "e66263b9c324552d13e8ba29f3c2ef09d6ed8685fed47a96cf5ef1075c912d86",
+      "executable": false
+    },
+    "tests/ui/customer-balances-journey.mjs": {
+      "sha256": "9914195b64653a41c181fe865568aea51dfa5ca9bad38547f0987570cfbec298",
       "executable": false
     },
     "tests/ui/customer-directory-journey.mjs": {
       "sha256": "a037529011ed253318fd6f15a79462ac7bb01cbb1f04d409c01252097e09032e",
+      "executable": false
+    },
+    "tests/ui/customer-history-journey.mjs": {
+      "sha256": "d5148d1b3d5b68b74dc8fa8bffc2ce9ec92e330ea46fcba78965fd548d38d539",
+      "executable": false
+    },
+    "tests/ui/customer-order-status-journey.mjs": {
+      "sha256": "adf89d2a44d9c76e2065da212e377ad78dc7e9447ad3b0b87b3441202638aaeb",
+      "executable": false
+    },
+    "tests/ui/customer-registration-journey.mjs": {
+      "sha256": "75f0cb2df5a43f7ec79d738aa5e89f26c19355a71a234e8395514cb03d999e5c",
       "executable": false
     },
     "tests/ui/demo-journey.mjs": {
@@ -3964,7 +4028,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "bbc60f134cf09cee92c67fd6eec812a40cd483682c9f97f475a6531bbdbd49dd",
+      "sha256": "98b39b15be0c28e77163c6a074653d09ab16accc52112ac840f01e331c7cb15e",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
