@@ -1,6 +1,7 @@
 import type { Bindings } from '../../auth.server'
 import { audit,commit,live } from '../access'
 import { fail,integer,requirePerson,text,type Actor } from '../model'
+import { nontaxableCode,unpricedObligation } from './commerce-provider'
 
 const boundary='Send these US addresses, line amounts, product tax codes and shipping amount to my connected Stripe account for a tax preview only.'
 export const taxBoundary={provider:'Stripe Tax',purpose:'Preview only; no payment, tax transaction, registration or filing',sends:['Destination and ship-from street, city, state, ZIP and country','Opaque line references, amounts and quantities','Product tax codes','Already-discounted shipping amount','Opaque preview and intent references for original calculation custody'],retains:['Opaque preview ID','Keyed intent fingerprint','Attempt and outcome','Calculation reference','USD totals and jurisdiction breakdown'],providerRetention:'Stripe handles the outbound address data under its own retention policy. Stall preview records retain no street addresses or raw address-bearing payloads. Separate commerce order and shipping records have their own custody.',consent:boundary}
@@ -46,14 +47,14 @@ async function fingerprint(env:Bindings,value:string) {
  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(env.SESSION_SECRET),{name:'HMAC',hash:'SHA-256'},false,['sign'])
  return [...new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode('stall-tax-preview-v1\n'+value)))].map(x=>x.toString(16).padStart(2,'0')).join('')
 }
-function projection(value:any,subtotal:number) {
+function projection(value:any,subtotal:number,nontaxableLine:boolean) {
  if(typeof value?.id!=='string'||!/^taxcalc_[A-Za-z0-9]+$/.test(value.id)||value.object!=='tax.calculation'||value.currency!=='usd'||value.livemode!==false)fail('TAX_RESPONSE','Stripe Tax did not return a matching USD calculation.',502)
  const taxCents=integer(value.tax_amount_exclusive,'Provider exclusive tax cents',0,99999999)
  if(value.tax_amount_inclusive!==0||value.amount_total!==subtotal+taxCents||!Array.isArray(value.tax_breakdown))fail('TAX_RESPONSE','Stripe Tax totals do not reconcile to the reviewed exclusive amounts.',502)
  const breakdown=value.tax_breakdown.map((entry:any)=>{
   const details=entry.tax_rate_details
   if(!details||entry.inclusive!==false||typeof details.percentage_decimal!=='string'||!/^\d+(?:\.\d+)?$/.test(details.percentage_decimal))fail('TAX_RESPONSE','Stripe Tax omitted its jurisdiction breakdown.',502)
-  if(['not_collecting','not_supported'].includes(entry.taxability_reason))fail('TAX_CONFIGURATION','Stripe Tax cannot price this obligation with the current registrations and supported tax coverage.',503)
+  if(unpricedObligation(entry,nontaxableLine))fail('TAX_CONFIGURATION','Stripe Tax cannot price this obligation with the current registrations and supported tax coverage.',503)
   return {amountCents:integer(entry.amount,'Jurisdiction tax cents',0,99999999),taxableCents:integer(entry.taxable_amount,'Taxable cents',0,99999999),country:details.country??null,state:details.state??null,taxType:details.tax_type??null,ratePercent:details.percentage_decimal,reason:text(entry.taxability_reason,'Provider tax reason',100)}
  })
  if(breakdown.reduce((sum:number,j:{amountCents:number})=>sum+j.amountCents,0)!==taxCents)fail('TAX_RESPONSE','Stripe Tax jurisdiction amounts do not reconcile.',502)
@@ -120,7 +121,7 @@ export async function previewTax(env:Bindings,actor:Actor,p:any) {
   const sameAddress=(actual:any,expected:Record<string,string>)=>['line1','line2','city','state','postal_code','country'].every(key=>(actual?.[key]??'')===(expected[key]??''))
   if(!sameAddress(value.customer_details?.address,destination)||!sameAddress(value.ship_from_details?.address,shipFrom)||value.customer_details?.address_source!=='shipping'||value.shipping_cost?.amount!==shippingCents||value.shipping_cost?.tax_behavior!=='exclusive')fail('TAX_MISMATCH','Stripe calculated a different address or shipping amount.',409)
   await env.DB.prepare('UPDATE st_tax_previews SET provider_id=? WHERE id=? AND (provider_id IS NULL OR provider_id=?)').bind(value.id,id,value.id).run()
-  const result={...projection(value,subtotal),historicalObservation:!!row.restored||value.expires_at<=Math.floor(Date.now()/1000)}
+  const result={...projection(value,subtotal,lines.some((line:{taxCode:string})=>line.taxCode===nontaxableCode)),historicalObservation:!!row.restored||value.expires_at<=Math.floor(Date.now()/1000)}
   await env.DB.prepare("UPDATE st_tax_previews SET status='observed',observed_at=?,provider_id=?,result_json=?,error_code=NULL WHERE id=? AND (provider_id IS NULL OR provider_id=?)").bind(new Date().toISOString(),result.calculationId,JSON.stringify(result),id,result.calculationId).run()
   return result
  } catch(error:any) {

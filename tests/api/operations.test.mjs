@@ -792,7 +792,12 @@ test('tax refunds post in their own shop-zone filing period and liability CSVs a
   assert.equal(february.transactions.length,1);assert.equal(february.transactions[0].originalTransactionId,tx.order.tax.transactionId)
   assert.equal(february.totals.refundGrossCents,-1000);assert.equal(february.totals.taxCents,-refund.taxAllocation.taxCents)
   assert.equal(february.transactions[0].id,refund.taxReversalId)
-  assert.equal(february.totals.unallocatedTaxCents,-refund.taxAllocation.taxCents,'the real transaction resource does not provide reversal jurisdiction detail')
+  assert.equal(february.totals.unallocatedTaxCents,0,'the real reversal names no jurisdiction, so the original provider breakdown is split pro rata and nothing stays unallocated')
+  assert.ok(february.jurisdictions.length>=4&&february.jurisdictions.every(j=>j.refundTaxCents<=0&&j.taxCollectedCents===0))
+  for(const level of ['state','county','city','district']) {
+   const original=january.jurisdictions.filter(j=>j.level===level&&j.state==='TX'),reversed=february.jurisdictions.filter(j=>j.level===level)
+   assert.ok(reversed.length&&reversed.every(r=>original.some(j=>j.name===r.name&&j.ratePercent===r.ratePercent)),'reversal jurisdictions are the original sale jurisdictions')
+  }
   assert.equal(january.transactions.find(t=>t.orderId===ca.order.id).calculationId,ca.order.tax.calculationId)
   for(const report of [january,february])assert.equal(report.states.reduce((n,row)=>n+row.taxCents,0),report.totals.taxCents)
   for(const level of ['state','jurisdiction','transaction']) {
@@ -800,14 +805,14 @@ test('tax refunds post in their own shop-zone filing period and liability CSVs a
    assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/text\/csv/)
    const rows=readCsv(await response.text());assert.ok(rows.length>1)
    const exportedTax=rows.reduce((sum,row)=>sum+Number(row.taxCents),0)
-   assert.equal(exportedTax,level==='jurisdiction'?january.totals.taxCents:january.totals.taxCents+february.totals.taxCents)
+   assert.equal(exportedTax,january.totals.taxCents+february.totals.taxCents)
    if(level==='transaction') {
     assert.deepEqual(new Set(rows.map(row=>row.id)),new Set([tx.order.tax.transactionId,ca.order.tax.transactionId,refund.taxReversalId]))
     assert.ok(rows.every(row=>[tx.order.id,ca.order.id].includes(row.orderId)&&row.calculationId))
    }
    if(level==='jurisdiction')for(const row of rows) {
-    const source=january.jurisdictions.find(j=>j.state===row.state&&j.name===row.name&&j.level===row.level&&j.ratePercent===row.ratePercent)
-    assert.ok(source);assert.equal(Number(row.taxCents),source.taxCents);assert.equal(Number(row.taxableCents),source.taxableCents)
+    const match=j=>j.state===row.state&&j.name===row.name&&j.level===row.level&&j.ratePercent===row.ratePercent,source=january.jurisdictions.find(match),reversed=february.jurisdictions.find(match)
+    assert.ok(source);assert.equal(Number(row.taxCents),source.taxCents+(reversed?.taxCents??0));assert.equal(Number(row.refundTaxCents),reversed?.refundTaxCents??0)
    }
   }
   const nexus=await h.api('/api/stall/tax/nexus?from=2026-01-01&to=2026-02-01'),texas=nexus.states.find(s=>s.state==='TX')
@@ -822,6 +827,9 @@ test('tax refunds post in their own shop-zone filing period and liability CSVs a
    assert.ok(shipping.refunds.at(-1).taxReversalId)
   }
   assert.equal(shipping.refunds.filter(r=>r.kind==='shipping').reduce((sum,r)=>sum+r.amountCents,0),217,'partial shipping returns every original tax cent exactly once')
+  const shippingRows=shipping.refunds.filter(r=>r.kind==='shipping')
+  assert.deepEqual(shippingRows.map(r=>r.taxAllocation.shippingJurisdictions.reduce((n,j)=>n+j.amountCents,0)),[9,8])
+  for(const entry of tx.order.tax.shippingJurisdictions)assert.equal(shippingRows.reduce((n,r)=>n+(r.taxAllocation.shippingJurisdictions.find(j=>j.name===entry.name&&j.level===entry.level)?.amountCents??0),0),entry.amountCents,'the last partial shipping return clears every jurisdiction exactly')
   await h.api('/api/stall/tax/liability?from=2026-02-01&to=2026-01-01',undefined,{status:400})
   await h.api('/api/stall/tax/liability?from=2026-01-01&to=2026-03-01',undefined,{as:'',status:401})
  }finally{await kit.close()}

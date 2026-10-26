@@ -6,15 +6,15 @@ import { stripeEdge,publish,deliverWebhook } from './network.mjs'
 import { taxEdge } from './tax-edge.mjs'
 
 export const taxAddress={line1:'1 synthetic-stall-street',city:'Austin',state:'TX',postal_code:'78702',country:'US'}
-export async function taxCommerceInstallation() {
- const pier=await pierInstallation(),stripe=stripeEdge({forward:pier.forward}),tax=taxEdge(),secret=randomUUID()
+export async function taxCommerceInstallation({tax=taxEdge(),key='synthetic-stall-806',shipFrom={...taxAddress,line1:'1200 Cedar Avenue'},thresholdState='TX'}={}) {
+ const pier=await pierInstallation(),stripe=stripeEdge({forward:pier.forward}),secret=randomUUID()
  let h
  try {
-  h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-806',STRIPE_WEBHOOK_SECRET:secret},outboundService:request=>new URL(request.url).hostname==='api.stripe.com'&&(/^\/v1\/tax\//.test(new URL(request.url).pathname)||new URL(request.url).pathname==='/v1/account')?tax.handle(request):stripe.handle(request)})
+  h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:key,STRIPE_WEBHOOK_SECRET:secret},outboundService:request=>new URL(request.url).hostname==='api.stripe.com'&&(/^\/v1\/tax\//.test(new URL(request.url).pathname)||new URL(request.url).pathname==='/v1/account')?tax.handle(request):stripe.handle(request)})
   await publish(h,'MUG-BLUE','Blue ceramic mug',1000);await publish(h,'TOWEL-NAT','Natural linen towel',500)
   await h.command('shipping.configure',{shippingCents:200})
   const config=await h.api('/api/stall/tax/configuration')
-  await h.api('/api/stall/tax/configuration',{revision:config.revision,value:{shipFrom:{...taxAddress,line1:'1200 Cedar Avenue'},categories:[{sku:'MUG-BLUE',taxCode:'txcd_99999999'},{sku:'TOWEL-NAT',taxCode:'txcd_00000000'}],thresholds:[{state:'TX',salesCents:3000,transactions:10,warningPercent:80}]}})
+  await h.api('/api/stall/tax/configuration',{revision:config.revision,value:{shipFrom,categories:[{sku:'MUG-BLUE',taxCode:'txcd_99999999'},{sku:'TOWEL-NAT',taxCode:'txcd_00000000'}],thresholds:[{state:thresholdState,salesCents:3000,transactions:10,warningPercent:80}]}})
   const mode=await h.api('/api/stall/tax/commerce?review=1')
   await h.api('/api/stall/tax/commerce',{revision:mode.revision,enabled:true,consent:mode.consent})
   const consent=(await h.api('/api/stall/tax/mode',undefined,{as:''})).shopperConsent

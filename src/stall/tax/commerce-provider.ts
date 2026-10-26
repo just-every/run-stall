@@ -29,9 +29,14 @@ export function jurisdictions(entries:any[],sign=1):TaxJurisdiction[] {
   return [{level:j.level,name:j.display_name,country:'US' as const,state:j.state,ratePercent:rate,amountCents:sign*integer(Math.abs(entry.amount),'Jurisdiction tax cents',0,99999999),taxableCents:sign*integer(Math.abs(entry.taxable_amount),'Jurisdiction taxable cents',0,99999999)}]
  })
 }
+export const nontaxableCode='txcd_00000000'
+/** Stripe labels a deliberately nontaxable line not_collecting with no taxable amount inside a registered state; any other unpriced obligation stays a refusal. */
+export function unpricedObligation(entry:any,nontaxableLine:boolean) {
+ return ['not_collecting','not_supported'].includes(entry?.taxability_reason)&&!(entry.taxability_reason==='not_collecting'&&nontaxableLine&&entry.amount===0&&entry.taxable_amount===0)
+}
 export function calculationItem(item:any,expected:{reference:string;amount:number;quantity:number;taxCode:string},exempt:boolean):TaxItem {
  if(item.reference!==expected.reference||item.amount!==expected.amount||item.quantity!==expected.quantity||item.tax_code!==expected.taxCode||item.tax_behavior!=='exclusive'||!Array.isArray(item.tax_breakdown)||!item.tax_breakdown.length)fail('TAX_MISMATCH','Stripe line evidence differs from the reviewed purchase.',502)
- if(item.tax_breakdown.some((b:any)=>['not_collecting','not_supported'].includes(b.taxability_reason)))fail('TAX_CONFIGURATION','Stripe cannot collect this obligation with the current registration and coverage.',503)
+ if(item.tax_breakdown.some((b:any)=>unpricedObligation(b,expected.taxCode===nontaxableCode)))fail('TAX_CONFIGURATION','Stripe cannot collect this obligation with the current registration and coverage.',503)
  const taxCents=integer(item.amount_tax,'Line tax cents',0,99999999)
  if(item.tax_breakdown.reduce((n:number,b:any)=>n+integer(b.amount,'Jurisdiction tax cents',0,99999999),0)!==taxCents)fail('TAX_RESPONSE','Stripe line tax breakdown does not reconcile.',502)
  const taxableCents=exempt?0:Math.max(0,...item.tax_breakdown.map((b:any)=>integer(b.taxable_amount,'Taxable line cents',0,expected.amount)))

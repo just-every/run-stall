@@ -53,7 +53,7 @@ export async function taxLiability(env:Bindings,search:URLSearchParams) {
   }
  }
  return {period:p,currency:'USD' as const,totals,states:[...states.values()].sort((a,b)=>a.state.localeCompare(b.state)||a.channel.localeCompare(b.channel)),jurisdictions:[...jurisdictions.values()].sort((a,b)=>a.key.localeCompare(b.key)),transactions,
-  policy:'Refunds and adjustments belong to their provider-observed posting date. Amounts are signed; net tax equals collected tax plus refund tax plus adjustments. Jurisdiction totals use only named provider evidence; any remaining tax is shown separately. Taxable bases at different jurisdiction levels overlap and must not be added together.'}
+  policy:'Refunds and adjustments belong to their provider-observed posting date. Amounts are signed; net tax equals collected tax plus refund tax plus adjustments. Sale jurisdiction totals use the named provider breakdown. Stripe names no jurisdiction on a reversal, so refund tax is split pro rata over the original sale's provider breakdown by what remains unreversed; any tax without a named jurisdiction is shown separately. Taxable bases at different jurisdiction levels overlap and must not be added together.'}
 }
 export type TaxLiabilityReport=Awaited<ReturnType<typeof taxLiability>>
 
