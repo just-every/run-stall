@@ -68,7 +68,7 @@ try {
   await capture('RETURN-001-final-sale', towelPanel)
   // A private order link reaches one order; another signed-in customer sees nothing of it.
   const link = await h.api('/api/stall/account/guest-order-link', { orderId: shipped }, { as: ana })
-  as = ''; await page.goto(ready.url + '/shop'); await page.goto(ready.url + '/order#orderLink=' + link.token)
+  as = ''; await page.goto(ready.url + '/order#orderLink=' + link.token)
   await page.getByRole('heading', { name: 'Your guest order', exact: true }).waitFor()
   await page.getByText('Returns, exchanges and cancellation', { exact: true }).click()
   const guestPanel = page.getByLabel(`Returns and exchanges for order ${shipped}`, { exact: true }), guestForm = guestPanel.getByRole('form', { name: 'Request help with this order', exact: true })
@@ -104,7 +104,7 @@ try {
   await mine.getByText('We have set the large size aside for you.', { exact: false }).waitFor()
   await mine.getByText('Your replacement is set aside.', { exact: false }).waitFor()
   await capture('RETURN-001-account-decided', mine)
-  as = ''; await page.goto(ready.url + '/shop'); await page.goto(ready.url + '/order#orderLink=' + link.token)
+  as = ''; await page.goto(ready.url + '/order#orderLink=' + link.token)
   await page.getByText('The glaze matches the listing, so this is outside our policy.', { exact: false }).waitFor()
   await capture('RETURN-001-guest-refused', page.getByLabel(`Returns and exchanges for order ${shipped}`, { exact: true }))
   assert.deepEqual((await h.api('/api/stall/state')).orders.find(o => o.id === shipped), before)
