@@ -16,7 +16,7 @@ import { finishCleanup } from '../owned-dev.mjs'
 const exec = promisify(execFile), persist = await mkdtemp(join(tmpdir(), 'stall-review-import-'))
 const screenshots = resolve(process.env.STALL_SCREENSHOTS ?? './test-results/reviews'), stock = volumeStock(['synthetic-stall-1511'])
 stock.setAvailable('synthetic-stall-1511', '12')
-let worker, browser, edge, journeyError, cleaning, workerError
+let worker, browser, edge, page, journeyError, cleaning, workerError
 const pause = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
 function cleanup() {
   return cleaning ??= (async () => {
@@ -108,7 +108,7 @@ try {
     const split = value.indexOf('=')
     return { name: value.slice(0, split), value: value.slice(split + 1), url: origin, httpOnly: true, sameSite: 'Lax' }
   }))
-  const page = await context.newPage(), errors = []
+  page = await context.newPage(); const errors = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto(origin + '/app')
   await page.getByRole('checkbox', { name: 'I confirm this owner account is ready to use.' }).check()
@@ -297,5 +297,5 @@ try {
   })
   assert.deepEqual(errors, [])
   console.log('PASS MIGRATE-007: emitted Worker, native sessions and public uploads, both CSV dry runs, explicit remap and orphan exclusion, reviewed apply, original dates and replies, source claims without native purchase verification, public Product, Review and AggregateRating data, duplicate rerun and scoped undo at 1440 and 390. Browser CSV uploads omit source photos; API coverage proves media copying after source retirement.')
-} catch (error) { journeyError = error; throw error }
+} catch (error) { journeyError = error; if (page) { console.log('Review journey failure at ' + new URL(page.url()).pathname + new URL(page.url()).hash); console.log(await page.locator('main select').evaluateAll(elements => elements.map(element => ({ label: element.labels?.[0]?.textContent, name: element.getAttribute('aria-label') })))); await page.screenshot({ path: join(screenshots, 'failure.png'), fullPage: true }).catch(() => {}) } throw error }
 finally { try { await finishCleanup(cleanup, journeyError) } finally { for (const signal of ['SIGINT', 'SIGTERM']) process.off(signal, interrupted) } }

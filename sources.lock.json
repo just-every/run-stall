@@ -3764,7 +3764,7 @@
       "executable": false
     },
     "src/stall/ui/review-import.tsx": {
-      "sha256": "c36df6a0b8373947ca1c0dea63084a6743420453b35cdc2b7009f3a105b08865",
+      "sha256": "1e882480df4b0c171f72cba448510f3cc231598c662cd8c798561000ebfd735a",
       "executable": false
     },
     "src/stall/ui/risk-review.tsx": {
@@ -4092,7 +4092,7 @@
       "executable": false
     },
     "tests/ui/review-import-journey.mjs": {
-      "sha256": "c7432499d1b356cf1e6c199657e2045be42f522bb9590ecb11c351b08e89f384",
+      "sha256": "ab2fb854f7e441ecce93165b128657b021fdd7fcf79c6f62ad71ed89c60a9409",
       "executable": false
     },
     "tests/ui/risk-journey.mjs": {

@@ -97,7 +97,7 @@ export function ReviewImport() {
     {error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}
     <div className="st-panel st-stack">
       <h3>1. Add a review export</h3>
-      <label>Review source<select value={source} disabled={busy} onChange={event => { changed(); setSource(event.target.value as Source) }}>
+      <label>Review source<select aria-label="Review source" value={source} disabled={busy} onChange={event => { changed(); setSource(event.target.value as Source) }}>
         {sources.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
       </select></label>
       <label>Choose a review CSV file<input type="file" accept=".csv,text/csv" disabled={busy} onChange={event => {
