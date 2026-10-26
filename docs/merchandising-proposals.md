@@ -22,9 +22,9 @@ Attribute values retain the cited fact's label. A collection change names its
 existing manual collection in both `target` and `value`, citing
 `collection:HANDLE`. A channel change uses `google_product` and cites `sku`;
 Stall derives the variant IDs, price, image and page mapping from approved
-product data. No quantity or availability is invented. The Google draft
-validator reports missing current inventory evidence and any missing required
-image or description. No external channel is connected or submitted.
+product data. The validator reads timestamped availability from the existing stock authority.
+No quantity or availability is invented. It reports missing current inventory
+evidence, provider refusal and any missing required image or description. No external channel is connected or submitted.
 
 Missing size, material and safety facts remain unanswered questions. Optional
 `requests` may name `inventory`, `certification` and `reviews`; these are

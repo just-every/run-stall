@@ -59,8 +59,8 @@ try {
   for (const field of ['seoTitle', 'alt', 'collection', 'channel']) assert.equal(await select(field).isChecked(), true, `refresh retains ${field}`)
   await draft.getByRole('button', { name: 'Preview selected changes', exact: true }).click()
   await draft.getByRole('button', { name: 'Approve 4 selected changes', exact: true }).waitFor()
-  await draft.getByRole('region', { name: 'Channel feed validation' }).getByText('Validation blocked', { exact: true }).waitFor()
-  await draft.getByText(/Availability needs current connected inventory evidence/).waitFor()
+  await draft.getByRole('region', { name: 'Channel feed validation' }).getByText('Valid mapping', { exact: true }).waitFor()
+  await draft.getByText(/Inventory is a timestamped validation observation/).waitFor()
   await capture('AI-005-selective-review', draft)
   const selected = ['seoTitle', 'alt', 'collection', 'channel'].map(field => proposal.changes.find(change => change.field === field).id)
   await draft.getByRole('button', { name: 'Approve 4 selected changes', exact: true }).click()
@@ -73,7 +73,7 @@ try {
   assert.equal(saved.value.details.media[0].alt, changes.find(change => change.field === 'alt').value)
   const approved = (await h.api(`/api/stall/merchandising?sku=${sku}`)).proposals.find(row => row.id === proposal.id)
   assert.deepEqual(approved.selected, selected)
-  assert.equal(approved.feed.connected, false); assert.equal(approved.feed.valid, false)
+  assert.equal(approved.feed.connected, false); assert.equal(approved.feed.valid, true)
   const group = (await h.api('/api/stall/state')).merchandising.collections.find(row => row.id === collection)
   assert.ok(group.value.skus.includes(sku))
   await panel.locator(`[data-proposal-id="${proposal.id}"] > summary`).click()
@@ -97,6 +97,6 @@ try {
   assert.equal(await staleDraft.getByRole('button', { name: 'Preview selected changes', exact: true }).isDisabled(), true)
   assert.deepEqual(journey.errors, [])
   await journey.dev.assertRunning()
-  console.log('AI-005 merchandising journey passed: source bundle, real agent grant, fabricated claim refusals, unanswered questions, exact selective review and approval, blocked unconnected feed and stale source refusal at desktop and phone widths')
+  console.log('AI-005 merchandising journey passed: source bundle, real agent grant, fabricated claim refusals, unanswered questions, exact selective review and approval, validated unconnected feed and stale source refusal at desktop and phone widths')
 } catch (error) { journeyError = error; throw error }
 finally { await journey?.finish(journeyError) }

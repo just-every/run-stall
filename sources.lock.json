@@ -268,7 +268,7 @@
       "executable": false
     },
     "docs/merchandising-proposals.md": {
-      "sha256": "7cf2ed2fd1e33e140dc88db2314f0e0a9ff07208ab4f3c2300bd6012b9d19ea3",
+      "sha256": "6f864f24da6fa04028634eeb5864e207483461777a3b8eb814827f6b9fa44909",
       "executable": false
     },
     "docs/MOVE-IN.md": {
@@ -3287,8 +3287,12 @@
       "sha256": "d9aa60fbaa2b966c8daebb7fb0db7a2a569594a7eb2c97592d6a512c48cc1782",
       "executable": false
     },
+    "src/stall/proposals/feed.ts": {
+      "sha256": "8329edb4085f9135ae8c44cc074e06745493058c917641923df74715c02b26b7",
+      "executable": false
+    },
     "src/stall/proposals/index.ts": {
-      "sha256": "5d050cd3e61570876a4eb05f51809541db412b9ac6576dc03c31007543c4c006",
+      "sha256": "58a64464e9e67a61930d1743024e022905a7d0f45c69ee6caa581f5067eb1068",
       "executable": false
     },
     "src/stall/proposals/model.ts": {
@@ -3744,7 +3748,7 @@
       "executable": false
     },
     "tests/api/commerce.test.mjs": {
-      "sha256": "36b65116248b458ce287b99ca4204559ce195cb77c090435b17b5d261258d050",
+      "sha256": "38dce82b7bc99bf0d078d8d701a4731544ccb71fbb670fd9ce253932828e64bc",
       "executable": false
     },
     "tests/api/csv-reader.mjs": {
@@ -3784,7 +3788,7 @@
       "executable": false
     },
     "tests/api/merch-proposal-fixture.mjs": {
-      "sha256": "a45b9b3c2b2b38e9a95da6cd1aedac5913c552c446f7829cac3565a336855a99",
+      "sha256": "2462b283fe8bfe01fe82b9eb9943fd757fdd4849807722e41c86c9da0c6c5425",
       "executable": false
     },
     "tests/api/network.mjs": {
@@ -3864,7 +3868,7 @@
       "executable": false
     },
     "tests/ui/merch-proposals-journey.mjs": {
-      "sha256": "0b2bc2fc91adf41397335a126b45dfcaf628324d9482acd01813cb617bb2986b",
+      "sha256": "1c75cc70325a0ad390dbd5587e30663c3b7b4baff36113f4e0fdbecfeabf1809",
       "executable": false
     },
     "tests/ui/merch-seo-journey.mjs": {

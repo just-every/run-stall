@@ -5,6 +5,7 @@ import { checkListing } from '../listing-checks'
 import { products } from '../store'
 import { proposalSources } from './sources'
 import { proposalChanges, proposalPreview } from './changes'
+import { validateFeedInventory } from './feed'
 import type { Proposal } from './model'
 
 export async function merchandisingProposals(db: D1Database, sku?: string): Promise<Proposal[]> {
@@ -25,7 +26,9 @@ async function currentProposal(db: D1Database, p: any) {
 }
 export async function previewProposal(env: Bindings, p: any) {
  const { proposal, source } = await currentProposal(env.DB, p)
- return proposalPreview(source.product.value, proposal.changes, p.selected, env.AUTH_ORIGIN)
+ const preview = proposalPreview(source.product.value, proposal.changes, p.selected, env.AUTH_ORIGIN)
+ if (proposal.changes.some(change => change.field === 'channel' && p.selected.includes(change.id))) preview.feed = await validateFeedInventory(env, preview.feed)
+ return preview
 }
 export async function proposalCommand(env: Bindings, actor: Actor, type: string, p: any) {
  if (!['owner', 'admin'].includes(actor.role) || actor.staffRole) fail('FORBIDDEN', 'Only the owner or administrator may manage merchandising proposals.', 403)
@@ -41,6 +44,7 @@ export async function proposalCommand(env: Bindings, actor: Actor, type: string,
  }
  requirePerson(actor)
  const { proposal, source } = await currentProposal(env.DB, p), preview = proposalPreview(source.product.value, proposal.changes, p.selected, env.AUTH_ORIGIN)
+ if (proposal.changes.some(change => change.field === 'channel' && p.selected.includes(change.id))) preview.feed = await validateFeedInventory(env, preview.feed)
  await checkListing(env.DB, preview.product, await products(env.DB))
  const next: Proposal = { ...proposal, revision: crypto.randomUUID(), status: 'published', selected: p.selected, approval: approval(actor, proposal.revision), ...(proposal.changes.some(change => change.field === 'channel' && p.selected.includes(change.id)) ? { feed: preview.feed } : {}) }
  const writes = [sourceFence(env.DB, source), env.DB.prepare("UPDATE st_merch_proposals SET revision=?,value_json=? WHERE id=? AND revision=? AND json_extract(value_json,'$.status')='draft'").bind(next.revision, JSON.stringify(next), proposal.id, proposal.revision), changed(env.DB), env.DB.prepare('UPDATE st_products SET revision=?,value_json=? WHERE id=? AND revision=?').bind(crypto.randomUUID(), JSON.stringify({ ...preview.product, approval: approval(actor, proposal.revision) }), proposal.sku, source.product.revision), changed(env.DB)]

@@ -1285,7 +1285,8 @@ test('verified account reorder names current price and stock changes without spe
 
 test('AI-005: an agent proposes cited merchandising and a human publishes only selected exact changes', async () => {
  const { merchandisingFixture, merchSku, merchVariant } = await import('./merch-proposal-fixture.mjs');
- const stock=volumeStock([merchVariant]), h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-903',PIER_CUSTOMER_ID:'shop'},outboundService:stock.forward});
+ const stock=volumeStock([merchVariant]); let unavailable=false;
+ const h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-903',PIER_CUSTOMER_ID:'shop'},outboundService:request=>unavailable?Response.json({error:{code:'OFFLINE'}},{status:503}):stock.forward(request)});
  try {
   const f=await merchandisingFixture(h), proposal=await h.command('merch.prepare',f.input,f.agent);
   assert.equal(proposal.preparedBy,`agent:${f.grant.id}`);
@@ -1300,10 +1301,21 @@ test('AI-005: an agent proposes cited merchandising and a human publishes only s
   const preview=await h.api('/api/stall/merchandising/preview',payload);
   assert.equal(preview.product.name,'Studio mug');
   assert.equal(preview.feed.connected,false);
-  assert.equal(preview.feed.valid,false);
-  assert.ok(preview.feed.errors.some(error=>error.includes('Availability')));
+  assert.equal(preview.feed.valid,true);
+  assert.deepEqual(preview.feed.errors,[]);
   assert.deepEqual(preview.feed.items.map(item=>[item.id,item.price,item.attributes.Color]),[[merchVariant,'26.00 USD','Clay']]);
-  assert.equal('availability' in preview.feed.items[0],false,'no invented inventory');
+  assert.equal(preview.feed.items[0].availability,'in_stock');
+  assert.equal(preview.feed.items[0].inventoryEvidence.available,'10000');
+  stock.setAvailable(merchVariant,'0');
+  const soldOut=await h.api('/api/stall/merchandising/preview',payload);
+  assert.equal(soldOut.feed.items[0].availability,'out_of_stock','validation reads the stock authority instead of trusting agent requests');
+  stock.setAvailable(merchVariant,'10000');
+  unavailable=true;
+  const refusedFeed=await h.api('/api/stall/merchandising/preview',payload);
+  assert.equal(refusedFeed.feed.valid,false);
+  assert.ok(refusedFeed.feed.errors.some(error=>error.includes('PIER_OFFLINE')));
+  assert.ok(refusedFeed.feed.items.every(item=>!('availability' in item)),'a failed observation does not reuse earlier stock');
+  unavailable=false;
   const attempts=await Promise.all([0,1].map(()=>h.request('/api/stall/commands',{method:'POST',body:{type:'merch.approve',payload}})));
   assert.deepEqual(attempts.map(response=>response.status).sort(),[200,409],'one exact approval wins concurrent publication');
   const published=(await attempts.find(response=>response.status===200).json()).result;

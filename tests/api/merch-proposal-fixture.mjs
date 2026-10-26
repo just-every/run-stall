@@ -5,7 +5,7 @@ export async function merchandisingFixture(h) {
  const uploaded = await sendFile(h, '/api/stall/media', solidPng(400, 400, [172, 132, 96]), 'image/png')
  const media = await uploaded.json()
  if (uploaded.status !== 200) throw new Error(JSON.stringify(media))
- const draft = await h.command('product.prepare', { sku: merchSku, name: 'Studio mug', description: 'Hand-thrown mug', unitCents: 2400, active: true, details: { handle: 'studio-mug', categories: ['Ceramics'], customFields: [{ key: 'finish', label: 'Finish', type: 'text', value: 'Matte glaze' }], media: [{ id: media.id, kind: 'image', alt: 'Side view of Studio mug' }], options: [{ name: 'Color', values: ['Clay'] }], variants: [{ sku: merchVariant, options: { Color: 'Clay' }, unitCents: 2600, mediaId: media.id }] } })
+ const draft = await h.command('product.prepare', { sku: merchSku, name: 'Studio mug', description: 'Hand-thrown mug', unitCents: 2400, active: true, details: { costCents: 800, handle: 'studio-mug', categories: ['Ceramics'], customFields: [{ key: 'finish', label: 'Finish', type: 'text', value: 'Matte glaze' }], media: [{ id: media.id, kind: 'image', alt: 'Side view of Studio mug' }], options: [{ name: 'Color', values: ['Clay'] }], variants: [{ sku: merchVariant, options: { Color: 'Clay' }, unitCents: 2600, mediaId: media.id }] } })
  const product = await h.command('product.approve', { sku: merchSku, revision: draft.revision })
  await h.command('collection.save', { handle: 'ceramics', title: 'Ceramics', description: 'Pieces for everyday use', kind: 'manual', skus: [] })
  const grant = await h.api('/api/stall/agent-token', {})
