@@ -5,7 +5,7 @@ const sources:Record<string,string>={'judge-me':'Judge.me',yotpo:'Yotpo',okendo:
 export function ProductReviews({reviews}:{reviews:PublicReview[]}) {
  const aggregate=aggregateReviews(reviews)
  return <Section title="Customer reviews" className="st-store-panel">
-  {aggregate?<p><strong>{aggregate.ratingValue.toFixed(1)} of 5 stars</strong> · {aggregate.reviewCount} reviews</p>:<p>No reviews yet.</p>}
+  {aggregate?<p><strong>{aggregate.ratingValue.toFixed(1)} of 5 stars</strong> · {aggregate.reviewCount} {aggregate.reviewCount === 1 ? 'review' : 'reviews'}</p>:<p>No reviews yet.</p>}
   <div className="st-stack">{reviews.map(review=><article className="st-panel st-stack" key={review.id}>
    <h3>{review.title||`${review.rating} of 5 stars`}</h3>
    <p>{review.rating} of 5 stars · {review.reviewerName} · <time dateTime={review.date}>{review.date}</time></p>

@@ -200,7 +200,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "5646acf3b215049e4f92c0ec355ac0b04aee8a37ad8fc620b4498c3cc4f3ae24",
+      "sha256": "797f5417ee52a2ff9ca6f61f5c61e599d941516c72fa8d9eecd344c753138a84",
       "executable": false
     },
     "AGENTS.md": {
@@ -220,7 +220,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f82f476a59bbdd2a0d26112923ca4b3d07402b499397d06e29a89280b1487344",
+      "sha256": "f2a35affeab75a3bdd26276f4dae4e390c97496bd2e7050124302313259b13cf",
       "executable": false
     },
     "deploy-demo.json": {
@@ -244,7 +244,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "30544154bc07141b80998f2c9d680cf812e28c2dcb48d2a3e2d744b0fb917ac6",
+      "sha256": "c4c27e4d272323dceb5e423522a7e269a44b55343fda7b2332cddb5a1a41ae15",
       "executable": false
     },
     "docs/COMMANDS.md": {
@@ -3712,7 +3712,7 @@
       "executable": false
     },
     "src/stall/ui/product-reviews.tsx": {
-      "sha256": "1b9e94af9268d29333c47d79fc92b888d5ccd4d134f6ee60515f9da597203ced",
+      "sha256": "a18dcccb8a648996b119ff3725ef348356c5e994e522e9aec7c5ea0338f008ea",
       "executable": false
     },
     "src/stall/ui/products.tsx": {
