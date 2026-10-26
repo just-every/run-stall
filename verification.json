@@ -40,7 +40,11 @@
       "hosted": false,
       "commands": [
         "node tests/ui/real-home.mjs tests/ui/customer-account-journey.mjs",
-        "node tests/ui/real-home.mjs tests/ui/customer-directory-journey.mjs"
+        "node tests/ui/real-home.mjs tests/ui/customer-directory-journey.mjs",
+        "node tests/ui/real-home.mjs tests/ui/customer-registration-journey.mjs",
+        "node tests/ui/real-home.mjs tests/ui/customer-history-journey.mjs",
+        "node tests/ui/real-home.mjs tests/ui/customer-balances-journey.mjs",
+        "node tests/ui/real-home.mjs tests/ui/customer-order-status-journey.mjs"
       ]
     }
   ],

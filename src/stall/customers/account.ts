@@ -39,7 +39,7 @@ export async function account(env:Bindings,a:Actor) {
  const addresses=(await env.DB.prepare('SELECT id,revision,value_json FROM st_customer_addresses WHERE email=? ORDER BY created_at,id').bind(email).all<any>()).results.map(({value_json,...r})=>({...r,address:JSON.parse(value_json)}))
  const requests=(await env.DB.prepare(`SELECT id,order_id AS orderId,kind,created_at AS createdAt,(SELECT created_at FROM st_return_receipts receipt WHERE receipt.request_id=st_workflow_requests.id) AS goodsReceivedAt FROM st_workflow_requests WHERE order_id IN(SELECT id FROM st_orders WHERE lower(json_extract(value_json,'$.customerEmail'))=? AND json_extract(value_json,'$.erasedAt') IS NULL) ORDER BY created_at DESC,id`).bind(email).all()).results
  await customerCommit(env,a)
- return {email,orders:[...history.map(customerOrder),...await historicalOrders(env.DB,email)].sort((x,y)=>y.createdAt.localeCompare(x.createdAt)||y.id.localeCompare(x.id)),addresses,requests,giftBalanceStatus:'not_available',authentication:'native_verified_email_invitation',registration:'owner_invitation_required'}
+ return {email,orders:[...history.map(customerOrder),...await historicalOrders(env.DB,email)].sort((x,y)=>y.createdAt.localeCompare(x.createdAt)||y.id.localeCompare(x.id)),addresses,requests,giftBalanceStatus:'recorded_ledger',authentication:'native_verified_email_invitation',registration:'individual_owner_review_required'}
 }
 export function addressValue(p:any) {
  if(!p||typeof p!=='object'||Array.isArray(p)||!['US','CA'].includes(p.country)) fail('INPUT','Choose a US or Canadian address.',400)

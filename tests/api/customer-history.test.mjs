@@ -75,6 +75,13 @@ test('reviewed historical imports preserve exact facts without live effects and 
   assert.ok(customer.states.includes('TX'))
 
   await publish(h,'MUG-BLUE','Current handmade mug',2450)
+  const prepared=await h.api('/api/stall/cart/reorder',{orderId:imported.id},{as:alice});
+  assert.deepEqual(prepared.cart.value.lines,[{sku:'MUG-BLUE',quantity:2}]);
+  assert.equal(prepared.cart.value.reorder.priceChanges[0].currentUnitCents,2450);
+  assert.equal(prepared.cart.value.reorder.sourceOrderId,imported.id);
+  assert.equal(prepared.cart.value.shopper.address.postal_code,row.address.postal_code);
+  await h.api('/api/stall/cart/reorder',{orderId:imported.id},{as:bob,status:404});
+  assert.equal((await h.api('/api/stall/account/orders/'+imported.id,undefined,{as:alice})).order.totalCents,2800);
   const bought=await purchase(h,edge,{skus:['MUG-BLUE'],email})
   assert.equal((await deliverWebhook(h,secret,edge.pay(bought.session.id))).response.status,200)
   mine=await h.api(account,undefined,{as:alice})
