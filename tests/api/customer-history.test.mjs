@@ -87,7 +87,8 @@ test('reviewed historical imports preserve exact facts without live effects and 
   assert.equal(customer.refundedCents,500)
 
   const business=await h.api('/api/stall/exports/records')
-  assert.ok(JSON.stringify(business).includes(row.recordId))
+  assert.equal(business.customerOrderHistory.find(record=>record.id===imported.id).value.source.recordId,row.recordId)
+  assert.equal(business.customerOrderHistory.find(record=>record.id===imported.id).value.totalCents,2800)
   assert.ok(!JSON.stringify(business).includes(erased))
   const lines=await archive(h),snapshot={calls:edge.calls.length,mail:h.messages.length}
   destination=await installation()
