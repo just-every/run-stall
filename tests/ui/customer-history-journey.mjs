@@ -33,6 +33,7 @@ try {
   const form=page.getByRole('form',{name:'Import historical orders',exact:true})
   await form.getByLabel('Historical source system',{exact:true}).fill(source)
   await form.getByLabel('Historical order rows · JSON',{exact:true}).fill(JSON.stringify(rows))
+  await screenshot('CUSTOMER-001-history-import-form',form,width)
   const messages=h.messages.length,liveOrders=(await h.api('/api/stall/state')).orders.length,providerCalls=journey.edge.calls.length
   await form.getByRole('button',{name:'Preview historical orders',exact:true}).click()
   const review=page.getByRole('region',{name:'Historical order import preview',exact:true})
