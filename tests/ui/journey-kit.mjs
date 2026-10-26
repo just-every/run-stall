@@ -16,6 +16,7 @@ const exec = promisify(execFile)
 export async function startJourney({ name, skus, stock, installationFactory, captureFullPage = true, screenshots = process.env.STALL_SCREENSHOTS ?? `test-results/${name}` }) {
   const scratch = await mkdtemp(join(tmpdir(), `stall-${name}-`)), checkout = join(scratch, 'run-stall'), rerHome = join(scratch, 'rer-home')
   const kit = { stock: stock ?? volumeStock(skus) }
+  const progress = stage => console.log(`[${name}] ${stage}`)
   await mkdir(resolve(screenshots), { recursive: true }); await mkdir(rerHome)
   let cleaning
   const cleanup = () => cleaning ??= (async () => {
@@ -29,11 +30,15 @@ export async function startJourney({ name, skus, stock, installationFactory, cap
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, interrupted)
   kit.finish = async journeyError => { try { await finishCleanup(cleanup, journeyError) } finally { for (const signal of ['SIGINT', 'SIGTERM']) process.off(signal, interrupted) } }
   try {
+  progress('Clone committed UI')
   await exec('git', ['clone', '--no-hardlinks', process.cwd(), checkout])
+  progress('Start native development server')
   kit.dev = await startOwnedDev({ launcher: resolve('node_modules/@runeditrun/rer/global/rer.mjs'), checkout, env: { ...process.env, HOME: rerHome, RER_SERVER_JOURNEY: '1', RER_LOCAL_OPERATION: '' } })
   kit.ready = await kit.dev.ready
+  progress('Development server ready; start commerce Worker')
   kit.edge = stripeEdge({ forward: kit.stock.forward }); kit.secret = randomBytes(32).toString('hex')
   kit.h = installationFactory ? await installationFactory(kit) : await installation({ bindings: { ...(kit.stock.bindings ?? { PIER_ORIGIN: 'https://stock.example.test', PIER_SESSION: 'test-stock-network-edge', PIER_CUSTOMER_ID: 'shop' }), STRIPE_SECRET_KEY: 'test-network-edge', STRIPE_WEBHOOK_SECRET: kit.secret }, outboundService: kit.edge.handle })
+  progress('Commerce Worker ready; launch browser')
   kit.browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
   kit.context = await kit.browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' }); kit.page = await kit.context.newPage(); kit.errors = []
   kit.page.on('pageerror', error => kit.errors.push(error.message))
@@ -45,9 +50,11 @@ export async function startJourney({ name, skus, stock, installationFactory, cap
       : await kit.h.request(url.pathname + url.search, { method: req.method(), ...(req.postData() ? { body: JSON.parse(req.postData()) } : {}) })
     await route.fulfill({ status: response.status, headers: { 'content-type': response.headers.get('content-type') ?? 'application/json', ...(response.headers.get('content-disposition') ? { 'content-disposition': response.headers.get('content-disposition') } : {}) }, body: Buffer.from(await response.arrayBuffer()) })
   })
+  progress('Open native owner entry')
   await kit.page.goto(kit.ready.openUrl)
   await kit.page.waitForURL(url => ['/setup', '/app'].includes(url.pathname))
   if (new URL(kit.page.url()).pathname === '/setup') { await kit.page.getByRole('checkbox').check(); await kit.page.getByRole('button', { name: 'Finish setup', exact: true }).click() }
+  progress('Native UI ready')
   /** One screenshot per width, failing if the page scrolls sideways. */
   kit.capture = async (label, target = kit.page.locator('main'), shown = kit.page) => {
     const previousViewport = shown.viewportSize()

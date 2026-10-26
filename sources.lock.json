@@ -3904,7 +3904,7 @@
       "executable": false
     },
     "tests/ui/journey-kit.mjs": {
-      "sha256": "33d8f4cc02adecd1e6131257fb2813a7586c25ed1832dbc6b8eb5e75301bb9aa",
+      "sha256": "83025909438023bb885ba34e013c5ac2ccdb7a84b60990c8ed250b70391add84",
       "executable": false
     },
     "tests/ui/journey.mjs": {
