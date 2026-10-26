@@ -3888,7 +3888,7 @@
       "executable": false
     },
     "tests/ui/customer-directory-journey.mjs": {
-      "sha256": "49d0121d8e88d72a4a4acd645e509e4fb5e161e531d46f4d1e547283d788f66f",
+      "sha256": "a037529011ed253318fd6f15a79462ac7bb01cbb1f04d409c01252097e09032e",
       "executable": false
     },
     "tests/ui/demo-journey.mjs": {

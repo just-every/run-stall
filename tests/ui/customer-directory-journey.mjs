@@ -8,9 +8,9 @@ let journey, journeyError
 try {
   journey = await startJourney({ name: 'customer-directory', skus: ['MUG-BLUE'], stock: await pierInstallation() })
   const { h, page, ready, edge, secret, capture } = journey
-  await publish(h, 'MUG-BLUE', 'synthetic-stall-2100', 2450)
+  await publish(h, 'MUG-BLUE', 'Blue ceramic mug', 2450)
   for (const [index, width] of [1440, 390].entries()) {
-    const fixture = 2110 + index * 10, firstEmail = `synthetic-stall-${fixture}@example.test`, secondEmail = `synthetic-stall-${fixture + 1}@example.test`, name = `synthetic-stall-${fixture + 2}`, note = `synthetic-stall-${fixture + 3}`
+    const fixture = 2110 + index * 10, firstEmail = `synthetic-stall-${fixture}@example.test`, secondEmail = `synthetic-stall-${fixture + 1}@example.test`, name = 'Morgan Lane', note = 'Contact before sending a gift order.'
     await page.setViewportSize({ width, height: 1000 })
     await page.goto(ready.url + '/app#customers')
     await page.reload()
@@ -49,7 +49,7 @@ try {
     await second.getByLabel('New merchant note', { exact: true }).fill(note)
     await second.getByRole('button', { name: 'Add note', exact: true }).click()
     await second.getByRole('article').getByText(note, { exact: true }).waitFor()
-    const addressEditor = second.getByRole('form', { name: 'Merchant customer address', exact: true }), recipient = `synthetic-stall-${fixture + 7}`
+    const addressEditor = second.getByRole('form', { name: 'Merchant customer address', exact: true }), recipient = 'Morgan Lane'
     for (const [label, value] of [['Recipient', recipient], ['Address line 1', '1 Maker Lane'], ['City', 'Austin'], ['State or province', 'TX'], ['Postal code', '78702']]) await addressEditor.getByLabel(label, { exact: true }).fill(value)
     await addressEditor.getByRole('button', { name: 'Save customer address', exact: true }).click()
     const addressCard = second.getByRole('article', { name: `Saved address for ${recipient}`, exact: true })
@@ -79,12 +79,13 @@ try {
     await profile.getByRole('button', { name: 'Save customer profile', exact: true }).click()
     await first.getByText('Tags: vip, repeat, reviewed', { exact: true }).waitFor()
     await page.getByRole('button', { name: 'New segment', exact: true }).click()
-    const editor = page.getByRole('form', { name: 'Customer segment', exact: true }), segmentName = `synthetic-stall-${fixture + 4}`
+    const editor = page.getByRole('form', { name: 'Customer segment', exact: true }), segmentName = `Returning Texas customers ${index+1}`
     await editor.getByLabel('Segment name', { exact: true }).fill(segmentName)
     await editor.getByLabel('Required tag', { exact: true }).fill('reviewed')
     await editor.getByLabel('Minimum net lifetime value · USD', { exact: true }).fill('40')
     await editor.getByLabel('Minimum paid orders', { exact: true }).fill('2')
     await editor.getByLabel('State or province · two letters', { exact: true }).fill('TX')
+    await capture(`CUSTOMER-001-segment-editor-${width}`,editor)
     await editor.getByRole('button', { name: 'Save segment', exact: true }).click()
     const segment = page.getByRole('article', { name: `Segment ${segmentName}`, exact: true })
     await segment.getByText('0 matching customers', { exact: false }).waitFor()
