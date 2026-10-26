@@ -3252,7 +3252,7 @@
       "executable": false
     },
     "src/stall/product-seo.ts": {
-      "sha256": "4047a2e567aab51b8e2216b9dada7fce2cfda35f044a7ba6d9eae079b7292fa0",
+      "sha256": "c2dca86958372214804ca16388c3bccdd8e2629b2beb3273982295b86d2dca20",
       "executable": false
     },
     "src/stall/products.ts": {
@@ -3828,7 +3828,7 @@
       "executable": false
     },
     "tests/owned-dev.mjs": {
-      "sha256": "aa16142df63cdf0c3056804f0fdfd008dfeda98979a3600afb6092994e6f1222",
+      "sha256": "eece0d5e2158d64ff4eba01f18478f50f3386776d1a70ca095252cf664bcba62",
       "executable": false
     },
     "tests/runtime.mjs": {

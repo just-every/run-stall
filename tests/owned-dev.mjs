@@ -62,7 +62,7 @@ export async function startOwnedDev({launcher,checkout,env}) {
  output.on('line',line=>{
   let event;try{event=JSON.parse(line)}catch{return}
   if(!event||typeof event!=='object')return
-  if(event.event==='error'&&typeof event.code==='string'&&/^[A-Za-z0-9_.-]{1,80}$/.test(event.code))problem=event.code+(/^Not started: this computer is busy\./.test(event.message??'')?'; server load guard':'')
+  if(event.event==='error'&&typeof event.code==='string'&&/^[A-Za-z0-9_.-]{1,80}$/.test(event.code))problem=event.code+(typeof event.message==='string'?'; '+event.message:'')
   if(event.event==='ready')finish(null,event)
  })
  child.once('error',error=>{finish(failure(error.code??'spawn'));resolveDone()})
