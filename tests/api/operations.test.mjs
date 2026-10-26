@@ -592,6 +592,7 @@ test('TAX-001: address-level Stripe previews preserve categories and discounted 
   const firstInput={...base,id:randomUUID()},first=await h.api('/api/stall/tax/preview',firstInput)
   assert.equal(first.taxCents,138);assert.equal(first.totalCents,2838);assert.equal(first.previewOnly,true)
   assert.equal(first.breakdown[0].taxableCents,2200);assert.equal(first.breakdown[0].ratePercent,'6.25')
+  assert.ok(first.breakdown.every(j=>j.taxableCents>0),'the provider label for a nontaxable-coded line never becomes a zero-rate jurisdiction row')
   assert.equal((await quote({destination:{...destination,line1:'2 synthetic-stall-street'}})).taxCents,165)
   assert.equal((await quote({destination:{...destination,state:'CA',city:'Los Angeles',postal_code:'90001'}})).taxCents,182)
   assert.equal((await quote({shippingCents:0})).taxCents,125,'only the discounted shipping amount is taxed')

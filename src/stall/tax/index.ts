@@ -55,8 +55,9 @@ function projection(value:any,subtotal:number,nontaxableLine:boolean) {
   const details=entry.tax_rate_details
   if(!details||entry.inclusive!==false||typeof details.percentage_decimal!=='string'||!/^\d+(?:\.\d+)?$/.test(details.percentage_decimal))fail('TAX_RESPONSE','Stripe Tax omitted its jurisdiction breakdown.',502)
   if(unpricedObligation(entry,nontaxableLine))fail('TAX_CONFIGURATION','Stripe Tax cannot price this obligation with the current registrations and supported tax coverage.',503)
+  if(entry.taxability_reason==='not_collecting')return null
   return {amountCents:integer(entry.amount,'Jurisdiction tax cents',0,99999999),taxableCents:integer(entry.taxable_amount,'Taxable cents',0,99999999),country:details.country??null,state:details.state??null,taxType:details.tax_type??null,ratePercent:details.percentage_decimal,reason:text(entry.taxability_reason,'Provider tax reason',100)}
- })
+ }).filter(<T,>(entry:T|null):entry is T=>entry!==null)
  if(breakdown.reduce((sum:number,j:{amountCents:number})=>sum+j.amountCents,0)!==taxCents)fail('TAX_RESPONSE','Stripe Tax jurisdiction amounts do not reconcile.',502)
  return {calculationId:value.id as string,currency:'usd',subtotalCents:subtotal,taxCents,totalCents:subtotal+taxCents,expiresAt:integer(value.expires_at,'Provider calculation expiry',1,Number.MAX_SAFE_INTEGER),breakdown,previewOnly:true,currentCheckoutTax:false}
 }
