@@ -348,8 +348,6 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
   Gap: native browser journeys at 1440 and 390 are pending.
 
 
-  Current evidence: no implementation found.
-
 ## Current executable journeys and limits
 
 - `pnpm exec node --test --test-concurrency=1 tests/api/commerce.test.mjs` exercises exact checkout, signed paid events, one real fixture-Pier reservation/dispatch, line-refund recovery and native role/agent controls. Stripe is a test network edge. The present flow uses USD and US shipping addresses; a passing run does not prove US tax/rates, PayPal or wallet acceptance.
@@ -360,4 +358,4 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
 Provider credentials, approvals and original idempotency references must stay local and private. No current proof claims live provider acceptance, inbox receipt, physical delivery, WCAG conformance, load capacity or operating cost. The target requires those measurements as applicable rather than excluding their features. No test or contract check may be weakened to make these documents pass.
 
-Target clause totals: **18 done / 29 partial / 32 missing** (79 total).
+Target clause totals: **18 done / 31 partial / 30 missing** (79 total).

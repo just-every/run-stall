@@ -15,6 +15,7 @@ import { finishCleanup } from '../owned-dev.mjs'
 // Run after `rer build`. The only simulated boundary is the external stock desk.
 const exec = promisify(execFile), persist = await mkdtemp(join(tmpdir(), 'stall-merch-seo-'))
 const screenshots = resolve(process.env.STALL_SCREENSHOTS ?? './test-results/merch-seo'), stock = volumeStock(['synthetic-stall-1511'])
+stock.setAvailable('synthetic-stall-1511', '12')
 let worker, browser, edge, journeyError, cleaning, workerError
 const pause = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
 function cleanup() {
@@ -140,6 +141,11 @@ try {
   assert.equal((await page.goto(origin + '/shop/studio-mug')).status(), 404)
   await page.getByText('This product is not available', { exact: true }).waitFor()
   await expect(page).not.toHaveTitle(title)
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 })
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
+    await page.screenshot({ path: join(screenshots, `AI-005-unpublished-${width}.png`), fullPage: true })
+  }
   assert.deepEqual(errors, [])
   console.log('AI-005 native SEO journey passed: emitted Worker, native owner and agent auth, HTTP media upload, exact approved SSR metadata, unpublished metadata exclusion and thumbnail hover and focus tooltips at 1440 and 390')
 } catch (error) { journeyError = error; throw error }
