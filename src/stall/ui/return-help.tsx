@@ -19,7 +19,7 @@ export function ReturnProgress({cases,headers={}}:{cases:ReturnCase[];headers?:R
   <h4>{label(item.kind)} request · {item.state==='requested'?'awaiting a person’s review':item.state}</h4>
   <ul>{item.lines.map(line=><li key={line.sku}>{line.name} × {line.quantity}{line.toName?` → ${line.toName}`:''}{line.reason?` · ${reasons[line.reason]??line.reason}`:''}</li>)}</ul>
   {!!item.attachments?.length&&<p>Photos: {item.attachments.map(photo=><PhotoLink key={photo.id} id={photo.id} name={photo.name} headers={headers} />)}</p>}
-  <ol className="st-progress">{item.progress.map((step,i)=><li key={i}><time dateTime={step.at}>{new Date(step.at).toLocaleString()}</time> · {step.text}</li>)}</ol>
+  <ol className="st-return-steps">{item.progress.map((step,i)=><li key={i}><time dateTime={step.at}>{new Date(step.at).toLocaleString()}</time> · {step.text}</li>)}</ol>
   {item.replacementReserved&&<Notice>Your replacement is set aside. Nothing is charged or refunded by this step.</Notice>}
  </article>)}</div>
 }
