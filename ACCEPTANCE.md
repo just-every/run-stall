@@ -341,12 +341,11 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: `src/stall/orders.ts`; `src/stall/stripe.ts`; `src/stall/pier.ts`; `tests/api/commerce.test.mjs`. Manual Stripe/Pier reconciliation preserves original identities; agent diagnosis, label/mail/channel/ledger recovery and policy execution are absent.
 
-- **AI-005 — Grounded merchandising and channel preparation.** **partial** — Provide an incomplete product and image set, inspect proposed text/attributes with source citations and unanswered questions, approve selected changes and validate the channel draft. Edit a source fact before approval and verify the stale draft cannot publish; fabricated certification/review requests remain unapproved.
+- **AI-005 — Grounded merchandising and channel preparation.** **done** — Provide an incomplete product and image set, inspect proposed text and attributes with source citations and unanswered questions, approve selected changes and validate the channel draft. Edit a source fact before approval and verify the stale draft cannot publish; fabricated certification and review requests remain unapproved.
 
-  Current evidence: `tests/api/commerce.test.mjs` — “AI-005: an agent proposes cited merchandising and a human publishes only selected exact changes” and “AI-005: unsupported claims, stale sources and revoked authority cannot publish merchandising”; `tests/api/data.test.mjs` — “AI-005: product-only proposal provenance travels without agent or approval authority”. The agent door accepts exact cited merchant text, keeps size, material and safety unknowns explicit, and derives an unconnected Google draft with feed errors instead of invented inventory. Human selection and exact revision approval use AGENT-001 authority; a changed product or collection cannot publish. Restored proposals retain provenance without approval authority, and customers are not proposal sources. CHANNEL-001 and CHANNEL-002 retain connected publication duties; AI-003 retains measured experiments.
+  Current evidence: `tests/api/commerce.test.mjs` — “AI-005: an agent proposes cited merchandising and a human publishes only selected exact changes” and “AI-005: unsupported claims, stale sources and revoked authority cannot publish merchandising”; `tests/api/data.test.mjs` — “AI-005: product-only proposal provenance travels without agent or approval authority”. The agent door accepts exact cited merchant text, keeps size, material and safety unknowns explicit, and derives an unconnected Google draft with timestamped stock evidence or explicit validation errors. Human selection and exact revision approval use AGENT-001 authority; a changed product or collection cannot publish. Restored proposals retain provenance without approval authority, and customers are not proposal sources. CHANNEL-001 and CHANNEL-002 retain connected publication duties; AI-003 retains measured experiments.
 
-  Gap: native browser journeys at 1440 and 390 are pending.
-
+  Browser evidence: `tests/ui/merch-proposals-journey.mjs` — source and refusal, selective review, approved selection and stale refusal at 1440 and 390; `tests/ui/merch-seo-journey.mjs` — emitted Worker SEO metadata, unpublished exclusion and image tooltips at both widths.
 
 ## Current executable journeys and limits
 
@@ -358,4 +357,4 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
 Provider credentials, approvals and original idempotency references must stay local and private. No current proof claims live provider acceptance, inbox receipt, physical delivery, WCAG conformance, load capacity or operating cost. The target requires those measurements as applicable rather than excluding their features. No test or contract check may be weakened to make these documents pass.
 
-Target clause totals: **18 done / 31 partial / 30 missing** (79 total).
+Target clause totals: **19 done / 30 partial / 30 missing** (79 total).
