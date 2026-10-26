@@ -3360,7 +3360,7 @@
       "executable": false
     },
     "src/stall/returns/cases.ts": {
-      "sha256": "b3bfbc8f89e9858ca6c6b0eaff0405f0b4aaa8c8f3abe4552e61575c7791c78b",
+      "sha256": "06912b07b713ee8b18be7184751333d2e16e65af2e7f4b1c292d055ecd9b3e0d",
       "executable": false
     },
     "src/stall/returns/decide.ts": {
@@ -3536,7 +3536,7 @@
       "executable": false
     },
     "src/stall/ui/customer-types.ts": {
-      "sha256": "4944afc18a5a2d206aea154ebdc134ec566af842ecd55881a98221470a0af9b1",
+      "sha256": "b9f8263bd4c9eab6b6c49c6071be362ba085ba390bbabfc6c43ed92dcb3a33fd",
       "executable": false
     },
     "src/stall/ui/data.tsx": {
@@ -3708,7 +3708,7 @@
       "executable": false
     },
     "src/stall/ui/return-help.tsx": {
-      "sha256": "183fab092f2c2df267fb9572c81e91fa6f31a7333888a5ffb21ca7cbe34b7dcb",
+      "sha256": "31f1a44bcfa6c954b415c66792b49a6c2d1853196a8f227b6709c1f9c37e99af",
       "executable": false
     },
     "src/stall/ui/return-policy.tsx": {
@@ -3988,7 +3988,7 @@
       "executable": false
     },
     "tests/ui/customer-order-status-journey.mjs": {
-      "sha256": "197eef808c8f498f8fe01f0386607490a2f7cb9e4821175a0e6c25217056dcfa",
+      "sha256": "6328580893d2b5841a28c2fb0c1b114ce4bd093bfa08ff8722795e099bce7e9f",
       "executable": false
     },
     "tests/ui/customer-registration-journey.mjs": {
