@@ -19,8 +19,8 @@ try {
  const withFile=await h.api('/api/stall/checkout',{customerEmail:email,lines:[{sku:'synthetic-stall-1604',quantity:1,personalization:{art:uploaded.fileId}}],idempotencyKey:randomUUID()},{as:''})
  await deliverWebhook(h,secret,edge.pay([...edge.sessions.values()].find(s=>s.client_reference_id===withFile.orderId).id))
  await h.api('/api/stall/checkout-fields',{revision:'initial',fields:[{key:'occasion',label:'Occasion',type:'choice',required:true,choices:['Birthday','Thank you']}]})
- let as=member,guestCookie=''
- await context.route('**/api/stall/**',async route=>{const req=route.request(),url=new URL(req.url());const response=await h.request(url.pathname+url.search,{method:req.method(),as:as?as:guestCookie,headers:{...(req.headers()['x-stall-order-token']?{'x-stall-order-token':req.headers()['x-stall-order-token']}:{})},...(req.postData()?{body:JSON.parse(req.postData())}:{})});const cookies=response.headers.getSetCookie();if(cookies.length)guestCookie=cookies.map(v=>v.split(';')[0]).join('; ');await route.fulfill({status:response.status,headers:{'content-type':response.headers.get('content-type')??'application/json'},body:Buffer.from(await response.arrayBuffer())})})
+ let as=member,guestCookie='';const checkoutReceipts=[]
+ await context.route('**/api/stall/**',async route=>{const req=route.request(),url=new URL(req.url());const response=await h.request(url.pathname+url.search,{method:req.method(),as:as?as:guestCookie,headers:{...(req.headers()['x-stall-order-token']?{'x-stall-order-token':req.headers()['x-stall-order-token']}:{})},...(req.postData()?{body:JSON.parse(req.postData())}:{})});const body=Buffer.from(await response.arrayBuffer());if(url.pathname==='/api/stall/cart/checkout'&&response.ok)checkoutReceipts.push(JSON.parse(body.toString()));const cookies=response.headers.getSetCookie();if(cookies.length)guestCookie=cookies.map(v=>v.split(';')[0]).join('; ');await route.fulfill({status:response.status,headers:{'content-type':response.headers.get('content-type')??'application/json'},body})})
  for(const width of [1440,390]) {
   await page.setViewportSize({width,height:1000});as=member;await page.goto(ready.url+'/order')
   await page.getByRole('heading',{name:'Order history',exact:true}).waitFor()
@@ -49,9 +49,9 @@ try {
   await page.getByRole('button',{name:'Review current total',exact:true}).click();await page.getByRole('button',{name:'Pay $66.00 with Stripe',exact:true}).waitFor()
   await capture(`reorder-total-${width}`)
   const original=structuredClone((await h.api('/api/stall/state')).orders.find(o=>o.id===first.orderId))
-  const payResponse=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/stall/cart/checkout')
+  const beforeCheckout=checkoutReceipts.length
   await context.route('https://checkout.stripe.com/**',route=>route.fulfill({status:200,body:'Payment provider network edge'}))
-  await page.getByRole('button',{name:'Pay $66.00 with Stripe',exact:true}).click();const paid=await (await payResponse).json();assert.notEqual(paid.orderId,first.orderId);await page.waitForURL(url=>url.hostname==='checkout.stripe.com')
+  await page.getByRole('button',{name:'Pay $66.00 with Stripe',exact:true}).click();await page.waitForURL(url=>url.hostname==='checkout.stripe.com');assert.equal(checkoutReceipts.length,beforeCheckout+1);const paid=checkoutReceipts.at(-1);assert.notEqual(paid.orderId,first.orderId)
   const session=[...edge.sessions.values()].find(s=>s.client_reference_id===paid.orderId);await deliverWebhook(h,secret,edge.pay(session.id))
   assert.deepEqual((await h.api('/api/stall/state')).orders.find(o=>o.id===first.orderId),original)
   await page.goto(ready.url+'/order');await page.getByRole('article',{name:'Order '+paid.orderId,exact:true}).waitFor();await capture(`new-order-${width}`)
