@@ -121,6 +121,7 @@ try {
  await kit.capture('marketplace-channel-separated',reports.getByRole('table',{name:'States, split by sales channel'}))
  await page.goto(kit.ready.url+'/app#orders/'+pending.id)
  await openRefundForm()
+ console.log('DEBUG panel',(await panel.innerText()).slice(-1800),'DISABLED',await panel.getByLabel('Refund type').isDisabled(),'VISIBLE',await panel.getByLabel('Refund type').isVisible())
  await panel.getByLabel('Refund type').selectOption('goodwill')
  await panel.getByLabel('Refund amount · USD',{exact:true}).fill('3.00')
  await panel.getByLabel('Reason',{exact:true}).fill('Late parcel apology')
