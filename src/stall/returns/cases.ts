@@ -16,12 +16,12 @@ export async function customerCases(db:D1Database,orderIds:string[]) {
  if(!orderIds.length) return []
  const ids=JSON.stringify(orderIds)
  const [rows,events,files]=await Promise.all([
-  db.prepare('SELECT * FROM st_return_cases WHERE order_id IN (SELECT value FROM json_each(?)) ORDER BY created_at DESC,id').bind(ids).all<Row>(),
+  db.prepare('SELECT c.*,(SELECT created_at FROM st_return_receipts r WHERE r.request_id=c.id) AS goods_received_at FROM st_return_cases c WHERE order_id IN (SELECT value FROM json_each(?)) ORDER BY created_at DESC,id').bind(ids).all<Row&{goods_received_at:string|null}>(),
   db.prepare('SELECT case_id,at,text FROM st_return_events WHERE case_id IN (SELECT id FROM st_return_cases WHERE order_id IN (SELECT value FROM json_each(?))) ORDER BY at,rowid').bind(ids).all<{case_id:string;at:string;text:string}>(),
   db.prepare('SELECT id,case_id,name,size FROM st_return_files WHERE case_id IN (SELECT id FROM st_return_cases WHERE order_id IN (SELECT value FROM json_each(?))) ORDER BY created_at,id').bind(ids).all<{id:string;case_id:string;name:string;size:number}>(),
  ])
  return rows.results.map(row=>({id:row.id,orderId:row.order_id,kind:row.kind,state:row.state,lines:JSON.parse(row.lines_json) as CaseLine[],note:row.note,createdAt:row.created_at,decidedAt:row.decided_at,decision:row.decision_note,
-  replacementReserved:!!row.reservation_json,attachments:files.results.filter(f=>f.case_id===row.id).map(({id,name,size})=>({id,name,size})),progress:events.results.filter(e=>e.case_id===row.id).map(({at,text})=>({at,text}))}))
+  replacementReserved:!!row.reservation_json,goodsReceivedAt:row.goods_received_at,attachments:files.results.filter(f=>f.case_id===row.id).map(({id,name,size})=>({id,name,size})),progress:events.results.filter(e=>e.case_id===row.id).map(({at,text})=>({at,text}))}))
 }
 export async function subject(request:Request,env:Bindings,orderId:string,mutation:boolean) {
  await rate(env,'returns:'+await clientKey(env,request),120)

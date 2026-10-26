@@ -20,6 +20,7 @@ export function ReturnProgress({cases,headers={}}:{cases:ReturnCase[];headers?:R
   <ul>{item.lines.map(line=><li key={line.sku}>{line.name} × {line.quantity}{line.toName?` → ${line.toName}`:''}{line.reason?` · ${reasons[line.reason]??line.reason}`:''}</li>)}</ul>
   {!!item.attachments?.length&&<p>Photos: {item.attachments.map(photo=><PhotoLink key={photo.id} id={photo.id} name={photo.name} headers={headers} />)}</p>}
   <ol className="st-return-steps">{item.progress.map((step,i)=><li key={i}><time dateTime={step.at}>{new Date(step.at).toLocaleString()}</time> · {step.text}</li>)}</ol>
+  {item.goodsReceivedAt&&<p>Goods received {new Date(item.goodsReceivedAt).toLocaleString()}. Any refund is decided separately.</p>}
   {item.replacementReserved&&<Notice>Your replacement is set aside. Nothing is charged or refunded by this step.</Notice>}
  </article>)}</div>
 }
