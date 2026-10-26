@@ -4,7 +4,7 @@ import { startJourney } from './journey-kit.mjs'
 
 const intake='/api/stall/customer/registration'
 const reviews='/api/stall/customer/registration-requests'
-const screenshots=process.env.STALL_SCREENSHOTS??'test-results/customer-registration'
+const screenshots=process.env.STALL_SCREENSHOTS??'./test-results/customer-registration'
 let journey,journeyError,customerPage
 
 try {

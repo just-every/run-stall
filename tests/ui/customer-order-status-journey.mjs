@@ -149,6 +149,6 @@ try {
  console.log('PASS CUSTOMER-001 own current tracking, refund and recorded return facts with foreign refusal at 1440 and 390')
 }catch(error){
  journeyError=error
- if(journey?.page)await journey.page.screenshot({path:resolve(process.env.STALL_SCREENSHOTS??'test-results/customer-order-status','failure.png'),fullPage:true})
+ if(journey?.page)await journey.page.screenshot({path:resolve(process.env.STALL_SCREENSHOTS??'./test-results/customer-order-status','failure.png'),fullPage:true})
  throw error
 }finally{if(journey)await journey.finish(journeyError);else if(!handedOff)await stock?.close()}

@@ -18,7 +18,7 @@ try {
  const screenshot=async(label,target,width)=>{
   await target.scrollIntoViewIfNeeded()
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${label} overflow at ${width}`)
-  await target.screenshot({path:resolve(process.env.STALL_SCREENSHOTS??'test-results/customer-history',`${label}-${width}.png`)})
+  await target.screenshot({path:resolve(process.env.STALL_SCREENSHOTS??'./test-results/customer-history',`${label}-${width}.png`)})
  }
  for(const [index,width] of [1440,390].entries()) {
   const fixture=2610+index*10,email=`synthetic-stall-${fixture}@example.test`,foreign=`synthetic-stall-${fixture+1}@example.test`,recordId=`synthetic-stall-${fixture+2}`,trackingCode=`synthetic-stall-${fixture+3}`
@@ -111,6 +111,6 @@ try {
  console.log('PASS CUSTOMER-001 reviewed historical imports, native mailbox history and foreign denial at 1440 and 390')
 }catch(error){
  journeyError=error
- if(journey?.page){await journey.page.screenshot({path:resolve(process.env.STALL_SCREENSHOTS??'test-results/customer-history','failure.png'),fullPage:true});if(await journey.page.locator('main').count())console.log('Visible failure:',(await journey.page.locator('main').innerText()).slice(0,4000))}
+ if(journey?.page){await journey.page.screenshot({path:resolve(process.env.STALL_SCREENSHOTS??'./test-results/customer-history','failure.png'),fullPage:true});if(await journey.page.locator('main').count())console.log('Visible failure:',(await journey.page.locator('main').innerText()).slice(0,4000))}
  throw error
 }finally{await journey?.finish(journeyError)}

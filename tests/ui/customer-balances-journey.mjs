@@ -53,7 +53,7 @@ try {
   async function screenshot(label,target) {
    await target.scrollIntoViewIfNeeded()
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${label} overflow at ${width}`)
-   await target.screenshot({path:resolve(process.env.STALL_SCREENSHOTS??'test-results/customer-balances',`${label}-${width}.png`)})
+   await target.screenshot({path:resolve(process.env.STALL_SCREENSHOTS??'./test-results/customer-balances',`${label}-${width}.png`)})
   }
   await screenshot('CUSTOMER-001-balance-merchant-review',review)
   await approve.click()
@@ -106,6 +106,6 @@ try {
  console.log('PASS CUSTOMER-001 reviewed gift and goodwill balances, exact native reduction, mailbox isolation and erasure at 1440 and 390')
 } catch(error) {
  journeyError=error
- if(journey?.page){await journey.page.screenshot({path:resolve(process.env.STALL_SCREENSHOTS??'test-results/customer-balances','failure.png'),fullPage:true});if(await journey.page.locator('main').count())console.log('Visible failure:',(await journey.page.locator('main').innerText()).slice(0,4000))}
+ if(journey?.page){await journey.page.screenshot({path:resolve(process.env.STALL_SCREENSHOTS??'./test-results/customer-balances','failure.png'),fullPage:true});if(await journey.page.locator('main').count())console.log('Visible failure:',(await journey.page.locator('main').innerText()).slice(0,4000))}
  throw error
 } finally {await journey?.finish(journeyError)}
