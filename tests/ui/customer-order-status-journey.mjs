@@ -27,7 +27,7 @@ try {
  let order=(await h.api('/api/stall/state')).orders.find(row=>row.id===bought.orderId)
  const native=stock.orders.get(order.reservation.id)
  const label={trackingCode:'synthetic-stall-2307',trackingUrl:'https://carrier.example.test/track/synthetic-stall-2307'}
- dispatches.push({id:'synthetic-stall-2308',orderId:native.id,reference:'synthetic-stall-2309',createdAt:'2026-10-20T12:00:00Z',deliveryStatus:'in transit',tracking:[{carton:1,...label}],lines:native.lines.map(line=>({orderLineId:line.id,itemId:line.itemId,quantity:line.quantity}))})
+ dispatches.push({id:'synthetic-stall-2308',orderId:native.id,reference:'synthetic-stall-2309',createdAt:new Date(Date.now()-86400000).toISOString(),deliveryStatus:'in transit',tracking:[{carton:1,...label}],lines:native.lines.map(line=>({orderLineId:line.id,itemId:line.itemId,quantity:line.quantity}))})
  order=(await h.api('/api/stall/state')).orders.find(row=>row.id===bought.orderId)
  assert.equal(order.shipment.status,'shipped')
  assert.equal(order.shipment.dispatches[0].tracking[0].trackingCode,label.trackingCode)
@@ -55,8 +55,8 @@ try {
  }
  await showOwnOrder()
  await inspect('CUSTOMER-001-current-tracking')
- // The window is long so this fixed shipment date never ages out of it.
- await h.command('return.policy.save',{revision:null,windowDays:3650,condition:'Unused and in its packaging',feeCents:0,returnShipping:'The customer pays return postage',finalSaleSkus:[],exchanges:false})
+ // The shipment is a day old, well inside the window.
+ await h.command('return.policy.save',{revision:null,windowDays:30,condition:'Unused and in its packaging',feeCents:0,returnShipping:'The customer pays return postage',finalSaleSkus:[],exchanges:false})
  await card.getByText('Returns, exchanges and cancellation',{exact:true}).click()
  const requestForm=card.getByRole('form',{name:'Request help with this order',exact:true})
  await requestForm.getByRole('checkbox',{name:/Blue ceramic mug/}).check()
