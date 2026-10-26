@@ -3008,7 +3008,7 @@
       "executable": false
     },
     "src/stall/customers/cart.ts": {
-      "sha256": "03b944a650891139f8429a1d78b2c00a6cacbb815dd68c0bc32a69154bb5cb8a",
+      "sha256": "fd2d33bf2ecf4d2c5f4782133140fc9e02ce763f35e6e342789341152c8b8aa7",
       "executable": false
     },
     "src/stall/customers/checkout-details.ts": {
@@ -3636,7 +3636,7 @@
       "executable": false
     },
     "src/stall/ui/reorder-cart.tsx": {
-      "sha256": "52efc9aba828da2b7b42c533e2b4410bc3c00371aca855d7f4ee16ba3037cd7f",
+      "sha256": "f2d73d53a3a622bf337256247e30e3a530fbec58cd409ddb794c24ac6a2dd607",
       "executable": false
     },
     "src/stall/ui/request-intake.tsx": {
@@ -3696,7 +3696,7 @@
       "executable": false
     },
     "src/stall/ui/tax-checkout.tsx": {
-      "sha256": "903b7b28e0dc5cd35735958fc4e2c956329fe9a40422249a0b40788f06211403",
+      "sha256": "8ba8f159fc5b437e14ab3b25fe01d33113f6ac734eb706e7474d0cf239138f68",
       "executable": false
     },
     "src/stall/ui/tax-marketplace.tsx": {
@@ -3832,7 +3832,7 @@
       "executable": false
     },
     "tests/api/operations.test.mjs": {
-      "sha256": "07bd909251d1726ecc54342a689a57f7323c882b4c0990a25fcb6ad26190a12a",
+      "sha256": "3e68ec9650dd782f49bac447b79f7f956b2c884cef8345aab8d8f139308c8f7b",
       "executable": false
     },
     "tests/api/pier-work.test.mjs": {

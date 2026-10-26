@@ -6,8 +6,9 @@ type Purchase={lines:{sku:string;quantity:number;personalization?:Record<string,
 type Mode={enabled:boolean;requiresReview?:boolean;shopperConsent:string}
 type Quote={quoteId:string;calculationId:string;taxCents:number;totalCents:number;expiresAt:number;exempt:boolean;jurisdictions:{level:string;name:string;state:string;ratePercent:string;amountCents:number}[];unallocatedTaxCents:number}
 type Destination={line1:string;line2:string;city:string;state:string;postal_code:string;country:'US'}
-export function useTaxCheckout(purchase:Purchase,zip:string,setZip:(value:string)=>void) {
+export function useTaxCheckout(purchase:Purchase,zip:string,setZip:(value:string)=>void,initialDestination?:{line1:string;line2?:string;city:string;state:string}) {
  const [mode,setMode]=useState<Mode>(),[destination,setDestination]=useState<Destination>({line1:'',line2:'',city:'',state:'',postal_code:'',country:'US'}),[consent,setConsent]=useState(false),[error,setError]=useState(''),[busy,setBusy]=useState(false),[result,setResult]=useState<{key:string;value:Quote}>(),[clock,setClock]=useState(Date.now())
+ useEffect(()=>{if(initialDestination)setDestination(value=>({...value,line1:initialDestination.line1,line2:initialDestination.line2??'',city:initialDestination.city,state:initialDestination.state}))},[initialDestination?.line1,initialDestination?.line2,initialDestination?.city,initialDestination?.state])
  const [recovery,setRecovery]=useState({quoteId:'',calculationId:''})
  const generation=useRef(0),attempt=useRef<{key:string;id:string}|undefined>(undefined)
  useEffect(()=>{let active=true;request<Mode>('/api/stall/tax/mode').then(value=>{if(active)setMode(value)}).catch(error=>{if(active)setError(errorMessage(error))});return()=>{active=false}},[])

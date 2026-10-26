@@ -735,6 +735,16 @@ test('taxed checkout binds address-level tax to exact payment and original paid-
   assert.equal(paid.order.tax.calculationId,quoted.result.calculationId);assert.ok(paid.order.tax.transactionId)
   assert.equal(paid.order.tax.lines.find(l=>l.taxCode==='txcd_00000000').taxCents,0)
   assert.ok(!JSON.stringify(paid.order.tax).includes(taxAddress.line1),'tax custody stays minimized; normal shipping records carry delivery addresses')
+  const member=await h.signIn(quoted.input.customerEmail),reordered=await h.api('/api/stall/cart/reorder',{orderId:paid.order.id},{as:member})
+  await h.api('/api/stall/cart/review',{cartId:reordered.cart.id,revision:reordered.cart.revision},{as:member,status:409})
+  const currentTax=await kit.quote({as:member})
+  const saved=(await h.api('/api/stall/cart',{cartId:reordered.cart.id,revision:reordered.cart.revision,lines:reordered.cart.value.lines,customerEmail:quoted.input.customerEmail,shopper:reordered.cart.value.shopper,shipping:currentTax.input.shipping,taxQuoteId:currentTax.result.quoteId,taxTotalCents:currentTax.result.totalCents},{as:member})).cart
+  assert.deepEqual(saved.value.reorder,reordered.cart.value.reorder,'editing delivery and tax preserves the original reorder explanation')
+  const reviewed=await h.api('/api/stall/cart/review',{cartId:saved.id,revision:saved.revision},{as:member})
+  assert.equal(reviewed.review.taxCents,currentTax.result.taxCents);assert.equal(reviewed.review.totalCents,currentTax.result.totalCents)
+  const native=await h.api('/api/stall/cart/checkout',{cartId:saved.id,revision:saved.revision,reviewToken:reviewed.reviewToken},{as:member})
+  assert.notEqual(native.orderId,paid.order.id);assert.equal((await kit.order(native.orderId)).tax.calculationId,currentTax.result.calculationId)
+
   await h.api('/api/stall/promotions',{code:'SYNTHETIC-STALL-TAX-SHIP',startsAt:'2000-01-01T00:00:00Z',endsAt:'2100-01-01T00:00:00Z',minimumBasketCents:0,maxUsesPerCustomer:5,maxTotalUses:10,maxShippingDiscountCents:2000})
   const discounted=await kit.quote({promotionCode:'SYNTHETIC-STALL-TAX-SHIP'})
   assert.equal(discounted.result.totalCents,2500+discounted.result.taxCents)

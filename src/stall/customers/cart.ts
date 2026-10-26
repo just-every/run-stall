@@ -1,8 +1,10 @@
 import { operatorAuth,type Bindings } from '../../auth.server'
 import { audit,changed,clientKey,commit,current,digest,live } from '../access'
-import { fail,text,email,Problem,type Actor } from '../model'
+import { fail,text,email,integer,Problem,type Actor } from '../model'
 import { rawBody } from '../stripe'
 import { selectLines,priceSelection,type Selected } from '../order-selection'
+import { taxDestinationHash } from '../tax/commerce-provider'
+import { checkoutTax } from '../tax/commerce-quote'
 import { checkout } from '../checkout'
 import { qualification,requireQualified } from '../promotions/eligibility'
 import { promotionCode } from '../promotions/model'
@@ -44,13 +46,13 @@ export async function cartCreate(env:Bindings,ctx:CartContext,value:any,guards:D
  return (await cartRead(env,ctx,id))!
 }
 async function save(env:Bindings,ctx:CartContext,p:any) {
- if(Object.keys(p).some(k=>!['cartId','revision','lines','customerEmail','shopper','shipping','promotionCode'].includes(k)))fail('INPUT','Use the supported cart fields only.',400)
+ if(Object.keys(p).some(k=>!['cartId','revision','lines','customerEmail','shopper','shipping','promotionCode','taxQuoteId','taxTotalCents'].includes(k)))fail('INPUT','Use the supported cart fields only.',400)
  const previous=p.cartId?await cartRead(env,ctx,text(p.cartId,'Cart ID',100)):null
  if(previous&&(previous.revision!==p.revision||previous.checkout_key))fail('CART_LOCKED','Cart changed or checkout already started. Review or copy it before changing it.')
  const address=ctx.actor?ctx.actor.email.toLowerCase():p.customerEmail?email(p.customerEmail):''
  if(ctx.actor&&p.customerEmail&&email(p.customerEmail)!==address)fail('CUSTOMER_AUTH','An account checkout uses only its verified mailbox.',403)
  const lineage=previous?JSON.parse(previous.value_json).reorder:undefined
- const value={...(lineage?{reorder:lineage}:{}),lines:selection(p.lines??[]),customerEmail:address,...(p.shopper!==undefined?{shopper:p.shopper}:{}),...(p.shipping!==undefined?{shipping:p.shipping}:{}),...(p.promotionCode!==undefined?{promotionCode:promotionCode(p.promotionCode)}:{})}
+ const value={...(lineage?{reorder:lineage}:{}),...(p.taxQuoteId?{taxQuoteId:text(p.taxQuoteId,'Tax quote ID',36),taxTotalCents:integer(p.taxTotalCents,'Tax-inclusive total cents',50,99999999)}:{}),lines:selection(p.lines??[]),customerEmail:address,...(p.shopper!==undefined?{shopper:p.shopper}:{}),...(p.shipping!==undefined?{shipping:p.shipping}:{}),...(p.promotionCode!==undefined?{promotionCode:promotionCode(p.promotionCode)}:{})}
  if(!previous)return cartPublic(await cartCreate(env,ctx,value))
  const own=ownership(ctx)
  await cartWrite(env,ctx,[env.DB.prepare(`UPDATE st_shop_carts SET value_json=?,revision=?,updated_at=?,review_digest=NULL WHERE id=? AND revision=? AND checkout_key IS NULL AND ${own.sql}`).bind(JSON.stringify(value),crypto.randomUUID(),new Date().toISOString(),previous.id,previous.revision,own.value),changed(env.DB)])
@@ -62,8 +64,10 @@ export async function cartQuote(env:Bindings,ctx:CartContext,row:NativeCart) {
  if(details.address.country!=='US')fail('DESTINATION_UNAVAILABLE','This shop’s current checkout serves US delivery only. Your Canadian address and basket are preserved.',400)
  const shipping={...(value.shipping??{}),postalCode:details.address.postal_code},priced=await priceSelection(env,selected,undefined,shipping)
  const promotion=value.promotionCode?requireQualified(await qualification(env,value.promotionCode,customerEmail,priced.totalCents-priced.shippingCents,priced.shippingCents,priced.shipping.service.kind)):null
- const totalCents=priced.totalCents-(promotion?.discountCents??0),shopper={...value.shopper,fieldsRevision:details.fieldsRevision},review={cartId:row.id,revision:row.revision,customerEmail,lines:priced.lines,shipping:priced.shipping,subtotalCents:priced.totalCents-priced.shippingCents,discountCents:promotion?.discountCents??0,giftCardCents:0,giftCardsStatus:'not_available',shippingCents:priced.shippingCents,taxStatus:'no_tax_recorded',taxCents:0,totalCents,payableCents:totalCents,shopper:details,promotion:promotion?.snapshot??null}
- return {review,digest:await digest(JSON.stringify(review)),intent:{customerEmail,lines:selected,shipping:{service:priced.shipping.service.code,postalCode:details.address.postal_code,quote:priced.shipping.quote},shopper,...(value.promotionCode?{promotionCode:value.promotionCode}:{})}}
+ const tax=await checkoutTax(env,{taxQuoteId:value.taxQuoteId,expectedTotalCents:value.taxTotalCents},priced.lines,priced.shippingCents-(promotion?.discountCents??0),customerEmail,priced.shipping,promotion?.snapshot,ctx.actor?.email.toLowerCase())
+ if(tax&&tax.destinationHash!==await taxDestinationHash(env,details.address))fail('TAX_ADDRESS','Calculate tax for this exact delivery address before reviewing checkout.')
+ const totalCents=tax?.totalCents??(priced.totalCents-(promotion?.discountCents??0)),shopper={...value.shopper,fieldsRevision:details.fieldsRevision},review={cartId:row.id,revision:row.revision,customerEmail,lines:priced.lines,shipping:priced.shipping,subtotalCents:priced.totalCents-priced.shippingCents,discountCents:promotion?.discountCents??0,giftCardCents:0,giftCardsStatus:'not_available',shippingCents:priced.shippingCents,taxStatus:tax?'calculated':'no_tax_recorded',taxCents:tax?.taxCents??0,totalCents,payableCents:totalCents,shopper:details,promotion:promotion?.snapshot??null}
+ return {review,digest:await digest(JSON.stringify(review)),intent:{...(tax?{taxQuoteId:tax.quoteId}:{}),customerEmail,lines:selected,shipping:{service:priced.shipping.service.code,postalCode:details.address.postal_code,quote:priced.shipping.quote},shopper,...(value.promotionCode?{promotionCode:value.promotionCode}:{})}}
 }
 async function review(env:Bindings,ctx:CartContext,p:any) {
  const row=(await cartRead(env,ctx,text(p.cartId,'Cart ID',100)))!
@@ -85,7 +89,7 @@ async function buy(env:Bindings,ctx:CartContext,p:any) {
  } else {if(!row.checkout_intent)fail('CART_LOCKED','Recover the existing checkout before continuing.');intent=JSON.parse(row.checkout_intent)}
  const locked=(await cartRead(env,ctx,row.id))!
  const guard=()=>env.DB.prepare(`INSERT INTO st_guard(value) SELECT CASE WHEN EXISTS(SELECT 1 FROM st_shop_carts WHERE id=? AND revision=? AND checkout_key=? AND ${own.sql}) THEN 1 ELSE 0 END`).bind(row.id,row.revision,locked.checkout_key,own.value)
- const result=await checkout(env,intent,{check:async()=>{await cartRead(env,ctx,row.id)},statements:()=>[guard(),...(ctx.actor?[env.DB.prepare(`INSERT INTO st_guard(value) SELECT CASE WHEN EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id WHERE s.id=? AND o.id=? AND o.version=? AND s.operator_version=o.version AND o.status='active' AND lower(o.email)=? AND s.revoked_at IS NULL AND s.expires_at>?) THEN 1 ELSE 0 END`).bind(ctx.actor.sessionId!,ctx.actor.id,ctx.actor.version,ctx.actor.email.toLowerCase(),Date.now())]:[])]},ctx.actor?undefined:ctx.client)
+ const result=await checkout(env,intent,{check:async()=>{await cartRead(env,ctx,row.id)},statements:()=>[guard(),...(ctx.actor?[env.DB.prepare(`INSERT INTO st_guard(value) SELECT CASE WHEN EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id WHERE s.id=? AND o.id=? AND o.version=? AND s.operator_version=o.version AND o.status='active' AND lower(o.email)=? AND s.revoked_at IS NULL AND s.expires_at>?) THEN 1 ELSE 0 END`).bind(ctx.actor.sessionId!,ctx.actor.id,ctx.actor.version,ctx.actor.email.toLowerCase(),Date.now())]:[])]},ctx.actor?undefined:ctx.client,ctx.actor?.email.toLowerCase())
  await cartWrite(env,ctx,[env.DB.prepare(`UPDATE st_shop_carts SET order_id=? WHERE id=? AND checkout_key=? AND ${own.sql}`).bind(result.orderId,row.id,locked.checkout_key,own.value)])
  return result
 }
