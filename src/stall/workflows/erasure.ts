@@ -5,6 +5,8 @@ export function workflowErasureStatements(db:D1Database,email:string):D1Prepared
  return [
   db.prepare(`DELETE FROM st_workflow_notifications WHERE task_id IN (SELECT id FROM st_workflow_tasks WHERE ${affected})`).bind(email,email,email,email),
   db.prepare(`UPDATE st_workflow_tasks SET status='paused',error_code='CUSTOMER_ERASED' WHERE status<>'completed' AND (${affected})`).bind(email,email,email,email),
+  db.prepare(`DELETE FROM st_return_events WHERE case_id IN (SELECT id FROM st_return_cases WHERE order_id IN (SELECT id FROM st_orders WHERE lower(json_extract(value_json,'$.customerEmail'))=?))`).bind(email),
+  db.prepare(`DELETE FROM st_return_cases WHERE order_id IN (SELECT id FROM st_orders WHERE lower(json_extract(value_json,'$.customerEmail'))=?)`).bind(email),
   db.prepare(`DELETE FROM st_workflow_requests WHERE order_id IN (SELECT id FROM st_orders WHERE lower(json_extract(value_json,'$.customerEmail'))=?)`).bind(email),
  ]
 }

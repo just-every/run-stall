@@ -3,11 +3,12 @@ import { HydrationUnit } from '../../base/hydration/unit'
 import { errorMessage, request } from './api'
 import { Notice } from './primitives'
 import { humanLabel, shortId, When } from './presentation'
+import { ReturnCases, type StaffCase } from './return-cases'
 
 type Intake = { requests: { id: string; orderId: string; kind: string; createdAt: string }[]; canManage: boolean; limit: number; tasks: { id: string; sourceId: string; eventKey: string; status: string }[] }
 export function RequestIntake() {
-  const [data, setData] = useState<Intake>(), [error, setError] = useState(''), [busy, setBusy] = useState(false)
-  async function load() { setBusy(true); setError(''); try { setData(await request<Intake>('/api/stall/workflows')) } catch (error) { setError(errorMessage(error)) } finally { setBusy(false) } }
+  const [data, setData] = useState<Intake>(), [cases, setCases] = useState<StaffCase[]>([]), [error, setError] = useState(''), [busy, setBusy] = useState(false)
+  async function load() { setBusy(true); setError(''); try { const [intake, returns] = await Promise.all([request<Intake>('/api/stall/workflows'), request<{ cases: StaffCase[] }>('/api/stall/returns')]); setData(intake); setCases(returns.cases) } catch (error) { setError(errorMessage(error)) } finally { setBusy(false) } }
   useEffect(() => { void load() }, [])
   return <HydrationUnit><section className="st-orders st-stack" aria-labelledby="requests-title">
     <div className="st-view-head"><h1 id="requests-title">Customer requests</h1></div>
@@ -15,7 +16,8 @@ export function RequestIntake() {
     <p><a href="#settings">Configure assigned follow-up in Settings → Workflows</a>. Rules create tasks and staff alerts at their next scan. Without a rule there is no assigned task or alert.</p>
     {error && <Notice error>{error}</Notice>}
     <button className="st-secondary" disabled={busy} onClick={() => void load()}>{busy ? 'Refreshing requests…' : 'Refresh requests'}</button>
-    {data?.canManage && <><p>Newest {data.limit} requests shown. Every entry still requires human review.</p>
+    {data?.canManage && <ReturnCases cases={cases} reload={load} />}
+    {data?.canManage && <><h2>Request intake log</h2><p>Newest {data.limit} requests shown. Every entry still requires human review.</p>
       {!data.requests.length && <p>No customer requests yet.</p>}
       {data.requests.map(item => <article className="st-panel st-stack" aria-label={`Request ${item.id}`} key={item.id}>
         <h2>{humanLabel(item.kind)} request · {shortId(item.id)}</h2>

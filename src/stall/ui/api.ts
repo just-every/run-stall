@@ -1,6 +1,6 @@
-export async function request<T>(path: string, body?: unknown, method = body === undefined ? 'GET' : 'POST'): Promise<T> {
+export async function request<T>(path: string, body?: unknown, method = body === undefined ? 'GET' : 'POST', extra: Record<string, string> = {}): Promise<T> {
   let response: Response
-  try { response = await fetch(path, { method, credentials: 'same-origin', cache: 'no-store', ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) }) }
+  try { response = await fetch(path, { method, credentials: 'same-origin', cache: 'no-store', headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...extra }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }) }
   catch { throw new Error('Could not reach Stall. Check your connection and try again.') }
   const data: unknown = await response.json().catch(() => null)
   const failure = data && typeof data === 'object' && 'error' in data ? data.error : null

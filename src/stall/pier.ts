@@ -75,6 +75,20 @@ export async function reserveOrder(env:Bindings,o:Order) {
  if(o.payment&&o.payment.source!=='staff') await commandWork(env,o,{commandId:`stall-payment-${o.id}`,type:'order.channelPayment',payload:{orderId:result.id,payment:{provider:'stripe',reference:o.payment.intentId,amount:(merchandiseCents/100).toFixed(2),currency:o.currency.toUpperCase(),paidAt:o.payment.paidAt,orderReference:o.id}}},o.payment.intentId)
  return result
 }
+/** An accepted exchange sets the replacement aside under its own deterministic Pier command; replay after a lost response returns the original reservation. */
+export async function reserveExchange(env:Bindings,o:Order,caseId:string,lines:{sku:string;quantity:number;unitCents:number}[]) {
+ assertOriginalPier(env,o)
+ const commandId=`stall-exchange-${caseId}`,journaled=await env.DB.prepare('SELECT 1 FROM st_pier_work WHERE id=?').bind(commandId).first()
+ const stock=await catalogue(env)
+ const wanted=lines.map(line=>{
+  const item=stock.items.find(entry=>entry.sku===line.sku)
+  if(!item||(!journaled&&BigInt(line.quantity)*SCALE>decimal(item.available))) fail('EXCHANGE_STOCK',`${line.sku} is no longer available in the requested quantity. Refuse the exchange or offer a return.`)
+  return {itemId:item.itemId,quantity:line.quantity,unitCents:line.unitCents}
+ })
+ const result=await commandWork(env,o,{commandId,type:'order.create',payload:{customerId:o.pierCustomerId,channel:'stall',currency:o.currency.toUpperCase(),lines:wanted.map(l=>({itemId:l.itemId,quantity:String(l.quantity),price:(l.unitCents/100).toFixed(2)}))}},caseId)
+ if(typeof result?.id!=='string'||!fullyReserved(result,wanted as unknown as Line[])) fail('PIER_RESPONSE','Pier did not reserve the full replacement. Try the same decision again to recover it.',502)
+ return {pierOrderId:result.id as string,lines:lines.map(({sku,quantity})=>({sku,quantity}))}
+}
 export function fullyReserved(result:any,lines:Line[]) {
  return Array.isArray(result?.lines)&&result.lines.length===lines.length&&lines.every(l=>{
   const matches=result.lines.filter((x:any)=>x.itemId===l.itemId)

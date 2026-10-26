@@ -15,6 +15,8 @@ import { customerResponse } from './customers'
 import { customerCommit,requireProvenEmail } from './customers/account'
 import { workflowResponse,runWorkflows } from './workflows'
 import { returnsResponse } from './returns'
+import { caseResponse } from './returns/cases'
+import { returnCommand } from './returns/decide'
 import { promotionRoutes } from './promotions'
 import { headlessResponse,observeStock } from './headless'
 import { riskCommand,riskSnapshot } from './risk'
@@ -97,6 +99,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   const privacy=await privacyResponse(request,env);if(privacy)return privacy
   const customer=await customerResponse(request,env);if(customer)return customer
   const promotionResponse=await promotionRoutes(request,env,path);if(promotionResponse)return promotionResponse
+  const cases=await caseResponse(request,env);if(cases)return cases
   const returns=await returnsResponse(request,env);if(returns)return returns
   const workflows=await workflowResponse(request,env);if(workflows)return workflows
   const headless=await headlessResponse(request,env);if(headless)return headless
@@ -217,6 +220,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    let result:unknown
    if(type==='risk.refresh') { await riskSnapshot(env,actor);result=await refreshRisk(env,await (await import('./store')).readOrder(env.DB,text(payload.orderId,'Order'))) }
    else if(type.startsWith('risk.')) result=await riskCommand(env,actor,type,payload)
+   else if(type.startsWith('return.')) result=await returnCommand(env,actor,type,payload)
    else if(type==='staff.configure') result=await staffCommand(env,actor,payload)
    else if(['merch.prepare','merch.approve'].includes(type)) result=await proposalCommand(env,actor,type,payload)
    else if(['product.prepare','product.approve'].includes(type)) result=await productCommand(env,actor,type,payload)

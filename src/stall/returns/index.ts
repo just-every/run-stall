@@ -3,6 +3,7 @@ import { audit,changed,commit,current,digest,live } from '../access'
 import { fail,integer,requirePerson,text } from '../model'
 import { body,json } from '../headless/common'
 import { readOrder } from '../store'
+import { staffReturns } from './decide'
 
 type Receipt={id:string;request_id:string;order_id:string;source_revision:string;lines_json:string;fingerprint:string;received_by:string;created_at:string}
 const present=({fingerprint,lines_json,...receipt}:Receipt)=>({...receipt,lines:JSON.parse(lines_json),stockStatus:'Inspection and stock handling remain separate; no stock or money moved.'})
@@ -18,7 +19,7 @@ export async function returnsResponse(request:Request,env:Bindings):Promise<Resp
    env.DB.prepare(`SELECT r.id,r.order_id AS orderId,r.created_at AS requestedAt FROM st_workflow_requests r JOIN st_orders o ON o.id=r.order_id WHERE r.kind='return' AND json_extract(o.value_json,'$.erasedAt') IS NULL ORDER BY r.created_at DESC,r.id LIMIT 100`).all(),
    env.DB.prepare(`SELECT r.* FROM st_return_receipts r JOIN st_orders o ON o.id=r.order_id WHERE json_extract(o.value_json,'$.erasedAt') IS NULL ORDER BY r.created_at DESC,r.id LIMIT 100`).all<Receipt>(),
   ])
-  await live(env,actor);return json({requests:requests.results,receipts:receipts.results.map(present),limit:100})
+  await live(env,actor);return json({requests:requests.results,receipts:receipts.results.map(present),limit:100,...await staffReturns(env,actor)})
  }
  if(request.method!=='POST') return json({error:{code:'METHOD',message:'Use GET or POST.'}},405)
  if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this installation’s staff page.',403)

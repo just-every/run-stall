@@ -3,6 +3,7 @@ import { TaxSettings } from './tax-settings'
 import { TaxReports } from './tax-reports'
 import { Workflows } from './workflows'
 import { RiskReview } from './risk-review'
+import { ReturnPolicy } from './return-policy'
 import { StaffAccess } from './staff-access'
 // Settings: provider connections and the signed-in account for everyone; agent
 // access, the data archive and customer erasure for the owner.
@@ -38,6 +39,7 @@ export function Settings({ state, owner, busy, run, reload }: { state: State; ow
     {owner && (state.shippingCents == null ? <Section title="Shipping charge"><p>Shipping is priced by profiles. <a href="#shipping">Edit shipping profiles</a>.</p></Section> : <ShippingCharge shippingCents={state.shippingCents} busy={busy} run={run} />)}
     {owner && <><TaxSettings /><TaxCommerceControls /><TaxReports /></>}
     <RiskReview state={state} busy={busy} run={run} />
+    <ReturnPolicy busy={busy} run={run} />
     <Workflows />
     <Operations />
     <Section title="Your account"><div className="st-row"><p>{state.people[state.actor.id] ?? state.actor.email}<small>{state.actor.email} · {state.actor.role}</small></p><a className="st-button st-secondary" href="/auth/settings/identity">Account settings</a></div></Section>

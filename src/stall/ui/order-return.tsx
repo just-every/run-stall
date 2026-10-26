@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { request, errorMessage, money } from './api'
 import { Chrome, Notice, Section } from './primitives'
 import { CustomerAccount } from './customer-account'
-import { CustomerRequests } from './customer-requests'
 
 interface Summary { lines: { name: string; quantity: number; unitCents: number; detail: string[] }[]; shippingCents: number; totalCents: number }
 type Outcome = { kind: 'checking' | 'paid' | 'waiting' | 'cancelled' | 'none'; summary?: Summary } | { kind: 'error'; message: string }
@@ -19,7 +18,7 @@ export function OrderReturn() {
       .then(result => setOutcome({ kind: result.status === 'paid' ? 'paid' : 'waiting', summary: result.summary }))
       .catch(error => setOutcome({ kind: 'error', message: errorMessage(error) }))
   }, [])
-  if (outcome.kind === 'none') return <div className="st-app st-store"><Chrome /><main id="main" className="st-store-main st-store-narrow"><CustomerAccount /><CustomerRequests /><a href="/shop">Return to the shop</a></main></div>
+  if (outcome.kind === 'none') return <div className="st-app st-store"><Chrome /><main id="main" className="st-store-main st-store-narrow"><CustomerAccount /><a href="/shop">Return to the shop</a></main></div>
   const title = outcome.kind === 'paid' ? 'Thank you, your payment is confirmed' : outcome.kind === 'cancelled' ? 'Payment canceled' : 'Thanks for visiting the checkout'
   return <div className="st-app st-store"><Chrome /><main id="main" className="st-store-main st-store-narrow"><Section title={title}>
     {outcome.kind === 'checking' && <p role="status">Checking your payment with Stripe…</p>}

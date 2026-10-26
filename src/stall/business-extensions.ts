@@ -7,7 +7,7 @@ import { customerBusinessRecords } from './customers'
 /** Owner-only commercial exports. Installation authority, endpoint consent,
  * native identity bindings and checkout fingerprints are deliberately omitted. */
 export async function businessExtensions(db:D1Database) {
- const [rules,observations,decisions,alerts,customers,carts,events,deliveries,workflowRules,tasks,notifications,requests,drafts,receipts,promotions,allocations]=await Promise.all([
+ const [rules,observations,decisions,alerts,customers,carts,events,deliveries,workflowRules,tasks,notifications,requests,drafts,receipts,promotions,allocations,returnPolicy,returnCases,returnEvents]=await Promise.all([
   db.prepare('SELECT value_json FROM st_risk_rules WHERE id=1').first<{value_json:string}>(),
   db.prepare('SELECT value_json FROM st_risk ORDER BY order_id').all<{value_json:string}>(),
   db.prepare('SELECT * FROM st_risk_decisions ORDER BY decided_at,id').all(),
@@ -24,6 +24,9 @@ export async function businessExtensions(db:D1Database) {
   db.prepare('SELECT id,request_id AS requestId,order_id AS orderId,source_revision AS sourceRevision,lines_json,received_by AS receivedBy,created_at AS createdAt FROM st_return_receipts ORDER BY created_at,id').all<any>(),
   db.prepare('SELECT id,revision,starts_at,ends_at,minimum_cents,max_customer_uses,max_total_uses,max_discount_cents,kind,revoked_at,created_at,updated_at FROM st_promotions ORDER BY created_at,id').all(),
   db.prepare('SELECT order_id,promotion_id,promotion_revision,discount_cents,status,reserved_at,used_at FROM st_promotion_allocations ORDER BY reserved_at,order_id').all(),
+  db.prepare('SELECT revision,value_json FROM st_return_policy WHERE id=1').first<any>(),
+  db.prepare('SELECT * FROM st_return_cases ORDER BY created_at,id').all<any>(),
+  db.prepare('SELECT case_id AS caseId,at,text FROM st_return_events ORDER BY at,rowid').all(),
  ])
  return {
   merchandisingProposals:await merchandisingProposals(db),
@@ -35,7 +38,7 @@ export async function businessExtensions(db:D1Database) {
   risk:{rules:rules?JSON.parse(rules.value_json):null,observations:observations.results.map(r=>JSON.parse(r.value_json)),decisions:decisions.results,notifications:alerts.results},
   headless:{customers:customers.results,carts:carts.results.map(({value_json,...r})=>({...r,lines:JSON.parse(value_json)})),events:events.results,deliveries:deliveries.results},
   workflows:{rules:workflowRules.results.map(({value_json,...r})=>({...r,value:JSON.parse(value_json)})),tasks:tasks.results,notifications:notifications.results,requests:requests.results,drafts:drafts.results},
-  returns:{receipts:receipts.results.map(({lines_json,...r})=>({...r,lines:JSON.parse(lines_json)}))},
+  returns:{receipts:receipts.results.map(({lines_json,...r})=>({...r,lines:JSON.parse(lines_json)})),policy:returnPolicy?{revision:returnPolicy.revision,...JSON.parse(returnPolicy.value_json)}:null,cases:returnCases.results.map(({lines_json,policy_json,reservation_json,...r})=>({...r,lines:JSON.parse(lines_json),policy:JSON.parse(policy_json),reservation:reservation_json?JSON.parse(reservation_json):null})),events:returnEvents.results},
   promotions:{rules:promotions.results,allocations:allocations.results},
  }
 }

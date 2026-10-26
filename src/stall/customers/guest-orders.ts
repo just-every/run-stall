@@ -3,6 +3,7 @@ import { audit,clientKey,digest } from '../access'
 import { fail,integer,Problem,text,type Order } from '../model'
 import { rawBody } from '../stripe'
 import { rate } from '../headless/auth'
+import { customerCases } from '../returns/cases'
 import { customerActor,customerCommit,customerOrder,ownOrder } from './account'
 
 const json=(value:unknown)=>Response.json(value,{headers:{'cache-control':'no-store','referrer-policy':'no-referrer','x-content-type-options':'nosniff','x-robots-tag':'noindex, nofollow'}})
@@ -33,7 +34,7 @@ export async function guestOrderResponse(request:Request,env:Bindings):Promise<R
  if(path==='/api/stall/guest-order') {
   if(request.method!=='GET')fail('METHOD','Use GET.',405)
   const access=await guestOrder(env,request.headers.get('x-stall-order-token'))
-  return json({order:customerOrder(access.order),orderId:access.order.id,expiresAt:new Date(access.expiresAt).toISOString()})
+  return json({order:customerOrder(access.order),returnCases:await customerCases(env.DB,[access.order.id]),orderId:access.order.id,expiresAt:new Date(access.expiresAt).toISOString()})
  }
  const actor=await customerActor(request,env)
  if(!['POST','DELETE'].includes(request.method))fail('METHOD','Use POST or DELETE.',405)

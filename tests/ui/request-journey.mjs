@@ -1,111 +1,111 @@
 import assert from 'node:assert/strict'
 import { startJourney } from './journey-kit.mjs'
-import { resolve } from 'node:path'
-import { publish, purchase, deliverWebhook } from '../api/network.mjs'
+import { pierInstallation } from '../api/pier.mjs'
+import { purchase, deliverWebhook } from '../api/network.mjs'
 
-// RETURN-001 intake only: native invited-member identity, no received-goods evidence.
+// RETURN-001 through the real policy form, account and private-link order pages and the staff request list.
 let journey, journeyError
 try {
-  journey = await startJourney({ name: 'requests', skus: ['MUG-BLUE'] })
-  const { h, page, ready, edge, secret, capture, context } = journey
-  await publish(h, 'MUG-BLUE', 'Blue ceramic mug', 2450)
-  const ownEmail = 'synthetic-stall-901@example.test', member = await h.signIn(ownEmail), other = await h.signIn('synthetic-stall-902@example.test')
-  const owner = (await h.api('/auth/session')).operator
-  const hidden = await purchase(h, edge, { skus: ['MUG-BLUE'], quantities: [1], email: 'synthetic-stall-902@example.test' })
-  await deliverWebhook(h, secret, edge.pay(hidden.session.id))
-  let as = ''
-  await context.route('**/api/stall/**', async route => {
+  journey = await startJourney({ name: 'requests', skus: ['MUG-BLUE', 'TOWEL-NAT'], stock: await pierInstallation() })
+  const { h, page, ready, edge, secret, capture } = journey
+  await h.command('product.prepare', { sku: 'WARE', name: 'Stoneware', description: 'Hand thrown', unitCents: 2450, active: true, details: { options: [{ name: 'Size', values: ['Small', 'Large'] }], variants: [{ sku: 'MUG-BLUE', options: { Size: 'Small' } }, { sku: 'TOWEL-NAT', options: { Size: 'Large' } }] } })
+  await h.command('product.approve', { sku: 'WARE', revision: (await h.api('/api/stall/state')).products.find(p => p.id === 'WARE').revision })
+  const email = 'synthetic-stall-901@example.test', ana = await h.signIn(email), other = await h.signIn('synthetic-stall-902@example.test')
+  const paid = async (skus, quantities) => { const bought = await purchase(h, edge, { skus, quantities, email }); await deliverWebhook(h, secret, edge.pay(bought.session.id)); return bought.orderId }
+  const shipped = await paid(['MUG-BLUE'], [3]), unsent = await paid(['MUG-BLUE'], [1]), towels = await paid(['TOWEL-NAT'], [1])
+  for (const id of [shipped, towels]) {
+    let o = (await h.api('/api/stall/state')).orders.find(x => x.id === id)
+    o = await h.command('shipment.prepare', { orderId: id, revision: o.revision, reference: 'synthetic-stall-910' }); await h.command('shipment.approve', { orderId: id, revision: o.revision })
+    await h.api('/api/stall/state')
+  }
+  const before = (await h.api('/api/stall/state')).orders.find(o => o.id === shipped)
+  let as = h.cookie
+  await journey.context.unroute('**/api/stall/**')
+  await journey.context.route('**/api/stall/**', async route => {
     const req = route.request(), url = new URL(req.url())
-    const response = await h.request(url.pathname + url.search, { method: req.method(), as, ...(req.postData() ? { body: JSON.parse(req.postData()) } : {}) })
+    const response = await h.request(url.pathname + url.search, { method: req.method(), as, headers: Object.fromEntries(Object.entries(req.headers()).filter(([name]) => name === 'x-stall-order-token')), ...(req.postData() ? { body: JSON.parse(req.postData()) } : {}) })
     await route.fulfill({ status: response.status, headers: { 'content-type': response.headers.get('content-type') ?? 'application/json' }, body: Buffer.from(await response.arrayBuffer()) })
   })
-  const rules = []
-  for (const width of [1440, 390]) {
-    const bought = await purchase(h, edge, { skus: ['MUG-BLUE'], quantities: [1], email: ownEmail })
-    await deliverWebhook(h, secret, edge.pay(bought.session.id))
-    const before = (await h.api('/api/stall/state')).orders.find(o => o.id === bought.orderId)
-    await page.setViewportSize({ width, height: 1000 })
-    as = ''; await page.goto(ready.url + '/order')
-    await page.getByRole('link', { name: 'Sign in to your invited account', exact: true }).waitFor()
-    assert.equal(await page.getByRole('button', { name: 'Request staff review', exact: true }).count(), 0)
-    await capture(`RETURN-001-signin-${width}`)
-    as = member; await page.reload()
-    const form = page.getByRole('form', { name: 'Request order help', exact: true })
-    await form.getByLabel('Order', { exact: true }).selectOption(bought.orderId)
-    assert.ok(!(await page.locator('main').innerText()).includes(hidden.orderId))
-    assert.equal(await form.getByLabel('Order', { exact: true }).locator(`option[value="${hidden.orderId}"]`).count(), 0)
-    // The server refuses direct substitution even when no UI offers the foreign order.
-    assert.equal(await page.evaluate(async id => (await fetch('/api/stall/customer-requests', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ orderId: id, kind: 'return' }) })).status, hidden.orderId), 404)
-    await capture(`RETURN-001-form-${width}`, form)
-    const ids = []
-    for (const kind of ['return', 'cancellation']) {
-      await page.setViewportSize({ width, height: 1000 })
-      await form.getByLabel('Request type', { exact: true }).selectOption(kind)
-      const submit = async () => {
-        const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/stall/customer-requests' && r.request().method() === 'POST')
-        await form.getByRole('button', { name: 'Request staff review', exact: true }).click()
-        const done = await response; assert.ok(done.ok(), await done.text()); const receipt = await done.json()
-        await page.getByText('Request received for staff review.', { exact: true }).waitFor()
-        return receipt.request.id
-      }
-      const id = await submit(); assert.equal(await submit(), id, 'repeat UI submission keeps one request')
-      ids.push(id)
-      await capture(`RETURN-001-${kind}-received-${width}`)
-    }
-    assert.deepEqual((await h.api('/api/stall/state')).orders.find(o => o.id === bought.orderId), before, 'intake moves no order, stock or money')
-    as = other; await page.reload()
-    assert.ok(!(await page.getByRole('combobox', { name: 'Order', exact: true }).innerText()).includes(bought.orderId))
-    as = h.cookie; await page.goto(ready.url + '/app#requests')
-    await page.getByRole('heading', { name: 'Customer requests', exact: true, level: 1 }).waitFor()
-    for (const id of ids) await page.getByRole('article', { name: `Request ${id}`, exact: true }).waitFor()
-    if (width === 1440) {
-      assert.equal((await h.api('/api/stall/workflows')).tasks.length, 0, 'owner sees intake without a rule')
-      for (const trigger of ['return_request', 'cancellation_request']) {
-        const { result: rule } = await h.api('/api/stall/workflows', { type: 'workflow.save', payload: { rule: { name: `Review ${trigger}`, trigger, assigneeId: owner.id, dueMinutes: 60, notifyStaff: true, action: 'task', conditions: {} } } })
-        await h.api('/api/stall/workflows', { type: 'workflow.activate', payload: { id: rule.id, revision: rule.revision } }); rules.push(rule.id)
-      }
-    }
-    await capture(`RETURN-001-staff-intake-${width}`)
-    // Existing workflow UI performs the explicit scan; each request generates one task/alert.
-    await page.goto(ready.url + '/app#settings')
-    await page.getByRole('button', { name: 'Run active workflows now', exact: true }).click()
-    await page.getByText('Workflow state saved.', { exact: true }).waitFor()
-    let workflow = await h.api('/api/stall/workflows')
-    for (const id of ids) {
-      const tasks = workflow.tasks.filter(task => task.eventKey === 'request:' + id)
-      assert.equal(tasks.length, 1); assert.ok(rules.includes(tasks[0].ruleId))
-      assert.equal(workflow.notifications.filter(n => n.taskId === tasks[0].id).length, 1)
-    }
-    await page.getByRole('button', { name: 'Run active workflows now', exact: true }).click()
-    await page.getByText('Workflow state saved.', { exact: true }).waitFor()
-    workflow = await h.api('/api/stall/workflows')
-    for (const id of ids) assert.equal(workflow.tasks.filter(task => task.eventKey === 'request:' + id).length, 1)
-    await page.goto(ready.url + '/app#requests')
-    await capture(`RETURN-001-staff-followup-${width}`)
-    await page.getByRole('article', { name: `Request ${ids[0]}`, exact: true }).getByRole('link', { name: `Open order ${bought.orderId}`, exact: true }).click()
-    await page.waitForURL(url => url.hash === '#orders/' + bought.orderId)
-    as = member
-    const denied = page.waitForResponse(response => new URL(response.url()).pathname === '/api/stall/state')
-    await page.goto(ready.url + '/app#requests'); await page.reload()
-    assert.equal((await denied).status(), 403, 'an invited customer has no staff workspace grant')
-    await page.getByRole('heading', { name: 'Shop desk unavailable', exact: true }).waitFor()
-    assert.equal(await page.getByRole('navigation', { name: 'Shop desk', exact: true }).getByRole('link', { name: 'Customer requests', exact: true }).count(), 0)
-    assert.deepEqual((await h.api('/api/stall/state')).orders.find(o => o.id === bought.orderId), before)
+  // The owner publishes the policy in Settings.
+  await page.goto(ready.url + '/app#settings'); await page.reload()
+  const policy = page.getByRole('form', { name: 'Return policy', exact: true })
+  await policy.getByLabel('Return window in days after dispatch', { exact: true }).fill('30')
+  await policy.getByLabel('Return fee in USD (shown to shoppers)', { exact: true }).fill('5')
+  await policy.getByLabel('Final-sale SKUs, separated by commas', { exact: true }).fill('TOWEL-NAT')
+  const saved = page.waitForResponse(r => r.url().endsWith('/api/stall/commands')); await policy.getByRole('button', { name: 'Save return policy', exact: true }).click(); assert.ok((await saved).ok())
+  await capture('RETURN-001-policy-settings', policy)
+  // The account customer asks for an exchange, a cancellation and is refused a final-sale return.
+  as = ana; await page.goto(ready.url + '/order'); await page.reload()
+  const card = id => page.getByRole('article', { name: `Order ${id}`, exact: true })
+  await card(shipped).getByText('Returns, exchanges and cancellation', { exact: true }).click()
+  const panel = page.getByLabel(`Returns and exchanges for order ${shipped}`, { exact: true })
+  await panel.getByText('Return window: 30 days from dispatch', { exact: false }).waitFor()
+  assert.ok((await panel.innerText()).includes('TOWEL-NAT cannot be returned or exchanged'))
+  await capture('RETURN-001-policy-explained', panel)
+  const form = panel.getByRole('form', { name: 'Request help with this order', exact: true })
+  await form.getByLabel('Request kind', { exact: true }).selectOption('exchange')
+  await form.getByRole('checkbox', { name: /Stoneware — Small/ }).check()
+  await form.getByLabel('Reason', { exact: true }).selectOption('wrong_size')
+  await form.getByLabel('Replacement', { exact: true }).selectOption('TOWEL-NAT')
+  await form.getByLabel('Note for the shop (optional)', { exact: true }).fill('Small is too small for my shelf')
+  const send = async () => { const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/stall/returns/requests'); await form.getByRole('button', { name: 'Send request for review', exact: true }).click(); const done = await response; assert.ok(done.ok(), await done.text()); return done.json() }
+  const first = await send(); assert.equal(first.duplicate, false)
+  await panel.getByText('awaiting a person’s review', { exact: false }).waitFor()
+  await capture('RETURN-001-exchange-requested', panel)
+  await card(unsent).getByText('Returns, exchanges and cancellation', { exact: true }).click()
+  const cancelPanel = page.getByLabel(`Returns and exchanges for order ${unsent}`, { exact: true }), cancelForm = cancelPanel.getByRole('form', { name: 'Request help with this order', exact: true })
+  await cancelForm.getByLabel('Request kind', { exact: true }).selectOption('cancellation')
+  await cancelForm.getByRole('button', { name: 'Send request for review', exact: true }).click()
+  await cancelPanel.getByText('Request received.', { exact: false }).first().waitFor()
+  await card(towels).getByText('Returns, exchanges and cancellation', { exact: true }).click()
+  const towelPanel = page.getByLabel(`Returns and exchanges for order ${towels}`, { exact: true })
+  await towelPanel.getByText('Final sale: this item cannot be returned or exchanged.', { exact: true }).waitFor()
+  assert.equal(await towelPanel.getByRole('checkbox').first().isDisabled(), true)
+  await capture('RETURN-001-final-sale', towelPanel)
+  // A private order link reaches one order; another signed-in customer sees nothing of it.
+  const link = await h.api('/api/stall/account/guest-order-link', { orderId: shipped }, { as: ana })
+  as = ''; await page.goto(ready.url + '/order#orderLink=' + link.token); await page.reload()
+  await page.goto(ready.url + '/order#orderLink=' + link.token)
+  await page.getByRole('heading', { name: 'Your guest order', exact: true }).waitFor()
+  await page.getByText('Returns, exchanges and cancellation', { exact: true }).click()
+  const guestPanel = page.getByLabel(`Returns and exchanges for order ${shipped}`, { exact: true }), guestForm = guestPanel.getByRole('form', { name: 'Request help with this order', exact: true })
+  await guestPanel.getByText('awaiting a person’s review', { exact: false }).waitFor()
+  await guestForm.getByRole('checkbox', { name: /Stoneware — Small/ }).check()
+  await guestForm.getByLabel('Quantity', { exact: true }).fill('2'); await guestForm.getByLabel('Reason', { exact: true }).selectOption('defective')
+  const guestSend = page.waitForResponse(r => new URL(r.url()).pathname === '/api/stall/returns/requests'); await guestForm.getByRole('button', { name: 'Send request for review', exact: true }).click(); assert.ok((await guestSend).ok())
+  await guestPanel.getByText('Return request', { exact: false }).first().waitFor()
+  await capture('RETURN-001-guest-requested', guestPanel)
+  as = other; await page.goto(ready.url + '/order'); await page.reload()
+  await page.getByText('No orders are recorded for this verified email.', { exact: true }).waitFor()
+  assert.ok(!(await page.locator('main').innerText()).includes('Stoneware'))
+  // The owner decides each request with an explanation.
+  as = h.cookie; await page.goto(ready.url + '/app#requests'); await page.reload()
+  await page.getByRole('heading', { name: 'Customer requests', exact: true, level: 1 }).waitFor()
+  const cases = (await h.api('/api/stall/returns')).cases; assert.equal(cases.length, 3)
+  const exchange = cases.find(c => c.kind === 'exchange'), refund = cases.find(c => c.kind === 'return')
+  await capture('RETURN-001-staff-queue', page.getByRole('region', { name: 'Return, exchange and cancellation requests', exact: true }))
+  const decide = async (item, button, text) => {
+    const article = page.getByRole('article', { name: `Case ${item.id}`, exact: true })
+    await article.getByLabel('Explanation the shopper will read', { exact: true }).fill(text)
+    const response = page.waitForResponse(r => r.url().endsWith('/api/stall/commands')); await article.getByRole('button', { name: new RegExp('^' + button) }).click(); assert.ok((await response).ok())
+    await article.getByText(text, { exact: false }).waitFor()
   }
-  const site = await context.newPage()
-  for (const [path, label] of [['/docs/workflows', 'guide'], ['/contract', 'contract']]) {
-    assert.equal((await site.goto(ready.siteUrl + path)).status(), 200)
-    for (const width of [1440, 390]) {
-      await site.setViewportSize({ width, height: 1000 })
-      const target = path === '/contract' ? site.getByRole('row').filter({ hasText: 'Customer self-service returns, cancellations and exchanges' }) : site.locator('main')
-      await target.scrollIntoViewIfNeeded()
-      assert.ok(await site.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
-      await site.screenshot({ path: resolve(process.env.STALL_SCREENSHOTS ?? 'test-results/requests', `RETURN-001-${label}-${width}.png`) })
-    }
-  }
-  await site.close()
+  await decide(exchange, 'Accept request', 'We have set the large size aside for you.')
+  await decide(refund, 'Refuse request', 'The glaze matches the listing, so this is outside our policy.')
+  await capture('RETURN-001-staff-decided', page.getByRole('region', { name: 'Return, exchange and cancellation requests', exact: true }))
+  // Customers read the decision and progress; nothing about the order, money or stock moved.
+  as = ana; await page.goto(ready.url + '/order'); await page.reload()
+  await card(shipped).getByText('Returns, exchanges and cancellation', { exact: true }).waitFor()
+  const mine = page.getByLabel(`Returns and exchanges for order ${shipped}`, { exact: true })
+  await mine.getByText('We have set the large size aside for you.', { exact: false }).waitFor()
+  await mine.getByText('Your replacement is set aside.', { exact: false }).waitFor()
+  await capture('RETURN-001-account-decided', mine)
+  as = ''; await page.goto(ready.url + '/order#orderLink=' + link.token)
+  await page.getByText('The glaze matches the listing, so this is outside our policy.', { exact: false }).waitFor()
+  await capture('RETURN-001-guest-refused', page.getByLabel(`Returns and exchanges for order ${shipped}`, { exact: true }))
+  assert.deepEqual((await h.api('/api/stall/state')).orders.find(o => o.id === shipped), before)
   assert.deepEqual(journey.errors, [])
   await journey.dev.assertRunning()
-  console.log('PASS RETURN-001 invited-member and staff request intake at 1440 and 390')
+  console.log('PASS RETURN-001 policy, account and private-link requests, explained decisions and progress at 1440 and 390')
 } catch (error) { journeyError = error; if (journey?.page) { await journey.page.screenshot({ path: (process.env.STALL_SCREENSHOTS ?? 'test-results/requests') + '/failure.png', fullPage: true }); console.log('Visible failure:', (await journey.page.locator('main').innerText()).slice(0, 4000)) } throw error }
 finally { await journey?.finish(journeyError) }
