@@ -200,7 +200,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "a905d85540fb20809cb9329724423830b4fe3fab8f9b981050ced090897b2829",
+      "sha256": "af4c1e3ede97708f795804e903a0f7c932d82d84422b934a73ddfc0dea4bdb14",
       "executable": false
     },
     "AGENTS.md": {
@@ -220,7 +220,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c0475aebfb8decea6fff4761cc08cd2298a540a536ada5af62532e92587d6450",
+      "sha256": "1563430a32ac73464c0dda4f7b7cefe8032f57d09311a92db148d55fac94ec13",
       "executable": false
     },
     "deploy-demo.json": {
@@ -244,7 +244,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "228a7d02a55d385cbbc32ecb54f6859719b9e7a8af195884d5b55490b0b046d2",
+      "sha256": "06a056d203e0346aea1de0e8a73bce37bf40e6af5b20806fdc50d9dee17c88b9",
       "executable": false
     },
     "docs/COMMANDS.md": {
@@ -305,6 +305,10 @@
     },
     "docs/STAFF-PERMISSIONS.md": {
       "sha256": "3fbb87c3a4ca0fb15c1513854386791d139e6d0eac035e90abbb4ca71fbaaed7",
+      "executable": false
+    },
+    "docs/tax-001-test-mode-receipt.json": {
+      "sha256": "1730c9e4606f28d9d948a84b169fb1225360cd77299128aacd2075dd9b435946",
       "executable": false
     },
     "docs/TAX-PREVIEWS.md": {
@@ -929,6 +933,10 @@
     },
     "scripts/operations-config.mjs": {
       "sha256": "decbd8619e40c741708b49639d54282bd19edc4581a782b240d96a423ad47f01",
+      "executable": false
+    },
+    "scripts/tax-live-receipt.mjs": {
+      "sha256": "5e0f94e27f10ad395cbcab50718865ce32a77069e8c7ad8f395679315e33fddf",
       "executable": false
     },
     "scripts/verify-app.mjs": {
@@ -2956,7 +2964,7 @@
       "executable": false
     },
     "src/stall/api.ts": {
-      "sha256": "9b6c3bb7f5ccfce489e90159a07b688866bdf9870af2ce9f83c5456103a9d769",
+      "sha256": "ee19757a99735645528d7f5079bf56a508d9cc160ffa0846dbf1ddba9977aa2c",
       "executable": false
     },
     "src/stall/base-exports.d.ts": {
@@ -3152,7 +3160,7 @@
       "executable": false
     },
     "src/stall/model.ts": {
-      "sha256": "318d3904eab4ece6481453a68f42d28845eab1e0654268ae9f2da880e5639683",
+      "sha256": "6d58298302183a3f687977b5db7a1a5ab7bb43821b2c1e6cd96eb1ec1ff3607b",
       "executable": false
     },
     "src/stall/operations.ts": {
@@ -3196,7 +3204,7 @@
       "executable": false
     },
     "src/stall/payments.ts": {
-      "sha256": "88d41ad254f66fe5f594d1f9499ce6e7b87885b6456e50ec6dff3dd3c486eedc",
+      "sha256": "59b426466990d9a2206529024d8b9b0fc1ac30efbe927f81654227760ed7efa4",
       "executable": false
     },
     "src/stall/permissions.ts": {
@@ -3260,11 +3268,11 @@
       "executable": false
     },
     "src/stall/refund-values.ts": {
-      "sha256": "d4b895099aaf56b8b75762e47d4a758c820dfc8016ebb88ff272997ecf8fec3b",
+      "sha256": "36fbf81c76dd4596c6957a6f59e095ac7c65cde507ec8ca48a2fc6a10dbde69a",
       "executable": false
     },
     "src/stall/refunds.ts": {
-      "sha256": "08c2319c09b30b42e3eeee2cd36269224e114260e9c956ae81ce20bfab2650ad",
+      "sha256": "b636974414b5bbc54cfd830bed3c75aab8e0b3e13a4796dc4abd2d8d95801d7c",
       "executable": false
     },
     "src/stall/returns/index.ts": {
@@ -3316,11 +3324,11 @@
       "executable": false
     },
     "src/stall/tax/commerce-provider.ts": {
-      "sha256": "9581536e1cc1deb0eeb26c4bc4bb73d8b683b87d6fb9185ce95cfffbb2255430",
+      "sha256": "58c3cce83d6186135ba1350b77c952f2bc58e0605161c77da16ddad5b19376c7",
       "executable": false
     },
     "src/stall/tax/commerce-quote.ts": {
-      "sha256": "69f5c34b656a6b2d100825a0197265a9ff91696efbf363b1e673e97eff60b0da",
+      "sha256": "3bb283d0a0cb690f671f8162fd96fb84edd66e201e0b79a99623c3c544c717c6",
       "executable": false
     },
     "src/stall/tax/commerce.ts": {
@@ -3332,23 +3340,27 @@
       "executable": false
     },
     "src/stall/tax/index.ts": {
-      "sha256": "a6d1037e8a4c0d102188a6434722abc636d07a722b4301b7f1ac6b2cef3a1308",
+      "sha256": "ec5e3505c542d8fb506cae1fd3d861c07e8cc6d94d638d5190a1930f2bda58ce",
+      "executable": false
+    },
+    "src/stall/tax/marketplace.ts": {
+      "sha256": "22361a791ef2c042805bcd2b57ef8cabd68939c515e3ee0f38ee5706545e5698",
       "executable": false
     },
     "src/stall/tax/reports.ts": {
-      "sha256": "5f9677ac75398773ce20cf09df83344e0034bb58423d4eb9b832fce6430b25b3",
+      "sha256": "9ac487f3ca4886630cc73422374db02561874eec44f10b76ee7f687b01d4c7f7",
       "executable": false
     },
     "src/stall/tax/transactions-postings.ts": {
-      "sha256": "a2c109ea8fe9a9f8204092fa08d0149bdef49738fac4fdacacb2e33735ac8e7a",
+      "sha256": "f5c2f21e0c617b66df5726d0b03edd10784c31d49490798d2c159d648888b1e8",
       "executable": false
     },
     "src/stall/tax/transactions-refunds.ts": {
-      "sha256": "98f8cc09586199787005958772d88f266ed601be7671970957d6d0459f9984e1",
+      "sha256": "4ccf631188b0dcd0270ec7fece54f76b126bb38c841773abe1f6f59c9c9e500b",
       "executable": false
     },
     "src/stall/tax/transactions.ts": {
-      "sha256": "36a9ab5dbb2b11d873ed53c41d79e5b2d12b7fccd2d630621cac6858674123b8",
+      "sha256": "5b4b62a81d2c554c38cb3923c54f569bbd3dad98e93838db5d6f70036160693d",
       "executable": false
     },
     "src/stall/tools.ts": {
@@ -3548,7 +3560,7 @@
       "executable": false
     },
     "src/stall/ui/refund-form.tsx": {
-      "sha256": "4b10a92ca176679a3a3ef5842462638d39bd7b27f62cd628be2872e29ca19e9a",
+      "sha256": "f944b594bd8b33ac17bd76f04ce4843c9bc23acbd5a184354226b3e572a6b7e5",
       "executable": false
     },
     "src/stall/ui/request-intake.tsx": {
@@ -3611,12 +3623,16 @@
       "sha256": "903b7b28e0dc5cd35735958fc4e2c956329fe9a40422249a0b40788f06211403",
       "executable": false
     },
+    "src/stall/ui/tax-marketplace.tsx": {
+      "sha256": "0419641d96eca28962efa85b8dda22ad0a57da477e7cc5c09cb56ec1aab74985",
+      "executable": false
+    },
     "src/stall/ui/tax-preview.tsx": {
       "sha256": "eae91d14ede296a64902e5df016accafacb66ab2fb40e539d43d3fde815c0473",
       "executable": false
     },
     "src/stall/ui/tax-reports.tsx": {
-      "sha256": "fc225e30bc0693d8fb52fd1c60928aeda428440d49c00d34f4275408f37d1e8d",
+      "sha256": "b9aed6e951fcf188e22258ded81094b9708e0bb7a91a0e323b38e804cbe3ea36",
       "executable": false
     },
     "src/stall/ui/tax-settings.tsx": {
@@ -3736,7 +3752,7 @@
       "executable": false
     },
     "tests/api/operations.test.mjs": {
-      "sha256": "8ef559d11a54575a322485ee08eb4ab223f81f5a0ef8e9a8e0539e1c42ec4a60",
+      "sha256": "07bd909251d1726ecc54342a689a57f7323c882b4c0990a25fcb6ad26190a12a",
       "executable": false
     },
     "tests/api/pier-work.test.mjs": {
@@ -3752,11 +3768,11 @@
       "executable": false
     },
     "tests/api/tax-commerce.mjs": {
-      "sha256": "4da6acfb62f9e297205c01c09d89eba542793c2094dc0e6809387407fa2c19cf",
+      "sha256": "53852c08d438658104751acf98f270c076a495dc9d383e34279f8ffdef99a549",
       "executable": false
     },
     "tests/api/tax-edge.mjs": {
-      "sha256": "55930d2a0af1d2dedefe090b3c32fb7b45e86c7d482caf1e971bd06e2cac5750",
+      "sha256": "d6fce53d8c6550f04a175bc60a055fcbf1c5c1380b18f9908219392302b70b47",
       "executable": false
     },
     "tests/api/volume-stock.mjs": {
@@ -3836,7 +3852,7 @@
       "executable": false
     },
     "tests/ui/tax-commerce-journey.mjs": {
-      "sha256": "b2c23843fd66902924c8bcdb594704ccea32b7e0c41d921122be03d36f2184b8",
+      "sha256": "73167b0bcdd017d49a163ddb35eca5f152145a361c6af3ccb4f26bcf3c6313c7",
       "executable": false
     },
     "tests/ui/tax-settings-journey.mjs": {
