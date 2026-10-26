@@ -70,7 +70,7 @@ cannot authorize it. The minimal request contains ID, order ID, kind and time;
 one request per order/kind is retained, so repeat submissions do not duplicate
 work. An activated request rule turns it into assigned staff work at the next
 scan. The owner/admin request list also exposes requests without an active rule.
-The invited-member form is on `/order` (Order help). It lists only the native account’s own non-erased orders using `GET /api/stall/customer/orders`, then sends the existing two-field request. It offers no guest sign-in, exchange, line/quantity request, policy decision or progress tracking. `/app#requests` lists the newest 100 requests for owners/admins from `GET /api/stall/workflows`, even without a rule. This is intake visibility, not a return decision or physical-receipt screen. There is no arbitrary trigger/event emission endpoint.
+The shopper-facing page on `/order` now sends requests through the return-case door described in the Returns guide, which also writes this intake record for the first return or cancellation of an order, so an activated rule still creates its task. `/app#requests` lists the newest 100 requests for owners/admins from `GET /api/stall/workflows`, even without a rule, above the decision list for return, exchange and cancellation requests. This log is intake visibility, not a decision or physical-receipt screen. There is no arbitrary trigger/event emission endpoint.
 
 `GET /api/stall/returns` lists current return requests and received-goods records
 for native owners/admins. `POST` with `{requestId,orderRevision,lines:[{sku,quantity}]}`

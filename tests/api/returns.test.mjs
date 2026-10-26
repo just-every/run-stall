@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import { installation, archive, restore } from './harness.mjs'
 import { pierInstallation } from './pier.mjs'
-import { stripeEdge, purchase, deliverWebhook } from './network.mjs'
+import { stripeEdge, purchase, deliverWebhook, sendFile, png } from './network.mjs'
 
 // Only Stripe is simulated; Stall and Pier are real Workers with real databases.
 test('RETURN-001: eligible-line requests, policy, human decisions, exchange reservation and progress for account and guest customers', async () => {
@@ -58,11 +58,24 @@ test('RETURN-001: eligible-line requests, policy, human decisions, exchange rese
   // Exchange: a replacement must be a stocked sibling variant, and only a person's acceptance sets it aside.
   const swap={orderId:shipped,kind:'exchange',lines:[{sku:'MUG-BLUE',quantity:1,reason:'wrong_size',toSku:'TOWEL-NAT'}]}
   await request(member,{...swap,lines:[{...swap.lines[0],toSku:'MUG-BLUE'}]},{status:409})
-  const accepted=(await request(member,swap,{status:201})).case,doomed=(await request(member,{...swap,lines:[{...swap.lines[0],quantity:2,reason:'changed_mind'}]},{status:201})).case
+  // Photos are private evidence: bound to one order, read only by its customer and the owner.
+  const upload=(as,id,bytes=png(500),type='image/png',headers={})=>sendFile(h,'/api/stall/returns/attachments?orderId='+id+'&name=crack.png',bytes,type,{as,headers})
+  assert.equal((await upload(member,shipped,Buffer.from('not an image'),'image/png')).status,415);assert.equal((await upload(member,shipped,png(),'image/jpeg')).status,415)
+  assert.equal((await upload(member,shipped,png(700001))).status,413);assert.equal((await upload('',shipped)).status,401);assert.equal((await upload(other,shipped)).status,404)
+  const photo=await (await upload(member,shipped)).json()
+  assert.deepEqual([photo.name,photo.size],['crack.png',508])
+  await request(member,{...swap,attachments:[photo.id,'missing']},{status:404});await request(other,{...swap,attachments:[photo.id]},{status:404})
+  const accepted=(await request(member,{...swap,attachments:[photo.id]},{status:201})).case
+  assert.deepEqual(accepted.attachments.map(a=>a.id),[photo.id]);await request(member,{...swap,lines:[{...swap.lines[0],quantity:2}],attachments:[photo.id]},{status:404})
+  const read=async(as,headers={})=>h.request('/api/stall/returns/attachments/'+photo.id,{as,headers})
+  for(const [as,status] of [[member,200],[h.cookie,200],[other,404],['',401]]) assert.equal((await read(as)).status,status)
+  const photoRead=await read(member);assert.equal(photoRead.headers.get('content-type'),'image/png');assert.equal(photoRead.headers.get('x-content-type-options'),'nosniff');assert.deepEqual(Buffer.from(await photoRead.arrayBuffer()),png(500))
+  assert.equal((await read('',{authorization:`Bearer ${grant.token}`})).status,401)
+  const doomed=(await request(member,{...swap,lines:[{...swap.lines[0],quantity:2,reason:'changed_mind'}]},{status:201})).case
   assert.equal((await pier.api('/api/pier/state')).orders.length,reservedOrders,'requests reserve no replacement stock')
   // A guest link opens one order only and reaches the same eligibility and request doors.
   const link=await h.api('/api/stall/account/guest-order-link',{orderId:shipped},{as:member}),guest={'x-stall-order-token':link.token}
-  assert.equal((await eligibility('',shipped,{headers:guest})).lines[0].remaining,2)
+  assert.equal((await eligibility('',shipped,{headers:guest})).lines[0].remaining,2);assert.equal((await read('',guest)).status,200);assert.equal((await read('',{'x-stall-order-token':(await h.api('/api/stall/account/guest-order-link',{orderId:old},{as:member})).token})).status,404)
   await eligibility('',old,{headers:guest,status:404})
   await request('',{...body,orderId:old},{headers:guest,status:404})
   assert.equal((await request('',body,{headers:guest,status:200})).case.id,first.case.id,'the same request from the private link is the same request')
@@ -101,12 +114,13 @@ test('RETURN-001: eligible-line requests, policy, human decisions, exchange rese
   assert.ok(!JSON.stringify(mine).includes('decidedBy'));assert.deepEqual((await h.api('/api/stall/account',undefined,{as:other})).returnCases,[])
   const final=await order(shipped);assert.deepEqual([final.refunds,final.status,final.payment],[before.refunds,before.status,before.payment]);assert.equal(edge.refunds.size,0)
   const exported=(await h.api('/api/stall/exports/records')).returns
+  assert.deepEqual(exported.attachments.map(a=>[a.id,a.caseId,a.size]),[[photo.id,accepted.id,508]]);assert.ok(!JSON.stringify(exported).includes(png(500).toString('base64')))
   assert.equal(exported.cases.length,5);assert.equal(exported.policy.revision!==saved.revision,false)
   // Cases and decisions travel with the business; erasure removes them.
   const saved2=await archive(h);destination=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-1301',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle});await restore(destination,saved2)
   assert.deepEqual((await destination.api('/api/stall/returns')).cases.map(c=>[c.id,c.state,c.decision]),(await queue()).map(c=>[c.id,c.state,c.decision]))
   await ship(unsent)
   await h.command('customer.erase',{email:ana,confirm:'ERASE'})
-  assert.equal((await queue()).length,0);assert.equal((await h.db.prepare('SELECT count(*) AS n FROM st_return_events').first()).n,0)
+  assert.equal((await queue()).length,0);assert.equal((await h.db.prepare('SELECT count(*) AS n FROM st_return_events').first()).n,0);assert.equal((await h.db.prepare('SELECT count(*) AS n FROM st_return_files').first()).n,0)
  } finally { await destination?.close();await h.close();await pier.close() }
 })

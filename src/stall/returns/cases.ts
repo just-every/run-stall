@@ -15,14 +15,15 @@ const received={cancellation:'Request received. A person reviews it; nothing is 
 export async function customerCases(db:D1Database,orderIds:string[]) {
  if(!orderIds.length) return []
  const ids=JSON.stringify(orderIds)
- const [rows,events]=await Promise.all([
+ const [rows,events,files]=await Promise.all([
   db.prepare('SELECT * FROM st_return_cases WHERE order_id IN (SELECT value FROM json_each(?)) ORDER BY created_at DESC,id').bind(ids).all<Row>(),
   db.prepare('SELECT case_id,at,text FROM st_return_events WHERE case_id IN (SELECT id FROM st_return_cases WHERE order_id IN (SELECT value FROM json_each(?))) ORDER BY at,rowid').bind(ids).all<{case_id:string;at:string;text:string}>(),
+  db.prepare('SELECT id,case_id,name,size FROM st_return_files WHERE case_id IN (SELECT id FROM st_return_cases WHERE order_id IN (SELECT value FROM json_each(?))) ORDER BY created_at,id').bind(ids).all<{id:string;case_id:string;name:string;size:number}>(),
  ])
  return rows.results.map(row=>({id:row.id,orderId:row.order_id,kind:row.kind,state:row.state,lines:JSON.parse(row.lines_json) as CaseLine[],note:row.note,createdAt:row.created_at,decidedAt:row.decided_at,decision:row.decision_note,
-  replacementReserved:!!row.reservation_json,progress:events.results.filter(e=>e.case_id===row.id).map(({at,text})=>({at,text}))}))
+  replacementReserved:!!row.reservation_json,attachments:files.results.filter(f=>f.case_id===row.id).map(({id,name,size})=>({id,name,size})),progress:events.results.filter(e=>e.case_id===row.id).map(({at,text})=>({at,text}))}))
 }
-async function subject(request:Request,env:Bindings,orderId:string,mutation:boolean) {
+export async function subject(request:Request,env:Bindings,orderId:string,mutation:boolean) {
  await rate(env,'returns:'+await clientKey(env,request),120)
  const token=request.headers.get('x-stall-order-token')
  if(token!==null) {
@@ -39,7 +40,7 @@ async function subject(request:Request,env:Bindings,orderId:string,mutation:bool
 const orderCases=(db:D1Database,orderId:string)=>db.prepare('SELECT * FROM st_return_cases WHERE order_id=?').bind(orderId).all<Row>().then(r=>r.results)
 const keys=(p:any,allowed:string[],label:string)=>{if(!p||typeof p!=='object'||Array.isArray(p)||Object.keys(p).some(key=>!allowed.includes(key)))fail('INPUT',`Supply only ${label}.`,400)}
 async function request(env:Bindings,request:Request) {
- const p=await body(request);keys(p,['orderId','kind','lines','note'],'the order, request kind, lines and an optional note')
+ const p=await body(request);keys(p,['orderId','kind','lines','note','attachments'],'the order, request kind, lines, an optional note and uploaded photos')
  const orderId=text(p.orderId,'Order ID',100),kind=p.kind
  if(!['cancellation','return','exchange'].includes(kind))fail('INPUT','Choose a cancellation, return or exchange.',400)
  const who=await subject(request,env,orderId,true),{order}=who
@@ -72,12 +73,15 @@ async function request(env:Bindings,request:Request) {
   })
  }
  const note=p.note===undefined||p.note===''?null:text(p.note,'Note',500)
+ const attached:string[]=p.attachments===undefined?[]:Array.isArray(p.attachments)&&p.attachments.length<=3&&(kind!=='cancellation'||!p.attachments.length)?[...new Set<string>(p.attachments.map((id:unknown)=>text(id,'Photo',100)))]:fail('INPUT','Attach at most three photos to a return or exchange.',400)
+ if(attached.length&&(await env.DB.prepare('SELECT count(*) AS n FROM st_return_files WHERE order_id=? AND case_id IS NULL AND id IN (SELECT value FROM json_each(?))').bind(order.id,JSON.stringify(attached)).first<{n:number}>())?.n!==attached.length)fail('NOT_FOUND','An attached photo is missing. Upload it again.',404)
  const fingerprint=await digest(JSON.stringify([order.id,kind,lines.map(l=>[l.sku,l.quantity,l.toSku??null]).sort()])),id=crypto.randomUUID(),at=new Date().toISOString()
  const open=cases.filter(c=>['requested','accepted'].includes(c.state)).length
  await who.write([
   env.DB.prepare('INSERT INTO st_guard(value) SELECT CASE WHEN (SELECT COUNT(*) FROM st_return_cases WHERE order_id=? AND state IN (\'requested\',\'accepted\'))=? THEN 1 ELSE 0 END').bind(order.id,open),
   env.DB.prepare('INSERT OR IGNORE INTO st_return_cases(id,order_id,kind,email,channel,fingerprint,revision,state,lines_json,note,policy_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,order.id,kind,order.customerEmail!.toLowerCase(),who.channel,fingerprint,crypto.randomUUID(),'requested',JSON.stringify(lines),note,JSON.stringify(policy??{}),at),
   env.DB.prepare('INSERT INTO st_return_events(id,case_id,at,text) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM st_return_cases WHERE id=?)').bind(crypto.randomUUID(),id,at,received[kind as keyof typeof received],id),
+  env.DB.prepare('UPDATE st_return_files SET case_id=? WHERE order_id=? AND case_id IS NULL AND id IN (SELECT value FROM json_each(?)) AND EXISTS(SELECT 1 FROM st_return_cases WHERE id=?)').bind(id,order.id,JSON.stringify(attached),id),
   env.DB.prepare('INSERT OR IGNORE INTO st_workflow_requests(id,order_id,kind,created_at) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM st_return_cases WHERE id=?)').bind(id,order.id,kind==='cancellation'?'cancellation':'return',at,id),
   env.DB.prepare('INSERT INTO st_audit SELECT ?,?,?,?,? WHERE EXISTS(SELECT 1 FROM st_return_cases WHERE id=?)').bind(crypto.randomUUID(),order.id,who.actor,kind+'.requested',at,id),
  ])

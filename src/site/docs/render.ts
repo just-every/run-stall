@@ -17,6 +17,7 @@ const ORDER: { file: string; section: string }[] = [
   { file: 'PRODUCTS', section: 'Run your shop' },
   { file: 'SHOPFRONT', section: 'Run your shop' },
   { file: 'ORDERS', section: 'Run your shop' },
+  { file: 'RETURNS', section: 'Run your shop' },
   { file: 'STAFF-PERMISSIONS', section: 'Keep it safe' },
   { file: 'RISK-REVIEW', section: 'Keep it safe' },
   { file: 'WORKFLOWS', section: 'Run your shop' },

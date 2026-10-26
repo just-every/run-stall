@@ -16,6 +16,7 @@ import { customerCommit,requireProvenEmail } from './customers/account'
 import { workflowResponse,runWorkflows } from './workflows'
 import { returnsResponse } from './returns'
 import { caseResponse } from './returns/cases'
+import { attachmentResponse } from './returns/attachments'
 import { returnCommand } from './returns/decide'
 import { promotionRoutes } from './promotions'
 import { headlessResponse,observeStock } from './headless'
@@ -99,6 +100,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   const privacy=await privacyResponse(request,env);if(privacy)return privacy
   const customer=await customerResponse(request,env);if(customer)return customer
   const promotionResponse=await promotionRoutes(request,env,path);if(promotionResponse)return promotionResponse
+  const photos=await attachmentResponse(request,env);if(photos)return photos
   const cases=await caseResponse(request,env);if(cases)return cases
   const returns=await returnsResponse(request,env);if(returns)return returns
   const workflows=await workflowResponse(request,env);if(workflows)return workflows

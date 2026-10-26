@@ -14,13 +14,14 @@ const lead={
 /** The owner or an administrator decides every case. No rule, score or agent accepts or refuses. */
 export async function staffReturns(env:Bindings,actor:Actor) {
  requireDecider(actor);await live(env,actor)
- const [policy,cases,events]=await Promise.all([
+ const [policy,cases,events,files]=await Promise.all([
   loadPolicy(env.DB),
   env.DB.prepare(`SELECT c.* FROM st_return_cases c JOIN st_orders o ON o.id=c.order_id WHERE json_extract(o.value_json,'$.erasedAt') IS NULL ORDER BY CASE c.state WHEN 'requested' THEN 0 ELSE 1 END,c.created_at DESC,c.id LIMIT 100`).all<any>(),
   env.DB.prepare('SELECT case_id,at,text FROM st_return_events ORDER BY at,rowid').all<{case_id:string;at:string;text:string}>(),
+  env.DB.prepare('SELECT id,case_id,name,size FROM st_return_files WHERE case_id IS NOT NULL ORDER BY created_at,id').all<{id:string;case_id:string;name:string;size:number}>(),
  ])
  return {policy:policy?{revision:policy.revision,...policy.value}:null,cases:cases.results.map(row=>({id:row.id,orderId:row.order_id,kind:row.kind,state:row.state,revision:row.revision,channel:row.channel,lines:JSON.parse(row.lines_json) as CaseLine[],note:row.note,createdAt:row.created_at,
-  decidedAt:row.decided_at,decidedBy:row.decided_by,decision:row.decision_note,replacementReserved:!!row.reservation_json,policyAtRequest:JSON.parse(row.policy_json),progress:events.results.filter(e=>e.case_id===row.id).map(({at,text})=>({at,text}))}))}
+  decidedAt:row.decided_at,decidedBy:row.decided_by,decision:row.decision_note,replacementReserved:!!row.reservation_json,attachments:files.results.filter(f=>f.case_id===row.id).map(({id,name,size})=>({id,name,size})),policyAtRequest:JSON.parse(row.policy_json),progress:events.results.filter(e=>e.case_id===row.id).map(({at,text})=>({at,text}))}))}
 }
 export async function returnCommand(env:Bindings,actor:Actor,type:string,p:any) {
  if(type==='return.policy.save') return policyCommand(env,actor,p)

@@ -8,11 +8,17 @@ type Policy={configured:true;windowDays:number;condition:string;feeCents:number;
 type View={policy:Policy;cancellation:{eligible:boolean;reason?:string};returnsOpen:{endsAt:string|null}|null;exchangeStock:string;lines:LineView[];cases:ReturnCase[]}
 const reasons:Record<string,string>={wrong_size:'Wrong size or fit',defective:'Damaged or defective',not_as_described:'Not as described',changed_mind:'Changed my mind',other:'Another reason'}
 const label=(value:string)=>value.replaceAll('_',' ')
-export function ReturnProgress({cases}:{cases:ReturnCase[]}) {
+function PhotoLink({id,name,headers}:{id:string;name:string;headers:Record<string,string>}) {
+ const [error,setError]=useState('')
+ async function open(){setError('');try{const response=await fetch('/api/stall/returns/attachments/'+encodeURIComponent(id),{headers,credentials:'same-origin',cache:'no-store'});if(!response.ok)throw Error('The photo is unavailable.');window.open(URL.createObjectURL(await response.blob()),'_blank','noopener')}catch(e){setError(errorMessage(e))}}
+ return <span><button type="button" className="st-secondary" onClick={()=>void open()}>View photo<span className="st-sr-only"> {name}</span></button>{error&&<span role="alert"> {error}</span>}</span>
+}
+export function ReturnProgress({cases,headers={}}:{cases:ReturnCase[];headers?:Record<string,string>}) {
  if(!cases.length)return null
  return <div className="st-stack" aria-label="Request progress">{cases.map(item=><article key={item.id} className="st-panel st-stack" aria-label={`Request ${item.id}`}>
   <h4>{label(item.kind)} request · {item.state==='requested'?'awaiting a person’s review':item.state}</h4>
   <ul>{item.lines.map(line=><li key={line.sku}>{line.name} × {line.quantity}{line.toName?` → ${line.toName}`:''}{line.reason?` · ${reasons[line.reason]??line.reason}`:''}</li>)}</ul>
+  {!!item.attachments?.length&&<p>Photos: {item.attachments.map(photo=><PhotoLink key={photo.id} id={photo.id} name={photo.name} headers={headers} />)}</p>}
   <ol className="st-progress">{item.progress.map((step,i)=><li key={i}><time dateTime={step.at}>{new Date(step.at).toLocaleString()}</time> · {step.text}</li>)}</ol>
   {item.replacementReserved&&<Notice>Your replacement is set aside. Nothing is charged or refunded by this step.</Notice>}
  </article>)}</div>
@@ -20,14 +26,19 @@ export function ReturnProgress({cases}:{cases:ReturnCase[]}) {
 /** One paid order's help: the shop's policy, what each line can still do and its requests' progress. */
 export function ReturnHelp({order,token,cases,refresh}:{order:OwnOrder;token:string;cases:ReturnCase[];refresh:()=>void}) {
  const [view,setView]=useState<View>(),[error,setError]=useState(''),[busy,setBusy]=useState(false),[done,setDone]=useState('')
- const [kind,setKind]=useState('return'),[picked,setPicked]=useState<Record<string,{quantity:number;reason:string;toSku:string}>>({}),[note,setNote]=useState('')
+ const [kind,setKind]=useState('return'),[photos,setPhotos]=useState<{id:string;name:string}[]>([]),[picked,setPicked]=useState<Record<string,{quantity:number;reason:string;toSku:string}>>({}),[note,setNote]=useState('')
  const headers:Record<string,string>=token?{'X-Stall-Order-Token':token}:{}
  const load=()=>request<View>('/api/stall/returns/eligibility?orderId='+encodeURIComponent(order.id),undefined,'GET',headers).then(setView).catch(e=>setError(errorMessage(e)))
  useEffect(()=>{void load()},[order.id,cases.length])
  async function submit(event:FormEvent) {
   event.preventDefault();setBusy(true);setError('');setDone('')
   const lines=kind==='cancellation'?[]:Object.entries(picked).map(([sku,line])=>({sku,quantity:line.quantity,reason:line.reason,...(kind==='exchange'?{toSku:line.toSku}:{})}))
-  try{const result=await request<{message:string}>('/api/stall/returns/requests',{orderId:order.id,kind,lines,...(note.trim()?{note:note.trim()}:{})},'POST',headers);setDone(result.message);setPicked({});setNote('');refresh()}
+  try{const result=await request<{message:string}>('/api/stall/returns/requests',{orderId:order.id,kind,lines,...(note.trim()?{note:note.trim()}:{}),...(photos.length&&kind!=='cancellation'?{attachments:photos.map(p=>p.id)}:{})},'POST',headers);setDone(result.message);setPicked({});setNote('');setPhotos([]);refresh()}
+  catch(e){setError(errorMessage(e))}finally{setBusy(false)}
+ }
+ async function addPhotos(files:FileList|null) {
+  if(!files)return;setBusy(true);setError('')
+  try{for(const file of [...files].slice(0,3-photos.length)){const response=await fetch('/api/stall/returns/attachments?orderId='+encodeURIComponent(order.id)+'&name='+encodeURIComponent(file.name),{method:'POST',credentials:'same-origin',cache:'no-store',headers:{...headers,'Content-Type':file.type},body:file});const data=await response.json().catch(()=>null) as {id:string;name:string;error?:{message?:string}}|null;if(!response.ok||!data?.id)throw Error(data?.error?.message??'The photo could not be added.');setPhotos(current=>[...current,{id:data.id,name:data.name}])}}
   catch(e){setError(errorMessage(e))}finally{setBusy(false)}
  }
  const policy=view?.policy,exchanges=!!policy?.configured&&policy.exchanges
@@ -52,14 +63,16 @@ export function ReturnHelp({order,token,cases,refresh}:{order:OwnOrder;token:str
      {!line.eligible&&<p className="st-small">{line.reasons[0]}</p>}
      {line.eligible&&kind==='exchange'&&!line.exchangeOptions.length&&<p className="st-small">No other size or variant is in stock right now{view.exchangeStock==='unavailable'?' (stock could not be checked)':''}.</p>}
      {picked[line.sku]&&<div className="st-stack">
-      <label>Quantity<input type="number" min={1} max={kind==='exchange'?Math.max(1,...line.exchangeOptions.map(o=>o.availableQuantity)):line.remaining} value={picked[line.sku].quantity} onChange={e=>edit(line.sku,{quantity:Number(e.target.value)})} /></label>
-      <label>Reason<select value={picked[line.sku].reason} onChange={e=>edit(line.sku,{reason:e.target.value})}>{Object.entries(reasons).map(([key,text])=><option key={key} value={key}>{text}</option>)}</select></label>
-      {kind==='exchange'&&<label>Replacement<select value={picked[line.sku].toSku} onChange={e=>edit(line.sku,{toSku:e.target.value})}>{line.exchangeOptions.map(o=><option key={o.sku} value={o.sku}>{o.name} · {o.availableQuantity} in stock</option>)}</select></label>}
+      <label>Quantity<input aria-label="Quantity" type="number" min={1} max={kind==='exchange'?Math.max(1,...line.exchangeOptions.map(o=>o.availableQuantity)):line.remaining} value={picked[line.sku].quantity} onChange={e=>edit(line.sku,{quantity:Number(e.target.value)})} /></label>
+      <label>Reason<select aria-label="Reason" value={picked[line.sku].reason} onChange={e=>edit(line.sku,{reason:e.target.value})}>{Object.entries(reasons).map(([key,text])=><option key={key} value={key}>{text}</option>)}</select></label>
+      {kind==='exchange'&&<label>Replacement<select aria-label="Replacement" value={picked[line.sku].toSku} onChange={e=>edit(line.sku,{toSku:e.target.value})}>{line.exchangeOptions.map(o=><option key={o.sku} value={o.sku}>{o.name} · {o.availableQuantity} in stock</option>)}</select></label>}
      </div>}</div>)}</fieldset>}
-   {kind!=='cancellation'&&<label>Note for the shop (optional)<textarea maxLength={500} value={note} disabled={busy} onChange={e=>setNote(e.target.value)} /></label>}
+   {kind!=='cancellation'&&<><label>Note for the shop (optional)<textarea aria-label="Note for the shop (optional)" maxLength={500} value={note} disabled={busy} onChange={e=>setNote(e.target.value)} /></label>
+    <label>Photos (optional, up to three PNG, JPEG or WebP files of 700 KB or less)<input aria-label="Photos (optional)" type="file" accept="image/png,image/jpeg,image/webp" multiple disabled={busy||photos.length>=3} onChange={e=>{void addPhotos(e.target.files);e.target.value=''}} /></label>
+    {!!photos.length&&<p>Attached: {photos.map(p=>p.name).join(', ')}. Only you and the shop can see them.</p>}</>}
    <button disabled={busy||(kind==='cancellation'?!view.cancellation.eligible:!Object.keys(picked).length)}>{busy?'Sending request…':'Send request for review'}</button>
   </form>}
   {done&&<Notice>{done}</Notice>}
-  <ReturnProgress cases={cases} />
+  <ReturnProgress cases={cases} headers={headers} />
  </div>
 }

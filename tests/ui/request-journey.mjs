@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { startJourney } from './journey-kit.mjs'
 import { pierInstallation } from '../api/pier.mjs'
-import { purchase, deliverWebhook } from '../api/network.mjs'
+import { purchase, deliverWebhook, sendFile, solidPng } from '../api/network.mjs'
 
 // RETURN-001 through the real policy form, account and private-link order pages and the staff request list.
 let journey, journeyError
@@ -23,7 +23,8 @@ try {
   await journey.context.unroute('**/api/stall/**')
   await journey.context.route('**/api/stall/**', async route => {
     const req = route.request(), url = new URL(req.url())
-    const response = await h.request(url.pathname + url.search, { method: req.method(), as, headers: Object.fromEntries(Object.entries(req.headers()).filter(([name]) => name === 'x-stall-order-token')), ...(req.postData() ? { body: JSON.parse(req.postData()) } : {}) })
+    const headers = Object.fromEntries(Object.entries(req.headers()).filter(([name]) => name === 'x-stall-order-token')), raw = req.postDataBuffer(), type = req.headers()['content-type'] ?? ''
+    const response = raw && !type.startsWith('application/json') ? await sendFile(h, url.pathname + url.search, raw, type, { as, headers }) : await h.request(url.pathname + url.search, { method: req.method(), as, headers, ...(req.postData() ? { body: JSON.parse(req.postData()) } : {}) })
     await route.fulfill({ status: response.status, headers: { 'content-type': response.headers.get('content-type') ?? 'application/json' }, body: Buffer.from(await response.arrayBuffer()) })
   })
   // The owner publishes the policy in Settings.
@@ -48,9 +49,12 @@ try {
   await form.getByLabel('Reason', { exact: true }).selectOption('wrong_size')
   await form.getByLabel('Replacement', { exact: true }).selectOption('TOWEL-NAT')
   await form.getByLabel('Note for the shop (optional)', { exact: true }).fill('Small is too small for my shelf')
+  await form.getByLabel('Photos (optional)', { exact: true }).setInputFiles({ name: 'shelf.png', mimeType: 'image/png', buffer: solidPng(40, 30, [120, 90, 60]) })
+  await form.getByText('Attached: shelf.png.', { exact: false }).waitFor()
   const send = async () => { const response = page.waitForResponse(r => new URL(r.url()).pathname === '/api/stall/returns/requests'); await form.getByRole('button', { name: 'Send request for review', exact: true }).click(); const done = await response; assert.ok(done.ok(), await done.text()); return done.json() }
   const first = await send(); assert.equal(first.duplicate, false)
   await panel.getByText('awaiting a person’s review', { exact: false }).waitFor()
+  await panel.getByRole('button', { name: 'View photo shelf.png' }).waitFor()
   await capture('RETURN-001-exchange-requested', panel)
   await card(unsent).getByText('Returns, exchanges and cancellation', { exact: true }).click()
   const cancelPanel = page.getByLabel(`Returns and exchanges for order ${unsent}`, { exact: true }), cancelForm = cancelPanel.getByRole('form', { name: 'Request help with this order', exact: true })
@@ -90,6 +94,7 @@ try {
     const response = page.waitForResponse(r => r.url().endsWith('/api/stall/commands')); await article.getByRole('button', { name: new RegExp('^' + button) }).click(); assert.ok((await response).ok())
     await article.getByText(text, { exact: false }).waitFor()
   }
+  await page.getByRole('article', { name: `Case ${exchange.id}`, exact: true }).getByRole('button', { name: 'View photo shelf.png' }).waitFor()
   await decide(exchange, 'Accept request', 'We have set the large size aside for you.')
   await decide(refund, 'Refuse request', 'The glaze matches the listing, so this is outside our policy.')
   await capture('RETURN-001-staff-decided', page.getByRole('region', { name: 'Return, exchange and cancellation requests', exact: true }))
