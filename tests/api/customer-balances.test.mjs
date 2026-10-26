@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { installation } from './harness.mjs';
+import { installation,archive,restore } from './harness.mjs';
 
 test('reviewed native balance commands are exact, replay-safe and visible only to the independently proven mailbox',async()=>{
  const h=await installation(),base='/api/stall/customer-balances',own='/api/stall/account/balances';
@@ -75,5 +75,23 @@ test('reviewed native balance commands are exact, replay-safe and visible only t
   assert.ok(directory.customers.some(customer=>customer.emails.includes(email)&&customer.emails.includes(foreign)));
   assert.equal((await h.api(own,undefined,{as:proven})).giftCents,4900);
   assert.deepEqual((await h.api(own,undefined,{as:other})).ledger,[]);
+  const exported=await h.api('/api/stall/exports/records');
+  assert.equal(exported.customerBalances.ledger.length,3);
+  const transferred=await installation();
+  try {
+   await restore(transferred,await archive(h));
+   await transferred.api(own,undefined,{as:proven,status:401});
+   const destinationOwner=await transferred.signIn(email);
+   const preserved=await transferred.api(own,undefined,{as:destinationOwner});
+   assert.equal(preserved.giftCents,4900);assert.equal(preserved.creditCents,309);
+   assert.deepEqual((await transferred.api(own,undefined,{as:await transferred.signIn(foreign)})).ledger,[]);
+  }finally{await transferred.close()}
+  await h.command('customer.erase',{email,confirm:'ERASE'});
+  assert.equal((await h.api(own,undefined,{as:proven})).giftCents,0);
+  await h.api(base,issue,{status:409});
+  const erased=await h.api('/api/stall/exports/records');
+  assert.equal(erased.customerBalances.ledger.length,3);
+  assert.deepEqual(erased.customerBalances.details,[]);
+  assert.ok(erased.customerBalances.accounts.every(account=>account.email!==email));
  } finally {await h.close()}
 });

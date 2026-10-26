@@ -18,8 +18,8 @@ try {
  const balances=address=>h.api(base+'?email='+encodeURIComponent(address))
  const amount=(panel,label)=>panel.locator('dt').filter({hasText:new RegExp('^'+label+' · USD$')}).locator('..')
  for(const [index,width] of [1440,390].entries()) {
-  const fixture=2510+index*10,email=`synthetic-stall-${fixture}@example.test`,otherEmail=`synthetic-stall-${fixture+1}@example.test`,name=`synthetic-stall-${fixture+2}`
-  const reasons={gift:`synthetic-stall-${fixture+3}`,credit:`synthetic-stall-${fixture+4}`,adjust:`synthetic-stall-${fixture+5}`}
+  const fixture=2510+index*10,email=`synthetic-stall-${fixture}@example.test`,otherEmail=`synthetic-stall-${fixture+1}@example.test`,name=index?'Taylor Reed':'Morgan Lane'
+  const reasons={gift:'Birthday gift balance',credit:'Goodwill for delayed delivery',adjust:'Correct a reviewed duplicate amount'}
   const rows=[{email,name},{email:otherEmail,name}]
   const preview=await h.api('/api/stall/customers/import/preview',{rows})
   await h.api('/api/stall/customers/import/apply',{rows,fingerprint:preview.fingerprint})
