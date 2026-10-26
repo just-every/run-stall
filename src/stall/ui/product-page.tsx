@@ -1,6 +1,7 @@
 // One product's own page: gallery, option choice, personalization, and add to basket.
 import { useEffect, useState } from 'react'
-import { useParams } from '@tanstack/react-router'
+import { ProductReviews } from './product-reviews'
+import { useLoaderData, useParams } from '@tanstack/react-router'
 import { HydrationUnit } from '../../base/hydration/unit'
 import { request, errorMessage, money } from './api'
 import { readBasket, writeBasket } from './basket'
@@ -13,6 +14,7 @@ import { Tooltip } from './tooltip'
 
 const same = (a: Record<string, string>, b: Record<string, string>) => Object.keys(a).length === Object.keys(b).length && Object.entries(a).every(([key, value]) => b[key] === value)
 export function ProductPage() {
+  const seo = useLoaderData({ from: '/shop_/$handle' })
   const { handle = '' } = useParams({ strict: false }) as { handle?: string }
   const [catalogue, setCatalogue] = useState<Catalogue | null>(null), [loading, setLoading] = useState(true), [error, setError] = useState('')
   const [picked, setPicked] = useState<Record<string, string>>({}), [shown, setShown] = useState(0), [answers, setAnswers] = useState<Answers>({}), [quantity, setQuantity] = useState('1')
@@ -62,6 +64,7 @@ export function ProductPage() {
       <div className="st-actions"><button type="button" disabled={busy || !ready} onClick={() => void add()}>{busy ? 'Checking…' : item ? `Add to basket · ${money(unit * (count || 1))}` : 'Add to basket'}</button><a className="st-secondary st-button" href="/shop">Back to the shop</a></div>
     </div></section></HydrationUnit>}
     {!product && error && !loading && <Notice error>{error}</Notice>}
+    <ProductReviews reviews={seo.reviews} />
     <HydrationUnit><Section title="Need something else?" className="st-store-panel"><p><a href="/shop">All products</a></p></Section></HydrationUnit>
   <FooterMenu /></main></div>
 }

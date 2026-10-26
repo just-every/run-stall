@@ -1,0 +1,13 @@
+CREATE TABLE st_review_state(id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL);
+INSERT INTO st_review_state VALUES(1,0);
+CREATE TABLE st_review_imports(id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL UNIQUE, source TEXT NOT NULL, count INTEGER NOT NULL, state TEXT NOT NULL, created_at TEXT NOT NULL, input_hash TEXT NOT NULL);
+CREATE TABLE st_review_product_map(source TEXT NOT NULL, source_ref TEXT NOT NULL, product_id TEXT NOT NULL, PRIMARY KEY(source,source_ref));
+CREATE TABLE st_reviews(id TEXT PRIMARY KEY, product_id TEXT NOT NULL, source TEXT NOT NULL, source_id TEXT NOT NULL, reviewer_email TEXT NOT NULL, email_hash TEXT NOT NULL, value_json TEXT NOT NULL, import_id TEXT REFERENCES st_review_imports(id), UNIQUE(source,source_id));
+CREATE TABLE st_review_media(id TEXT PRIMARY KEY, review_id TEXT NOT NULL REFERENCES st_reviews(id) ON DELETE CASCADE, kind TEXT NOT NULL, mime TEXT NOT NULL, data TEXT NOT NULL);
+CREATE TABLE st_review_erasures(email_hash TEXT PRIMARY KEY);
+CREATE TRIGGER st_reviews_insert AFTER INSERT ON st_reviews BEGIN UPDATE st_review_state SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER st_reviews_update AFTER UPDATE ON st_reviews BEGIN UPDATE st_review_state SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER st_reviews_delete AFTER DELETE ON st_reviews BEGIN UPDATE st_review_state SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER st_review_map_insert AFTER INSERT ON st_review_product_map BEGIN UPDATE st_review_state SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER st_review_map_update AFTER UPDATE ON st_review_product_map BEGIN UPDATE st_review_state SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER st_review_erased AFTER INSERT ON st_review_erasures BEGIN UPDATE st_review_state SET revision=revision+1 WHERE id=1; END;

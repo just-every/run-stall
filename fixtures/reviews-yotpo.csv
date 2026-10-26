@@ -1,0 +1,4 @@
+Review ID,Review Creation Date,Review Type,Review Status,Review Source,Review Score,Review Title,Review Content,Published Image URL,Published Video URL,Comment Content,Comment Public,Reviewer Display Name,Reviewer Email,Reviewer Type,Product ID,Product Handle,Product SKU
+synthetic-stall-1,2026-09-20T09:30:00Z,Product review,Published,reminder,5,Excellent glaze,"Looks beautiful, feels sturdy.",https://reviews.example.test/photo.png,,Thank you for the photo.,TRUE,Jordan Example,jordan@example.test,Verified Buyer,,studio-mug,
+synthetic-stall-2,2026-09-21,Product review,Published,import,4,Nice size,A reliable everyday mug.,,,,,Taylor Example,taylor@example.test,Verified Reviewer,legacy-mug,,
+synthetic-stall-3,2026-09-22,Product review,Rejected,widget,3,From the archive,This was the earlier glaze.,,,,,Morgan Example,morgan@example.test,Anonymous,,deleted-product,

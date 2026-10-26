@@ -477,3 +477,158 @@ test('CATALOG-002: reviewed metadata CSV survives resume and restore, exports ex
     assert.equal(report.dispositions.find(item => item.targetId === later.id).reason, 'edited');
   } finally { await receiving?.close(); await h.close(); }
 });
+
+test('Review move-in preserves source provenance, owned photos, exact mapping, replay and selective undo', async () => {
+  const { volumeStock } = await import('./volume-stock.mjs');
+  const { solidPng } = await import('./network.mjs');
+  const stock = volumeStock(['synthetic-stall-1511', 'legacy-mug']);
+  const photo = solidPng(40, 40, [135, 110, 90]);
+  let retired = false, mediaReads = 0;
+  const h = await installation({ bindings: { PIER_ORIGIN: 'https://stock.example.test', PIER_SESSION: 'synthetic-stall-1514', PIER_CUSTOMER_ID: 'shop' }, outboundService: async request => {
+    const url = new URL(request.url);
+    if (url.hostname === 'cloudflare-dns.com') return Response.json({ Status: 0, Answer: [{ type: 1, data: '8.8.8.8' }] });
+    if (url.hostname === 'cdn.judge.me') { mediaReads++; return retired ? new Response('Retired', { status: 410 }) : new Response(photo, { headers: { 'content-type': 'image/png' } }); }
+    return stock.forward(request);
+  } });
+  try {
+    for (const [sku, handle, name] of [['synthetic-stall-1511', 'studio-mug', 'Studio mug'], ['legacy-mug', 'second-mug', 'Second mug']]) {
+      const draft = await h.command('product.prepare', { sku, name, description: 'Hand-thrown stoneware', unitCents: 2800, active: true, details: { handle } });
+      await h.command('product.approve', { sku, revision: draft.revision });
+    }
+    const native = await h.api('/api/stall/reviews', { productId: 'synthetic-stall-1511', rating: 4, title: 'Native review', body: 'Already here', reviewerName: 'Native shopper', date: '2024-01-01T00:00:00Z' });
+    const mailBefore = h.messages.length, jobs = [];
+    for (const [source, filename] of [['judge-me', 'reviews-judge.csv'], ['yotpo', 'reviews-yotpo.csv']]) {
+      const csv = (await readFile(new URL('../../fixtures/' + filename, import.meta.url), 'utf8')).replaceAll('https://reviews.example.test/photo.png', 'https://cdn.judge.me/synthetic-stall-1.png');
+      const input = { source, csv };
+      const preview = await h.api('/api/stall/review-imports/preview', input);
+      assert.deepEqual(preview.counts, { total: 3, mapped: 2, orphans: 1, duplicates: 0 });
+      assert.equal(mediaReads, jobs.length, 'Dry run does not fetch external media');
+      assert.equal((await h.api('/api/stall/review-imports')).jobs.length, jobs.length * 2);
+      assert.equal(preview.rows[0].productId, 'synthetic-stall-1511');
+      assert.equal(preview.rows[1].productId, 'legacy-mug');
+      const orphan = preview.rows.find(row => row.status === 'orphan');
+      assert.equal(orphan.productId, null); assert.match(orphan.reason, /No matching product/);
+      const remapped = await h.api('/api/stall/review-imports/preview', { ...input, mappings: { [orphan.row]: 'legacy-mug' } });
+      assert.equal(remapped.counts.orphans, 0); assert.equal(remapped.rows.at(-1).productId, 'legacy-mug');
+      const approved = { ...input, fingerprint: preview.fingerprint, excludedRows: [orphan.row] };
+      await h.api('/api/stall/review-imports/apply', { ...approved, excludedRows: [] }, { status: 409 });
+      const job = await h.api('/api/stall/review-imports/apply', approved); jobs.push(job);
+      assert.equal(job.count, 2); assert.equal(job.state, 'completed');
+      assert.deepEqual(await h.api('/api/stall/review-imports/apply', approved), job);
+      const again = await h.api('/api/stall/review-imports/preview', input);
+      assert.deepEqual(again.counts, { total: 3, mapped: 0, orphans: 1, duplicates: 2 });
+      const repeat = await h.api('/api/stall/review-imports/apply', { ...input, fingerprint: again.fingerprint, excludedRows: [orphan.row] });
+      assert.equal(repeat.count, 0);
+      assert.equal((await h.api('/api/stall/reviews?handle=studio-mug', undefined, { as: '' })).reviews.length, jobs.length + 1);
+      retired = false;
+    }
+    retired = true;
+    const publicReviews = await h.api('/api/stall/reviews?handle=studio-mug', undefined, { as: '' });
+    assert.equal(publicReviews.reviews.length, 3);
+    assert.equal(publicReviews.aggregate.ratingValue, 14 / 3); assert.equal(publicReviews.aggregate.reviewCount, 3);
+    const judge = publicReviews.reviews.find(row => row.source === 'judge-me'), yotpo = publicReviews.reviews.find(row => row.source === 'yotpo');
+    assert.equal(judge.date, '2026-09-17'); assert.equal(yotpo.date, '2026-09-20T09:30:00Z');
+    assert.equal(judge.title, 'Morning favourite'); assert.equal(judge.reviewerName, 'Alex Example');
+    assert.equal(judge.reply, 'Thank you for sharing.'); assert.equal(yotpo.reply, 'Thank you for the photo.');
+    assert.equal(judge.sourceVerified, false); assert.equal(yotpo.sourceVerified, true);
+    for (const review of [judge, yotpo]) {
+      assert.equal(review.imported, true); assert.equal(review.verifiedPurchase, false);
+      assert.ok(!JSON.stringify(review).includes('@')); assert.ok(!JSON.stringify(review).includes('cdn.judge.me'));
+      const copied = await h.request(review.media[0].url, { as: '' });
+      assert.equal(copied.status, 200); assert.equal(copied.headers.get('content-type'), 'image/png');
+      assert.deepEqual(Buffer.from(await copied.arrayBuffer()), photo);
+    }
+    const other = await h.api('/api/stall/reviews?handle=second-mug', undefined, { as: '' });
+    assert.equal(other.reviews.length, 2);
+    assert.equal(other.reviews.find(row => row.source === 'judge-me').body, 'A useful size.\nThe colour matches our kitchen.');
+    assert.equal(other.reviews.find(row => row.source === 'yotpo').sourceVerified, false, 'Verified Reviewer is not a source purchase claim');
+    const exported = await h.api('/api/stall/exports/records');
+    assert.equal(exported.productReviews.reviews.length, 5);
+    assert.equal(exported.productReviews.reviews.find(row => row.source === 'judge-me' && row.product_id === 'synthetic-stall-1511').reviewer_email, 'alex@example.test');
+    assert.equal(h.messages.length, mailBefore, 'No review request or marketing mail');
+    assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM st_customer_consents').first()).n, 0, 'Reviews grant no marketing consent');
+    assert.equal(mediaReads, 2, 'Replays do not re-fetch retired source files');
+    const undone = await h.api(`/api/stall/review-imports/${jobs[0].id}/undo`, {});
+    assert.equal(undone.state, 'undone');
+    assert.deepEqual(await h.api(`/api/stall/review-imports/${jobs[0].id}/undo`, {}), undone);
+    const remaining = await h.api('/api/stall/reviews?handle=studio-mug', undefined, { as: '' });
+    assert.deepEqual(new Set(remaining.reviews.map(row => row.source)), new Set(['native', 'yotpo']));
+    assert.ok(remaining.reviews.some(row => row.id === native.id));
+    assert.equal(remaining.aggregate.ratingValue, 4.5);
+    await h.api(judge.media[0].url, undefined, { as: '', status: 404 });
+  } finally { await h.close(); }
+});
+
+test('Review import authority, stale approvals and failed media never leak or partially apply', async () => {
+  let refused = false;
+  const h = await installation({ outboundService: async request => {
+    const url = new URL(request.url);
+    if (url.hostname === 'cloudflare-dns.com') return Response.json({ Status: 0, Answer: [{ type: 1, data: '8.8.8.8' }] });
+    refused = true; return new Response('Source gone', { status: 410 });
+  } });
+  try {
+    const draft = await h.command('product.prepare', { sku: 'synthetic-stall-1511', name: 'Studio mug', description: '', unitCents: 2800, active: false, details: { handle: 'studio-mug' } });
+    await h.command('product.approve', { sku: draft.id, revision: draft.revision });
+    const source = 'judge-me', csv = (await readFile(new URL('../../fixtures/reviews-judge.csv', import.meta.url), 'utf8')).replaceAll('https://reviews.example.test/photo.png', 'https://cdn.judge.me/synthetic-stall-1.png');
+    const input = { source, csv, mappings: { 3: 'synthetic-stall-1511' } };
+    const member = await h.signIn('synthetic-stall-1515@example.test');
+    const agent = await h.api('/api/stall/agent-token', {});
+    for (const path of ['/api/stall/review-imports/preview', '/api/stall/review-imports/apply', '/api/stall/review-imports/not-a-job/undo']) {
+      await h.api(path, input, { as: '', status: 401 });
+      await h.api(path, input, { as: member, status: 403 });
+      await h.api(path, input, { as: '', headers: { authorization: `Bearer ${agent.token}` }, status: 403 });
+      await h.api(path, input, { headers: { origin: 'https://other.example.test' }, status: 403 });
+    }
+    await h.api('/api/stall/reviews?handle=studio-mug', undefined, { as: '', status: 404 });
+    const preview = await h.api('/api/stall/review-imports/preview', input), excludedRows = preview.rows.filter(row => row.status === 'orphan').map(row => row.row);
+    assert.equal(preview.counts.mapped, 2);
+    assert.ok(!JSON.stringify(preview).includes('alex@example.test'));
+    const current = (await h.api('/api/stall/state')).products[0];
+    await h.command('product.prepare', { ...current.value, sku: current.id, revision: current.revision, name: 'Changed after review' });
+    await h.api('/api/stall/review-imports/apply', { ...input, fingerprint: preview.fingerprint, excludedRows }, { status: 409 });
+    const fresh = await h.api('/api/stall/review-imports/preview', input);
+    await h.api('/api/stall/review-imports/apply', { ...input, fingerprint: fresh.fingerprint, excludedRows }, { status: 409 });
+    assert.equal(refused, true);
+    assert.equal((await h.api('/api/stall/review-imports')).jobs.length, 0);
+    assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM st_reviews').first()).n, 0);
+    const privateCSV = csv.replace('https://cdn.judge.me/synthetic-stall-1.png', 'http://127.0.0.1/private.png');
+    const privatePreview = await h.api('/api/stall/review-imports/preview', { ...input, csv: privateCSV });
+    await h.api('/api/stall/review-imports/apply', { ...input, csv: privateCSV, fingerprint: privatePreview.fingerprint, excludedRows }, { status: 400 });
+    assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM st_review_media').first()).n, 0);
+  } finally { await h.close(); }
+});
+
+test('Review import source maps, owned data and erasure survive transfer without re-importing erased reviewers', async () => {
+  const h = await installation(); let receiving;
+  try {
+    const product = await h.command('product.prepare', { sku: 'synthetic-stall-1511', name: 'Studio mug', description: '', unitCents: 2800, active: false, details: { handle: 'studio-mug' } });
+    await h.command('product.approve', { sku: product.id, revision: product.revision });
+    const header = 'id,product_id,rating,title,body,author,email,created_at,verified\n';
+    const csv = header + 'synthetic-stall-1516,legacy-mug,5,Original,Original content,Reviewer,synthetic-stall-1517@example.test,2024-02-03,TRUE\n';
+    const input = { source: 'shopify', csv, mappings: { 2: product.id } };
+    const preview = await h.api('/api/stall/review-imports/preview', input);
+    await h.api('/api/stall/review-imports/apply', { ...input, fingerprint: preview.fingerprint });
+    const archiveLines = await archive(h);
+    receiving = await installation(); await restore(receiving, archiveLines);
+    const repeat = await receiving.api('/api/stall/review-imports/preview', { source: 'shopify', csv });
+    assert.equal(repeat.rows[0].productId, product.id, 'The reviewed source product ID map travels with the catalog');
+    assert.equal(repeat.counts.duplicates, 1);
+    assert.equal((await receiving.api('/api/stall/exports/records')).productReviews.reviews[0].reviewer_email, 'synthetic-stall-1517@example.test');
+    await receiving.command('customer.erase', { email: 'synthetic-stall-1517@example.test', confirm: 'ERASE' });
+    const fresh = await receiving.api('/api/stall/review-imports/preview', { source: 'shopify', csv });
+    assert.equal(fresh.counts.mapped, 0); assert.equal(fresh.counts.orphans, 1); assert.match(fresh.rows[0].reason, /erased/);
+    assert.deepEqual((await receiving.api('/api/stall/exports/records')).productReviews.reviews, []);
+    assert.ok(!JSON.stringify(await archive(receiving)).includes('synthetic-stall-1517@example.test'));
+    // Other documented source CSV dialects go through the same reviewed public door.
+    for (const [source, columns, row] of [
+      ['okendo', 'reviewId,product_id,rating,body,name,dateCreated,isVerifiedBuyer', 'synthetic-stall-1518,synthetic-stall-1511,5,A cup,Reviewer,2024-02-03,true'],
+      ['loox', 'id,handle,rating,review,nickname,date,verified_purchase', 'synthetic-stall-1519,studio-mug,4,A cup,Reviewer,2024-02-03,true'],
+      ['stamped', 'id,sku,reviewRating,reviewMessage,author,reviewDate,verifiedBuyer', 'synthetic-stall-1520,synthetic-stall-1511,3,A cup,Reviewer,2024-02-03,false'],
+    ]) {
+      const input = { source, csv: columns + '\n' + row + '\n' }, checked = await receiving.api('/api/stall/review-imports/preview', input);
+      assert.equal(checked.counts.mapped, 1);
+      const job = await receiving.api('/api/stall/review-imports/apply', { ...input, fingerprint: checked.fingerprint });
+      assert.equal(job.count, 1);
+    }
+  } finally { await receiving?.close(); await h.close(); }
+});

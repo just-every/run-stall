@@ -1,3 +1,4 @@
+import { reviewBusinessRecords } from './reviews/store'
 import { historyBusinessRecords } from './customers/order-history'
 import { balanceBusinessRecords } from './customers/balances'
 import { merchandisingProposals } from './proposals'
@@ -30,6 +31,7 @@ export async function businessExtensions(db:D1Database) {
   db.prepare('SELECT id,order_id AS orderId,case_id AS caseId,name,mime,size,created_at AS createdAt FROM st_return_files ORDER BY created_at,id').all(),
  ])
  return {
+  productReviews:await reviewBusinessRecords(db),
   merchandisingProposals:await merchandisingProposals(db),
   nativeCart:await cartBusinessRecords(db),
   customerDirectory:await customerBusinessRecords(db),

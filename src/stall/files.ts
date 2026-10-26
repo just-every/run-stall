@@ -1,7 +1,7 @@
 import { fail } from './model'
 
 /** The request body as bytes, refused once it passes `limit`. */
-export async function rawBytes(request: Request, limit: number): Promise<Uint8Array> {
+export async function rawBytes(request: Pick<Request, 'headers' | 'body'>, limit: number): Promise<Uint8Array> {
  if (Number(request.headers.get('content-length') ?? 0) > limit) fail('FILE_SIZE', `A file may be at most ${limit} bytes.`, 413)
  const reader = request.body?.getReader()
  if (!reader) fail('FILE_EMPTY', 'Send the file as the request body.', 400)

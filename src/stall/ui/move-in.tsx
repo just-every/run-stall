@@ -5,6 +5,7 @@ import { request, errorMessage } from './api'
 import { RecordDetail, Notice, Section } from './primitives'
 import { ImportJournal, type Journal } from './import-journal'
 import { Dialog } from './dialog'
+import { ReviewImport } from './review-import'
 
 interface Preview { plan: ImportPlan; fingerprint: string; counts: ImportPlan['counts']; diagnostics: Diagnostic[] }
 
@@ -90,5 +91,6 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
     <div className="st-heading-row"><h2>History</h2><button className="st-secondary" disabled={busy} onClick={() => void act(list)}>Refresh journal</button></div>
     <ImportJournal jobs={jobs} journal={journal} busy={busy} onOpen={id => void act(async () => setJournal(await request<Journal>(`/api/stall/imports/${encodeURIComponent(id)}`)))} onUndo={id => setUndoId(id)} onResume={() => void act(resumeJournal)} />
     {undoId && <Dialog title="Undo this import?" busy={busy} onClose={() => setUndoId('')}><p>Restore the before-images for job {shortId(undoId)}. Later changes and orders can prevent reversal. Review the journal afterwards.</p><div className="st-actions"><button autoFocus className="st-secondary" disabled={busy} onClick={() => setUndoId('')}>Cancel</button><button className="st-danger" disabled={busy} onClick={() => { const id = undoId; setUndoId(''); void act(() => undo(id)) }}>Undo import</button></div></Dialog>}
+    <ReviewImport />
   </Section>
 }

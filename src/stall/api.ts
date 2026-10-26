@@ -1,3 +1,4 @@
+import { reviewResponse } from './reviews/api'
 import { registrationResponse,expireCustomerRegistrations } from './customers/registration'
 import { balanceResponse } from './customers/balances'
 import { proposalBundle, previewProposal, proposalCommand } from './proposals'
@@ -93,6 +94,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   const base=runtimeBindings(original)
   // A demo uses its simulated providers; otherwise saved Settings connections fill unset secrets.
   const env=base.RER_DEMO==='1'?base:await withConnections(base)
+  const reviews=await reviewResponse(request,env);if(reviews)return reviews
   const registration=await registrationResponse(request,env);if(registration)return registration
   const balances=await balanceResponse(request,env);if(balances)return balances
   const guest=await guestOrderResponse(request,env);if(guest)return guest

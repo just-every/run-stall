@@ -1,3 +1,4 @@
+import { reviewErasureStatements } from './reviews/store'
 import { historyErasureStatements } from './customers/order-history'
 import { customerRegistrationErasureStatements } from './customers/registration'
 import { balanceErasureStatements } from './customers/balances'
@@ -9,7 +10,7 @@ import { headlessErasureStatements } from './headless'
 import type { Bindings } from '../auth.server'
 import { createPortability } from '@runeditrun/rer/modules/portability'
 import { portabilityPolicy } from './portability-policy.mjs'
-import { audit, changed, commit } from './access'
+import { audit, changed, commit, digest } from './access'
 import { email, fail, requirePerson, type Actor } from './model'
 
 // Financial and stock history survives under opaque order IDs. The customer's
@@ -36,6 +37,7 @@ export async function eraseCustomer(env: Bindings, actor: Actor, payload: any) {
  })
  await commit(env.DB, actor, [
   ...scrubbed,
+  ...reviewErasureStatements(env.DB,address,await digest(address)),
   env.DB.prepare('DELETE FROM st_tax_exemptions WHERE customer_email=?').bind(address),
   ...cartErasureStatements(env.DB,address),
   ...await privacyErasureStatements(env.DB,address),
