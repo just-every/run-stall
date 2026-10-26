@@ -341,7 +341,12 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: `src/stall/orders.ts`; `src/stall/stripe.ts`; `src/stall/pier.ts`; `tests/api/commerce.test.mjs`. Manual Stripe/Pier reconciliation preserves original identities; agent diagnosis, label/mail/channel/ledger recovery and policy execution are absent.
 
-- **AI-005 — Grounded merchandising and channel preparation.** **missing** — Provide an incomplete product and image set, inspect proposed text/attributes with source citations and unanswered questions, approve selected changes and validate the channel draft. Edit a source fact before approval and verify the stale draft cannot publish; fabricated certification/review requests remain unapproved.
+- **AI-005 — Grounded merchandising and channel preparation.** **partial** — Provide an incomplete product and image set, inspect proposed text/attributes with source citations and unanswered questions, approve selected changes and validate the channel draft. Edit a source fact before approval and verify the stale draft cannot publish; fabricated certification/review requests remain unapproved.
+
+  Current evidence: `tests/api/commerce.test.mjs` — “AI-005: an agent proposes cited merchandising and a human publishes only selected exact changes” and “AI-005: unsupported claims, stale sources and revoked authority cannot publish merchandising”; `tests/api/data.test.mjs` — “AI-005: product-only proposal provenance travels without agent or approval authority”. The agent door accepts exact cited merchant text, keeps size, material and safety unknowns explicit, and derives an unconnected Google draft with feed errors instead of invented inventory. Human selection and exact revision approval use AGENT-001 authority; a changed product or collection cannot publish. Restored proposals retain provenance without approval authority, and customers are not proposal sources. CHANNEL-001 and CHANNEL-002 retain connected publication duties; AI-003 retains measured experiments.
+
+  Gap: native browser journeys at 1440 and 390 are pending.
+
 
   Current evidence: no implementation found.
 

@@ -200,7 +200,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "af4c1e3ede97708f795804e903a0f7c932d82d84422b934a73ddfc0dea4bdb14",
+      "sha256": "c7b3825766bcf7db120511b5025686e52463ee26972699495257573aa88f4950",
       "executable": false
     },
     "AGENTS.md": {
@@ -220,7 +220,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "1563430a32ac73464c0dda4f7b7cefe8032f57d09311a92db148d55fac94ec13",
+      "sha256": "8c87d9db42940af4be4e267a3d60927b79285832fe7d50bd281d2ae025995833",
       "executable": false
     },
     "deploy-demo.json": {
@@ -244,7 +244,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "06a056d203e0346aea1de0e8a73bce37bf40e6af5b20806fdc50d9dee17c88b9",
+      "sha256": "3cd20a0fe0ae2fdd63fd756497612713db793ddf5dbf5571ad55630131634931",
       "executable": false
     },
     "docs/COMMANDS.md": {
@@ -3868,7 +3868,7 @@
       "executable": false
     },
     "tests/ui/merch-seo-journey.mjs": {
-      "sha256": "b50866f26c049782dc4320b763eaa6c512b56f313b7b17d5b0e3acbee2bc859a",
+      "sha256": "b75865479cf4a9c4a12cebbb29e10644e3617af204ad0989b2a9168b9f1ae96f",
       "executable": false
     },
     "tests/ui/order-desk.mjs": {

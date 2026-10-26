@@ -14,7 +14,7 @@ import { finishCleanup } from '../owned-dev.mjs'
 // AI-005: the emitted Worker serves approved SEO from its own migrated native DB.
 // Run after `rer build`. The only simulated boundary is the external stock desk.
 const exec = promisify(execFile), persist = await mkdtemp(join(tmpdir(), 'stall-merch-seo-'))
-const screenshots = resolve(process.env.STALL_SCREENSHOTS ?? 'test-results/merch-seo'), stock = volumeStock(['synthetic-stall-1511'])
+const screenshots = resolve(process.env.STALL_SCREENSHOTS ?? './test-results/merch-seo'), stock = volumeStock(['synthetic-stall-1511'])
 let worker, browser, edge, journeyError, cleaning, workerError
 const pause = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
 function cleanup() {
