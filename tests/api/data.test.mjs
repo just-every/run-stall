@@ -750,3 +750,38 @@ test('AI-005: product-only proposal provenance travels without agent or approval
   await h.api('/api/stall/exports/records',undefined,{as:member,status:403})
  } finally { await destination?.close(); await h.close() }
 })
+
+test('AI-003: experiment history and aggregate page counts travel without approval, running authority or agent credentials', async () => {
+ const { experimentFixture, seedBaseline, priceInput, expSku, expVariant } = await import('./experiment-fixture.mjs')
+ const { volumeStock } = await import('./volume-stock.mjs')
+ const stock=volumeStock([expVariant]), h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-918',PIER_CUSTOMER_ID:'shop'},outboundService:stock.forward})
+ let destination
+ try {
+  const f=await experimentFixture(h)
+  await seedBaseline(h)
+  const read=()=>h.api(`/api/stall/experiments?sku=${expSku}&days=7`,undefined,f.agent)
+  const running=await h.command('experiment.prepare',priceInput((await read()).revision),f.agent)
+  const started=await h.command('experiment.approve',{id:running.id,revision:running.revision})
+  const pending=await h.command('experiment.prepare',priceInput((await read()).revision,{change:{field:'price',percent:5}}),f.agent)
+  const exported=await h.api('/api/stall/exports/records')
+  assert.deepEqual(exported.experiments.map(entry=>entry.id).sort(),[running.id,pending.id].sort())
+  assert.equal(exported.experiments.find(entry=>entry.id===running.id).startBaseline.views,1200)
+  assert.deepEqual(Object.keys(exported.productViews[0]).sort(),['hour','limited','sku','views'],'page counts carry no person, session or address')
+  assert.ok(exported.productViews.reduce((sum,row)=>sum+row.views,0)===1200)
+  await h.api('/api/stall/exports/records',undefined,{...f.agent,status:403})
+  const lines=await archive(h)
+  assert.equal(JSON.stringify(lines).includes(f.grant.token),false)
+  destination=await installation()
+  await restore(destination,lines)
+  const restored=await destination.api(`/api/stall/experiments?sku=${expSku}&days=7`)
+  assert.equal(restored.metrics.views,1200,'restored counts and orders keep the measured history')
+  assert.deepEqual(restored.experiments.map(entry=>[entry.id,entry.status,entry.approval]).sort(),[[pending.id,'restored',undefined],[running.id,'restored',undefined]].sort())
+  assert.deepEqual(restored.experiments.find(entry=>entry.id===running.id).before,started.before)
+  for(const entry of restored.experiments) {
+   await destination.command('experiment.approve',{id:entry.id,revision:entry.revision},{status:409})
+   await destination.command('experiment.stop',{id:entry.id,revision:entry.revision},{status:409})
+  }
+  assert.equal((await destination.api('/api/stall/agent-token')).grants.length,0)
+  await destination.api(`/api/stall/experiments?sku=${expSku}`,undefined,{...f.agent,status:401})
+ } finally { await destination?.close(); await h.close() }
+})

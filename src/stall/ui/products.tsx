@@ -14,6 +14,7 @@ import { shortId, useBusinessTime, usePerson, When } from './presentation'
 import { Icon } from './icons'
 import { BulkProducts } from './bulk-products'
 import { MerchProposals } from './merch-proposals'
+import { Experiments } from './experiments'
 import { Authority } from './authority'
 
 const blank: ProductValue = { sku: '', name: '', description: '', unitCents: 0, active: true }
@@ -70,6 +71,7 @@ function ProductPanel({ product, preparedBy, busy, run, canApprove, onEdit, ship
     </div></div>}
     <div className="st-actions st-panel-actions">{draft && canApprove && <button disabled={busy} onClick={() => void run('product.approve', { sku: product.id, revision: product.revision })}>Approve & publish revision {shortId(product.revision)}</button>}<button className="st-secondary" disabled={busy} onClick={onEdit}>Edit<span className="st-sr-only"> product</span></button></div>
     {canReviewMerch && <MerchProposals key={product.id} product={product} busy={busy} run={run} canApprove={canApprove} />}
+    {canReviewMerch && <Experiments key={product.id} product={product} busy={busy} run={run} canApprove={canApprove} />}
   </div>
 }
 

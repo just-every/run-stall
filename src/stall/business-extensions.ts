@@ -1,6 +1,7 @@
 import { historyBusinessRecords } from './customers/order-history'
 import { balanceBusinessRecords } from './customers/balances'
 import { merchandisingProposals } from './proposals'
+import { experiments } from './experiments'
 import { cartBusinessRecords } from './customers/cart'
 import { privacyBusinessRecords } from './customers/privacy'
 import { customerBusinessRecords } from './customers'
@@ -31,6 +32,8 @@ export async function businessExtensions(db:D1Database) {
  ])
  return {
   merchandisingProposals:await merchandisingProposals(db),
+  experiments:await experiments(db),
+  productViews:(await db.prepare('SELECT hour,sku,views,limited FROM st_product_views ORDER BY hour,sku').all()).results,
   nativeCart:await cartBusinessRecords(db),
   customerDirectory:await customerBusinessRecords(db),
   customerBalances:await balanceBusinessRecords(db),

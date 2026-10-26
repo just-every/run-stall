@@ -19,6 +19,8 @@ export function ProductPage() {
   const [busy, setBusy] = useState(false), [added, setAdded] = useState('')
   useEffect(() => { request<Catalogue>('/api/stall/catalogue').then(setCatalogue, failure => setError(errorMessage(failure))).finally(() => setLoading(false)) }, [])
   const product = catalogue?.products.find(entry => entry.handle === handle)
+  // An aggregate view count: no identifier travels, and a failed count never interrupts shopping.
+  useEffect(() => { if (product?.sku) void request('/api/stall/views', { sku: product.sku }).catch(() => undefined) }, [product?.sku])
   const stocked = product ? catalogue!.items.filter(item => product.skus.includes(item.sku)) : []
   const options = product?.options ?? []
   const item: Item | undefined = options.length ? stocked.find(entry => entry.variant && same(entry.variant.options, picked)) : stocked[0]

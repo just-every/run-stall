@@ -10,6 +10,7 @@ export const portabilityPolicy = {
  // Preserve customer/cart and delivery history without transferring authority.
  exportRow(table,row) {
   if(table==='st_merch_proposals') { const value=JSON.parse(row.value_json); return {...row,value_json:JSON.stringify({...value,status:'restored',approval:undefined})} }
+  if(table==='st_experiments') { const value=JSON.parse(row.value_json); return {...row,value_json:JSON.stringify({...value,status:'restored',approval:undefined})} }
   if(['st_tax_commerce','st_tax_quotes','st_tax_transactions'].includes(table)) return {...row,restored:1}
   if(table==='st_tax_exemptions') return {...row,restored:1}
   if(table==='st_tax_previews') return {...row,restored:1}

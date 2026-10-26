@@ -57,6 +57,7 @@
         "pnpm run test:browser",
         "node tests/ui/integration-journey.mjs",
         "node tests/ui/merch-proposals-journey.mjs",
+        "node tests/ui/experiments-journey.mjs",
         "pnpm run build && node tests/ui/merch-seo-journey.mjs",
         "node tests/ui/bulk-products-journey.mjs",
         "node tests/ui/real-home.mjs tests/ui/staff-journey.mjs",

@@ -1449,3 +1449,117 @@ test('AI-005: unsupported claims, stale sources and revoked authority cannot pub
   assert.equal((await state(h)).audit.filter(event=>event.action==='merch.published').length,0);
  } finally { await h.close() }
 });
+
+test('AI-003: an agent proposes a measured price experiment, a human approves it, and conversion lift with margin erosion is reported and restored', async () => {
+ const { experimentFixture, seedBaseline, seedOrders, seedViews, backdate, ago, day, priceInput, expSku, expVariant } = await import('./experiment-fixture.mjs');
+ const stock=volumeStock([expVariant]); let unavailable=false;
+ const h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-910',PIER_CUSTOMER_ID:'shop'},outboundService:request=>unavailable?Response.json({error:{code:'OFFLINE'}},{status:503}):stock.forward(request)});
+ try {
+  const f=await experimentFixture(h);
+  await seedBaseline(h);
+  const bundle=await h.api(`/api/stall/experiments?sku=${expSku}&days=7`,undefined,f.agent);
+  assert.deepEqual([bundle.metrics.views,bundle.metrics.limitedViews,bundle.metrics.orders,bundle.metrics.marginCents],[1200,20,36,21600]);
+  assert.ok(bundle.sources.some(source=>source.id==='metric:views'&&source.value==='1200'));
+  assert.ok(bundle.unknowns.some(note=>note.includes('Global Privacy Control')));
+  assert.ok(bundle.unknowns.some(note=>note.includes('fees and shipping cost are not recorded')));
+  const proposal=await h.command('experiment.prepare',priceInput(bundle.revision),f.agent);
+  assert.equal(proposal.preparedBy,`agent:${f.grant.id}`);
+  assert.deepEqual([proposal.forecast.unitsExpected,proposal.forecast.unitMarginBeforeCents,proposal.forecast.unitMarginAfterCents,proposal.forecast.marginDeltaCents,proposal.forecast.breakEvenConversionLiftPercent],[36,600,340,-9360,76.47]);
+  assert.equal(proposal.status,'draft');
+  assert.equal((await h.api('/api/stall/catalogue',undefined,{as:''})).items[0].unitCents,2600,'preparation has no publication effect');
+  const payload={id:proposal.id,revision:proposal.revision};
+  stock.setAvailable(expVariant,'10');
+  assert.equal((await h.command('experiment.approve',payload,{status:409})).error.code,'STOCK_INFEASIBLE');
+  stock.setAvailable(expVariant,'10000'); unavailable=true;
+  assert.equal((await h.command('experiment.approve',payload,{status:409})).error.code,'STOCK_UNVERIFIED');
+  unavailable=false;
+  const attempts=await Promise.all([0,1].map(()=>h.request('/api/stall/commands',{method:'POST',body:{type:'experiment.approve',payload}})));
+  assert.deepEqual(attempts.map(response=>response.status).sort(),[200,409],'one exact approval starts the test');
+  const running=(await attempts.find(response=>response.status===200).json()).result;
+  assert.equal(running.status,'running');
+  assert.equal(running.approval.revision,proposal.revision);
+  assert.deepEqual([running.startBaseline.views,running.startBaseline.orders,running.stock.available,running.stock.required],[1200,36,10000,72]);
+  const live=(await h.api('/api/stall/catalogue',undefined,{as:''})).items[0];
+  assert.equal(live.unitCents,2340,'the approved bounded change is live');
+  await backdate(h,running.id);
+  for(const k of [1,2,3]) { const at=ago(k*day); await seedOrders(h,{count:20,at,unitCents:2340,refunded:k===1?2:0}); await seedViews(h,{at,views:400,limited:k===2?10:0}) }
+  const mid=(await h.api(`/api/stall/experiments?sku=${expSku}&days=7`,undefined,f.agent)).experiments[0];
+  assert.deepEqual([mid.live.trial.orders,mid.live.trial.views,mid.live.trial.refundedCents,mid.live.trial.discountSpendCents,mid.live.trial.marginCents],[60,1200,4680,15600,15720]);
+  assert.equal(mid.live.breach,undefined);
+  assert.equal((await h.command('experiment.evaluate',{id:running.id},{...f.agent,status:403})).error.code,'PERSON_REQUIRED');
+  assert.equal((await h.command('experiment.evaluate',{id:running.id})).status,'running');
+  await h.db.prepare("UPDATE st_experiments SET value_json=json_set(value_json,'$.endsAt',?) WHERE id=?").bind(ago(3600000),running.id).run();
+  const done=await h.command('experiment.evaluate',{id:running.id});
+  assert.deepEqual([done.status,done.stop.kind,done.stop.rolledBack],['completed','ended',true]);
+  assert.deepEqual([done.result.outcome,done.result.conversionLiftPercent,done.result.conversionSignificant,done.result.conversionUpMarginDown,done.result.marginPerViewChangeCents],['margin_eroded',66.67,true,true,-4.9]);
+  assert.equal((await h.api('/api/stall/catalogue',undefined,{as:''})).items[0].unitCents,2600,'the earlier price is restored when the window ends');
+  const restored=(await state(h)).products.find(p=>p.id===expSku);
+  assert.equal(restored.value.unitCents,2400);
+  assert.equal(restored.value.approval.revision,f.product.value.approval.revision);
+  await h.command('experiment.stop',{id:done.id,revision:done.revision},{status:409});
+  const actions=(await state(h)).audit.map(event=>event.action);
+  assert.deepEqual(['experiment.prepared','experiment.started','experiment.completed'].map(action=>actions.filter(item=>item===action).length),[1,1,1]);
+ } finally { await h.close() }
+});
+
+test('AI-003: unsupported claims, stale sources, stop rules and later merchant edits are refused or honoured', async () => {
+ const { experimentFixture, seedOrders, seedViews, backdate, ago, day, priceInput, budget, expSku, expVariant } = await import('./experiment-fixture.mjs');
+ const stock=volumeStock([expVariant]);
+ const h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-913',PIER_CUSTOMER_ID:'shop'},outboundService:stock.forward});
+ try {
+  const f=await experimentFixture(h), read=()=>h.api(`/api/stall/experiments?sku=${expSku}&days=7`,undefined,f.agent);
+  const prepare=async(extra,change)=>h.command('experiment.prepare',{...priceInput((await read()).revision,extra),...(change?{change}:{})},f.agent);
+  const visit=(headers={},body={sku:expSku})=>h.request('/api/stall/views',{method:'POST',as:'',body,headers});
+  assert.equal((await (await visit()).json()).counted,true);
+  assert.deepEqual(await (await visit({'sec-gpc':'1'})).json(),{counted:false,limited:true});
+  assert.equal((await (await visit({'user-agent':'Googlebot/2.1'})).json()).counted,false);
+  assert.equal((await visit({origin:'https://synthetic-stall-916.test'})).status,403);
+  assert.equal((await visit({},{sku:'synthetic-stall-917'})).status,404);
+  assert.deepEqual(await h.db.prepare('SELECT SUM(views) AS views,SUM(limited) AS limited FROM st_product_views').first(),{views:1,limited:1},'only aggregate counts are kept');
+  const bundle=await read(), input=priceInput(bundle.revision), price=()=>h.api('/api/stall/catalogue',undefined,{as:''}).then(value=>value.items[0].unitCents);
+  for(const [change,code] of [
+   [{...input,forecast:{marginDeltaCents:99999}},'UNSUPPORTED_CLAIM'],
+   [{...input,change:{field:'inventory',percent:5}},'UNSUPPORTED_CLAIM'],
+   [{...input,change:{field:'reviews',value:'Five stars'}},'UNSUPPORTED_CLAIM'],
+   [{...input,change:{field:'description',value:'Certified food-safe',citations:['name']}},'UNSUPPORTED_CLAIM'],
+   [{...input,citations:['metric:missing']},'UNSUPPORTED_CLAIM'],
+   [{...input,citations:['price']},'UNSUPPORTED_CLAIM'],
+   [{...input,change:{field:'price',percent:50}},'INPUT'],
+   [{...input,budget:budget({minViews:5})},'INPUT'],
+   [{...input,budget:{durationDays:7}},'INPUT'],
+  ]) assert.equal((await h.command('experiment.prepare',change,{...f.agent,status:400})).error.code,code);
+  const draft=await h.command('experiment.prepare',input,f.agent), payload={id:draft.id,revision:draft.revision}, member=await h.signIn('synthetic-stall-914@example.test');
+  await h.command('experiment.prepare',input,{status:403});
+  assert.equal((await h.command('experiment.approve',payload,{...f.agent,status:403})).error.code,'PERSON_REQUIRED');
+  for(const opts of [{as:'',status:401},{as:member,status:403},{headers:{origin:'https://synthetic-stall-915.test'},status:403}]) await h.command('experiment.approve',payload,opts);
+  await h.api(`/api/stall/experiments?sku=${expSku}`,undefined,{as:member,status:403});
+  const edited=(await state(h)).products.find(p=>p.id===expSku), revised=await h.command('product.prepare',{...edited.value,description:'Merchant corrected the description',revision:edited.revision});
+  await h.command('product.approve',{sku:expSku,revision:revised.revision});
+  assert.equal((await h.command('experiment.approve',payload,{status:409})).error.code,'SOURCE_CHANGED');
+  assert.equal(await price(),2600,'a refused approval changes nothing');
+  const tight=await prepare({budget:budget({maxDiscountCents:5000})});
+  const halted=await h.command('experiment.approve',{id:tight.id,revision:tight.revision});
+  await h.command('experiment.approve',{id:tight.id,revision:tight.revision},{status:409});
+  await backdate(h,halted.id); await seedOrders(h,{count:20,at:ago(day),unitCents:2340}); await seedViews(h,{at:ago(day),views:400});
+  const breached=(await read()).experiments.find(entry=>entry.id===halted.id);
+  assert.match(breached.live.breach,/Discount spend reached/);
+  assert.equal(await price(),2340);
+  assert.equal((await (await h.mf.getWorker()).scheduled({scheduledTime:new Date(),cron:'* * * * *'})).outcome,'ok');
+  const stopped=(await read()).experiments.find(entry=>entry.id===halted.id);
+  assert.deepEqual([stopped.status,stopped.stop.kind,stopped.stop.by,stopped.stop.rolledBack,stopped.result.outcome],['stopped','rule','experiment-rule',true,'inconclusive']);
+  assert.ok(stopped.result.reasons.some(reason=>reason.includes('minimum')),'thin evidence is inconclusive, not a win');
+  assert.equal(await price(),2600,'the preapproved rule restored the earlier price');
+  assert.equal((await h.command('experiment.evaluate',{id:halted.id},{status:409})).error.code,'CHANGED','a halted test is never restarted or extended');
+  const copy=await prepare({},{field:'description',value:'Merchant corrected the description · Matte glaze',citations:['description','fact:finish']});
+  const running=await h.command('experiment.approve',{id:copy.id,revision:copy.revision});
+  assert.equal((await h.api('/api/stall/catalogue',undefined,{as:''})).products[0].description,'Merchant corrected the description · Matte glaze');
+  const mid=(await state(h)).products.find(p=>p.id===expSku), later=await h.command('product.prepare',{...mid.value,description:'The merchant rewrote this during the test',revision:mid.revision});
+  await h.command('product.approve',{sku:expSku,revision:later.revision});
+  const left=await h.command('experiment.stop',{id:running.id,revision:running.revision});
+  assert.deepEqual([left.status,left.stop.kind,left.stop.rolledBack],['stopped','manual',false]);
+  assert.equal((await h.api('/api/stall/catalogue',undefined,{as:''})).products[0].description,'The merchant rewrote this during the test','a later merchant edit is never overwritten');
+  await h.api('/api/stall/agent-token/revoke',{grantId:f.grant.id});
+  await h.api(`/api/stall/experiments?sku=${expSku}`,undefined,{...f.agent,status:401});
+  await h.command('experiment.prepare',input,{...f.agent,status:401});
+ } finally { await h.close() }
+});

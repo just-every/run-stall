@@ -1,6 +1,8 @@
 import { registrationResponse,expireCustomerRegistrations } from './customers/registration'
 import { balanceResponse } from './customers/balances'
 import { proposalBundle, previewProposal, proposalCommand } from './proposals'
+import { experimentBundle,experimentCommand,runExperiments } from './experiments'
+import { recordView } from './experiments/views'
 import { recoverTaxTransaction } from './tax/transactions'
 import { taxCommerceState,ownerTaxCommerceState,publicTaxCommerce,ownerTaxCommerce } from './tax/commerce'
 import { quoteTax } from './tax/commerce-quote'
@@ -113,6 +115,10 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own product page.',403)
    return json(await validateLine(env,await body(request)))
   }
+  if(path==='/api/stall/views'&&request.method==='POST') {
+   if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own product page.',403)
+   return json(await recordView(env.DB,request,await body(request)))
+  }
   if(path==='/api/stall/menus'&&request.method==='GET') return json({menus:await menuLinks(env.DB)})
   if(path==='/api/stall/discover'&&['GET'].includes(request.method)) {
    const params=new URL(request.url).searchParams,found=await discoverySource(env),result=discover(found,readFilters(params))
@@ -171,6 +177,12 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    if(path==='/api/stall/merchandising'&&request.method==='GET')return json(await proposalBundle(env.DB,text(new URL(request.url).searchParams.get('sku'),'Product SKU',100)))
    if(path==='/api/stall/merchandising/preview'&&request.method==='POST')return json(await previewProposal(env,await body(request)))
   }
+  if(path==='/api/stall/experiments'&&request.method==='GET') {
+   if(!['owner','admin'].includes(actor.role)||actor.staffRole) fail('FORBIDDEN','Only the owner or administrator may read experiments.',403)
+   await live(env,actor)
+   const search=new URL(request.url).searchParams
+   return json(await experimentBundle(env.DB,text(search.get('sku'),'Product SKU',100),Number(search.get('days')||14)))
+  }
   if(path==='/api/stall/search-report'&&request.method==='GET') { authorize(actor,'marketing');requirePerson(actor);return json(await searchReport(env.DB)) }
   if(path==='/api/stall/media'&&request.method==='POST') { authorize(actor,'catalog');return json(await uploadMedia(env,actor,request)) }
   if(path.startsWith('/api/stall/uploads/')&&request.method==='GET') { authorize(actor,'orders');requirePerson(actor);return await uploadResponse(env,decodeURIComponent(path.slice(19))) }
@@ -216,7 +228,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   if(path==='/api/stall/commands'&&request.method==='POST') {
    const p=await body(request),type=p.type,payload=p.payload
    if(typeof type!=='string'||!payload||typeof payload!=='object'||Array.isArray(payload)) fail('INPUT','A command has a type and payload.',400)
-   if(actor.agent&&!['product.prepare','shipment.prepare','refund.prepare','merch.prepare'].includes(type)) fail('PERSON_REQUIRED','Agents prepare drafts; a person must review and approve.',403)
+   if(actor.agent&&!['product.prepare','shipment.prepare','refund.prepare','merch.prepare','experiment.prepare'].includes(type)) fail('PERSON_REQUIRED','Agents prepare drafts; a person must review and approve.',403)
    authorizeCommand(actor,type)
    await live(env,actor)
    let result:unknown
@@ -225,6 +237,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    else if(type.startsWith('return.')) result=await returnCommand(env,actor,type,payload)
    else if(type==='staff.configure') result=await staffCommand(env,actor,payload)
    else if(['merch.prepare','merch.approve'].includes(type)) result=await proposalCommand(env,actor,type,payload)
+   else if(type.startsWith('experiment.')) result=await experimentCommand(env,actor,type,payload)
    else if(['product.prepare','product.approve'].includes(type)) result=await productCommand(env,actor,type,payload)
    else if(['shipment.prepare','shipment.approve'].includes(type)) result=await shipmentCommand(env,actor,type,payload)
    else if(['refund.prepare','refund.approve'].includes(type)) result=await refundCommand(env,actor,type,payload)
@@ -260,4 +273,5 @@ export async function stallScheduled(original:Bindings) {
  await releaseExpiredHolds(env)
  await runWorkflows(env)
  await observeStock(env)
+ await runExperiments(env)
 }
