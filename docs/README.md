@@ -8,6 +8,7 @@ Stall is a shop of your own for a US maker or small shop whose stock lives in Pi
 | [Products](PRODUCTS.md) | Prepare a product, publish the reviewed revision and change a listing. |
 | [Collections, menus and search](SHOPFRONT.md) | Group products, build menus, tune search and read the search report. |
 | [Orders, shipping and refunds](ORDERS.md) | Follow payment and stock, approve shipping, refund a line and recover pending work. |
+| [Returns, exchanges and cancellations](RETURNS.md) | Publish a return policy, review eligible-line requests, decide with an explanation and set an exchange aside. |
 | [Shipping profiles](SHIPPING.md) | Group products into profiles with their own zones, services, rates, pickup and local delivery, and assign them in bulk. |
 | [Move in from Shopify](MOVE-IN.md) | Prepare the supported CSV, review and apply an import, resume or undo it. |
 | [Staff permissions](STAFF-PERMISSIONS.md) | Invite staff, assign functional shop access and configure refund controls. |
