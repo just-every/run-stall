@@ -1,10 +1,12 @@
+import { historicalOrders } from './order-history'
 import type { Bindings } from '../../auth.server'
 import { current } from '../access'
 import { fail,text,type Actor,type Order } from '../model'
 import { orders,readOrder } from '../store'
 export async function customerActor(request:Request,env:Bindings) {
  if(request.headers.has('authorization')) fail('CUSTOMER_AUTH','Use your independently verified native customer session.',401)
- const actor=await current(request,env)
+ let actor:Actor
+ try{actor=await current(request,env)}catch(error){if(error instanceof Error&&'status' in error&&error.status===401)fail('CUSTOMER_AUTH','Sign in with the verified email on your orders.',401);throw error}
  if(!['GET','HEAD'].includes(request.method)&&request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own account page.',403)
  await requireProvenEmail(env,actor.sessionId!,actor.id)
  return actor
@@ -35,9 +37,9 @@ export async function account(env:Bindings,a:Actor) {
  const email=a.email.toLowerCase()
  const history=(await orders(env.DB)).filter(o=>!o.erasedAt&&o.customerEmail?.toLowerCase()===email).sort((x,y)=>y.createdAt.localeCompare(x.createdAt)||y.id.localeCompare(x.id))
  const addresses=(await env.DB.prepare('SELECT id,revision,value_json FROM st_customer_addresses WHERE email=? ORDER BY created_at,id').bind(email).all<any>()).results.map(({value_json,...r})=>({...r,address:JSON.parse(value_json)}))
- const requests=(await env.DB.prepare(`SELECT id,order_id AS orderId,kind,created_at AS createdAt FROM st_workflow_requests WHERE order_id IN(SELECT id FROM st_orders WHERE lower(json_extract(value_json,'$.customerEmail'))=? AND json_extract(value_json,'$.erasedAt') IS NULL) ORDER BY created_at DESC,id`).bind(email).all()).results
+ const requests=(await env.DB.prepare(`SELECT id,order_id AS orderId,kind,created_at AS createdAt,(SELECT created_at FROM st_return_receipts receipt WHERE receipt.request_id=st_workflow_requests.id) AS goodsReceivedAt FROM st_workflow_requests WHERE order_id IN(SELECT id FROM st_orders WHERE lower(json_extract(value_json,'$.customerEmail'))=? AND json_extract(value_json,'$.erasedAt') IS NULL) ORDER BY created_at DESC,id`).bind(email).all()).results
  await customerCommit(env,a)
- return {email,orders:history.map(customerOrder),addresses,requests,giftBalanceStatus:'not_available',authentication:'native_verified_email_invitation',registration:'owner_invitation_required'}
+ return {email,orders:[...history.map(customerOrder),...await historicalOrders(env.DB,email)].sort((x,y)=>y.createdAt.localeCompare(x.createdAt)||y.id.localeCompare(x.id)),addresses,requests,giftBalanceStatus:'not_available',authentication:'native_verified_email_invitation',registration:'owner_invitation_required'}
 }
 export function addressValue(p:any) {
  if(!p||typeof p!=='object'||Array.isArray(p)||!['US','CA'].includes(p.country)) fail('INPUT','Choose a US or Canadian address.',400)

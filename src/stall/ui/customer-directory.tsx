@@ -1,3 +1,4 @@
+import { HistoricalOrderImport } from './customer-history-import'
 import { MerchantCustomerBalances } from './customer-balances'
 import { RegistrationRequests } from './customer-registration'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
@@ -143,6 +144,7 @@ export function CustomerDirectory({ canManage, canReviewRegistration=false, quer
     {data && <>
       {canReviewRegistration&&<RegistrationRequests/>}
       {canManage && <CustomerImport busy={busy} apply={apply} />}
+      <HistoricalOrderImport canManage={canManage} onImported={refresh}/>
       <section className="st-panel st-stack" aria-label="Saved customer segments"><h2>Saved segments</h2>
         <div className="st-actions"><button className="st-secondary" disabled={busy} onClick={() => setEditing(null)}>New segment</button></div>
         {editing !== undefined && <SegmentEditor key={editing?.revision ?? 'new'} segment={editing ?? undefined} busy={busy} save={apply} close={() => setEditing(undefined)} />}

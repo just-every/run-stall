@@ -1,3 +1,4 @@
+import { historyImportResponse,ownHistoricalOrder } from './order-history'
 import type { Bindings } from '../../auth.server'
 import { current,live } from '../access'
 import { fail,Problem } from '../model'
@@ -12,7 +13,7 @@ export async function customerResponse(request:Request,env:Bindings):Promise<Res
  if(path==='/api/stall/account'||path.startsWith('/api/stall/account/')) {
   const actor=await customerActor(request,env)
   if(path==='/api/stall/account'&&request.method==='GET')return json(await account(env,actor))
-  if(path.startsWith('/api/stall/account/orders/')&&request.method==='GET')return json({order:customerOrder(await ownOrder(env,actor,decodeURIComponent(path.slice('/api/stall/account/orders/'.length))))})
+  if(path.startsWith('/api/stall/account/orders/')&&request.method==='GET'){const id=decodeURIComponent(path.slice('/api/stall/account/orders/'.length));return json({order:id.startsWith('history-')?(await ownHistoricalOrder(env,actor,id)).order:customerOrder(await ownOrder(env,actor,id))})}
   if(path==='/api/stall/account/addresses'&&['POST','DELETE'].includes(request.method))return json(await saveAddress(env,actor,await input(request),request.method==='DELETE'))
   return fail('NOT_FOUND','Unknown customer account door.',404)
  }
@@ -20,6 +21,7 @@ export async function customerResponse(request:Request,env:Bindings):Promise<Res
   const actor=await current(request,env);directoryAuthority(actor)
   if(request.method!=='GET'&&request.headers.get('origin')!==env.AUTH_ORIGIN)fail('ORIGIN','Use this installation’s customer desk.',403)
   await live(env,actor)
+  const historical=await historyImportResponse(request,env,actor);if(historical)return historical
   if(path==='/api/stall/customers'&&request.method==='GET')return json(await directory(env,actor))
   if(path==='/api/stall/customers/addresses'&&['POST','DELETE'].includes(request.method))return json(await merchantAddress(env,actor,await input(request),request.method==='DELETE'))
   if(path==='/api/stall/customers/import/preview'&&request.method==='POST')return json(await preview(env,actor,await input(request)))
