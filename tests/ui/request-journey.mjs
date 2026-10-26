@@ -96,6 +96,7 @@ try {
   await page.getByRole('article', { name: `Case ${exchange.id}`, exact: true }).getByRole('button', { name: 'View photo shelf.png' }).waitFor()
   await decide(exchange, 'Accept request', 'We have set the large size aside for you.')
   await decide(refund, 'Refuse request', 'The glaze matches the listing, so this is outside our policy.')
+  await page.setViewportSize({ width: 1440, height: 1000 }); console.log('WIDE', JSON.stringify(await page.evaluate(() => [innerWidth, document.documentElement.scrollWidth, ...[...document.querySelectorAll('*')].filter(e => e.getBoundingClientRect().right > innerWidth + 1).slice(0, 6).map(e => e.tagName + '.' + e.className + ':' + Math.round(e.getBoundingClientRect().right) + ':' + (e.textContent || '').slice(0, 40))])))
   await capture('RETURN-001-staff-decided', page.getByRole('region', { name: 'Return, exchange and cancellation requests', exact: true }))
   // Customers read the decision and progress; nothing about the order, money or stock moved.
   as = ana; await page.goto(ready.url + '/order'); await page.reload()
