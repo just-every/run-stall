@@ -49,7 +49,8 @@ async function save(env:Bindings,ctx:CartContext,p:any) {
  if(previous&&(previous.revision!==p.revision||previous.checkout_key))fail('CART_LOCKED','Cart changed or checkout already started. Review or copy it before changing it.')
  const address=ctx.actor?ctx.actor.email.toLowerCase():p.customerEmail?email(p.customerEmail):''
  if(ctx.actor&&p.customerEmail&&email(p.customerEmail)!==address)fail('CUSTOMER_AUTH','An account checkout uses only its verified mailbox.',403)
- const value={lines:selection(p.lines??[]),customerEmail:address,...(p.shopper!==undefined?{shopper:p.shopper}:{}),...(p.shipping!==undefined?{shipping:p.shipping}:{}),...(p.promotionCode!==undefined?{promotionCode:promotionCode(p.promotionCode)}:{})}
+ const lineage=previous?JSON.parse(previous.value_json).reorder:undefined
+ const value={...(lineage?{reorder:lineage}:{}),lines:selection(p.lines??[]),customerEmail:address,...(p.shopper!==undefined?{shopper:p.shopper}:{}),...(p.shipping!==undefined?{shipping:p.shipping}:{}),...(p.promotionCode!==undefined?{promotionCode:promotionCode(p.promotionCode)}:{})}
  if(!previous)return cartPublic(await cartCreate(env,ctx,value))
  const own=ownership(ctx)
  await cartWrite(env,ctx,[env.DB.prepare(`UPDATE st_shop_carts SET value_json=?,revision=?,updated_at=?,review_digest=NULL WHERE id=? AND revision=? AND checkout_key IS NULL AND ${own.sql}`).bind(JSON.stringify(value),crypto.randomUUID(),new Date().toISOString(),previous.id,previous.revision,own.value),changed(env.DB)])

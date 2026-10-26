@@ -3008,7 +3008,7 @@
       "executable": false
     },
     "src/stall/customers/cart.ts": {
-      "sha256": "9bd44499703f0a1a83e30f6b73d706d4e4c9cac1876ec8bb0fe19caa1ba9a959",
+      "sha256": "03b944a650891139f8429a1d78b2c00a6cacbb815dd68c0bc32a69154bb5cb8a",
       "executable": false
     },
     "src/stall/customers/checkout-details.ts": {
@@ -3460,7 +3460,7 @@
       "executable": false
     },
     "src/stall/ui/customer-account.tsx": {
-      "sha256": "25e4fc4bd88df5d12d1abfc087152af7938b7a2bb14efb937e4a350b970814c2",
+      "sha256": "51c0a43923bc72131e41c33be139bc8c855c8e4a2673390b733bb9c537d116c2",
       "executable": false
     },
     "src/stall/ui/customer-directory.tsx": {
@@ -3632,7 +3632,7 @@
       "executable": false
     },
     "src/stall/ui/reorder-cart.tsx": {
-      "sha256": "bce1ae034dec0e98ef0e9341f4398216c63495dfa8dd32cefcd5137f2f22f108",
+      "sha256": "52efc9aba828da2b7b42c533e2b4410bc3c00371aca855d7f4ee16ba3037cd7f",
       "executable": false
     },
     "src/stall/ui/request-intake.tsx": {
@@ -3880,7 +3880,7 @@
       "executable": false
     },
     "tests/ui/customer-account-journey.mjs": {
-      "sha256": "db79dd81e505519c8477e94e795c1cbac9840714ee4783c6b6eade079e19f36b",
+      "sha256": "09e73bbd92cdae463f6031308766eaf7664f551d7ac32ff4c6de0caa297c65c8",
       "executable": false
     },
     "tests/ui/customer-directory-journey.mjs": {

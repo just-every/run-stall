@@ -18,6 +18,7 @@ try {
  const uploaded=await (await sendFile(h,'/api/stall/personalization/upload?sku=synthetic-stall-1604&field=art&name=artwork.png',png(),'image/png',{as:''})).json()
  const withFile=await h.api('/api/stall/checkout',{customerEmail:email,lines:[{sku:'synthetic-stall-1604',quantity:1,personalization:{art:uploaded.fileId}}],idempotencyKey:randomUUID()},{as:''})
  await deliverWebhook(h,secret,edge.pay([...edge.sessions.values()].find(s=>s.client_reference_id===withFile.orderId).id))
+ await h.api('/api/stall/checkout-fields',{revision:'initial',fields:[{key:'occasion',label:'Occasion',type:'choice',required:true,choices:['Birthday','Thank you']}]})
  let as=member,guestCookie=''
  await context.route('**/api/stall/**',async route=>{const req=route.request(),url=new URL(req.url());const response=await h.request(url.pathname+url.search,{method:req.method(),as:as?as:guestCookie,headers:{...(req.headers()['x-stall-order-token']?{'x-stall-order-token':req.headers()['x-stall-order-token']}:{})},...(req.postData()?{body:JSON.parse(req.postData())}:{})});const cookies=response.headers.getSetCookie();if(cookies.length)guestCookie=cookies.map(v=>v.split(';')[0]).join('; ');await route.fulfill({status:response.status,headers:{'content-type':response.headers.get('content-type')??'application/json'},body:Buffer.from(await response.arrayBuffer())})})
  for(const width of [1440,390]) {
@@ -42,6 +43,7 @@ try {
   assert.match(await page.locator('main').innerText(),/synthetic-stall-1602: There is not enough stock/)
   assert.deepEqual([edge.sessions.size,edge.pierCalls.length,stock.orders.size,(await h.api('/api/stall/state')).orders.length],effects)
   await page.locator('summary').filter({hasText:'Delivery address'}).click();assert.equal(await page.getByLabel('Postal code',{exact:true}).inputValue(),'78702')
+  await page.getByLabel('Occasion (required)',{exact:true}).selectOption('Thank you')
   await capture(`reorder-changes-${width}`)
   await page.getByRole('button',{name:'Review current total',exact:true}).click();await page.getByRole('button',{name:'Pay $66.00 with Stripe',exact:true}).waitFor()
   await capture(`reorder-total-${width}`)
@@ -58,7 +60,7 @@ try {
   await page.getByRole('button',{name:'Back to order history',exact:true}).click()
   await firstCard.getByRole('button',{name:/^Create guest order link/}).click();const href=await page.getByRole('link',{name:'Open guest order link',exact:true}).getAttribute('href')
   as='';guestCookie='';await page.goto(href);await page.getByRole('heading',{name:'Your guest order',exact:true}).waitFor();assert.equal(await page.getByRole('article').count(),1);assert.ok(!page.url().includes('orderLink'))
-  await capture(`guest-order-${width}`);await page.getByRole('button',{name:/^Reorder/}).click();await page.getByRole('heading',{name:'Review your reorder',exact:true}).waitFor();await capture(`guest-reorder-${width}`)
+  await capture(`guest-order-${width}`);await page.getByRole('button',{name:/^Reorder/}).click();await page.getByRole('heading',{name:'Review your reorder',exact:true}).waitFor();await page.getByLabel('Occasion (required)',{exact:true}).selectOption('Birthday');await page.getByRole('button',{name:'Review current total',exact:true}).click();await page.getByRole('button',{name:'Pay $66.00 with Stripe',exact:true}).waitFor();await capture(`guest-reorder-${width}`)
   as=other;await page.goto(ready.url+'/order');assert.equal(await page.getByRole('article',{name:'Order '+first.orderId,exact:true}).count(),0)
   assert.equal(await page.evaluate(async id=>(await fetch('/api/stall/cart/reorder',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({orderId:id})})).status,first.orderId),404)
   await capture(`foreign-order-refused-${width}`)
