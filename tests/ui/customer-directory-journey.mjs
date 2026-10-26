@@ -13,6 +13,7 @@ try {
     const fixture = 2110 + index * 10, firstEmail = `synthetic-stall-${fixture}@example.test`, secondEmail = `synthetic-stall-${fixture + 1}@example.test`, name = `synthetic-stall-${fixture + 2}`, note = `synthetic-stall-${fixture + 3}`
     await page.setViewportSize({ width, height: 1000 })
     await page.goto(ready.url + '/app#customers')
+    await page.reload()
     await page.getByRole('heading', { name: 'Customers', exact: true, level: 1 }).waitFor()
     const accountMenu = page.getByRole('button', { name: /^Account menu for/ }), tooltip = page.getByRole('tooltip', { includeHidden: true })
     await accountMenu.focus(); await tooltip.waitFor({ state: 'visible' }); assert.equal(await tooltip.textContent(), 'Account menu')
@@ -119,6 +120,7 @@ try {
     await route.fulfill({ status: response.status, headers: { 'content-type': 'application/json' }, body: Buffer.from(await response.arrayBuffer()) })
   })
   await page.goto(ready.url + '/app#customers')
+  await page.reload()
   await page.getByRole('article', { name: 'Customer synthetic-stall-2110@example.test', exact: true }).waitFor()
   assert.equal(await page.getByText('Import customers', { exact: true }).count(), 0)
   const customer = page.getByRole('article', { name: 'Customer synthetic-stall-2110@example.test', exact: true })

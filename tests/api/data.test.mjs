@@ -520,7 +520,7 @@ test('customer directory resolves duplicates without granting account access and
   const address={name:'synthetic-stall-2150',line1:'1 Maker Lane',line2:'',city:'Austin',state:'TX',postal_code:'78702',country:'US'}
   const addressPayload={customerId:first.id,customerRevision:first.revision,email:firstEmail,address}
   await h.api('/api/stall/customers/addresses',{...addressPayload,email:otherEmail},{status:404})
-  for(const refused of [{as:alice,status:403},{as:support,status:403},{as:'',headers:{authorization:`Bearer ${grant.token}`},status:403}])await h.api('/api/stall/customers/addresses',addressPayload,refused)
+  for(const refused of [{as:'',status:401},{as:alice,status:403},{as:support,status:403},{as:'',headers:{authorization:`Bearer ${grant.token}`},status:403}])await h.api('/api/stall/customers/addresses',addressPayload,refused)
   await h.api('/api/stall/customers/addresses',addressPayload,{headers:{origin:'https://synthetic-stall-2151.test'},status:403})
   await h.api('/api/stall/customers/addresses',{...addressPayload,address:{...address,country:'GB'}},{status:400})
   dir=await h.api('/api/stall/customers/addresses',addressPayload);first=dir.customers.find(c=>c.id===first.id)

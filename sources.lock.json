@@ -3792,7 +3792,7 @@
       "executable": false
     },
     "tests/api/data.test.mjs": {
-      "sha256": "cc775ae0d3169eb90719e7129e5868eb5b442a9054279ee892ded8dd4ca7d15a",
+      "sha256": "b08b70f1f62ee19075dd132ca6b72a16935f2ab51dc7dac5135554a0692dc6c6",
       "executable": false
     },
     "tests/api/demo-worker.ts": {
@@ -3888,7 +3888,7 @@
       "executable": false
     },
     "tests/ui/customer-directory-journey.mjs": {
-      "sha256": "74c4dcd873ea744a8f22ab50c41badda1383b2bd8fb6b025a3a2ee0ba5bc9bf2",
+      "sha256": "2e3cc613e6bc2c435688e446f855f7f2f6215afb4eaad726fe2e2d75c1821e23",
       "executable": false
     },
     "tests/ui/demo-journey.mjs": {
