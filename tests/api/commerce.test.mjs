@@ -980,7 +980,7 @@ test('functional staff grants isolate workflows, customer records and stale prep
   for(const [i,role] of ['catalog','fulfillment','customer_support','marketing','finance','administrator'].entries()) {
    const cookie=await h.signIn(`synthetic-stall-${510+i}@example.test`),person=(await h.api('/auth/session',undefined,{as:cookie})).operator
    people[role]={cookie,...person}
-   await h.command('staff.configure',{actorId:person.id,staffRole:role,refundLimitCents:1500,separateApproval:true})
+   await h.command('staff.configure',{actorId:person.id,staffRole:role,refundLimitCents:1500})
   }
   const bought=await purchase(h,edge,{skus:[sku],quantities:[1],expectedTotalCents:3000,email:'synthetic-stall-520@example.test'})
   await deliverWebhook(h,secret,edge.pay(bought.session.id))
@@ -1016,7 +1016,11 @@ test('functional staff grants isolate workflows, customer records and stale prep
   await h.api('/api/stall/orders',undefined,{as:people.fulfillment.cookie,status:403})
   current=await h.command('shipment.approve',{orderId:current.id,revision:shipment.revision})
   const refund=await h.command('refund.prepare',{orderId:current.id,revision:current.revision,kind:'goodwill',amountCents:1000,reason:'Service adjustment'},{as:people.finance.cookie})
-  await h.command('refund.approve',{orderId:current.id,revision:refund.revision},{as:people.finance.cookie,status:403})
+  assert.equal((await h.command('refund.approve',{orderId:current.id,revision:refund.revision},{as:people.finance.cookie,status:403})).error.code,'SEPARATE_APPROVAL')
+  assert.equal(edge.refunds.size,0)
+  await h.command('staff.configure',{actorId:people.finance.id,staffRole:['finance','catalog']},{status:400})
+  await h.command('staff.configure',{actorId:people.finance.id,staffRole:'finance',separateApproval:false})
+  assert.equal((await h.command('refund.approve',{orderId:current.id,revision:refund.revision},{as:people.finance.cookie,status:403})).error.code,'REFUND_LIMIT')
   assert.equal(edge.refunds.size,0)
   await h.command('staff.configure',{actorId:people.finance.id,staffRole:'finance',refundLimitCents:500,separateApproval:false})
   await h.command('refund.approve',{orderId:current.id,revision:refund.revision},{as:people.finance.cookie,status:403})
