@@ -200,7 +200,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "15e9159446ff98796dc322f4c41f269c0888c1e5bfca6f90c7be7ec3c8569c04",
+      "sha256": "e5425791369c2cf9f0b25eb2114e91e4deaddfdeb710017175f1e70c16ef095d",
       "executable": false
     },
     "AGENTS.md": {
@@ -220,7 +220,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "36a9da72e62979700e5b0d33328a3c36eb179580974dbb1a9defc872f9d0d0dd",
+      "sha256": "ab13334449f00d6b199c258ef9dcb5fb9f100a1bc25b6c4296fd517701010115",
       "executable": false
     },
     "deploy-demo.json": {
@@ -244,7 +244,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "22ccfb69d101e35b558f01f91873eee0ad742ecbe305309e8e94e435307c370f",
+      "sha256": "2c4d588f6342f464f8d47e8815a1217a00b859c49581684e7f09f483ed53e6ad",
       "executable": false
     },
     "docs/COMMANDS.md": {
@@ -3812,7 +3812,7 @@
       "executable": false
     },
     "tests/api/harness.mjs": {
-      "sha256": "ee5abda47f6f048fbae84b4ae7b98812a83a2b545b6587f1cb15179b0025461c",
+      "sha256": "b8bba0ce887626d68d01440aaf518443a0dbbb0bcc257f138fac0423f2b27272",
       "executable": false
     },
     "tests/api/imports.test.mjs": {
@@ -3904,7 +3904,7 @@
       "executable": false
     },
     "tests/ui/journey-kit.mjs": {
-      "sha256": "83025909438023bb885ba34e013c5ac2ccdb7a84b60990c8ed250b70391add84",
+      "sha256": "892b4a1cb9c2ea58a3dbe9e011d5003144ed6dee4087592103ed33ef4d6011b5",
       "executable": false
     },
     "tests/ui/journey.mjs": {

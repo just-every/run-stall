@@ -6,9 +6,10 @@ import { mkdtemp,readFile,readdir,rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve,join } from 'node:path';
 import assert from 'node:assert/strict';
-export async function installation({bindings={},outboundService,source=resolve('.'),entry,base='/api/stall',origin:requestedOrigin}={}) {
+export async function installation({bindings={},outboundService,source=resolve('.'),entry,base='/api/stall',origin:requestedOrigin,onProgress=()=>{}}={}) {
  const root=source;
  const directory=await mkdtemp(join(tmpdir(),'stall-api-'));
+ onProgress('bundle');
  const bundled=await build({entryPoints:[entry??join(root,'tests/api/worker.ts')],nodePaths:[resolve('node_modules')],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022',external:['node:*','cloudflare:*'],loader:{'.css':'text','.svg':'text'}});
  const setup=randomBytes(32).toString('hex'),key=randomBytes(32).toString('hex'),secret=randomBytes(32).toString('hex');
  const messages=[];
@@ -27,12 +28,15 @@ export async function installation({bindings={},outboundService,source=resolve('
  
  const mf=new Miniflare(options(0));
  try {
-  await mf.ready;
+  await mf.ready;onProgress('runtime ready');
   const db=await mf.getD1Database('DB');
   for(const file of (await readdir(join(root,'migrations/core'))).filter(f=>f.endsWith('.sql')).sort()) await db.batch(unstable_splitSqlQuery(await readFile(join(root,'migrations/core',file),'utf8')).map(sql=>db.prepare(sql)));
+  onProgress('migrations ready');
   let cookie='';
   const request=(path,{method='GET',body,as=cookie,headers={}}={})=>mf.dispatchFetch(origin+path,{method,redirect:'manual',headers:{origin,host:new URL(origin).host,'content-type':'application/json',...(as?{cookie:as}:{}),...headers},...(body!==undefined?{body:JSON.stringify(body)}:{})});
+  onProgress('bootstrap');
   const boot=await request('/auth/bootstrap',{method:'POST',body:{token:setup,displayName:'Supplier'}});assert.equal(boot.status,303,boot.status===303?'':await boot.text());
+  onProgress('bootstrap ready');
   cookie=boot.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ');
   const api=async(path,body,opts={})=>{
    const response=await request(path,{...(body===undefined?{}:{method:'POST',body}),...opts});const value=await response.json();
