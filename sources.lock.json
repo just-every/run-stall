@@ -3464,7 +3464,7 @@
       "executable": false
     },
     "src/stall/ui/customer-account.tsx": {
-      "sha256": "51c0a43923bc72131e41c33be139bc8c855c8e4a2673390b733bb9c537d116c2",
+      "sha256": "fceee4bd04d1edc2bfef42863ea863174fe9087ecf7332c781506052fe3345fe",
       "executable": false
     },
     "src/stall/ui/customer-directory.tsx": {
@@ -3884,11 +3884,11 @@
       "executable": false
     },
     "tests/ui/customer-account-journey.mjs": {
-      "sha256": "09e73bbd92cdae463f6031308766eaf7664f551d7ac32ff4c6de0caa297c65c8",
+      "sha256": "89ba506bd5b78445127678d5b56772e4d702791d997b9caae25b3eb0b3b7f32b",
       "executable": false
     },
     "tests/ui/customer-directory-journey.mjs": {
-      "sha256": "2e3cc613e6bc2c435688e446f855f7f2f6215afb4eaad726fe2e2d75c1821e23",
+      "sha256": "49d0121d8e88d72a4a4acd645e509e4fb5e161e531d46f4d1e547283d788f66f",
       "executable": false
     },
     "tests/ui/demo-journey.mjs": {

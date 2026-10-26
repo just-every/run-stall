@@ -7,7 +7,27 @@ import type { AccountData,Cart,OwnOrder } from './customer-types'
 const status=(value:string)=>value.replaceAll('_',' ')
 export function CustomerAccount() {
  const [account,setAccount]=useState<AccountData>(),[guest,setGuest]=useState<{order:OwnOrder;expiresAt:string}>(),[token,setToken]=useState(''),[cart,setCart]=useState<Cart>(),[error,setError]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[link,setLink]=useState('')
- useEffect(()=>{const saved=new URLSearchParams(location.search).get('cartId');if(saved){void request<{cart:Cart}>('/api/stall/cart?cartId='+encodeURIComponent(saved)).then(data=>setCart(data.cart)).catch(error=>setError(errorMessage(error))).finally(()=>setLoading(false));return}const params=new URLSearchParams(location.hash.slice(1)),capability=params.get('orderLink');if(capability){setToken(capability);history.replaceState(null,'',location.pathname+location.search);void fetch('/api/stall/guest-order',{headers:{'X-Stall-Order-Token':capability},cache:'no-store'}).then(async response=>{const data=await response.json() as {order:OwnOrder;expiresAt:string;error?:{message?:string}};if(!response.ok)throw Error(data.error?.message??'This order link is unavailable or expired.');setGuest(data)}).catch(error=>setError(errorMessage(error))).finally(()=>setLoading(false))}else void request<AccountData>('/api/stall/account').then(setAccount).catch(error=>setError(errorMessage(error))).finally(()=>setLoading(false))},[])
+ useEffect(()=>{
+  let generation=0
+  const load=()=>{
+   const current=++generation
+   setAccount(undefined);setGuest(undefined);setCart(undefined);setToken('');setError('');setLoading(true)
+   const saved=new URLSearchParams(location.search).get('cartId'),capability=new URLSearchParams(location.hash.slice(1)).get('orderLink')
+   let pending:Promise<void>
+   if(saved)pending=request<{cart:Cart}>('/api/stall/cart?cartId='+encodeURIComponent(saved)).then(data=>{if(current===generation)setCart(data.cart)})
+   else if(capability){
+    setToken(capability);history.replaceState(null,'',location.pathname+location.search)
+    pending=fetch('/api/stall/guest-order',{headers:{'X-Stall-Order-Token':capability},cache:'no-store'}).then(async response=>{
+     const data=await response.json() as {order:OwnOrder;expiresAt:string;error?:{message?:string}}
+     if(!response.ok)throw Error(data.error?.message??'This order link is unavailable or expired.')
+     if(current===generation)setGuest(data)
+    })
+   }else pending=request<AccountData>('/api/stall/account').then(data=>{if(current===generation)setAccount(data)})
+   void pending.catch(error=>{if(current===generation)setError(errorMessage(error))}).finally(()=>{if(current===generation)setLoading(false)})
+  }
+  load();addEventListener('hashchange',load)
+  return()=>{generation++;removeEventListener('hashchange',load)}
+ },[])
  async function reorder(orderId:string){setBusy(true);setError('');setLink('');try{const result=await request<{cart:Cart}>('/api/stall/cart/reorder',{orderId,...(token?{guestToken:token}:{})});setCart(result.cart);history.replaceState(null,'','/order?cartId='+encodeURIComponent(result.cart.id))}catch(error){setError(errorMessage(error))}finally{setBusy(false)}}
  async function guestLink(orderId:string){setBusy(true);setError('');try{const result=await request<{token:string;expiresAt:string}>('/api/stall/account/guest-order-link',{orderId});setLink(`${location.origin}/order#orderLink=${encodeURIComponent(result.token)}`)}catch(error){setError(errorMessage(error))}finally{setBusy(false)}}
  async function revoke(orderId:string){setBusy(true);setError('');try{await request('/api/stall/account/guest-order-link',{orderId},'DELETE');setLink('')}catch(error){setError(errorMessage(error))}finally{setBusy(false)}}

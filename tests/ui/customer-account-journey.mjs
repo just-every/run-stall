@@ -42,6 +42,7 @@ try {
   assert.match(await page.locator('main').innerText(),/\$12\.00 → \$15\.00/)
   assert.match(await page.locator('main').innerText(),/synthetic-stall-1602: There is not enough stock/)
   assert.deepEqual([edge.sessions.size,edge.pierCalls.length,stock.orders.size,(await h.api('/api/stall/state')).orders.length],effects)
+  if(width===1440){await page.reload();await page.getByText('Prices changed',{exact:true}).waitFor();await page.getByText('Items left out',{exact:true}).waitFor()}
   await page.locator('summary').filter({hasText:'Delivery address'}).click();assert.equal(await page.getByLabel('Postal code',{exact:true}).inputValue(),'78702')
   await page.getByLabel('Occasion (required)',{exact:true}).selectOption('Thank you')
   await capture(`reorder-changes-${width}`)
@@ -50,7 +51,7 @@ try {
   const original=structuredClone((await h.api('/api/stall/state')).orders.find(o=>o.id===first.orderId))
   const payResponse=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/stall/cart/checkout')
   await context.route('https://checkout.stripe.com/**',route=>route.fulfill({status:200,body:'Payment provider network edge'}))
-  await page.getByRole('button',{name:'Pay $66.00 with Stripe',exact:true}).click();const paid=await (await payResponse).json();assert.notEqual(paid.orderId,first.orderId)
+  await page.getByRole('button',{name:'Pay $66.00 with Stripe',exact:true}).click();const paid=await (await payResponse).json();assert.notEqual(paid.orderId,first.orderId);await page.waitForURL(url=>url.hostname==='checkout.stripe.com')
   const session=[...edge.sessions.values()].find(s=>s.client_reference_id===paid.orderId);await deliverWebhook(h,secret,edge.pay(session.id))
   assert.deepEqual((await h.api('/api/stall/state')).orders.find(o=>o.id===first.orderId),original)
   await page.goto(ready.url+'/order');await page.getByRole('article',{name:'Order '+paid.orderId,exact:true}).waitFor();await capture(`new-order-${width}`)
@@ -61,9 +62,9 @@ try {
   await firstCard.getByRole('button',{name:/^Create guest order link/}).click();const href=await page.getByRole('link',{name:'Open guest order link',exact:true}).getAttribute('href')
   as='';guestCookie='';await page.goto(href);await page.getByRole('heading',{name:'Your guest order',exact:true}).waitFor();assert.equal(await page.getByRole('article').count(),1);assert.ok(!page.url().includes('orderLink'))
   await capture(`guest-order-${width}`);await page.getByRole('button',{name:/^Reorder/}).click();await page.getByRole('heading',{name:'Review your reorder',exact:true}).waitFor();await page.getByLabel('Occasion (required)',{exact:true}).selectOption('Birthday');await page.getByRole('button',{name:'Review current total',exact:true}).click();await page.getByRole('button',{name:'Pay $66.00 with Stripe',exact:true}).waitFor();await capture(`guest-reorder-${width}`)
-  as=other;await page.goto(ready.url+'/order');assert.equal(await page.getByRole('article',{name:'Order '+first.orderId,exact:true}).count(),0)
+  as=other;await page.goto(ready.url+'/order');await page.getByRole('article',{name:'Order '+hidden.orderId,exact:true}).waitFor();assert.equal(await page.getByRole('article',{name:'Order '+first.orderId,exact:true}).count(),0)
   assert.equal(await page.evaluate(async id=>(await fetch('/api/stall/cart/reorder',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({orderId:id})})).status,first.orderId),404)
   await capture(`foreign-order-refused-${width}`)
  }
  assert.deepEqual(journey.errors,[]);console.log('PASS customer account history, fresh reorder checkout, guest links and upload refusal at 1440 and 390')
-} catch(error){journeyError=error;if(journey?.page){await journey.page.screenshot({path:(process.env.STALL_SCREENSHOTS??'test-results/customer-account')+'/failure.png',fullPage:true});console.log('Visible failure:',(await journey.page.locator('main').innerText()).slice(0,4000))}throw error}finally{await journey?.finish(journeyError)}
+} catch(error){journeyError=error;if(journey?.page){await journey.page.screenshot({path:(process.env.STALL_SCREENSHOTS??'test-results/customer-account')+'/failure.png',fullPage:true});if(await journey.page.locator('main').count())console.log('Visible failure:',(await journey.page.locator('main').innerText()).slice(0,4000));console.log('Journey failure:',error)}throw error}finally{await journey?.finish(journeyError)}
