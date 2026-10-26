@@ -46,6 +46,14 @@
         "node tests/ui/real-home.mjs tests/ui/customer-balances-journey.mjs",
         "node tests/ui/real-home.mjs tests/ui/customer-order-status-journey.mjs"
       ]
+    },
+    {
+      "name": "channel-browser",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "node tests/ui/real-home.mjs tests/ui/buy-link-journey.mjs"
+      ]
     }
   ],
   "nightly": [

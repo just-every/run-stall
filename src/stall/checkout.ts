@@ -23,7 +23,7 @@ export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority,c
  const selection=selectLines(p.lines)
  const code=p.promotionCode===undefined?undefined:promotionCode(p.promotionCode)
  if(code!==undefined&&p.expectedTotalCents===undefined) fail('REVIEW_REQUIRED','Review the promotion and exact total before creating checkout.',400)
- const checkoutKey=await digest(key),requestDigest=await digest(JSON.stringify({customerEmail,lines:selection,expectedTotalCents:p.expectedTotalCents??null,taxQuoteId:p.taxQuoteId??null,...(p.shopper!==undefined?{shopper:p.shopper}:{}),...(code!==undefined?{promotionCode:code}:{}),...(p.shipping!==undefined?{shipping:p.shipping}:{})}))
+ const checkoutKey=await digest(key),requestDigest=await digest(JSON.stringify({...(authority?.channel?{channel:authority.channel}:{}),customerEmail,lines:selection,expectedTotalCents:p.expectedTotalCents??null,taxQuoteId:p.taxQuoteId??null,...(p.shopper!==undefined?{shopper:p.shopper}:{}),...(code!==undefined?{promotionCode:code}:{}),...(p.shipping!==undefined?{shipping:p.shipping}:{})}))
  let row=await env.DB.prepare("SELECT id FROM st_orders WHERE json_extract(value_json,'$.checkoutKey')=?").bind(checkoutKey).first<any>()
  let order:Order,allowCreate=false
  if(row) {
@@ -42,7 +42,7 @@ export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority,c
   const tax=await checkoutTax(env,p,lines,shippingCents,customerEmail,shipping,qualified?.snapshot,verifiedCustomerEmail),totalCents=tax?.totalCents??netTotalCents
   if(!tax&&code!==undefined&&integer(p.expectedTotalCents,'Reviewed total cents',50,99999999)!==totalCents) fail('PRICE_CHANGED','The promotion or total changed. Review the current quote before paying.')
   const id=crypto.randomUUID(),revision=crypto.randomUUID()
-  order={id,revision,customerEmail,...(tax?{tax}:{}),...(shopper?{shopper}:{}),lines,totalCents,shippingCents,shipping,...(qualified?{promotion:qualified.snapshot}:{}),currency:shopCurrency,status:'checkout_pending',createdAt:new Date().toISOString(),requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,refunds:[]}
+  order={id,revision,customerEmail,...(authority?.channel?{channel:authority.channel}:{}),...(tax?{tax}:{}),...(shopper?{shopper}:{}),lines,totalCents,shippingCents,shipping,...(qualified?{promotion:qualified.snapshot}:{}),currency:shopCurrency,status:'checkout_pending',createdAt:new Date().toISOString(),requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,refunds:[]}
   // Unique checkout key prevents two orders even if concurrent requests observed no row.
   const files=lines.flatMap(line=>line.personalization?.flatMap(answer=>answer.fileId?[answer.fileId]:[])??[])
   try { await env.DB.batch([...(authority?.statements()??[]),...claimTaxQuote(env,order),env.DB.prepare('INSERT INTO st_orders VALUES(?,?,?)').bind(id,JSON.stringify(order),revision),...(qualified?[reservePromotion(env.DB,order,qualified.snapshot,qualified.customerKey)]:[]),systemAudit(env.DB,id,'checkout.prepared','customer'),...files.map(file=>env.DB.prepare('UPDATE st_uploads SET order_id=? WHERE id=? AND order_id IS NULL').bind(id,file)),env.DB.prepare('INSERT INTO st_guard(value) SELECT CASE WHEN (SELECT COUNT(*) FROM st_uploads WHERE order_id=?)=? THEN 1 ELSE 0 END').bind(id,files.length),env.DB.prepare('DELETE FROM st_guard')]);allowCreate=true }

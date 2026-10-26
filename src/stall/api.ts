@@ -1,3 +1,4 @@
+import { buyLinkResponse } from './buy-links'
 import { reviewResponse } from './reviews/api'
 import { registrationResponse,expireCustomerRegistrations } from './customers/registration'
 import { balanceResponse } from './customers/balances'
@@ -25,7 +26,7 @@ import { riskCommand,riskSnapshot } from './risk'
 import { refreshRisk } from './payments'
 import { authorize,authorizeCommand,permits } from './permissions'
 import { staffCommand,staffSnapshot } from './staff'
-import { runtimeBindings,type Bindings } from '../auth.server'
+import { operatorAuth,runtimeBindings,type Bindings } from '../auth.server'
 import { audit,clientKey,commit,current,digest,live } from './access'
 import { releaseExpiredHolds } from './promotions/holds'
 import { fail,Problem,requirePerson,requireSupplier,text } from './model'
@@ -69,6 +70,8 @@ function privateOrder(actor:import('./model').Actor,{requestDigest,checkoutKey,c
 }
 async function verifiedTaxCustomer(request:Request,env:Bindings) {
  if(!request.headers.get('cookie')||request.headers.has('authorization'))return undefined
+ // A native guest cart has its own cookie and grants no verified customer identity.
+ if(!await operatorAuth(env).getSession(request))return undefined
  const actor=await current(request,env)
  requirePerson(actor);await requireProvenEmail(env,actor.sessionId!,actor.id);await customerCommit(env,actor)
  return actor.email
@@ -94,6 +97,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   const base=runtimeBindings(original)
   // A demo uses its simulated providers; otherwise saved Settings connections fill unset secrets.
   const env=base.RER_DEMO==='1'?base:await withConnections(base)
+  const buyLinks=await buyLinkResponse(request,env);if(buyLinks)return buyLinks
   const reviews=await reviewResponse(request,env);if(reviews)return reviews
   const registration=await registrationResponse(request,env);if(registration)return registration
   const balances=await balanceResponse(request,env);if(balances)return balances

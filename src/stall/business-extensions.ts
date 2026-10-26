@@ -31,6 +31,7 @@ export async function businessExtensions(db:D1Database) {
   db.prepare('SELECT id,order_id AS orderId,case_id AS caseId,name,mime,size,created_at AS createdAt FROM st_return_files ORDER BY created_at,id').all(),
  ])
  return {
+  buyLinks:(await db.prepare('SELECT id,revision,value_json,revoked_at,restored FROM st_buy_links ORDER BY id').all<any>()).results.map(({value_json,...row})=>({...row,value:JSON.parse(value_json)})),
   productReviews:await reviewBusinessRecords(db),
   merchandisingProposals:await merchandisingProposals(db),
   nativeCart:await cartBusinessRecords(db),

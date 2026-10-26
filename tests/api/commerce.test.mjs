@@ -4,6 +4,7 @@ import { createHash,createHmac,randomBytes,randomUUID } from 'node:crypto';
 import { installation,archive,restore } from './harness.mjs';
 import { pierInstallation } from './pier.mjs';
 import { stripeEdge,deliverWebhook,publish,purchase,sendFile,png } from './network.mjs';
+import { taxEdge } from './tax-edge.mjs';
 import { volumeStock } from './volume-stock.mjs';
 import { readCsv } from './csv-reader.mjs';
 const state=h=>h.api('/api/stall/state');
@@ -1449,3 +1450,139 @@ test('AI-005: unsupported claims, stale sources and revoked authority cannot pub
   assert.equal((await state(h)).audit.filter(event=>event.action==='merch.published').length,0);
  } finally { await h.close() }
 });
+
+test('merchant checkout links preload native carts, preserve reviewed discounts and channel, and refuse stale sale authority',async()=>{
+ const stock=volumeStock(['MUG-BLUE','TOWEL-NAT']),edge=stripeEdge({forward:stock.forward}),secret=randomBytes(32).toString('hex')
+ const bindings={PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-3200',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'synthetic-stall-3201',STRIPE_WEBHOOK_SECRET:secret},h=await installation({bindings,outboundService:edge.handle})
+ let destination
+ try {
+  await publish(h,'MUG-BLUE','Blue ceramic mug',2450);await publish(h,'TOWEL-NAT','Natural linen towel',1800)
+  await h.command('shipping.configure',{shippingCents:625})
+  await h.api('/api/stall/promotions',{code:'SYNTHETIC-STALL-3202',startsAt:new Date(Date.now()-3600000).toISOString(),endsAt:new Date(Date.now()+3600000).toISOString(),minimumBasketCents:2500,maxUsesPerCustomer:3,maxTotalUses:5,maxShippingDiscountCents:3125})
+  const base='/api/stall/buy-links',lines=[{sku:'MUG-BLUE',quantity:2},{sku:'TOWEL-NAT',quantity:1}],payload={label:'Maker gift set',lines,promotionCode:'SYNTHETIC-STALL-3202'},customer=await h.signIn('synthetic-stall-3203@example.test')
+  await h.api(base,payload,{as:'',status:401});await h.api(base,payload,{as:customer,status:403})
+  await h.api(base,payload,{headers:{origin:'https://synthetic-stall-3204.test'},status:403})
+  const agent=await h.api('/api/stall/agent-token',{});await h.api(base,payload,{headers:{authorization:'Bearer '+agent.token},status:403})
+  const link=await h.api(base,payload),path=base+'/'+link.id
+  assert.equal(link.url,h.origin+'/shop?buy='+link.id)
+  const preview=await h.api(path,undefined,{as:''})
+  assert.deepEqual(preview,{id:link.id,label:'Maker gift set',lines:[{sku:'MUG-BLUE',name:'Blue ceramic mug',quantity:2,unitCents:2450},{sku:'TOWEL-NAT',name:'Natural linen towel',quantity:1,unitCents:1800}],promotionCode:'SYNTHETIC-STALL-3202'})
+  assert.ok(!JSON.stringify(link).includes('synthetic-stall-3201'))
+  assert.equal((await h.api('/api/stall/state')).orders.length,0,'preview never spends or creates an order')
+  await h.api(path+'/cart',{},{as:'',headers:{origin:'https://synthetic-stall-3204.test'},status:403})
+  const start=await h.request(path+'/cart',{method:'POST',as:'',body:{}}),cookie=start.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
+  assert.equal(start.status,200)
+  let cart=(await start.json()).cart
+  assert.deepEqual(cart.value.lines,lines);assert.equal(cart.value.promotionCode,payload.promotionCode)
+  await h.api('/api/stall/cart?cartId='+cart.id,undefined,{as:customer,status:404})
+  await h.api('/api/stall/cart',{...cart.value},{as:cookie,status:400})
+  const shopper={address:{name:'synthetic-stall-3205',line1:'1 Maker Lane',city:'Austin',state:'TX',postal_code:'78702',country:'US'}}
+  cart=(await h.api('/api/stall/cart',{cartId:cart.id,revision:cart.revision,...cart.value,customerEmail:'synthetic-stall-3206@example.test',shopper},{as:cookie})).cart
+  const review=await h.api('/api/stall/cart/review',{cartId:cart.id,revision:cart.revision},{as:cookie})
+  assert.deepEqual([review.review.subtotalCents,review.review.discountCents,review.review.shippingCents,review.review.totalCents],[6700,625,625,6700])
+  const intent={cartId:cart.id,revision:cart.revision,reviewToken:review.reviewToken}
+  edge.loseNextCheckoutResponse();await h.api('/api/stall/cart/checkout',intent,{as:cookie,status:503})
+  const bought=await h.api('/api/stall/cart/checkout',intent,{as:cookie})
+  assert.equal((await h.api('/api/stall/cart/checkout',intent,{as:cookie})).orderId,bought.orderId);assert.equal(edge.sessions.size,1)
+  const session=[...edge.sessions.values()][0];assert.equal(session.amount_total,6700)
+  await deliverWebhook(h,secret,edge.pay(session.id));await deliverWebhook(h,secret,edge.pay(session.id))
+  const attributed=await h.api('/api/stall/orders?channel=checkout_link')
+  assert.deepEqual(attributed.orders.map(o=>o.id),[bought.orderId]);assert.equal(attributed.orders[0].channel,'checkout_link');assert.equal(attributed.orders[0].status,'reserved')
+  assert.equal((await h.api('/api/stall/orders?channel=online')).total,0)
+  const native=[...stock.orders.values()]
+  assert.equal(native.length,1);assert.deepEqual(native[0].lines.map(l=>[l.quantity,l.reserved]),[['2','2'],['1','1']])
+  const exported=await h.api('/api/stall/exports/records');assert.deepEqual(exported.buyLinks[0].value,payload);assert.equal(exported.orders.find(o=>o.id===bought.orderId).channel,'checkout_link')
+  const saved=await archive(h);destination=await installation({bindings,outboundService:edge.handle});await restore(destination,saved)
+  await destination.api(path,undefined,{as:'',status:404});assert.equal(edge.sessions.size,1,'restored public links grant no fresh sale authority')
+  const waiting=await h.api(path+'/cart',{},{as:cookie})
+  await h.api(path+'/revoke',{revision:link.revision},{as:customer,status:403})
+  await h.api(path+'/revoke',{revision:'synthetic-stall-3209'},{status:409});assert.equal((await h.api(path,undefined,{as:''})).id,link.id)
+  await h.api(path+'/revoke',{revision:link.revision})
+  await h.api(path,undefined,{as:'',status:404});await h.api(path+'/cart',{},{as:cookie,status:404})
+  await h.api('/api/stall/cart/review',{cartId:waiting.cart.id,revision:waiting.cart.revision},{as:cookie,status:404})
+  const sold=await h.api(base,{label:'Sold out towel',lines:[{sku:'TOWEL-NAT',quantity:1}]})
+  stock.setAvailable('TOWEL-NAT','0')
+  await h.api(base+'/'+sold.id,undefined,{as:'',status:409});await h.api(base+'/'+sold.id+'/cart',{},{as:cookie,status:409})
+  const unavailable=await h.api(base,{label:'Current mug',lines:[{sku:'MUG-BLUE',quantity:1}]})
+  let mug=(await h.api('/api/stall/state')).products.find(p=>p.id==='MUG-BLUE')
+  mug=await h.command('product.prepare',{sku:mug.id,revision:mug.revision,name:mug.value.name,description:mug.value.description,unitCents:mug.value.unitCents,active:false});await h.command('product.approve',{sku:mug.id,revision:mug.revision})
+  await h.api(base+'/'+unavailable.id,undefined,{as:'',status:409});await h.api(base+'/'+unavailable.id+'/cart',{},{as:cookie,status:409})
+ }finally{await destination?.close();await h.close()}
+})
+
+test('Buy Button, product card and collection embeds restrict exact origins and recheck native stock and publication',async()=>{
+ const stock=volumeStock(['TEE-S','TEE-M','HAT-1']),edge=stripeEdge({forward:stock.forward}),secret=randomBytes(32).toString('hex')
+ const h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-3220',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'synthetic-stall-3221',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle})
+ try {
+  let tee=await h.command('product.prepare',{sku:'TEE',name:'Linen tee',description:'A linen tee',unitCents:2500,active:true,details:{handle:'linen-tee',options:[{name:'Size',values:['S','M']}],variants:[{sku:'TEE-S',options:{Size:'S'},unitCents:2500},{sku:'TEE-M',options:{Size:'M'},unitCents:2700}]}})
+  await h.command('product.approve',{sku:'TEE',revision:tee.revision});await publish(h,'HAT-1','Wool hat',1800)
+  await h.command('collection.save',{handle:'gifts',title:'Gifts',description:'Maker gifts',kind:'manual',skus:['TEE','HAT-1']})
+  const base='/api/stall/buy-links',origin='https://allowed.synthetic-stall-3222.test',allowedOrigins=[origin],widgets=[]
+  for(const [kind,selection] of [['buy_button',{lines:[{sku:'TEE-S',quantity:2}]}],['product_card',{productSku:'TEE'}],['collection',{collection:'gifts'}]]) {
+   await h.api(base,{kind,label:'Maker gifts',...selection,allowedOrigins:[]},{status:400})
+   await h.api(base,{kind,label:'Maker gifts',...selection,allowedOrigins:[origin+'/path']},{status:400})
+   const widget=await h.api(base,{kind,label:'Maker gifts',...selection,allowedOrigins});widgets.push(widget)
+   assert.equal(widget.embed,`<script src="${h.origin}${base}/${widget.id}.js" defer></script>`)
+   const script=await h.request(base+'/'+widget.id+'.js',{as:''});assert.match(script.headers.get('content-type'),/javascript/);const code=await script.text()
+   assert.ok(code.includes("credentials:'omit'"));assert.ok(!code.includes('synthetic-stall-3221'))
+   const path=base+'/'+widget.id+'/widget'
+   for(const candidate of [h.origin,'https://child.allowed.synthetic-stall-3222.test','https://allowed.synthetic-stall-3222.test.evil.test','null']) {
+    const refused=await h.request(path,{as:'',headers:{origin:candidate}});assert.equal(refused.status,403);assert.equal(refused.headers.get('access-control-allow-origin'),null)
+   }
+   const response=await h.request(path,{as:'',headers:{origin}});assert.equal(response.headers.get('access-control-allow-origin'),origin);assert.equal(response.headers.get('access-control-allow-credentials'),null)
+   const view=await response.json(),expected=kind==='buy_button'?['TEE-S']:kind==='product_card'?['TEE-S','TEE-M']:['TEE-S','TEE-M','HAT-1']
+   assert.deepEqual(view.items.map(i=>i.sku).sort(),expected.sort());assert.equal(view.items.find(i=>i.sku==='TEE-S').unitCents,2500)
+   await h.api(base+'/'+widget.id+'?sku=synthetic-stall-unknown',undefined,{as:'',status:409})
+   const selectionQuery='?sku=TEE-S&quantity=2',cartPath=base+'/'+widget.id+'/cart'+selectionQuery
+   const opened=await h.request(cartPath,{method:'POST',as:'',body:{}}),cookie=opened.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
+   let cart=(await opened.json()).cart;assert.deepEqual(cart.value.lines,[{sku:'TEE-S',quantity:2}]);assert.equal(cart.value.source.channel,'buy_button')
+   cart=(await h.api('/api/stall/cart',{cartId:cart.id,revision:cart.revision,...cart.value,customerEmail:`synthetic-stall-${kind}@example.test`,shopper:{address:{name:'Taylor Maker',line1:'1 Maker Lane',city:'Austin',state:'TX',postal_code:'78702',country:'US'}}},{as:cookie})).cart
+   const review=await h.api('/api/stall/cart/review',{cartId:cart.id,revision:cart.revision},{as:cookie});assert.equal(review.review.totalCents,5000)
+   const bought=await h.api('/api/stall/cart/checkout',{cartId:cart.id,revision:cart.revision,reviewToken:review.reviewToken},{as:cookie})
+   const session=[...edge.sessions.values()].find(s=>s.client_reference_id===bought.orderId);await deliverWebhook(h,secret,edge.pay(session.id))
+  }
+  assert.equal((await h.api('/api/stall/orders?channel=buy_button')).total,3);assert.equal(stock.orders.size,3)
+  const link=await h.api(base,{label:'Two sizes',lines:[{sku:'TEE-S',quantity:2},{sku:'TEE-M',quantity:1}]})
+  assert.deepEqual((await h.api(base+'/'+link.id,undefined,{as:''})).lines.map(l=>[l.sku,l.quantity,l.unitCents]),[['TEE-M',1,2700],['TEE-S',2,2500]])
+  tee=(await h.api('/api/stall/state')).products.find(p=>p.id==='TEE')
+  tee=await h.command('product.prepare',{sku:tee.id,revision:tee.revision,...tee.value,details:{...tee.value.details,variants:tee.value.details.variants.map(v=>v.sku==='TEE-S'?{...v,unitCents:2600}:v)}});await h.command('product.approve',{sku:tee.id,revision:tee.revision})
+  assert.equal((await h.api(base+'/'+widgets[1].id+'/widget',undefined,{as:'',headers:{origin}})).items.find(i=>i.sku==='TEE-S').unitCents,2600)
+  assert.equal((await h.api(base+'/'+widgets[1].id+'?sku=TEE-S',undefined,{as:''})).lines[0].unitCents,2600)
+  stock.setAvailable('TEE-S','0')
+  const path=base+'/'+widgets[0].id
+  assert.equal((await h.api(path+'/widget',undefined,{as:'',headers:{origin}})).items[0].available,'0')
+  await h.api(path+'/cart?sku=TEE-S&quantity=1',{},{as:'',status:409})
+  tee=(await h.api('/api/stall/state')).products.find(p=>p.id==='TEE')
+  tee=await h.command('product.prepare',{sku:tee.id,revision:tee.revision,...tee.value,active:false});await h.command('product.approve',{sku:tee.id,revision:tee.revision})
+  assert.deepEqual((await h.api(path+'/widget',undefined,{as:'',headers:{origin}})).items,[])
+  await h.api(path+'?sku=TEE-S',undefined,{as:'',status:409})
+  assert.equal(edge.sessions.size,3,'unpublished and sold-out widgets create no payment work')
+ }finally{await h.close()}
+})
+
+test('checkout links retain explicit guest tax consent and reserve promotions against tax-inclusive payments',async()=>{
+ const stock=volumeStock(['TEE-S','TEE-M']),edge=stripeEdge({forward:stock.forward}),tax=taxEdge(),secret=randomBytes(32).toString('hex')
+ const h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-3230',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'synthetic-stall-806',STRIPE_WEBHOOK_SECRET:secret},outboundService:request=>{const url=new URL(request.url);return url.hostname==='api.stripe.com'&&(url.pathname.startsWith('/v1/tax/')||url.pathname==='/v1/account')?tax.handle(request):edge.handle(request)}})
+ try {
+  await publish(h,'TEE-S','Small tee',2500);await publish(h,'TEE-M','Medium tee',2700);await h.command('shipping.configure',{shippingCents:625})
+  const promotion=await h.api('/api/stall/promotions',{code:'SYNTHETIC-STALL-3231',startsAt:new Date(Date.now()-3600000).toISOString(),endsAt:new Date(Date.now()+3600000).toISOString(),minimumBasketCents:2500,maxUsesPerCustomer:2,maxTotalUses:2,maxShippingDiscountCents:1250})
+  const config=await h.api('/api/stall/tax/configuration'),address={line1:'1 Maker Lane',city:'Austin',state:'TX',postal_code:'78702',country:'US'}
+  await h.api('/api/stall/tax/configuration',{revision:config.revision,value:{shipFrom:address,categories:['TEE-S','TEE-M'].map(sku=>({sku,taxCode:'txcd_99999999'})),thresholds:[]}})
+  const mode=await h.api('/api/stall/tax/commerce?review=1');await h.api('/api/stall/tax/commerce',{revision:mode.revision,enabled:true,consent:mode.consent})
+  const link=await h.api('/api/stall/buy-links',{label:'Two sizes',lines:[{sku:'TEE-S',quantity:2},{sku:'TEE-M',quantity:1}],promotionCode:'SYNTHETIC-STALL-3231'})
+  const opened=await h.request('/api/stall/buy-links/'+link.id+'/cart',{method:'POST',as:'',body:{}}),cookie=opened.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
+  let cart=(await opened.json()).cart
+  const shipping=await h.api('/api/stall/shipping/quote',{lines:cart.value.lines,postalCode:'78702'},{as:cookie}),service=shipping.services[0],chosen={service:service.code,postalCode:'78702',quote:service.quote}
+  const input={id:randomUUID(),destination:address,customerEmail:'synthetic-stall-3232@example.test',lines:cart.value.lines,shipping:chosen,promotionCode:'SYNTHETIC-STALL-3231'}
+  await h.api('/api/stall/tax/quote',input,{as:cookie,status:400});assert.equal(tax.calculations.size,0)
+  const quote=await h.api('/api/stall/tax/quote',{...input,consent:(await h.api('/api/stall/tax/mode',undefined,{as:cookie})).shopperConsent},{as:cookie})
+  assert.deepEqual([quote.taxCents,quote.totalCents],[637,8337])
+  cart=(await h.api('/api/stall/cart',{cartId:cart.id,revision:cart.revision,...cart.value,customerEmail:input.customerEmail,shopper:{address:{name:'Taylor Maker',...address}},shipping:chosen,taxQuoteId:quote.quoteId,taxTotalCents:quote.totalCents},{as:cookie})).cart
+  const review=await h.api('/api/stall/cart/review',{cartId:cart.id,revision:cart.revision},{as:cookie});assert.deepEqual([review.review.subtotalCents,review.review.discountCents,review.review.taxCents,review.review.totalCents],[7700,625,637,8337])
+  const intent={cartId:cart.id,revision:cart.revision,reviewToken:review.reviewToken},bought=await h.api('/api/stall/cart/checkout',intent,{as:cookie})
+  assert.equal((await h.api('/api/stall/cart/checkout',intent,{as:cookie})).orderId,bought.orderId);assert.equal(edge.sessions.size,1)
+  const session=[...edge.sessions.values()][0];assert.equal(session.amount_total,8337);await deliverWebhook(h,secret,edge.pay(session.id))
+  const order=(await h.api('/api/stall/orders?channel=checkout_link')).orders[0];assert.equal(order.tax.taxCents,637);assert.equal(order.promotion.discountCents,625);assert.equal(order.status,'reserved')
+  const report=await h.api('/api/stall/promotions/report?promotionId='+promotion.id);assert.equal(report.totals.paidUses,1);assert.equal(report.totals.committedDiscountCents,625)
+ }finally{await h.close()}
+})

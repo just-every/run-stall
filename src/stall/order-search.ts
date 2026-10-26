@@ -19,7 +19,7 @@ export const overduePartial=(order:Order,now:number)=>order.shipment?.status==='
 export async function searchOrders(db:D1Database,query:URLSearchParams,now=Date.now()):Promise<{timeZone:string;total:number;orders:Omit<Order,'requestDigest'|'checkoutKey'>[]}> {
  const timeZone=await businessTimeZone(db),status=query.get('status')||undefined,sku=query.get('sku')?.trim().toLowerCase(),customer=query.get('customer')?.trim().toLowerCase()
  const from=calendarDate(query.get('from'),'From'),to=calendarDate(query.get('to'),'To'),overdue=query.get('overdue')||undefined,channel=query.get('channel')||undefined
- if(channel&&!['online','manual'].includes(channel)) fail('INPUT','Choose Online store or Manual.',400)
+ if(channel&&!['online','manual','checkout_link','buy_button'].includes(channel)) fail('INPUT','Choose Online store, Manual Checkout link or Buy Button.',400)
  if(status&&!statuses.includes(status)) fail('INPUT','Choose a recorded order status.',400)
  if(overdue&&overdue!=='partial') fail('INPUT','Overdue work is filtered as partial (partly shipped).',400)
  if(from&&to&&from>to) fail('INPUT','The From date must not be after the To date.',400)

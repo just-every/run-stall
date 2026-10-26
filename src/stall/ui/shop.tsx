@@ -1,3 +1,4 @@
+import { BuyLink } from './buy-link'
 import { TaxCheckout,useTaxCheckout } from './tax-checkout'
 import type { CustomField } from '../product-details'
 import { CustomFields } from './product-details'
@@ -19,6 +20,11 @@ export interface Catalogue { items: Item[]; products: ShopProduct[]; observedAt?
 const plain = (product: ShopProduct) => !product.options?.length && !product.personalization?.length
 type Extras = Record<string, Pick<BasketLine, 'personalization' | 'addOnCents' | 'detail'>>
 export function Shop() {
+ const [buy,setBuy]=useState('')
+ useEffect(()=>setBuy(new URL(location.href).searchParams.get('buy')??''),[])
+ return buy?<BuyLink id={buy} close={()=>{history.replaceState(null,'','/shop');setBuy('')}}/>:<ShopBrowse/>
+}
+function ShopBrowse() {
   const [catalogue, setCatalogue] = useState<Catalogue | null>(null)
   const [quantities, setQuantities] = useState<Record<string, string>>({}), [extras, setExtras] = useState<Extras>({}), [stored, setStored] = useState(false)
   const [email, setEmail] = useState(''), [review, setReview] = useState(false), [zip, setZip] = useState('')

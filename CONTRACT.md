@@ -240,6 +240,8 @@ A single switching journey runs from migration and domain cutover through catalo
 
 - **CHANNEL-004 — Embeddable Buy Button and checkout links.** Merchants generate an embeddable Buy Button, product card or collection widget for another website (a blog, WordPress or a landing page) and shareable checkout links that preload chosen variants, quantities and an optional discount. Embeds show live published price and availability, add to a Stall cart and complete payment in Stall's checkout with its tax, shipping, consent and payment rules; orders are attributed to the Buy Button or link channel in ANALYTICS-001. Each embed is restricted to the merchant's allowed domains, carries no credentials, and stops selling when its product is unpublished or sold out. Before this capability ships new provider work, it inherits INTEGRATION-001: installation-local secret custody, least privilege, mapping/data-boundary previews, durable original intent/correlation/attempt/outcome and recovery without replacement uncertain effects.
 
+Current door semantics: the existing human owner or administrator generates and revokes public configurations through the documented same-origin HTTP door. Each script has its own exact HTTPS origin list, requests public catalog data without credentials or tracking and opens a separate native cart for explicit checkout review. Product cards and collections resolve current published variants; neither a copied control nor a stale price bypasses native stock, personalization, required-field, shipping, tax-consent or payment checks. Restored configurations are inert and must be generated afresh locally. No new provider account or outgoing provider job is added: native Stripe and Pier work retains INTEGRATION-001 custody and original-identity recovery. Orders and commercial exports preserve the distinct `buy_button` and `checkout_link` channel values, which ANALYTICS-001 inherits.
+
   **Acceptance evidence:** Generate a Buy Button and a collection widget, embed them on a test page on an allowed external domain, and buy through them; verify the order, stock and channel attribution. Open a checkout link with two preloaded variants and a discount and verify the reviewed totals. Embed on a disallowed domain and verify refusal, then unpublish the product and verify the button stops selling.
 
 - **REVIEWS-001 — Verified reviews, upsells and cross-sells.** Merchants collect verified-purchase reviews with star ratings, text and photos natively or through Judge.me, Yotpo, Okendo or Loox adapters, moderate abuse with a visible policy, reply publicly, and merchandise related products, bundles, upsells and cross-sells against current price/stock. Product pages show the rating and reviews with Product, Review and AggregateRating structured data so search results can show stars. Requests obey consent/contact rules. Existing reviews move in through MIGRATE-007 and stay labeled as imported with their source's provenance. Paid incentives, imported reviews or AI-generated text cannot masquerade as a new verified customer review.
@@ -249,6 +251,8 @@ A single switching journey runs from migration and domain cutover through catalo
 ### Reporting, accounting and migration
 
 - **ANALYTICS-001 — Sales, conversion and contribution margin.** Merchants inspect date/channel/product/variant/customer reports and traffic-source reports (sessions, conversion and sales by referrer, source and medium, UTM campaign, source, medium and content, landing page, device and location, under a stated last non-direct-click attribution window) for visits, product views, add-to-cart, checkout, payment conversion, gross/net sales, discounts, tax, shipping collected/cost, fees, refunds, gift liability and contribution margin using recorded cost data. Funnels disclose consent-limited/unknown traffic, bot exclusions, attribution window and historical import provenance. Reports drill to orders and export; canceled, test, imported and duplicate events never inflate new conversion.
+
+CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in current orders and commercial exports. Future channel reports consume those recorded values; this does not claim a traffic report or pixel implementation.
 
   **Acceptance evidence:** Arrive through a UTM-tagged email link, a search referrer and a direct visit, and buy after two of them; verify the traffic-source report attributes sessions, conversion and sales to the right campaign, referrer and landing page. Follow a known visitor-to-refund journey, import historical sales, replay events and compare channel/date totals with orders and processor/accounting references. Remove cost/analytics consent and verify unknowns are labeled rather than fabricated margin or visits. Open the best-sellers report for a date range and verify products and variants ranked by units sold and by net sales after refunds match the orders exactly, and that its conversion rate equals paid orders over sessions for the same window.
 
@@ -451,6 +455,8 @@ Every capability claim on the homepage built on the owner-approved structure pag
 
 Judged from the code and tests at commit `3428daf468f335301f950f76aedaec937d68a103` (21 October 2026).
 
+CHANNEL-004's current row and named public-door proofs supersede its historical audit baseline below. Other clause statuses are unchanged by this revision.
+
 That is the main baseline for this revision; the earlier judgement was at `b4fc3b0ac94fd95df7ca1371cf52ba440554cb2c` (17 October 2026).
 
 Revised 17 October 2026 so every capability claim on the approved homepage has a clause (see [Homepage claims](#homepage-claims)): DEMO-001, CUSTOMER-003, OPS-002 and OPEN-001 were added and judged from the commit above, and the acceptance evidence of STOCK-002, SHIP-001, SHIP-002, TAX-001, PROMO-002, MIGRATE-001 and ANALYTICS-001 was sharpened without changing their statuses. Between `7eadb4b` and the commit above, `src/stall` gained demo mode (`src/demo.ts`, `src/stall/demo/*` and the simulated Pier/Stripe effects in `src/stall/pier.ts` and `src/stall/stripe.ts`) and moved checkout and refunds from AUD to USD (`shopCurrency` in `src/stall/model.ts`); no clause gained or lost implemented behavior beyond that, so every earlier status stands. The AUD wording in earlier gaps describes `7eadb4b`; PAY-001 and ORDER-003 stay partial for their other gaps.
@@ -466,8 +472,8 @@ Judged against `main` **7eadb4b8faebf02302be95217ca8c2807fe5d986**, the same com
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 1 | 0 | 0 | 1 |
-| Target and push further | 22 | 27 | 29 | 78 |
-| All | 23 | 27 | 29 | 79 |
+| Target and push further | 23 | 27 | 28 | 78 |
+| All | 24 | 27 | 28 | 79 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -516,7 +522,7 @@ Judged against `main` **7eadb4b8faebf02302be95217ca8c2807fe5d986**, the same com
 | `CHANNEL-001` | Google Shopping, Meta/Instagram, TikTok Shop and Pinterest | target | missing |  | No implementation found. Target journey not implemented. |
 | `CHANNEL-002` | Marketplace adapters without becoming a marketplace | target | missing |  | No implementation found. Target journey not implemented. |
 | `CHANNEL-003` | Ad pixels, conversion APIs and custom storefront events | target | missing |  | No implementation found. Target journey not implemented. |
-| `CHANNEL-004` | Embeddable Buy Button and checkout links | target | missing |  | No implementation found. Target journey not implemented. |
+| `CHANNEL-004` | Embeddable Buy Button and checkout links | target | done | `tests/api/commerce.test.mjs` — 'merchant checkout links preload native carts, preserve reviewed discounts and channel, and refuse stale sale authority' proves preloading, exact discounted totals, paid reservation, channel filters and exports, native custody, response-loss recovery, revocation and inactive restore; 'Buy Button, product card and collection embeds restrict exact origins and recheck native stock and publication' proves all three generators, exact-origin refusal, live prices, variants, stock and unpublishing; 'checkout links retain explicit guest tax consent and reserve promotions against tax-inclusive payments' proves guest consent refusal and exact taxed payment with one promotion use. `tests/ui/buy-link-journey.mjs` proves allowed external embeds and purchases, the two-variant discounted link, taxed and untaxed reviewed totals, Orders channel filtering, domain and availability refusals, revocation and account tooltips at 1440 and 390. `docs/BUY-LINKS.md` documents the HTTP generator and boundaries. |  |
 | `REVIEWS-001` | Verified reviews, upsells and cross-sells | target | missing |  | No implementation found. Target journey not implemented. |
 | `ANALYTICS-001` | Sales, conversion and contribution margin | target | missing |  | No implementation found. Target journey not implemented. |
 | `ACCOUNT-001` | Reconciled QuickBooks Online and NetSuite posting | target | missing |  | No implementation found. Target journey not implemented. |

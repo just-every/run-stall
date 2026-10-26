@@ -37,7 +37,7 @@ function relevance(entry: Entry, alternative: string, name: string): number {
  }
  return total + (name === alternative ? 20 : 0)
 }
-function inCollection(entry: Entry, collection: Collection): boolean {
+function inCollection(entry: Pick<Entry,'product'> & {items:{cents:number}[]}, collection: Collection): boolean {
  if (collection.kind === 'manual') return !!collection.skus?.includes(entry.product.sku)
  const prices = entry.items.map(item => item.cents), lowest = Math.min(...prices)
  const test = (rule: NonNullable<Collection['rules']>[number]) => {
@@ -48,6 +48,15 @@ function inCollection(entry: Entry, collection: Collection): boolean {
   return ` ${terms(entry.product.name)} `.includes(` ${terms(rule.value)} `)
  }
  return collection.match === 'any' ? !!collection.rules?.some(test) : !!collection.rules?.every(test)
+}
+/** Published members without the browse page boundary, for native collection embeds. */
+export function collectionMembers(source:Source,handle:string) {
+ const collection=source.collections.find(entry=>entry.value.handle===handle&&entry.value.published)?.value
+ if(!collection)return []
+ return source.products.filter(product=>{
+  const items=source.items.filter(item=>product.skus.includes(item.sku)).map(item=>({cents:item.unitCents}))
+  return items.length>0&&inCollection({product,items},collection)
+ })
 }
 const same = (a: string, b: string) => terms(a) === terms(b)
 /** Which groups of a filter set a product satisfies; `skip` leaves one group out (for facet counts). */
