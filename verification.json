@@ -33,6 +33,15 @@
         "pnpm run build",
         "pnpm run test:runtime"
       ]
+    },
+    {
+      "name": "customer-browser",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "node tests/ui/real-home.mjs tests/ui/customer-account-journey.mjs",
+        "node tests/ui/real-home.mjs tests/ui/customer-directory-journey.mjs"
+      ]
     }
   ],
   "nightly": [
@@ -74,15 +83,6 @@
       "commands": [
         "node tests/ui/real-home.mjs tests/ui/tax-settings-journey.mjs",
         "node tests/ui/real-home.mjs tests/ui/tax-commerce-journey.mjs"
-      ]
-    },
-    {
-      "name": "customer-browser",
-      "browser": true,
-      "hosted": false,
-      "commands": [
-        "node tests/ui/real-home.mjs tests/ui/customer-account-journey.mjs",
-        "node tests/ui/real-home.mjs tests/ui/customer-directory-journey.mjs"
       ]
     }
   ]
