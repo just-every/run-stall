@@ -3572,7 +3572,7 @@
       "executable": false
     },
     "src/stall/ui/product-page.tsx": {
-      "sha256": "1aec88690d9cfd1cee1ec22db484c1ca574906bde44335942d36b0b97a190e1f",
+      "sha256": "17db8ce92083402dde8018ce6b6725981e7c84aecad5d701fc502b3cdd47ecc8",
       "executable": false
     },
     "src/stall/ui/products.tsx": {
@@ -3920,7 +3920,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "6697bfe5cc5a8c3fb050d6ab98b1faefe1582e1851c1d1ca8c59cd77effc50ef",
+      "sha256": "0cfdde1bd3e1bee59fa72038cb9b5815688a5e706294692fafba01fc80b0a65c",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
