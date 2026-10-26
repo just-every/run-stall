@@ -344,7 +344,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "24e8b24196c80d67dc9e5dc918bb4b7469341be258fbf54c14fe4ab61f27cb03",
+      "sha256": "36edf3fa0a05388f24482da8caee96f9484d32ada66dc947879fe1f32b7da0c3",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -3704,11 +3704,11 @@
       "executable": false
     },
     "src/stall/ui/return-cases.tsx": {
-      "sha256": "e9c0cf69b34c6690b1008e7060294f011e7d3ba34409bbad08763148de7f077a",
+      "sha256": "904405214efb19d8949681540171c0dfbc7b11212e6e1796e28a825334b9c5f7",
       "executable": false
     },
     "src/stall/ui/return-help.tsx": {
-      "sha256": "1dafa2d16ba032b23f0746f058b89bfb9f010dc871453ad0f5f1721cf3eb0e70",
+      "sha256": "183fab092f2c2df267fb9572c81e91fa6f31a7333888a5ffb21ca7cbe34b7dcb",
       "executable": false
     },
     "src/stall/ui/return-policy.tsx": {
@@ -4036,7 +4036,7 @@
       "executable": false
     },
     "tests/ui/request-journey.mjs": {
-      "sha256": "923eece93f3dc5f31b9d853721f1277ce81b077432b9385d52a5037775ec832b",
+      "sha256": "94ca0bd28b9e0a8b7ed5e0407aacd23144f7768f499ba52d8a91f91f92c7547a",
       "executable": false
     },
     "tests/ui/risk-journey.mjs": {
