@@ -491,8 +491,10 @@ test('Review move-in preserves source provenance, owned photos, exact mapping, r
     return stock.forward(request);
   } });
   try {
+    await apply(h, 'Handle,Title,Body (HTML),Variant SKU,Variant Price,Published\nstudio-mug,Studio mug,Hand-thrown stoneware,synthetic-stall-1511,28.00,TRUE\nsecond-mug,Second mug,Hand-thrown stoneware,legacy-mug,28.00,TRUE\n');
     for (const [sku, handle, name] of [['synthetic-stall-1511', 'studio-mug', 'Studio mug'], ['legacy-mug', 'second-mug', 'Second mug']]) {
-      const draft = await h.command('product.prepare', { sku, name, description: 'Hand-thrown stoneware', unitCents: 2800, active: true, details: { handle } });
+      const imported = (await h.api('/api/stall/state')).products.find(row => row.id === sku);
+      const draft = await h.command('product.prepare', { sku, revision: imported.revision, name, description: 'Hand-thrown stoneware', unitCents: 2800, active: true, details: { handle } });
       await h.command('product.approve', { sku, revision: draft.revision });
     }
     const native = await h.api('/api/stall/reviews', { productId: 'synthetic-stall-1511', rating: 4, title: 'Native review', body: 'Already here', reviewerName: 'Native shopper', date: '2024-01-01T00:00:00Z' });

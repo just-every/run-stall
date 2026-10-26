@@ -90,7 +90,11 @@ try {
     media.push({ id: (await uploaded.json()).id, kind: 'image', alt: index === 1 ? 'Studio mug from the front' : 'Studio mug handle and glaze' })
   }
   const sku = 'synthetic-stall-1511'
-  const product = await command('product.prepare', { sku, name: 'Studio mug', description: 'Hand-thrown mug', unitCents: 2800, active: true, details: { handle: 'studio-mug', media } })
+  const productCSV = 'Handle,Title,Body (HTML),Variant SKU,Variant Price,Published\nstudio-mug,Studio mug,Hand-thrown mug,synthetic-stall-1511,28.00,TRUE\n'
+  const productPreview = await api('/api/stall/imports/preview', { csv: productCSV })
+  await api('/api/stall/imports/apply', { csv: productCSV, fingerprint: productPreview.fingerprint })
+  const importedProduct = (await api('/api/stall/state')).products.find(row => row.id === sku)
+  const product = await command('product.prepare', { sku, revision: importedProduct.revision, name: 'Studio mug', description: 'Hand-thrown mug', unitCents: 2800, active: true, details: { handle: 'studio-mug', media } })
   await command('product.approve', { sku, revision: product.revision })
   const native = await api('/api/stall/reviews', { productId: sku, rating: 4, title: 'Native review', body: 'Already here', reviewerName: 'Native shopper', date: '2024-01-01T00:00:00Z' })
   const publicReviews = async () => {
@@ -232,6 +236,7 @@ try {
   assert.ok(all.reviews.every(review => review.verifiedPurchase === false))
   const document = await fetch(origin + '/shop/studio-mug'), html = await document.text()
   assert.equal(document.status, 200)
+  assert.ok(html.includes('Imported from Judge.me') && html.includes('Imported from Yotpo'), 'Imported labels are emitted in the initial product HTML')
   const scripts = [...html.matchAll(/<script\b[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)].map(match => JSON.parse(match[1]))
   const structured = scripts.find(value => value['@type'] === 'Product')
   assert.ok(structured, 'Native product HTML emits Product structured data')

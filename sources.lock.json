@@ -3952,7 +3952,7 @@
       "executable": false
     },
     "tests/api/imports.test.mjs": {
-      "sha256": "73ffe96009b5ab6dc9a6489c1c8aaa26a28a2a9d6a01dae911a3072ce74dc0f7",
+      "sha256": "46f127670ed51d839bfe47eb5610b17a211ad71484c94b3acea2393b3fcf5880",
       "executable": false
     },
     "tests/api/local-payments.test.mjs": {
@@ -4092,7 +4092,7 @@
       "executable": false
     },
     "tests/ui/review-import-journey.mjs": {
-      "sha256": "76b4cda5028d6322ce44570046922aa1f30d9ddb7b5f634db85f5174aa516d1e",
+      "sha256": "2a8a100ec697e5e9a056c151f63d2ba9637ec3e51ace95328e4b3acd4ff0934a",
       "executable": false
     },
     "tests/ui/risk-journey.mjs": {
@@ -4124,7 +4124,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "0630b6f7dcdbdbc9e3f10686b96a932213a4604cefcc9eed78f6c945071561e1",
+      "sha256": "e28d618be478ba4c076081d4e6e4e3e09cd44b5620b26ec698df62b6c569007b",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
