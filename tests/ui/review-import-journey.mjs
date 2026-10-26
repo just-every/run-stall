@@ -173,7 +173,7 @@ try {
     const csv = (await readFile(item.fixture, 'utf8')).replaceAll('https://reviews.example.test/photo.png', '')
     await source.selectOption(item.id)
     await upload.setInputFiles({ name: item.fixture.split('/').at(-1), mimeType: 'text/csv', buffer: Buffer.from(csv) })
-    await expect(desk.getByLabel('Review CSV source', { exact: true })).toHaveValue(csv)
+    await expect(desk.getByRole('textbox', { name: 'Review CSV source', exact: true })).toHaveValue(csv)
     const before = await publicReviews()
     let preview = await dryRun(() => run.click())
     assert.deepEqual(preview.counts, { total: 3, mapped: 1, orphans: 2, duplicates: 0 })
@@ -182,7 +182,7 @@ try {
     const row = title => desk.getByRole('article').filter({ has: page.getByRole('heading', { name: title, exact: true }) })
     await capture(`MIGRATE-007-${item.id}-dry-run`, desk, async () => {
       await source.focus(); await page.keyboard.press('Tab'); await expect(upload).toBeFocused()
-      await page.keyboard.press('Tab'); await expect(desk.getByLabel('Review CSV source', { exact: true })).toBeFocused()
+      await page.keyboard.press('Tab'); await expect(desk.getByRole('textbox', { name: 'Review CSV source', exact: true })).toBeFocused()
       await page.keyboard.press('Tab'); await expect(run).toBeFocused()
       await expect(row(item.lead).locator('time')).toHaveAttribute('datetime', item.date)
       await expect(row(item.second).getByText('Needs a product', { exact: true })).toBeVisible()
@@ -190,7 +190,7 @@ try {
       await expect(definitions('Orphans')).toHaveText('2')
     })
     const secondRow = preview.rows.find(entry => entry.title === item.second).row
-    preview = await dryRun(() => desk.getByLabel(`Product for CSV row ${secondRow}`, { exact: true }).selectOption(sku))
+    preview = await dryRun(() => desk.getByRole('combobox', { name: `Product for CSV row ${secondRow}`, exact: true }).selectOption(sku))
     assert.deepEqual(preview.counts, { total: 3, mapped: 2, orphans: 1, duplicates: 0 })
     await expect(approval).toBeDisabled()
     const orphanRow = preview.rows.find(entry => entry.title === item.orphan).row

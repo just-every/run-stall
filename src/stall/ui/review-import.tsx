@@ -10,7 +10,7 @@ interface Product { id: string; name: string; handle: string }
 interface Job { id: string; source: Source; createdAt: string; count: number; state: 'completed' | 'undone' }
 interface ReviewRow {
   row: number; sourceId: string; productId: string | null; productReference: string
-  rating: number; title: string; reviewerName: string; date: string; sourceVerified: boolean
+  rating: number; title: string; body: string; reply: string; media: string[]; reviewerName: string; date: string; sourceVerified: boolean
   status: 'ready' | 'orphan' | 'duplicate'; reason?: string
 }
 interface Preview {
@@ -122,6 +122,9 @@ export function ReviewImport() {
           {preview.rows.map(row => <article key={row.row} className="st-panel st-stack" style={{ minWidth: 0, overflowWrap: 'anywhere' }} aria-label={`Review at CSV row ${row.row}`}>
             <div className="st-heading-row"><h4>{row.title || 'Untitled review'}</h4><Badge value={row.status}>{row.status === 'orphan' ? 'Needs a product' : row.status === 'duplicate' ? 'Duplicate' : 'Ready'}</Badge></div>
             <p>{row.reviewerName || 'Unnamed reviewer'} · {row.rating} of 5 stars</p>
+            <p style={{ whiteSpace: 'pre-wrap' }}>{row.body}</p>
+            {row.reply && <blockquote><strong>Merchant reply</strong><p>{row.reply}</p></blockquote>}
+            {row.media.length > 0 && <details><summary>{row.media.length} source media files to copy</summary><ul>{row.media.map((url,index) => <li key={index}>{url}</li>)}</ul></details>}
             <dl className="st-definition">
               <div><dt>Original date</dt><dd>{row.date ? <time dateTime={row.date}>{row.date}</time> : 'No date supplied'}</dd></div>
               <div><dt>Source claim</dt><dd>{row.sourceVerified ? `Verified purchase claimed by ${sourceLabel(source)}` : 'No verified purchase claim'}</dd></div>

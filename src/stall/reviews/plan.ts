@@ -41,5 +41,5 @@ export async function reviewPlan(env:Bindings,actor:Actor,input:ReviewInput) {
  return {rows,counts,fingerprint,revision:state!.revision,catalogue}
 }
 export function publicPlan(plan:Awaited<ReturnType<typeof reviewPlan>>) {
- return {fingerprint:plan.fingerprint,counts:plan.counts,rows:plan.rows.map(({review,emailHash,references,...row})=>row)}
+ return {fingerprint:plan.fingerprint,counts:plan.counts,rows:plan.rows.map(({review,emailHash,references,...row})=>({...row,body:review.body,reply:review.reply,media:review.media}))}
 }

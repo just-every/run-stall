@@ -483,7 +483,7 @@ test('Review move-in preserves source provenance, owned photos, exact mapping, r
   const { solidPng } = await import('./network.mjs');
   const stock = volumeStock(['synthetic-stall-1511', 'legacy-mug']);
   const photo = solidPng(40, 40, [135, 110, 90]);
-  let retired = false, mediaReads = 0;
+  let retired = false, mediaReads = 0, receiving;
   const h = await installation({ bindings: { PIER_ORIGIN: 'https://stock.example.test', PIER_SESSION: 'synthetic-stall-1514', PIER_CUSTOMER_ID: 'shop' }, outboundService: async request => {
     const url = new URL(request.url);
     if (url.hostname === 'cloudflare-dns.com') return Response.json({ Status: 0, Answer: [{ type: 1, data: '8.8.8.8' }] });
@@ -540,6 +540,9 @@ test('Review move-in preserves source provenance, owned photos, exact mapping, r
     }
     const other = await h.api('/api/stall/reviews?handle=second-mug', undefined, { as: '' });
     assert.equal(other.reviews.length, 2);
+    assert.equal(other.reviews.find(row => row.source === 'judge-me').date, '2026-09-18');
+    assert.equal(other.reviews.find(row => row.source === 'yotpo').date, '2026-09-21');
+    assert.ok(other.reviews.every(row => row.rating === 4 && row.sourceVerified === false && row.verifiedPurchase === false));
     assert.equal(other.reviews.find(row => row.source === 'judge-me').body, 'A useful size.\nThe colour matches our kitchen.');
     assert.equal(other.reviews.find(row => row.source === 'yotpo').sourceVerified, false, 'Verified Reviewer is not a source purchase claim');
     const exported = await h.api('/api/stall/exports/records');
@@ -548,6 +551,11 @@ test('Review move-in preserves source provenance, owned photos, exact mapping, r
     assert.equal(h.messages.length, mailBefore, 'No review request or marketing mail');
     assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM st_customer_consents').first()).n, 0, 'Reviews grant no marketing consent');
     assert.equal(mediaReads, 2, 'Replays do not re-fetch retired source files');
+    receiving = await installation();
+    await restore(receiving, await archive(h));
+    const restoredPhoto = await receiving.request(yotpo.media[0].url, { as: '' });
+    assert.equal(restoredPhoto.status, 200);
+    assert.deepEqual(Buffer.from(await restoredPhoto.arrayBuffer()), photo, 'Owned review bytes travel without the source URL');
     const undone = await h.api(`/api/stall/review-imports/${jobs[0].id}/undo`, {});
     assert.equal(undone.state, 'undone');
     assert.deepEqual(await h.api(`/api/stall/review-imports/${jobs[0].id}/undo`, {}), undone);
@@ -556,7 +564,7 @@ test('Review move-in preserves source provenance, owned photos, exact mapping, r
     assert.ok(remaining.reviews.some(row => row.id === native.id));
     assert.equal(remaining.aggregate.ratingValue, 4.5);
     await h.api(judge.media[0].url, undefined, { as: '', status: 404 });
-  } finally { await h.close(); }
+  } finally { await receiving?.close(); await h.close(); }
 });
 
 test('Review import authority, stale approvals and failed media never leak or partially apply', async () => {
