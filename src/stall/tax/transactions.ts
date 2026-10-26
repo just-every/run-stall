@@ -3,7 +3,7 @@ import { digest,live } from '../access'
 import { fail,integer,requirePerson,text,type Actor,type Order,type Refund } from '../model'
 import { readOrder,saveOrder } from '../store'
 import { commerceCall,taxTestMode,requireTaxDestination,taxDestinationHash,type TaxItem,type TaxJurisdiction } from './commerce-provider'
-import { postTaxTransaction } from './transactions-postings'
+import { postGoodwillAdjustment,postTaxTransaction } from './transactions-postings'
 
 type Work={id:string;order_id:string;kind:string;intent_hash:string;status:string;provider_id:string|null;restored:number}
 /** Unknown POST outcomes are observation-only forever, independent of key retention. */
@@ -60,8 +60,9 @@ export async function ensureSaleTax(env:Bindings,order:Order,recoveredId?:string
  return saveOrder(env,{...order,tax:{...tax,transactionId:result.id,lines}},'tax.sale-recorded')
 }
 export async function ensureRefundTax(env:Bindings,order:Order,refund:Refund,recoveredId?:string):Promise<Order> {
- if(!order.tax||refund.status!=='succeeded'||refund.taxReversalId)return order
+ if(!order.tax||refund.status!=='succeeded'||refund.taxReversalId||refund.kind==='address_change')return order
  order=await ensureSaleTax(env,order)
+ if(refund.kind==='goodwill') {await postGoodwillAdjustment(env,order,refund);return order}
  if(!order.tax?.transactionId||!refund.taxAllocation)fail('TAX_RECOVERY','The successful refund needs its original tax transaction and reviewed tax allocation.')
  const allocation=refund.taxAllocation,id='stall-tax-refund-'+refund.id,form=new URLSearchParams({mode:'partial',original_transaction:order.tax.transactionId,reference:id})
  allocation.lines.forEach((line,i)=>{if(!line.providerLineId)fail('TAX_RECOVERY','Recover original transaction line IDs before reversing tax.');for(const [key,value] of Object.entries({amount:-line.amount,amount_tax:-line.taxCents,original_line_item:line.providerLineId,quantity:line.quantity,reference:line.reference}))form.set(`line_items[${i}][${key}]`,String(value))})

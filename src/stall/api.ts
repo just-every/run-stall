@@ -1,6 +1,7 @@
 import { recoverTaxTransaction } from './tax/transactions'
 import { taxCommerceState,ownerTaxCommerceState,publicTaxCommerce,ownerTaxCommerce } from './tax/commerce'
 import { quoteTax } from './tax/commerce-quote'
+import { marketplaceState,recordMarketplaceSales } from './tax/marketplace'
 import { readTaxConfiguration,saveTaxConfiguration,readTaxExemptions,saveTaxExemption } from './tax/configuration'
 import { taxLiability,taxReportCsv,taxNexus } from './tax/reports'
 import { taxOwner,taxBoundaryFor,taxReadiness,taxHistory,previewTax } from './tax'
@@ -142,6 +143,8 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    if(path==='/api/stall/tax/liability'&&request.method==='GET')return json(await taxLiability(env,search))
    if(path==='/api/stall/tax/liability.csv'&&request.method==='GET')return taxReportCsv(env,search)
    if(path==='/api/stall/tax/nexus'&&request.method==='GET')return json(await taxNexus(env,search))
+   if(path==='/api/stall/tax/marketplace'&&request.method==='GET')return json(await marketplaceState(env))
+   if(path==='/api/stall/tax/marketplace'&&request.method==='POST')return json(await recordMarketplaceSales(env,actor,await body(request)))
    if(path==='/api/stall/tax/boundary'&&request.method==='GET')return json(await taxBoundaryFor(env))
    if(path==='/api/stall/tax/readiness'&&request.method==='GET')return json(await taxReadiness(env))
    if(path==='/api/stall/tax/previews'&&request.method==='GET')return json(await taxHistory(env))

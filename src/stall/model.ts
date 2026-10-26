@@ -14,8 +14,8 @@ export type Product={id:string;value:ProductValue;revision:string}
 export type Approval={scopeRevision?:string;by:string;version:number;at:string;revision:string}
 export type Personalized={key:string;label:string;type:'text'|'choice'|'file';value:string;addOnCents:number;fileId?:string;fileName?:string}
 export type Line={productSku?:string;variant?:Record<string,string>;personalization?:Personalized[];addOnCents?:number;description?:string;sku:string;name:string;itemId:string;quantity:number;unitCents:number}
-export type RefundKind='lines'|'shipping'|'goodwill'
-export type Refund={kind?:RefundKind;taxTreatment?:'no_tax_recorded'|'original_tax_allocated';taxAllocation?:TaxRefundAllocation;taxReversalId?:string;accountingCategory?:'merchandise'|'shipping'|'goodwill';id:string;lines:{sku:string;quantity:number}[];amountCents:number;reason:string;status:'draft'|'pending'|'succeeded'|'failed'|'canceled';preparedBy:string;approval?:Approval;startedAt?:string;stripeId?:string;source?:'staff';label?:string}
+export type RefundKind='lines'|'shipping'|'goodwill'|'address_change'
+export type Refund={kind?:RefundKind;taxTreatment?:'no_tax_recorded'|'original_tax_allocated'|'goodwill_tax_unchanged'|'sale_never_recorded';taxAllocation?:TaxRefundAllocation;taxReversalId?:string;accountingCategory?:'merchandise'|'shipping'|'goodwill'|'address_change';id:string;lines:{sku:string;quantity:number}[];amountCents:number;reason:string;status:'draft'|'pending'|'succeeded'|'failed'|'canceled';preparedBy:string;approval?:Approval;startedAt?:string;stripeId?:string;source?:'staff';label?:string}
 export type PierDispatch={id:string;reference:string;shippedAt?:string;deliveryStatus?:string;tracking:{carton?:number;trackingCode?:string;trackingUrl?:string}[]}
 export type Shipment={id:string;reference:string;status:'draft'|'pending'|'partial'|'shipped';preparedBy:string;approval?:Approval;pierShipmentId?:string;dispatches?:PierDispatch[]}
 // The shop sells in US dollars and ships within the United States (Stripe's codes).

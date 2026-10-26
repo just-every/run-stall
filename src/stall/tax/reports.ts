@@ -38,10 +38,10 @@ function add(amounts:TaxAmounts,t:TaxTransaction) {
 }
 /** Authorization is enforced by the private API dispatcher before calling reports. */
 export async function taxLiability(env:Bindings,search:URLSearchParams) {
- const p=await period(env,search),transactions=await postings(env,p),states=new Map<string,TaxState>(),jurisdictions=new Map<string,TaxJurisdictionSummary>(),totals=emptyAmounts()
+ const p=await period(env,search),transactions=await postings(env,p),states=new Map<string,TaxState>(),jurisdictions=new Map<string,TaxJurisdictionSummary>(),totals=emptyAmounts(),marketplaceTotals=emptyAmounts()
  for(const t of transactions) {
   const key=JSON.stringify([t.state,t.channel]),state=states.get(key)??{state:t.state,channel:t.channel,...emptyAmounts()}
-  add(state,t);add(totals,t);states.set(key,state)
+  add(state,t);add(t.channel==='online'?totals:marketplaceTotals,t);states.set(key,state)
   for(const j of t.jurisdictions) {
    const key=jurisdictionKey(j,t.channel),entry=jurisdictions.get(key)??{key,state:j.state,channel:t.channel,level:j.level,name:j.name,country:j.country,ratePercent:j.ratePercent,taxableCents:0,taxCents:0,taxCollectedCents:0,refundTaxCents:0,adjustmentTaxCents:0,transactionIds:[]}
    entry.taxableCents+=j.taxableCents;entry.taxCents+=j.amountCents
@@ -52,8 +52,8 @@ export async function taxLiability(env:Bindings,search:URLSearchParams) {
    jurisdictions.set(key,entry)
   }
  }
- return {period:p,currency:'USD' as const,totals,states:[...states.values()].sort((a,b)=>a.state.localeCompare(b.state)||a.channel.localeCompare(b.channel)),jurisdictions:[...jurisdictions.values()].sort((a,b)=>a.key.localeCompare(b.key)),transactions,
-  policy:'Refunds and adjustments belong to their provider-observed posting date. Amounts are signed; net tax equals collected tax plus refund tax plus adjustments. Sale jurisdiction totals use the named provider breakdown. Stripe names no jurisdiction on a reversal, so refund tax is split pro rata over the original sale's provider breakdown by what remains unreversed; any tax without a named jurisdiction is shown separately. Taxable bases at different jurisdiction levels overlap and must not be added together.'}
+ return {period:p,currency:'USD' as const,totals,marketplaceTotals,states:[...states.values()].sort((a,b)=>a.state.localeCompare(b.state)||a.channel.localeCompare(b.channel)),jurisdictions:[...jurisdictions.values()].sort((a,b)=>a.key.localeCompare(b.key)),transactions,
+  policy:'Refunds and adjustments belong to their provider-observed posting date. Amounts are signed; net tax equals collected tax plus refund tax plus adjustments. Totals cover sales Stall recorded through its own checkout; marketplace-facilitated sales, whose tax the marketplace collected and remitted, appear as separate state rows and in their own totals and are never added to those. Sale jurisdiction totals use the named provider breakdown. Stripe names no jurisdiction on a reversal, so refund tax is split pro rata over the provider breakdown of the original sale by what remains unreversed; any tax without a named jurisdiction is shown separately. Taxable bases at different jurisdiction levels overlap and must not be added together.'}
 }
 export type TaxLiabilityReport=Awaited<ReturnType<typeof taxLiability>>
 

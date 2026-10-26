@@ -27,6 +27,7 @@ export async function paidSession(env:Bindings,order:Order,id:string,actor?:Acto
  return reservePaid(env,order,actor)
 }
 export async function reservePaid(env:Bindings,order:Order,actor?:Actor):Promise<Order> {
+ if(order.refunds.some(r=>r.kind==='address_change'&&['pending','succeeded'].includes(r.status)))return order
  if(order.tax)await requireTaxDestination(env,order.tax,order.shippingDetails?.address)
  order=await ensureSaleTax(env,order)
  if(!order.payment) fail('PAYMENT','The order has no verified payment.')

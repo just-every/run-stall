@@ -4,7 +4,7 @@ import { fail, integer, text, type Order, type Refund, type RefundKind } from '.
 /** Pending money is already committed; failed/canceled attempts free its budget. */
 export function refundValue(order: Order, input: any): Pick<Refund, 'kind'|'lines'|'amountCents'|'taxTreatment'|'accountingCategory'|'taxAllocation'> {
  const kind: RefundKind = input.kind ?? 'lines'
- if (!['lines', 'shipping', 'goodwill'].includes(kind)) fail('REFUND_KIND', 'Choose purchased items, shipping or goodwill.', 400)
+ if (!['lines', 'shipping', 'goodwill', 'address_change'].includes(kind)) fail('REFUND_KIND', 'Choose purchased items, shipping, goodwill or a payment to a different address.', 400)
  const committed = order.refunds.filter(refund => ['pending', 'succeeded'].includes(refund.status))
  let lines: Refund['lines'] = [], amountCents: number
  if (kind === 'lines') {
@@ -21,6 +21,10 @@ export function refundValue(order: Order, input: any): Pick<Refund, 'kind'|'line
    return { sku, quantity }
   })
   amountCents = lines.reduce((sum, line) => sum + line.quantity * order.lines.find(item => item.sku === line.sku)!.unitCents, 0)
+ } else if (kind === 'address_change') {
+  if ((input.lines !== undefined && (!Array.isArray(input.lines) || input.lines.length)) || input.amountCents !== undefined) fail('INPUT', 'Refunding a payment to a different address returns the whole payment.', 400)
+  if (!order.tax || !order.payment || order.tax.transactionId || order.reservation || committed.length) fail('REFUND_KIND', 'Only an unfulfilled, unrefunded taxed payment with no recorded tax transaction can be refunded for a different address.', 409)
+  amountCents = order.totalCents
  } else {
   if (input.lines !== undefined && (!Array.isArray(input.lines) || input.lines.length)) fail('LINES', 'Shipping and goodwill refunds do not return purchased items.', 400)
   amountCents = integer(input.amountCents, 'Refund amount cents', 1, order.totalCents)
@@ -29,8 +33,10 @@ export function refundValue(order: Order, input: any): Pick<Refund, 'kind'|'line
    if (used + amountCents > (order.shippingCents ?? 0)) fail('REFUND_LIMIT', 'The shipping refund exceeds the unrefunded shipping paid.')
   }
  }
+ if (kind === 'goodwill' && order.tax && input.taxUnchanged !== true) fail('TAX_GOODWILL', 'Confirm that goodwill leaves the recorded sales tax unchanged, or refund purchased items or shipping to reverse tax.', 400)
  const taxAllocation=refundTaxAllocation(order,{kind,lines,amountCents})
  amountCents+=taxAllocation?.taxCents??0
  if (committed.reduce((sum, refund) => sum + refund.amountCents, 0) + amountCents > order.totalCents) fail('REFUND_LIMIT', 'Refunds cannot exceed the paid amount.')
- return { kind, lines, amountCents, taxTreatment: taxAllocation?'original_tax_allocated':'no_tax_recorded',...(taxAllocation?{taxAllocation}:{}), accountingCategory: kind === 'lines' ? 'merchandise' : kind }
+ const taxTreatment = taxAllocation ? 'original_tax_allocated' : kind === 'address_change' ? 'sale_never_recorded' : kind === 'goodwill' && order.tax ? 'goodwill_tax_unchanged' : 'no_tax_recorded'
+ return { kind, lines, amountCents, taxTreatment,...(taxAllocation?{taxAllocation}:{}), accountingCategory: kind === 'lines' ? 'merchandise' : kind }
 }

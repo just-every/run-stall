@@ -17,9 +17,9 @@ function attribute(taxCents:number,original:TaxJurisdiction[],reversed:TaxJurisd
  return original.flatMap((j,i)=>floors[i]>0?[{...j,amountCents:floors[i],taxableCents:taxableCents(j)}]:[])
 }
 export function refundTaxAllocation(order:{tax?:Order['tax'];lines:{sku:string;quantity:number;unitCents:number}[];shippingCents?:number|null;refunds:Refund[]},refund:Pick<Refund,'kind'|'lines'|'amountCents'>):TaxRefundAllocation|undefined {
- if(!order.tax)return undefined
+ if(!order.tax||refund.kind==='address_change')return undefined
  if(!order.tax.transactionId)fail('TAX_RECOVERY','Record the paid order’s original Stripe Tax transaction before preparing a refund.')
- if(refund.kind==='goodwill')fail('TAX_REFUND_ALLOCATION','Taxed goodwill has no reviewed merchandise or shipping allocation. Choose purchased items or shipping instead.',409)
+ if(refund.kind==='goodwill')return undefined
  const committed=order.refunds.filter(r=>['pending','succeeded'].includes(r.status))
  let shippingCents=0,shippingTaxCents=0,shippingJurisdictions:TaxJurisdiction[]=[],lines:TaxItem[]=[]
  if(refund.kind==='shipping') {

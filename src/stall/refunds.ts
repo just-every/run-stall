@@ -1,4 +1,4 @@
-import { taxTestMode } from './tax/commerce-provider'
+import { requireTaxDestination,taxTestMode } from './tax/commerce-provider'
 import { ensureRefundTax } from './tax/transactions'
 import { refundAuthority } from './permissions'
 import type { Bindings } from '../auth.server'
@@ -13,13 +13,19 @@ function refundResult(order:Order,r:Refund,result:any):Refund {
  if(typeof result?.id!=='string'||!/^re_[A-Za-z0-9_]+$/.test(result.id)||result.object!=='refund'||result.amount!==r.amountCents||result.currency!==shopCurrency||result.payment_intent!==order.payment?.intentId||result.metadata?.stall_order_id!==order.id||result.metadata?.stall_refund_id!==r.id||(r.stripeId&&r.stripeId!==result.id)||!['pending','requires_action','succeeded','failed','canceled'].includes(result.status)) fail('REFUND_MISMATCH','Stripe refund does not match this approved refund.',502)
  return {...r,stripeId:result.id,status:result.status==='requires_action'?'pending':result.status}
 }
+async function paidAtReviewedAddress(env:Bindings,order:Order) {
+ try {await requireTaxDestination(env,order.tax!,order.shippingDetails?.address);return true}
+ catch(error:any) {if(error?.code==='TAX_DESTINATION_CHANGED')return false;throw error}
+}
 export async function refundCommand(env:Bindings,actor:Actor,type:string,p:any) {
  let order=await readOrder(env.DB,text(p.orderId,'Order'))
- if(!order.payment||order.shipment?.status!=='shipped') fail('REFUND','Ship the paid order before preparing a refund. Refunds do not restock items.')
+ const target=p.refundId?order.refunds.find(r=>r.id===p.refundId):order.refunds.at(-1),remedy=type==='refund.prepare'?p.kind==='address_change':target?.kind==='address_change'
+ if(!order.payment||(remedy?order.shipment?.status==='shipped':order.shipment?.status!=='shipped')) fail('REFUND',remedy?'Only an unshipped payment can be refunded for a different address.':'Ship the paid order before preparing a refund. Refunds do not restock items.')
  if(type==='refund.prepare') {
   exactRevision(order,p)
   if(order.refunds.some(r=>r.status==='pending')) fail('REFUND_PENDING','Reconcile the pending refund before preparing another.')
   const components=refundValue(order,p)
+  if(components.kind==='address_change'&&await paidAtReviewedAddress(env,order))fail('REFUND_KIND','The address paid in Stripe matches the reviewed tax address. Fulfil the order instead.',409)
   const draft:Refund={id:crypto.randomUUID(),...components,reason:text(p.reason,'Refund reason',500),status:'draft',preparedBy:actorLabel(actor)}
   return saveOrder(env,{...order,refunds:[...order.refunds.filter(r=>r.status!=='draft'),draft]},'refund.prepared',actor)
  }

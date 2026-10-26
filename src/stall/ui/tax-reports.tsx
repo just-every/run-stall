@@ -3,6 +3,7 @@ import type { TaxAmounts, TaxLiabilityReport, TaxNexusReport, TaxTransaction } f
 import { errorMessage, money, request } from './api'
 import { Notice, Section } from './primitives'
 import { When } from './presentation'
+import { TaxMarketplace } from './tax-marketplace'
 
 const amountLabels:Record<keyof TaxAmounts,string>={grossSalesCents:'Gross item sales',taxableSalesCents:'Taxable item sales',nonTaxableSalesCents:'Non-taxable item sales',exemptSalesCents:'Exempt item sales',shippingSalesCents:'Sale shipping',taxCollectedCents:'Tax collected',refundGrossCents:'Refunded item gross',refundTaxCents:'Refund tax',adjustmentTaxCents:'Tax adjustments',grossCents:'Net item gross',taxableCents:'Net taxable items',nonTaxableCents:'Net non-taxable items',exemptCents:'Net exempt items',shippingCents:'Net shipping',taxCents:'Net tax',amountCents:'Net total including tax',unallocatedTaxCents:'Tax without named jurisdiction evidence'}
 function Amounts({amounts}:{amounts:TaxAmounts}) {
@@ -71,5 +72,6 @@ export function TaxReports() {
    <h3>Configured nexus thresholds</h3><p>{nexus.period.from} up to {nexus.period.to}, exclusive · {nexus.period.timeZone}</p><details><summary>Threshold measurement policy</summary><p>{nexus.policy}</p></details>
    <div className="st-table-wrap"><table className="st-tax-table"><caption>Configured state thresholds</caption><thead><tr><th scope="col">State</th><th scope="col">Net item gross</th><th scope="col">Sale orders</th><th scope="col">Sales threshold</th><th scope="col">Transaction threshold</th><th scope="col">Warning at</th><th scope="col">Status</th></tr></thead><tbody>{nexus.states.map(row=><tr key={row.state}><td data-label="State">{row.state}<details><summary>Gross and refunds</summary><p>Gross sales {money(row.grossSalesCents)} · refunds {money(row.refundGrossCents)}</p></details></td><td data-label="Net item gross">{money(row.netGrossCents)}</td><td data-label="Sale orders">{row.transactionCount}</td><td data-label="Sales threshold">{row.salesPercent===null?'Disabled':`${money(row.salesCents)} · ${row.salesPercent.toFixed(1)}%`}</td><td data-label="Transaction threshold">{row.transactionsPercent===null?'Disabled':`${row.transactions} · ${row.transactionsPercent.toFixed(1)}%`}</td><td data-label="Warning at">{row.warningPercent}%</td><td data-label="Status">{row.status==='crossed'?'Threshold crossed':row.status==='warning'?'Approaching threshold':'Below warning'}</td></tr>)}{!nexus.states.length&&<tr><td colSpan={7}>Configure state thresholds in Tax settings to track nexus.</td></tr>}</tbody></table></div>
   </>}
+  <TaxMarketplace />
  </div></Section>
 }

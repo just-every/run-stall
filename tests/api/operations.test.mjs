@@ -835,6 +835,71 @@ test('tax refunds post in their own shop-zone filing period and liability CSVs a
  }finally{await kit.close()}
 })
 
+test('taxed goodwill needs explicit confirmation, leaves recorded tax unchanged and posts a zero-tax adjustment',async()=>{
+ const {taxCommerceInstallation}=await import('./tax-commerce.mjs'),kit=await taxCommerceInstallation(),{h,tax}=kit
+ try {
+  const sale=await kit.buy(await kit.quote());await kit.ship(sale.order.id)
+  const prepare=(extra,opts)=>kit.order(sale.order.id).then(order=>h.command('refund.prepare',{orderId:order.id,revision:order.revision,kind:'goodwill',amountCents:300,reason:'Late parcel apology',...extra},opts))
+  assert.equal((await prepare({},{status:400})).error.code,'TAX_GOODWILL')
+  const reversals=tax.transactions.size,prepared=await prepare({taxUnchanged:true}),draft=prepared.refunds.at(-1)
+  assert.equal(draft.amountCents,300);assert.equal(draft.taxTreatment,'goodwill_tax_unchanged');assert.equal(draft.taxAllocation,undefined)
+  const done=await h.command('refund.approve',{orderId:sale.order.id,revision:prepared.revision}),goodwill=done.refunds.at(-1)
+  assert.equal(goodwill.status,'succeeded');assert.equal(goodwill.taxReversalId,undefined);assert.equal(tax.transactions.size,reversals,'goodwill sends no tax reversal')
+  const report=await h.api('/api/stall/tax/liability?from=2000-01-01&to=2100-01-01'),posting=report.transactions.find(t=>t.kind==='adjustment')
+  assert.equal(posting.amountCents,-300);assert.equal(posting.taxCents,0);assert.equal(posting.originalTransactionId,sale.order.tax.transactionId)
+  assert.equal(report.totals.taxCents,sale.order.tax.taxCents,'recorded sales tax is untouched');assert.equal(report.totals.amountCents,sale.order.totalCents-300)
+  await kit.refund(sale.order.id);assert.equal((await h.api('/api/stall/tax/liability?from=2000-01-01&to=2100-01-01')).transactions.filter(t=>t.kind==='adjustment').length,1)
+ }finally{await kit.close()}
+})
+
+test('a payment to a different address than the reviewed tax address is refunded in full with no tax recorded and never fulfilled',async()=>{
+ const {taxCommerceInstallation,taxAddress}=await import('./tax-commerce.mjs'),{deliverWebhook}=await import('./network.mjs'),kit=await taxCommerceInstallation(),{h,stripe,tax}=kit
+ try {
+  const reviewed=await kit.buy(await kit.quote())
+  const matching=await kit.order(reviewed.order.id);assert.equal((await h.command('refund.prepare',{orderId:matching.id,revision:matching.revision,kind:'address_change',reason:'No remedy applies'},{status:409})).error.code,'REFUND_KIND')
+  const quoted=await kit.quote(),paid=await kit.buy(quoted,{pay:false});stripe.pay(paid.session.id,{...taxAddress,line1:'9 synthetic-stall-elsewhere',postal_code:'78703'})
+  const webhook=await deliverWebhook(h,kit.secret,paid.session);assert.equal(webhook.response.status,409);assert.equal(webhook.value.error.code,'TAX_DESTINATION_CHANGED')
+  let order=await kit.order(paid.started.orderId);assert.equal(order.status,'paid');assert.equal(order.reservation,undefined);assert.equal(order.tax.transactionId,undefined)
+  const prepared=await h.command('refund.prepare',{orderId:order.id,revision:order.revision,kind:'address_change',reason:'Customer paid for another address'}),draft=prepared.refunds.at(-1)
+  assert.equal(draft.amountCents,quoted.result.totalCents);assert.equal(draft.taxTreatment,'sale_never_recorded')
+  const approved=await h.command('refund.approve',{orderId:order.id,revision:prepared.revision});assert.equal(approved.refunds.at(-1).status,'succeeded')
+  assert.equal([...stripe.refunds.values()].find(r=>r.amount===quoted.result.totalCents).status,'succeeded')
+  await h.command('refund.prepare',{orderId:order.id,revision:approved.revision,kind:'address_change',reason:'Again'},{status:409})
+  assert.equal(tax.transactions.size,1,'no tax transaction exists for the refunded payment (only the earlier reviewed sale)')
+  const replay=await deliverWebhook(h,kit.secret,paid.session);assert.equal(replay.response.status,200,'the refunded payment is no longer retried')
+  order=await kit.order(order.id);assert.equal(order.reservation,undefined);assert.equal(order.shipment?.status,undefined)
+  const report=await h.api('/api/stall/tax/liability?from=2000-01-01&to=2100-01-01');assert.equal(report.transactions.length,1);assert.equal(report.transactions[0].orderId,reviewed.order.id)
+ }finally{await kit.close()}
+})
+
+test('marketplace-facilitated sales are recorded as separate reporting evidence that counts toward nexus and never replaces existing evidence',async()=>{
+ const h=await installation({outboundService:()=>{assert.fail('Marketplace evidence must not call a provider')}})
+ try {
+  const path='/api/stall/tax/marketplace',state=await h.api(path),sale={kind:'sale',marketplace:'Synthetic Marketplace',reference:'synthetic-stall-m-1',occurredOn:'2026-01-15',state:'WA',goodsCents:8000,nonTaxableCents:1000,shippingCents:500,taxCents:700}
+  await h.api(path,{consent:'agree',rows:[sale]},{status:400});await h.api(path,{consent:state.consent,rows:[{...sale,state:'ZZ'}]},{status:400})
+  const member=await h.signIn('synthetic-stall-market-member@example.test');await h.api(path,{consent:state.consent,rows:[sale]},{as:member,status:403})
+  const refund={kind:'refund',marketplace:'Synthetic Marketplace',reference:'synthetic-stall-m-1-r',occurredOn:'2026-02-03',state:'WA',goodsCents:2000,shippingCents:0,taxCents:175,originalReference:'synthetic-stall-m-1'}
+  await h.api(path,{consent:state.consent,rows:[{...refund,originalReference:'synthetic-stall-unrecorded'}]},{status:409})
+  await h.api(path,{consent:state.consent,rows:[sale,refund]});await h.api(path,{consent:state.consent,rows:[sale]})
+  await h.api(path,{consent:state.consent,rows:[{...sale,taxCents:701}]},{status:409})
+  assert.equal((await h.api(path)).entries.length,2,'an identical replay adds nothing and a conflicting one replaces nothing')
+  const january=await h.api('/api/stall/tax/liability?from=2026-01-01&to=2026-02-01'),february=await h.api('/api/stall/tax/liability?from=2026-02-01&to=2026-03-01')
+  assert.deepEqual(january.states.map(row=>[row.state,row.channel]),[['WA','marketplace']])
+  assert.equal(january.totals.taxCents,0,'the merchant totals never absorb tax the marketplace collected and remitted')
+  assert.equal(january.marketplaceTotals.grossSalesCents,8000);assert.equal(january.marketplaceTotals.taxableSalesCents,7000);assert.equal(january.marketplaceTotals.nonTaxableSalesCents,1000)
+  assert.equal(january.marketplaceTotals.shippingSalesCents,500);assert.equal(january.marketplaceTotals.taxCollectedCents,700)
+  assert.equal(february.marketplaceTotals.refundGrossCents,-2000);assert.equal(february.marketplaceTotals.refundTaxCents,-175);assert.equal(february.transactions[0].originalTransactionId,january.transactions[0].id)
+  const rows=readCsv(await (await h.request('/api/stall/tax/liability.csv?from=2026-01-01&to=2026-03-01&level=state')).text())
+  assert.deepEqual(rows.map(row=>[row.state,row.channel,Number(row.taxCents)]),[['WA','marketplace',525]])
+  const config=await h.api('/api/stall/tax/configuration')
+  await h.api('/api/stall/tax/configuration',{revision:config.revision,value:{shipFrom:{line1:'1200 Cedar Avenue',city:'Austin',state:'TX',postal_code:'78702',country:'US'},categories:[],thresholds:[{state:'WA',salesCents:10000,transactions:10,warningPercent:50}]}})
+  const nexus=await h.api('/api/stall/tax/nexus?from=2026-01-01&to=2026-03-01');assert.equal(nexus.states[0].netGrossCents,6000);assert.equal(nexus.states[0].status,'warning')
+  assert.ok((await h.api('/api/stall/state')).audit.some(event=>event.action==='tax.marketplace-recorded'))
+  let restored
+  try {restored=await installation();await restore(restored,await archive(h));assert.deepEqual((await restored.api('/api/stall/tax/liability?from=2026-01-01&to=2026-02-01')).marketplaceTotals,january.marketplaceTotals)}finally{await restored?.close()}
+ }finally{await h.close()}
+})
+
 test('uncertain sale tax survives archive restore as original-reference observation without replacement or checkout authority',async()=>{
  const {taxCommerceInstallation}=await import('./tax-commerce.mjs'),kit=await taxCommerceInstallation(),{h,tax,stripe}=kit
  let receiving
