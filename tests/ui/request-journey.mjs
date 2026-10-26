@@ -102,7 +102,7 @@ try {
   await card(shipped).getByText('Returns, exchanges and cancellation', { exact: true }).waitFor()
   const mine = page.getByLabel(`Returns and exchanges for order ${shipped}`, { exact: true })
   await mine.getByText('We have set the large size aside for you.', { exact: false }).waitFor()
-  await mine.getByText('Your replacement is set aside.', { exact: false }).waitFor()
+  await mine.getByText('Nothing is charged or refunded by this step.', { exact: false }).waitFor()
   await capture('RETURN-001-account-decided', mine)
   as = ''; await page.goto(ready.url + '/order#orderLink=' + link.token)
   await page.getByText('The glaze matches the listing, so this is outside our policy.', { exact: false }).waitFor()
