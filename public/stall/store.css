@@ -114,3 +114,7 @@
 .st-pager { display: flex; gap: 12px; align-items: center; justify-content: center; padding: 12px 0; }
 @media (max-width: 600px) { .st-searchrow { flex-direction: column; } .st-facets { grid-template-columns: 1fr; } }
 .st-app input[type=radio] { width: 18px; min-height: 18px; height: 18px; flex: none; margin: 1px 0 0; padding: 0; accent-color: var(--tangerine-press); }
+
+.st-account-order { padding: 18px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.st-account-order .st-actions { flex-wrap: wrap; }
+.st-account-order address { font-style: normal; }

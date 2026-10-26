@@ -1,0 +1,116 @@
+import assert from 'node:assert/strict'
+import { startJourney } from './journey-kit.mjs'
+import { pierInstallation } from '../api/pier.mjs'
+import { publish, purchase, deliverWebhook } from '../api/network.mjs'
+
+let journey, journeyError
+try {
+  journey = await startJourney({ name: 'customer-directory', skus: ['MUG-BLUE'], stock: await pierInstallation() })
+  const { h, page, ready, edge, secret, capture } = journey
+  await publish(h, 'MUG-BLUE', 'synthetic-stall-2100', 2450)
+  for (const [index, width] of [1440, 390].entries()) {
+    const fixture = 2110 + index * 10, firstEmail = `synthetic-stall-${fixture}@example.test`, secondEmail = `synthetic-stall-${fixture + 1}@example.test`, name = `synthetic-stall-${fixture + 2}`, note = `synthetic-stall-${fixture + 3}`
+    await page.setViewportSize({ width, height: 1000 })
+    await page.goto(ready.url + '/app#customers')
+    await page.getByRole('heading', { name: 'Customers', exact: true, level: 1 }).waitFor()
+    await page.getByText('Import customers', { exact: true }).click()
+    const importer = page.getByRole('form', { name: 'Import customers', exact: true })
+    await importer.getByLabel('Customer rows · JSON', { exact: true }).fill(JSON.stringify([
+      { email: firstEmail, name, tags: ['vip'] },
+      { email: secondEmail, name, tags: ['repeat'] },
+      { email: firstEmail.toUpperCase(), name, tags: ['discarded'] },
+    ]))
+    await importer.getByRole('button', { name: 'Preview import', exact: true }).click()
+    const preview = page.getByRole('region', { name: 'Import preview', exact: true })
+    await preview.getByText('2 new · 1 duplicate rows skipped', { exact: true }).waitFor()
+    await preview.getByText('Skip repeated email', { exact: false }).waitFor()
+    if (!index) await capture('CUSTOMER-001-import-preview', preview)
+    await page.setViewportSize({ width, height: 1000 })
+    await preview.getByRole('button', { name: 'Import 2 new customers', exact: true }).click()
+    await page.getByRole('status').filter({ hasText: 'Customer import completed.' }).waitFor()
+    const first = page.getByRole('article', { name: `Customer ${firstEmail}`, exact: true }), second = page.getByRole('article', { name: `Customer ${secondEmail}`, exact: true })
+    await first.waitFor(); await second.waitFor()
+    await importer.getByLabel('Customer rows · JSON', { exact: true }).fill(JSON.stringify([{ email: firstEmail, name }]))
+    await importer.getByRole('button', { name: 'Preview import', exact: true }).click()
+    await preview.getByText('0 new · 1 duplicate rows skipped', { exact: true }).waitFor()
+    await preview.getByText('Skip existing email', { exact: false }).waitFor()
+    assert.ok(await preview.getByRole('button', { name: 'Import 0 new customers', exact: true }).isDisabled())
+    await second.getByRole('button', { name: 'Manage customer', exact: true }).click()
+    await second.getByLabel('New merchant note', { exact: true }).fill(note)
+    await second.getByRole('button', { name: 'Add note', exact: true }).click()
+    await second.getByRole('article').getByText(note, { exact: true }).waitFor()
+    await second.locator('summary').filter({ hasText: 'Review a customer merge' }).click()
+    const directory = await h.api('/api/stall/customers'), target = directory.customers.find(customer => customer.emails.includes(firstEmail))
+    await second.getByLabel('Keep customer', { exact: true }).selectOption(target.id)
+    assert.ok(await second.getByRole('button', { name: 'Merge reviewed records', exact: true }).isDisabled())
+    await second.getByRole('checkbox', { name: 'I reviewed these two records and approve this metadata merge.', exact: true }).check()
+    if (!index) await capture('CUSTOMER-001-merge-review', second)
+    await page.setViewportSize({ width, height: 1000 })
+    await second.getByRole('button', { name: 'Merge reviewed records', exact: true }).click()
+    await second.waitFor({ state: 'detached' })
+    await first.getByText('Tags: vip, repeat', { exact: true }).waitFor()
+    await first.getByRole('button', { name: 'Manage customer', exact: true }).click()
+    await first.getByRole('article').getByText(note, { exact: true }).waitFor()
+    const profile = first.getByRole('form', { name: 'Customer profile', exact: true })
+    await profile.getByLabel('Tags · separated by commas', { exact: true }).fill('vip, repeat, reviewed')
+    await profile.getByRole('button', { name: 'Save customer profile', exact: true }).click()
+    await first.getByText('Tags: vip, repeat, reviewed', { exact: true }).waitFor()
+    await page.getByRole('button', { name: 'New segment', exact: true }).click()
+    const editor = page.getByRole('form', { name: 'Customer segment', exact: true }), segmentName = `synthetic-stall-${fixture + 4}`
+    await editor.getByLabel('Segment name', { exact: true }).fill(segmentName)
+    await editor.getByLabel('Required tag', { exact: true }).fill('reviewed')
+    await editor.getByLabel('Minimum net lifetime value · USD', { exact: true }).fill('40')
+    await editor.getByLabel('Minimum paid orders', { exact: true }).fill('2')
+    await editor.getByLabel('State or province · two letters', { exact: true }).fill('TX')
+    await editor.getByRole('button', { name: 'Save segment', exact: true }).click()
+    const segment = page.getByRole('article', { name: `Segment ${segmentName}`, exact: true })
+    await segment.getByText('0 matching customers', { exact: false }).waitFor()
+    const bought = []
+    for (const email of [firstEmail, secondEmail]) {
+      const order = await purchase(h, edge, { skus: ['MUG-BLUE'], quantities: [1], email })
+      await deliverWebhook(h, secret, edge.pay(order.session.id)); bought.push(order)
+    }
+    await page.getByRole('button', { name: 'Refresh customers', exact: true }).click()
+    await segment.getByText('1 matching customers', { exact: false }).waitFor()
+    await first.locator('dt').filter({ hasText: /^Paid orders$/ }).locator('..').getByText('2', { exact: true }).waitFor()
+    await first.locator('dt').filter({ hasText: /^Net lifetime value$/ }).locator('..').getByText('$49.00', { exact: true }).waitFor()
+    await segment.getByRole('button', { name: 'View segment customers', exact: true }).click()
+    await capture(`CUSTOMER-001-live-segment-${width}`, first)
+    await page.setViewportSize({ width, height: 1000 })
+    let order = (await h.api('/api/stall/state')).orders.find(order => order.id === bought[0].orderId)
+    order = await h.command('shipment.prepare', { orderId: order.id, revision: order.revision, reference: `synthetic-stall-${fixture + 5}` })
+    order = await h.command('shipment.approve', { orderId: order.id, revision: order.revision })
+    order = await h.command('refund.prepare', { orderId: order.id, revision: order.revision, lines: [{ sku: 'MUG-BLUE', quantity: 1 }], reason: `synthetic-stall-${fixture + 6}` })
+    await h.command('refund.approve', { orderId: order.id, revision: order.revision })
+    await page.getByRole('button', { name: 'Refresh customers', exact: true }).click()
+    await segment.getByText('0 matching customers', { exact: false }).waitFor()
+    await page.getByText('No customers match this view.', { exact: true }).waitFor()
+    await page.getByLabel('Customer segment', { exact: true }).selectOption('')
+    await first.locator('dt').filter({ hasText: /^Net lifetime value$/ }).locator('..').getByText('$24.50', { exact: true }).waitFor()
+    await first.locator('dt').filter({ hasText: /^Succeeded refunds$/ }).locator('..').getByText('$24.50', { exact: true }).waitFor()
+    await capture(`CUSTOMER-001-refund-${width}`, first)
+  }
+  const support = await h.signIn('synthetic-stall-2140@example.test'), actor = (await h.api('/auth/session', undefined, { as: support })).operator
+  await h.command('staff.configure', { actorId: actor.id, staffRole: 'customer_support' })
+  await page.route('**/api/stall/**', async route => {
+    const req = route.request(), url = new URL(req.url()), response = await h.request(url.pathname + url.search, { method: req.method(), as: support, ...(req.postData() ? { body: JSON.parse(req.postData()) } : {}) })
+    await route.fulfill({ status: response.status, headers: { 'content-type': 'application/json' }, body: Buffer.from(await response.arrayBuffer()) })
+  })
+  await page.goto(ready.url + '/app#customers')
+  await page.getByRole('article', { name: 'Customer synthetic-stall-2110@example.test', exact: true }).waitFor()
+  assert.equal(await page.getByText('Import customers', { exact: true }).count(), 0)
+  const customer = page.getByRole('article', { name: 'Customer synthetic-stall-2110@example.test', exact: true })
+  await customer.getByRole('button', { name: 'Manage customer', exact: true }).click()
+  assert.equal(await customer.getByText('Review a customer merge', { exact: true }).count(), 0)
+  await customer.getByLabel('New merchant note', { exact: true }).fill('synthetic-stall-2141')
+  await customer.getByRole('button', { name: 'Add note', exact: true }).click()
+  await customer.getByRole('article').getByText('synthetic-stall-2141', { exact: true }).waitFor()
+  await capture('CUSTOMER-001-support', customer)
+  assert.deepEqual(journey.errors, [])
+  await journey.dev.assertRunning()
+  console.log('PASS CUSTOMER-001 customer directory, reviewed merge, live segments and support metadata at 1440 and 390')
+} catch (error) {
+  journeyError = error
+  if (journey?.page) await journey.page.screenshot({ path: (process.env.STALL_SCREENSHOTS ?? './test-results/customer-directory') + '/failure.png', fullPage: true })
+  throw error
+} finally { await journey?.finish(journeyError) }

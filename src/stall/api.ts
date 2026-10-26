@@ -7,6 +7,7 @@ import { readTaxConfiguration,saveTaxConfiguration,readTaxExemptions,saveTaxExem
 import { taxLiability,taxReportCsv,taxNexus } from './tax/reports'
 import { taxOwner,taxBoundaryFor,taxReadiness,taxHistory,previewTax } from './tax'
 import { cartResponse } from './customers/cart'
+import { guestOrderResponse } from './customers/guest-orders'
 import { privacyResponse } from './customers/privacy'
 import { customerResponse } from './customers'
 import { customerCommit,requireProvenEmail } from './customers/account'
@@ -87,6 +88,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   const base=runtimeBindings(original)
   // A demo uses its simulated providers; otherwise saved Settings connections fill unset secrets.
   const env=base.RER_DEMO==='1'?base:await withConnections(base)
+  const guest=await guestOrderResponse(request,env);if(guest)return guest
   const cart=await cartResponse(request,env);if(cart)return cart
   const privacy=await privacyResponse(request,env);if(privacy)return privacy
   const customer=await customerResponse(request,env);if(customer)return customer

@@ -13,13 +13,14 @@ import { ShippingView } from './shipping'
 import { Activity } from './activity'
 import { Settings } from './settings'
 import { Promotions } from './promotions'
+import { CustomerDirectory } from './customer-directory'
 import { RequestIntake } from './request-intake'
 import { DeskShell, recordOf, viewOf, type DeskView } from './shell'
 import { needs, orderTabs } from './order-status'
 import { defaultTimeZone, People, TimeZone } from './presentation'
 
 const searchLabel: Partial<Record<DeskView, string>> = { orders: 'Search orders, customers, items', products: 'Search products or SKUs', history: 'Search activity, records or people' }
-const titles: Record<DeskView, string> = { orders: 'Orders', products: 'Products', shopfront: 'Collections & search', shipping: 'Shipping', promotions: 'Promotions', requests: 'Customer requests', 'move-in': 'Move in', history: 'Activity', settings: 'Settings' }
+const titles: Record<DeskView, string> = { orders: 'Orders', products: 'Products', shopfront: 'Collections & search', shipping: 'Shipping', promotions: 'Promotions', requests: 'Customer requests', customers: 'Customers', 'move-in': 'Move in', history: 'Activity', settings: 'Settings' }
 
 export function ShopDesk() {
   const [state, setState] = useState<State | null>(null), [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true)
@@ -39,7 +40,7 @@ export function ShopDesk() {
     finally { lock.current = false; setBusy(false) }
   }
   const permissionActor=state?{...state.actor,agent:!!state.actor.agent}:{role:'member',agent:false}
-  const allowedViews:DeskView[]=state&&['owner','admin'].includes(state.actor.role)?['orders','products','shopfront','shipping','promotions','requests','move-in','history','settings']:[...(permits(permissionActor,'orders')?['orders' as const]:[]),...(permits(permissionActor,'catalog')?['products' as const,'move-in' as const]:[]),...((permits(permissionActor,'marketing')||permits(permissionActor,'catalog'))?['shopfront' as const]:[]),...(permits(permissionActor,'admin')?['shipping' as const]:[]),'settings']
+  const allowedViews:DeskView[]=state&&['owner','admin'].includes(state.actor.role)?['orders','products','shopfront','shipping','promotions','requests','customers','move-in','history','settings']:[...(permits(permissionActor,'support')?['customers' as const]:[]),...(permits(permissionActor,'orders')?['orders' as const]:[]),...(permits(permissionActor,'catalog')?['products' as const,'move-in' as const]:[]),...((permits(permissionActor,'marketing')||permits(permissionActor,'catalog'))?['shopfront' as const]:[]),...(permits(permissionActor,'admin')?['shipping' as const]:[]),'settings']
   const allowed=allowedViews.includes(view)
   const role = state?.actor.role.toLowerCase() ?? '', owner = role === 'owner', canApprove = !!state && !state.actor.agent && (['owner', 'admin'].includes(role)||!!state.actor.staffRole)
   const open = state?.orders.filter(order => orderTabs[1].keep(order) || needs(order)).length ?? 0
@@ -53,6 +54,7 @@ export function ShopDesk() {
       {allowed&&view === 'products' && <ProductsView products={state.products} audit={state.audit} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} reload={reload} shipping={state.shipping} />}
       {allowed&&view === 'shopfront' && state.merchandising && <MerchandisingView data={state.merchandising} products={state.products} busy={busy} run={run} canApprove={canApprove} />}
       {allowed&&view === 'shipping' && state.shipping && (canApprove ? <ShippingView data={state.shipping} busy={busy} run={run} reload={reload} /> : <Section title="Shipping"><p>Only an owner or administrator can change shipping profiles.</p></Section>)}
+      {allowed&&view === 'customers' && <CustomerDirectory canManage={!state.actor.agent&&['owner','admin'].includes(role)} query={query} />}
       {allowed&&view === 'requests' && <RequestIntake />}
       {allowed&&view === 'promotions' && <Promotions />}
       {allowed&&view === 'move-in' && (canApprove ? <MoveIn reload={reload} /> : <Section title="Move in from Shopify"><p>Only an owner or administrator can import products.</p></Section>)}

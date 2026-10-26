@@ -756,7 +756,7 @@
       "executable": false
     },
     "public/stall/store.css": {
-      "sha256": "2dd1940a50b65cd66b0ef6f3e96ac9aed89dbfabb1b43891d3a5d0fa8f29aa8c",
+      "sha256": "36430c661038c91ccaaebc3dcb22910c5959022565bfc01e717f029db0edddf7",
       "executable": false
     },
     "README.md": {
@@ -2972,7 +2972,7 @@
       "executable": false
     },
     "src/stall/api.ts": {
-      "sha256": "cc1d4d5c5ebb27dcfdf8c1bc18e6bd7f4efa90e56c02faf2be62df4d9b5d3a50",
+      "sha256": "bc3e56a3da933c0054e28a5d3fc899d3cd690fb14c5f98d2197e7ea1833ebe6e",
       "executable": false
     },
     "src/stall/base-exports.d.ts": {
@@ -3004,7 +3004,7 @@
       "executable": false
     },
     "src/stall/customers/cart.ts": {
-      "sha256": "0a15d834745409fc31c3e1058de4d331627b56ccc94d3874606999486bbbda7b",
+      "sha256": "9bd44499703f0a1a83e30f6b73d706d4e4c9cac1876ec8bb0fe19caa1ba9a959",
       "executable": false
     },
     "src/stall/customers/checkout-details.ts": {
@@ -3024,7 +3024,7 @@
       "executable": false
     },
     "src/stall/customers/reorder.ts": {
-      "sha256": "7200bec600a830aacd1b800c8a75d0d793ee951813f4c094c36d7ad5012d03e5",
+      "sha256": "45a644a6fc0ff29f6bcc862f9e552e4a84c2bb0bc6446ecff29aaae17906e73d",
       "executable": false
     },
     "src/stall/demo/channel-payment.ts": {
@@ -3236,7 +3236,7 @@
       "executable": false
     },
     "src/stall/portability-policy.mjs": {
-      "sha256": "b10fefa54fcc695caf6ac59544dd91ae35353ad326d22b872c0a6e4313dd9aee",
+      "sha256": "c815a2b059531ce0b57c2d67d5f54d9f96eb7e4a66a979990290669b08c3bebd",
       "executable": false
     },
     "src/stall/preferences.ts": {
@@ -3416,7 +3416,7 @@
       "executable": false
     },
     "src/stall/ui/app.tsx": {
-      "sha256": "37c1edf1ba1f5f18cd78d2de236a85454ef5178d62f811cada234896160fe017",
+      "sha256": "e0284e75b181a57c258db56f47e480e8711df9e840bfc66a070982690a44539f",
       "executable": false
     },
     "src/stall/ui/authority.tsx": {
@@ -3532,7 +3532,7 @@
       "executable": false
     },
     "src/stall/ui/order-return.tsx": {
-      "sha256": "8894db9ab81b93e64e426cc6a3a5d5f5e48b31d8c60529c90bd0fd75fbbd90e1",
+      "sha256": "69dc80df3f7e76e6f4c964d424f002a446ff9e4b36ad7266db07060ee0f618dc",
       "executable": false
     },
     "src/stall/ui/order-status.ts": {
@@ -3620,7 +3620,7 @@
       "executable": false
     },
     "src/stall/ui/shell.tsx": {
-      "sha256": "f3b94ce8275183e7e7557f0b07c55b17062abdd0e869a918d7ff8a0d9fe5f41c",
+      "sha256": "6ae7e69a9ec295292268639f78d850d50a6bdbb01d1cb68703e9449334a30198",
       "executable": false
     },
     "src/stall/ui/shipping-assign.tsx": {
@@ -3748,7 +3748,7 @@
       "executable": false
     },
     "tests/api/commerce.test.mjs": {
-      "sha256": "38dce82b7bc99bf0d078d8d701a4731544ccb71fbb670fd9ce253932828e64bc",
+      "sha256": "650c036c1a4e406fc394c87547ba63fbed2d94d15b7a413253197c472d6c006c",
       "executable": false
     },
     "tests/api/csv-reader.mjs": {

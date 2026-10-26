@@ -13,6 +13,7 @@ export const deskViews = [
   { id: 'products', label: 'Products', icon: 'products' },
   { id: 'shopfront', label: 'Collections & search', icon: 'search' },
   { id: 'shipping', label: 'Shipping', icon: 'shipping' },
+  { id: 'customers', label: 'Customers', icon: 'orders' },
   { id: 'requests', label: 'Customer requests', icon: 'orders' },
   { id: 'promotions', label: 'Promotions', icon: 'products' },
   { id: 'move-in', label: 'Move in', icon: 'moveIn' },

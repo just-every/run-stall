@@ -25,6 +25,12 @@ export async function cartContext(request:Request,env:Bindings):Promise<CartCont
 }
 function ownership(ctx:CartContext) {return ctx.actor?{sql:'owner_email=?',value:ctx.actor.email.toLowerCase()}:{sql:'owner_email IS NULL AND guest_hash=?',value:ctx.guestHash}}
 export async function cartRead(env:Bindings,ctx:CartContext,id?:string):Promise<NativeCart|null> {
+ // A signed-in browser may also hold an explicitly selected guest cart. Only
+ // its existing HttpOnly capability can choose that separate guest context.
+ if(id&&ctx.actor) {
+  const guest=await env.DB.prepare('SELECT * FROM st_shop_carts WHERE id=? AND owner_email IS NULL AND guest_hash=?').bind(id,ctx.guestHash).first<NativeCart>()
+  if(guest){ctx.actor=null;return guest}
+ }
  const own=ownership(ctx),r=await env.DB.prepare(`SELECT * FROM st_shop_carts WHERE ${own.sql}${id?' AND id=?':''} ORDER BY updated_at DESC,rowid DESC LIMIT 1`).bind(own.value,...(id?[id]:[])).first<NativeCart>()
  if(id&&!r)fail('NOT_FOUND','Cart not found.',404)
  if(ctx.actor)await customerCommit(env,ctx.actor)
