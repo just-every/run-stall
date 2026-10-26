@@ -3027,6 +3027,10 @@
       "sha256": "680c2dabe2a61351b800a7d3b0ff082ce380ce29e9de586ba1fefa34fa6dc4b0",
       "executable": false
     },
+    "src/stall/customers/merchant-address.ts": {
+      "sha256": "c30be21503c16372b1d6ce3c77877c18c9914f9cc3c42224f798af365e86ea86",
+      "executable": false
+    },
     "src/stall/customers/privacy.ts": {
       "sha256": "2fcbadc085994b84dd713dc68b81740a9538ab2dc1777102b08f659fb9bfb5ec",
       "executable": false
@@ -3784,7 +3788,7 @@
       "executable": false
     },
     "tests/api/data.test.mjs": {
-      "sha256": "4e239c16897bf97ae0c1d27532497e60eb287e427d00538e8a356c057c453ac0",
+      "sha256": "cc775ae0d3169eb90719e7129e5868eb5b442a9054279ee892ded8dd4ca7d15a",
       "executable": false
     },
     "tests/api/demo-worker.ts": {

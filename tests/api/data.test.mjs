@@ -517,7 +517,7 @@ test('customer directory resolves duplicates without granting account access and
   dir=await h.api('/api/stall/customers')
   let first=dir.customers.find(c=>c.emails.includes(firstEmail)),other=dir.customers.find(c=>c.emails.includes(otherEmail))
   assert.deepEqual([first.orderCount,first.lifetimeValueCents,other.orderCount,other.lifetimeValueCents],[1,2450,1,4900])
-  const address={name:'synthetic-stall-2150',line1:'1 Maker Lane',city:'Austin',state:'TX',postal_code:'78702',country:'US'}
+  const address={name:'synthetic-stall-2150',line1:'1 Maker Lane',line2:'',city:'Austin',state:'TX',postal_code:'78702',country:'US'}
   const addressPayload={customerId:first.id,customerRevision:first.revision,email:firstEmail,address}
   await h.api('/api/stall/customers/addresses',{...addressPayload,email:otherEmail},{status:404})
   for(const refused of [{as:alice,status:403},{as:support,status:403},{as:'',headers:{authorization:`Bearer ${grant.token}`},status:403}])await h.api('/api/stall/customers/addresses',addressPayload,refused)
