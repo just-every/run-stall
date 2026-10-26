@@ -57,6 +57,7 @@ try {
  await inspect('CUSTOMER-001-current-tracking')
  // The shipment is a day old, well inside the window.
  await h.command('return.policy.save',{revision:null,windowDays:30,condition:'Unused and in its packaging',feeCents:0,returnShipping:'The customer pays return postage',finalSaleSkus:[],exchanges:false})
+ await showOwnOrder()
  await card.getByText('Returns, exchanges and cancellation',{exact:true}).click()
  const requestForm=card.getByRole('form',{name:'Request help with this order',exact:true})
  await requestForm.getByRole('checkbox',{name:/Blue ceramic mug/}).check()
