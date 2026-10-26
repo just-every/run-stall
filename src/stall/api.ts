@@ -1,3 +1,5 @@
+import { registrationResponse,expireCustomerRegistrations } from './customers/registration'
+import { balanceResponse } from './customers/balances'
 import { proposalBundle, previewProposal, proposalCommand } from './proposals'
 import { recoverTaxTransaction } from './tax/transactions'
 import { taxCommerceState,ownerTaxCommerceState,publicTaxCommerce,ownerTaxCommerce } from './tax/commerce'
@@ -88,6 +90,8 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   const base=runtimeBindings(original)
   // A demo uses its simulated providers; otherwise saved Settings connections fill unset secrets.
   const env=base.RER_DEMO==='1'?base:await withConnections(base)
+  const registration=await registrationResponse(request,env);if(registration)return registration
+  const balances=await balanceResponse(request,env);if(balances)return balances
   const guest=await guestOrderResponse(request,env);if(guest)return guest
   const cart=await cartResponse(request,env);if(cart)return cart
   const privacy=await privacyResponse(request,env);if(privacy)return privacy
@@ -245,6 +249,7 @@ export async function stallScheduled(original:Bindings) {
  const base=runtimeBindings(original)
  if(base.RER_DEMO==='1') return
  const env=await withConnections(base)
+ await expireCustomerRegistrations(env)
  await checkAwaitingPayments(env)
  await releaseExpiredHolds(env)
  await runWorkflows(env)

@@ -1,3 +1,4 @@
+import { balanceBusinessRecords } from './customers/balances'
 import { merchandisingProposals } from './proposals'
 import { cartBusinessRecords } from './customers/cart'
 import { privacyBusinessRecords } from './customers/privacy'
@@ -27,6 +28,7 @@ export async function businessExtensions(db:D1Database) {
   merchandisingProposals:await merchandisingProposals(db),
   nativeCart:await cartBusinessRecords(db),
   customerDirectory:await customerBusinessRecords(db),
+  customerBalances:await balanceBusinessRecords(db),
   customerPrivacy:await privacyBusinessRecords(db),
   risk:{rules:rules?JSON.parse(rules.value_json):null,observations:observations.results.map(r=>JSON.parse(r.value_json)),decisions:decisions.results,notifications:alerts.results},
   headless:{customers:customers.results,carts:carts.results.map(({value_json,...r})=>({...r,lines:JSON.parse(value_json)})),events:events.results,deliveries:deliveries.results},

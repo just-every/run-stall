@@ -1,3 +1,5 @@
+import { customerRegistrationErasureStatements } from './customers/registration'
+import { balanceErasureStatements } from './customers/balances'
 import { cartErasureStatements } from './customers/cart'
 import { privacyErasureStatements } from './customers/privacy'
 import { customerErasureStatements } from './customers'
@@ -37,6 +39,8 @@ export async function eraseCustomer(env: Bindings, actor: Actor, payload: any) {
   ...cartErasureStatements(env.DB,address),
   ...await privacyErasureStatements(env.DB,address),
   ...customerErasureStatements(env.DB,address),
+  ...await customerRegistrationErasureStatements(env.DB,address),
+  ...balanceErasureStatements(env.DB,address),
   ...workflowErasureStatements(env.DB,address),
   ...headlessErasureStatements(env.DB,address),
   env.DB.prepare("UPDATE st_promotion_allocations SET customer_key='erased:'||order_id WHERE order_id IN (SELECT id FROM st_orders WHERE lower(json_extract(value_json,'$.customerEmail'))=?)").bind(address),
