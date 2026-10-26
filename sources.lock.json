@@ -3420,7 +3420,7 @@
       "executable": false
     },
     "src/stall/ui/address-book.tsx": {
-      "sha256": "b25ebaa534a523db309562505ae5d7ab16a48524718cd107ae4df7081978a24a",
+      "sha256": "0e391e0338d43ffd4b8b9f6ca1362c46f9435a86950d46b682c6521a97905254",
       "executable": false
     },
     "src/stall/ui/agent-credential.tsx": {
@@ -3451,6 +3451,10 @@
       "sha256": "e473c3cb46574217703f183746093f8dd3bf55543b370c12999eba6d7e09d3de",
       "executable": false
     },
+    "src/stall/ui/checkout-answers.tsx": {
+      "sha256": "43d4d763b532b28971d6d7f938d32943258e1c46666737bb2763afc6165607d3",
+      "executable": false
+    },
     "src/stall/ui/collections-editor.tsx": {
       "sha256": "9db6ff594ee10013234b3fc4fba6fb97a5e64e9ed140f258728c261af72ac439",
       "executable": false
@@ -3464,7 +3468,7 @@
       "executable": false
     },
     "src/stall/ui/customer-directory.tsx": {
-      "sha256": "5fd45de3b08645350367ea0d490bea41e7cb27cffb29f15465167ccaaebf7acb",
+      "sha256": "778463211b417821da20cc732cddf070ad454e7d9a8488097ba124e1567eef15",
       "executable": false
     },
     "src/stall/ui/customer-requests.tsx": {

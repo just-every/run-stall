@@ -67,7 +67,7 @@ function CustomerMerge({ source, customers, busy, save }: { source: Customer; cu
   const [targetId, setTargetId] = useState(''), [reviewed, setReviewed] = useState(false), target = customers.find(customer => customer.id === targetId)
   return <details className="st-stack"><summary>Review a customer merge</summary>
     <p>Choose the directory record to keep. Its name is retained; email associations, tags and merchant notes combine. The source directory record is removed. Each mailbox keeps its own order access and address book; no customer sign-in authority changes.</p>
-    <label>Keep customer<select value={targetId} disabled={busy} onChange={event => { setTargetId(event.target.value); setReviewed(false) }}><option value="">Choose another customer…</option>{customers.filter(customer => customer.id !== source.id).map(customer => <option value={customer.id} key={customer.id}>{labelOf(customer)} · {customer.emails.join(', ')}</option>)}</select></label>
+    <label>Keep customer<select aria-label="Keep customer" value={targetId} disabled={busy} onChange={event => { setTargetId(event.target.value); setReviewed(false) }}><option value="">Choose another customer…</option>{customers.filter(customer => customer.id !== source.id).map(customer => <option value={customer.id} key={customer.id}>{labelOf(customer)} · {customer.emails.join(', ')}</option>)}</select></label>
     {target && <section className="st-panel st-stack" aria-label="Merge review">
       <h3>Review metadata merge</h3>
       <p style={{ overflowWrap: 'anywhere' }}>Remove source: {labelOf(source)} · {source.emails.join(', ')}</p>
@@ -90,7 +90,7 @@ function MerchantAddresses({ customer, addresses, busy, save }: { customer: Cust
     </article>)}
     <details open={!!editing || !addresses.length}><summary>{editing ? 'Edit customer address' : 'Add customer address'}</summary>
       <form className="st-stack" aria-label="Merchant customer address" onSubmit={event => { event.preventDefault(); void save({ ...identity, ...(editing ? { id: editing.id, revision: editing.revision } : {}), address }, 'Customer address saved.') }}>
-        <label>Address mailbox<select required value={mailbox} disabled={busy || !!editing} onChange={event => setMailbox(event.target.value)}>{customer.emails.map(email => <option key={email} value={email}>{email}</option>)}</select></label>
+        <label>Address mailbox<select aria-label="Address mailbox" required value={mailbox} disabled={busy || !!editing} onChange={event => setMailbox(event.target.value)}>{customer.emails.map(email => <option key={email} value={email}>{email}</option>)}</select></label>
         <div className="st-form-grid"><AddressFields value={address} change={setAddress} disabled={busy} /></div>
         <div className="st-actions"><button disabled={busy}>Save customer address</button>{editing && <button type="button" className="st-secondary" disabled={busy} onClick={() => { setEditing(undefined); setAddress(blankAddress) }}>Cancel address edit</button>}</div>
       </form>
@@ -146,7 +146,7 @@ export function CustomerDirectory({ canManage, query }: { canManage: boolean; qu
         {!data.segments.length && <p>No saved segments yet.</p>}
         {data.segments.map(item => <article key={item.id} className="st-stack" aria-label={`Segment ${item.value.name}`}><h3>{item.value.name}</h3><p>{item.members.length} matching customers · Tag: {item.value.tag || 'Any'} · Net value from {money(item.value.minimumSpentCents)} · Paid orders from {item.value.minimumOrders} · State or province: {item.value.state || 'Any'}</p><div className="st-actions"><button className="st-secondary" onClick={() => setSegmentId(item.id)}>View segment customers</button><button className="st-secondary" disabled={busy} onClick={() => setEditing(item)}>Edit segment</button></div></article>)}
       </section>
-      <div className="st-form-grid">{query === undefined && <label>Search customers<input type="search" value={search} onChange={event => setSearch(event.target.value)} /></label>}<label>Customer segment<select value={segmentId} onChange={event => setSegmentId(event.target.value)}><option value="">All customers</option>{data.segments.map(item => <option value={item.id} key={item.id}>{item.value.name} · {item.members.length}</option>)}</select></label></div>
+      <div className="st-form-grid">{query === undefined && <label>Search customers<input type="search" value={search} onChange={event => setSearch(event.target.value)} /></label>}<label>Customer segment<select aria-label="Customer segment" value={segmentId} onChange={event => setSegmentId(event.target.value)}><option value="">All customers</option>{data.segments.map(item => <option value={item.id} key={item.id}>{item.value.name} · {item.members.length}</option>)}</select></label></div>
       <p>{visible.length} customers shown{segment ? ` in ${segment.value.name}` : ''}</p>
       <p className="st-small">Paid order count includes recorded payments. Net lifetime value is paid USD totals less succeeded refunds; pending refunds do not reduce it. Refresh to include new orders and refunds.</p>
       {!visible.length && <p>No customers match this view.</p>}
