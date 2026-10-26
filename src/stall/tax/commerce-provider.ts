@@ -25,7 +25,7 @@ export type TaxSnapshot={quoteId:string;calculationId:string;configRevision:stri
 export function jurisdictions(entries:any[],sign=1):TaxJurisdiction[] {
  return entries.flatMap(entry=>{
   const j=entry.jurisdiction,rate=entry.tax_rate_details?.percentage_decimal
-  if(!j||!['state','county','city','district'].includes(j.level)||typeof j.display_name!=='string'||!j.display_name.trim()||j.country!=='US'||!taxStates.includes(j.state)||typeof rate!=='string'||!/^\d+(?:\.\d+)?$/.test(rate))return []
+  if(entry.taxability_reason==='not_collecting'||!j||!['state','county','city','district'].includes(j.level)||typeof j.display_name!=='string'||!j.display_name.trim()||j.country!=='US'||!taxStates.includes(j.state)||typeof rate!=='string'||!/^\d+(?:\.\d+)?$/.test(rate))return []
   return [{level:j.level,name:j.display_name,country:'US' as const,state:j.state,ratePercent:rate,amountCents:sign*integer(Math.abs(entry.amount),'Jurisdiction tax cents',0,99999999),taxableCents:sign*integer(Math.abs(entry.taxable_amount),'Jurisdiction taxable cents',0,99999999)}]
  })
 }

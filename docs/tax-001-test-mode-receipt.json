@@ -1,0 +1,132 @@
+{
+ "registeredStates": [
+  "CA",
+  "WA"
+ ],
+ "accountId": "acct_1URgLjDg8BoejKxo",
+ "preview": {
+  "calculationId": "taxcalc_1UUbq2Dg8BoejKxoEOMEAJCp",
+  "taxCents": 173,
+  "totalCents": 2873,
+  "jurisdictions": 3
+ },
+ "sameZip": [
+  {
+   "zip": "94063",
+   "street": "2250 Middlefield Road",
+   "calculationId": "taxcalc_1UUbq4Dg8BoejKxoJQXTvZcc",
+   "taxCents": 198,
+   "jurisdictions": 8
+  },
+  {
+   "zip": "94063",
+   "street": "2800 Fair Oaks Avenue",
+   "calculationId": "taxcalc_1UUbq5Dg8BoejKxoRWswQyxd",
+   "taxCents": 188,
+   "jurisdictions": 7
+  }
+ ],
+ "washingtonSale": {
+  "orderId": "0e0810b7-4610-40c7-8f95-07152597ab83",
+  "calculationId": "taxcalc_1UUbq7Dg8BoejKxosBsZv2Ot",
+  "transactionId": "tax_1UUbq7Dg8BoejKxoJoG8Txjd",
+  "taxCents": 228,
+  "levels": [
+   "state",
+   "county",
+   "city",
+   "district"
+  ]
+ },
+ "exemptSale": {
+  "evidenceId": "eec44b0b-5335-4595-869f-9c6a7b97433d",
+  "guestTaxCents": 205,
+  "exemptCalculationId": "taxcalc_1UUbqCDg8BoejKxoh6vh5OXP",
+  "transactionId": "tax_1UUbqCDg8BoejKxoDqjzGa3t"
+ },
+ "discountedShipping": {
+  "fullCalculationId": "taxcalc_1UUbqFDg8BoejKxolH679Wmg",
+  "fullTaxCents": 228,
+  "discountedCalculationId": "taxcalc_1UUbqGDg8BoejKxovUSiHab8",
+  "discountedTaxCents": 211,
+  "discountedTotalCents": 2711
+ },
+ "sale": {
+  "orderId": "565c8a29-7f65-479c-aadd-d82444eae34d",
+  "calculationId": "taxcalc_1UUbqIDg8BoejKxoZP7DOEWi",
+  "transactionId": "tax_1UUbqIDg8BoejKxo4yAIXlx4",
+  "taxCents": 205,
+  "totalCents": 2905
+ },
+ "refund": {
+  "refundId": "8e53eb26-adc8-48c4-8317-d447ea575b5d",
+  "reversalId": "tax_1UUbqLDg8BoejKxoaBDJwN9Y",
+  "amountCents": 1103,
+  "taxCents": 103
+ },
+ "csv_state": 2,
+ "csv_jurisdiction": 10,
+ "csv_transaction": 4,
+ "liability": {
+  "grossSalesCents": 7500,
+  "taxCents": 330,
+  "refundTaxCents": -103,
+  "unallocatedTaxCents": 0,
+  "levels": [
+   "county",
+   "district",
+   "state",
+   "city"
+  ],
+  "california": {
+   "state": "CA",
+   "salesCents": 3000,
+   "transactions": 10,
+   "warningPercent": 80,
+   "grossSalesCents": 5000,
+   "refundGrossCents": -1000,
+   "netGrossCents": 4000,
+   "transactionCount": 2,
+   "salesPercent": 133.33333333333331,
+   "transactionsPercent": 20,
+   "status": "crossed"
+  }
+ },
+ "providerRequests": [
+  "POST /v1/tax/calculations 200 req_bxJ6B7NEBsIBmG",
+  "POST /v1/tax/calculations 200 req_taMswuJKUozw19",
+  "POST /v1/tax/calculations 200 req_VI16JLQq3EYA9v",
+  "POST /v1/tax/calculations 200 req_GK0Ig6j2Ludvf6",
+  "POST /v1/tax/transactions/create_from_calculation 200 req_RC6G3WQEO0E2ME",
+  "POST /v1/tax/calculations 200 req_fWFMXyYTKOhLVU",
+  "POST /v1/tax/calculations 200 req_IiAhQRlKmMqAQ5",
+  "POST /v1/tax/transactions/create_from_calculation 200 req_QJDfxxKbB9haeF",
+  "POST /v1/tax/calculations 200 req_oMGD7DGi0y75Kw",
+  "POST /v1/tax/calculations 200 req_j96WueOym3CMGE",
+  "POST /v1/tax/calculations 200 req_CTxMiDFs9L88t8",
+  "POST /v1/tax/transactions/create_from_calculation 200 req_FMOjYeYCHW9BlO",
+  "POST /v1/tax/transactions/create_reversal 200 req_AaNUl7AMRhKLHu"
+ ],
+ "activation": {
+  "settings": {
+   "requestId": "req_PPHKhCjKEN80H9",
+   "status": "active",
+   "headOfficeState": "CA",
+   "defaultTaxBehavior": "exclusive",
+   "defaultTaxCode": "txcd_99999999"
+  },
+  "registrations": [
+   {
+    "id": "taxreg_1UUbZXDg8BoejKxoGALMHzfb",
+    "state": "CA",
+    "requestId": "req_0C0mtNiD35Hbzy"
+   },
+   {
+    "id": "taxreg_1UUbnGDg8BoejKxogNqGetRe",
+    "state": "WA",
+    "requestId": "req_BqKJF5V3LaY8Ep"
+   }
+  ],
+  "priorRefusal": "req_aIUW5ai6bqXVdQ stripe_tax_inactive"
+ }
+}

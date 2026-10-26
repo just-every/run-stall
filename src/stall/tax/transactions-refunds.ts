@@ -12,7 +12,7 @@ const same=(a:TaxJurisdiction,b:TaxJurisdiction)=>a.level===b.level&&a.name===b.
 function attribute(taxCents:number,original:TaxJurisdiction[],reversed:TaxJurisdiction[][],taxableCents:(j:TaxJurisdiction)=>number):TaxJurisdiction[] {
  const remaining=original.map(j=>j.amountCents-reversed.reduce((n,list)=>n+(list.find(r=>same(r,j))?.amountCents??0),0)),pool=remaining.reduce((n,v)=>n+v,0)
  if(!original.length||taxCents<=0||pool<taxCents)return []
- const floors=remaining.map(v=>Math.floor(taxCents*v/pool)),order=remaining.map((v,i)=>({i,rest:taxCents*v%pool})).sort((a,b)=>b.rest-a.rest||a.i-b.i)
+ const floors=remaining.map(v=>Math.floor((taxCents*v)/pool)),order=remaining.map((v,i)=>({i,rest:taxCents*v%pool})).sort((a,b)=>b.rest-a.rest||a.i-b.i)
  for(let left=taxCents-floors.reduce((n,v)=>n+v,0),k=0;left>0;left--,k++)floors[order[k].i]++
  return original.flatMap((j,i)=>floors[i]>0?[{...j,amountCents:floors[i],taxableCents:taxableCents(j)}]:[])
 }
