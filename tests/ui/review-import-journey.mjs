@@ -151,6 +151,7 @@ try {
   const desk = page.getByRole('region', { name: 'Bring your reviews', exact: true })
   await desk.getByRole('heading', { name: 'Bring your reviews', exact: true }).waitFor()
   await desk.getByText('No review imports yet.', { exact: true }).waitFor()
+  await expect(desk.getByRole('status', { name: '' }).filter({ hasText: 'Showing 0 of 0 review imports.' })).toBeVisible()
   const source = desk.getByLabel('Review source', { exact: true })
   const upload = desk.getByLabel('Choose a review CSV file', { exact: true })
   const run = desk.getByRole('button', { name: 'Run review dry run', exact: true })
@@ -229,6 +230,7 @@ try {
       await expect(definitions('Duplicates')).toHaveText('2')
     })
     assert.deepEqual(await publicReviews(), after, 'Duplicate dry run preserves every review')
+    await expect(desk.getByText(`Showing ${imports.length} of ${imports.length} review imports.`, { exact: true })).toBeVisible()
   }
 
   const all = await publicReviews()
@@ -311,6 +313,23 @@ try {
     assert.equal(await review.textContent().then(text => text.split(hostile).length - 1), 4, 'Title, body, display name and reply stay literal')
     await expect(page.locator('#synthetic-stall-1521')).toHaveCount(0)
     assert.equal(await page.evaluate(() => globalThis.x), undefined)
+  })
+  for (let index = 0; index < 100; index++) {
+    const input = { source: 'shopify', csv: 'id,product_handle,rating,body,created_at\nsynthetic-stall-ui-history-' + index + ',studio-mug,3,History window review,2024-06-07\n' }
+    const preview = await api('/api/stall/review-imports/preview', input)
+    await api('/api/stall/review-imports/apply', { ...input, fingerprint: preview.fingerprint })
+  }
+  await page.goto(origin + '/app#move-in')
+  const historyCount = desk.getByText('Showing 100 of 103 review imports.', { exact: true })
+  const older = desk.getByRole('button', { name: 'Show older review imports', exact: true })
+  await capture('MIGRATE-007-history-count', historyCount, async () => {
+    await expect(historyCount).toBeVisible(); await expect(older).toBeVisible()
+  })
+  await capture('MIGRATE-007-history-older-control', older)
+  await older.click()
+  await capture('MIGRATE-007-history-complete', desk.getByText('Showing 103 of 103 review imports.', { exact: true }), async () => {
+    await expect(older).toHaveCount(0)
+    for (const item of imports) await expect(desk.getByRole('heading', { name: `${item.label} · 2 reviews`, exact: true })).toBeVisible()
   })
   assert.deepEqual(errors, [])
   console.log('PASS MIGRATE-007: emitted Worker, native sessions and public uploads, both CSV dry runs, explicit remap and orphan exclusion, reviewed apply, original dates and replies, source claims without native purchase verification, public Product, Review and AggregateRating data, duplicate rerun and scoped undo at 1440 and 390. Browser CSV uploads omit source photos; API coverage proves media copying after source retirement.')

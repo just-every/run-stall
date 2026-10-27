@@ -27,6 +27,8 @@ export function ReviewImport() {
   const [csv, setCsv] = useState('')
   const [products, setProducts] = useState<Product[]>([])
   const [jobs, setJobs] = useState<Job[]>([])
+  const [historyTotal, setHistoryTotal] = useState(0)
+  const [nextOffset, setNextOffset] = useState<number | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [mappings, setMappings] = useState<Record<string, string>>({})
   const [excludedRows, setExcludedRows] = useState<number[]>([])
@@ -39,9 +41,11 @@ export function ReviewImport() {
   const [notice, setNotice] = useState('')
   const lock = useRef(false)
 
-  async function list() {
-    const result = await request<{ jobs: Job[]; products: Product[] }>(base)
-    setJobs(result.jobs); setProducts(result.products); setLoaded(true)
+  async function list(offset = 0) {
+    const result = await request<{ jobs: Job[]; products: Product[]; total: number; nextOffset: number | null }>(`${base}?offset=${offset}`)
+    setJobs(previous => offset ? [...new Map([...previous, ...result.jobs].map(job => [job.id, job])).values()] : result.jobs)
+    setHistoryTotal(result.total); setNextOffset(result.nextOffset)
+    setProducts(result.products); setLoaded(true)
   }
   useEffect(() => { void list().catch(error => setError(errorMessage(error))) }, [])
   async function act(action: () => Promise<void>) {
@@ -146,14 +150,16 @@ export function ReviewImport() {
         <div className="st-actions"><button disabled={busy || !canApply} onClick={() => void act(apply)}>{applied ? 'Reviews imported' : 'Apply reviewed reviews'}</button></div>
       </>}
     </div>
-    <div className="st-heading-row"><h3>Review import history</h3><button className="st-secondary" disabled={busy} onClick={() => void act(list)}>Refresh review history</button></div>
+    <div className="st-heading-row"><h3>Review import history</h3><button className="st-secondary" disabled={busy} onClick={() => void act(() => list())}>Refresh review history</button></div>
     {!loaded && <p>Loading review import history…</p>}
+    {loaded && <p role="status">Showing {jobs.length} of {historyTotal} review imports.</p>}
     {loaded && !jobs.length && <p>No review imports yet.</p>}
     <div className="st-stack">{jobs.map(job => <article key={job.id} className="st-panel st-stack">
       <div className="st-heading-row"><h4>{sourceLabel(job.source)} · {job.count} reviews</h4><Badge value={job.state} /></div>
       <p className="st-small"><When at={job.createdAt} /> · Import {shortId(job.id)}</p>
       {job.state === 'completed' && <div className="st-actions"><button className="st-secondary" disabled={busy} onClick={() => setUndoJob(job)}>Review undo<span className="st-sr-only"> for import {shortId(job.id)}</span></button></div>}
     </article>)}</div>
+    {nextOffset !== null && <button className="st-secondary" disabled={busy} onClick={() => void act(() => list(nextOffset))}>Show older review imports</button>}
     {undoJob && <Dialog title="Undo this review import?" busy={busy} onClose={() => setUndoJob(null)}>
       <p>Remove the {undoJob.count} reviews imported from {sourceLabel(undoJob.source)} in job {shortId(undoJob.id)}. Existing reviews from other imports remain.</p>
       <div className="st-actions"><button autoFocus className="st-secondary" disabled={busy} onClick={() => setUndoJob(null)}>Cancel</button><button className="st-danger" disabled={busy} onClick={() => void act(undo)}>Undo review import</button></div>

@@ -200,7 +200,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "2aabe4bdbaf881f0e680005765f1e1ac37c36a3535e737a1ba0a126c8ba7559d",
+      "sha256": "11375a8f4d472a266818ab3838644b39e9cf2952c224fced9a72cee5537f5641",
       "executable": false
     },
     "AGENTS.md": {
@@ -220,7 +220,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "7ba6371331c87a150cb3a0979e4229bf00990b4e67a96a52f59a6082d72f8db0",
+      "sha256": "68a9dc14006aee760d01ac0fe3c659c8ba9f0efc0efd46c7ebe0e5583d39aa2a",
       "executable": false
     },
     "deploy-demo.json": {
@@ -248,7 +248,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "5d309bdcf07de00e0cf89c4faa4000d36634eb58cce329936b22e0f3d3677865",
+      "sha256": "126e8955324f68cd405e71453f63bab3066a93cd046aa601921623ac3b7d6223",
       "executable": false
     },
     "docs/COMMANDS.md": {
@@ -824,7 +824,7 @@
       "executable": false
     },
     "REVIEW-IMPORTS.md": {
-      "sha256": "12bd0d86dd9b6f1070798533f951dc530b0613e132badcf7b6924c2235d74f3a",
+      "sha256": "3be374402223111532371d44a1afa8d70a7bccb3f38eed30658c5e2d805ab003",
       "executable": false
     },
     "RUN-LOCALLY.md": {
@@ -3416,7 +3416,7 @@
       "executable": false
     },
     "src/stall/reviews/api.ts": {
-      "sha256": "b44fa4bfe3ea3556c8e0bd0472de2e5ab53d3c7ab360209ff4a17973568656f9",
+      "sha256": "c28459c11435c35e71da26491312913970557d28e229bbc3bf33cc419552066d",
       "executable": false
     },
     "src/stall/reviews/media.ts": {
@@ -3436,7 +3436,7 @@
       "executable": false
     },
     "src/stall/reviews/service.ts": {
-      "sha256": "e45f9f7d40a17da09606897dca986a6e3ac93427a00d6db36084d899dd0eab44",
+      "sha256": "163271501a1be667e0499565f6d7a99fb69e18ab6f3501dccc8a4d3080883737",
       "executable": false
     },
     "src/stall/reviews/store.ts": {
@@ -3788,7 +3788,7 @@
       "executable": false
     },
     "src/stall/ui/review-import.tsx": {
-      "sha256": "33b7e4aa8439028c34d05dc2bc6f45471d190e2e03da3ed8e8e465bb2996924a",
+      "sha256": "e9acf254183fa8c70c3c003960d6f9a3bb2ea51853dce6537a255acbe1a9a912",
       "executable": false
     },
     "src/stall/ui/risk-review.tsx": {
@@ -3976,7 +3976,7 @@
       "executable": false
     },
     "tests/api/imports.test.mjs": {
-      "sha256": "1affd42c62ee4ac3b3e0e3f751784fb16f3620014b9b1c61af777b97cfeb3c89",
+      "sha256": "4202b86b0b86c138bac58b3f4888773adc648c402d6b1272308507e100ce0bd7",
       "executable": false
     },
     "tests/api/local-payments.test.mjs": {
@@ -4120,7 +4120,7 @@
       "executable": false
     },
     "tests/ui/review-import-journey.mjs": {
-      "sha256": "cc4570504f66d81d9cb63ec065457edd32478c6f7f7deae613368381d69d5fa5",
+      "sha256": "1653a0e71219ff530ed7d3bc10513c059b3fa12f6dd6a7539bbbf74141f1cc26",
       "executable": false
     },
     "tests/ui/risk-journey.mjs": {
