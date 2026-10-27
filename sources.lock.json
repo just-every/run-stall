@@ -336,7 +336,7 @@
       "executable": false
     },
     "fixtures/reviews-judge.csv": {
-      "sha256": "8eee322fc81385877422df76a87c0d6da78fdd3be64197e1ddc45a808a36e112",
+      "sha256": "24e0eee43dbb52885f38aa328dff106f01ef89149bcf4e305f0aa854e61ac076",
       "executable": false
     },
     "fixtures/reviews-yotpo.csv": {
@@ -3976,7 +3976,7 @@
       "executable": false
     },
     "tests/api/imports.test.mjs": {
-      "sha256": "46f127670ed51d839bfe47eb5610b17a211ad71484c94b3acea2393b3fcf5880",
+      "sha256": "1affd42c62ee4ac3b3e0e3f751784fb16f3620014b9b1c61af777b97cfeb3c89",
       "executable": false
     },
     "tests/api/local-payments.test.mjs": {
@@ -4120,7 +4120,7 @@
       "executable": false
     },
     "tests/ui/review-import-journey.mjs": {
-      "sha256": "2a8a100ec697e5e9a056c151f63d2ba9637ec3e51ace95328e4b3acd4ff0934a",
+      "sha256": "cc4570504f66d81d9cb63ec065457edd32478c6f7f7deae613368381d69d5fa5",
       "executable": false
     },
     "tests/ui/risk-journey.mjs": {
@@ -4152,7 +4152,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "2ea79dcb8dd8f41505128357a5dcf291ad078cbac1ad7fa3eedde6fd419e1d9d",
+      "sha256": "353c5211a46deb263241009f9612157531606020fcdc5dc26a4329f87de7400d",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

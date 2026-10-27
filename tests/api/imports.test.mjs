@@ -483,11 +483,12 @@ test('Review move-in preserves source provenance, owned photos, exact mapping, r
   const { solidPng } = await import('./network.mjs');
   const stock = volumeStock(['synthetic-stall-1511', 'legacy-mug']);
   const photo = solidPng(40, 40, [135, 110, 90]);
+  const video = Buffer.from([0, 0, 0, 24, ...Buffer.from('ftypisom'), 0, 0, 0, 0, ...Buffer.from('isommp42'), 1, 2, 3, 4]);
   let retired = false, mediaReads = 0, receiving;
   const h = await installation({ bindings: { PIER_ORIGIN: 'https://stock.example.test', PIER_SESSION: 'synthetic-stall-1514', PIER_CUSTOMER_ID: 'shop' }, outboundService: async request => {
     const url = new URL(request.url);
     if (url.hostname === 'cloudflare-dns.com') return Response.json({ Status: 0, Answer: [{ type: 1, data: '8.8.8.8' }] });
-    if (url.hostname === 'cdn.judge.me') { mediaReads++; return retired ? new Response('Retired', { status: 410 }) : new Response(photo, { headers: { 'content-type': 'image/png' } }); }
+    if (url.hostname === 'cdn.judge.me') { mediaReads++; return retired ? new Response('Retired', { status: 410 }) : new Response(url.pathname.endsWith('.mp4') ? video : photo, { headers: { 'content-type': url.pathname.endsWith('.mp4') ? 'video/mp4' : 'image/png' } }); }
     return stock.forward(request);
   } });
   try {
@@ -501,7 +502,8 @@ test('Review move-in preserves source provenance, owned photos, exact mapping, r
     const mailBefore = h.messages.length, jobs = [];
     for (const [source, filename] of [['judge-me', 'reviews-judge.csv'], ['yotpo', 'reviews-yotpo.csv']]) {
       const csv = (await readFile(new URL('../../fixtures/' + filename, import.meta.url), 'utf8')).replaceAll('https://reviews.example.test/photo.png', 'https://cdn.judge.me/synthetic-stall-1.png');
-      const input = { source, csv };
+      const enrichedCSV = source === 'yotpo' ? csv.replace('synthetic-stall-1.png,,Thank', 'synthetic-stall-1.png,https://cdn.judge.me/synthetic-stall-2.mp4,Thank') : csv;
+      const input = { source, csv: enrichedCSV };
       const preview = await h.api('/api/stall/review-imports/preview', input);
       assert.deepEqual(preview.counts, { total: 3, mapped: 2, orphans: 1, duplicates: 0 });
       assert.equal(mediaReads, jobs.length, 'Dry run does not fetch external media');
@@ -532,7 +534,14 @@ test('Review move-in preserves source provenance, owned photos, exact mapping, r
     assert.equal(judge.date, '2026-09-17'); assert.equal(yotpo.date, '2026-09-20T09:30:00Z');
     assert.equal(judge.title, 'Morning favourite'); assert.equal(judge.reviewerName, 'Alex Example');
     assert.equal(judge.reply, 'Thank you for sharing.'); assert.equal(yotpo.reply, 'Thank you for the photo.');
-    assert.equal(judge.sourceVerified, false); assert.equal(yotpo.sourceVerified, true);
+    assert.equal(judge.sourceVerified, true); assert.equal(yotpo.sourceVerified, true);
+    assert.equal(yotpo.reviewerName, 'Jordan Example');
+    assert.equal(yotpo.title, 'Excellent glaze'); assert.equal(yotpo.body, 'Looks beautiful, feels sturdy.');
+    assert.equal(yotpo.rating, 5); assert.equal(judge.rating, 5);
+    assert.deepEqual(yotpo.media.map(file => file.kind), ['image', 'video']);
+    const copiedVideo = await h.request(yotpo.media[1].url, { as: '' });
+    assert.equal(copiedVideo.status, 200); assert.equal(copiedVideo.headers.get('content-type'), 'video/mp4');
+    assert.deepEqual(Buffer.from(await copiedVideo.arrayBuffer()), video);
     for (const review of [judge, yotpo]) {
       assert.equal(review.imported, true); assert.equal(review.verifiedPurchase, false);
       assert.ok(!JSON.stringify(review).includes('@')); assert.ok(!JSON.stringify(review).includes('cdn.judge.me'));
@@ -549,12 +558,25 @@ test('Review move-in preserves source provenance, owned photos, exact mapping, r
     assert.equal(other.reviews.find(row => row.source === 'yotpo').sourceVerified, false, 'Verified Reviewer is not a source purchase claim');
     const exported = await h.api('/api/stall/exports/records');
     assert.equal(exported.productReviews.reviews.length, 5);
+    for (const review of publicReviews.reviews) {
+      const stored = exported.productReviews.reviews.find(row => row.id === review.id);
+      assert.equal(stored.product_id, 'synthetic-stall-1511'); assert.equal(stored.source, review.source);
+      const { id, source, imported, ...facts } = review;
+      assert.deepEqual(stored.value, facts);
+      assert.equal(Boolean(stored.import_id), imported); assert.ok(stored.source_id);
+    }
+    assert.equal(exported.productReviews.reviews.find(row => row.id === yotpo.id).source_id, 'synthetic-stall-1');
     assert.equal(exported.productReviews.reviews.find(row => row.source === 'judge-me' && row.product_id === 'synthetic-stall-1511').reviewer_email, 'alex@example.test');
     assert.equal(h.messages.length, mailBefore, 'No review request or marketing mail');
     assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM st_customer_consents').first()).n, 0, 'Reviews grant no marketing consent');
-    assert.equal(mediaReads, 2, 'Replays do not re-fetch retired source files');
+    assert.equal(mediaReads, 3, 'Replays do not re-fetch retired source files');
     receiving = await installation();
     await restore(receiving, await archive(h));
+    assert.deepEqual((await receiving.api('/api/stall/exports/records')).productReviews, exported.productReviews, 'Every review fact, source identity, import and source map survives independent restore');
+    assert.deepEqual((await receiving.api('/api/stall/reviews?handle=studio-mug', undefined, { as: '' })).reviews, publicReviews.reviews);
+    const restoredVideo = await receiving.request(yotpo.media[1].url, { as: '' });
+    assert.equal(restoredVideo.status, 200); assert.equal(restoredVideo.headers.get('content-type'), 'video/mp4');
+    assert.deepEqual(Buffer.from(await restoredVideo.arrayBuffer()), video);
     const restoredPhoto = await receiving.request(yotpo.media[0].url, { as: '' });
     assert.equal(restoredPhoto.status, 200);
     assert.deepEqual(Buffer.from(await restoredPhoto.arrayBuffer()), photo, 'Owned review bytes travel without the source URL');
@@ -566,6 +588,18 @@ test('Review move-in preserves source provenance, owned photos, exact mapping, r
     assert.ok(remaining.reviews.some(row => row.id === native.id));
     assert.equal(remaining.aggregate.ratingValue, 4.5);
     await h.api(judge.media[0].url, undefined, { as: '', status: 404 });
+    const sourceState = await h.api('/api/stall/state');
+    const activity = sourceState.audit.filter(event => ['reviews.imported', 'reviews.import-undone'].includes(event.action));
+    assert.equal(activity.filter(event => event.action === 'reviews.imported').length, 4);
+    assert.equal(activity.filter(event => event.action === 'reviews.import-undone').length, 1);
+    for (const event of activity) {
+      assert.equal(event.actor, sourceState.actor.id); assert.ok(Number.isFinite(Date.parse(event.at)));
+    }
+    assert.equal(activity.find(event => event.action === 'reviews.import-undone').subject, jobs[0].id);
+    await receiving.close(); receiving = await installation();
+    await restore(receiving, await archive(h));
+    assert.deepEqual((await receiving.api('/api/stall/state')).audit.filter(event => ['reviews.imported', 'reviews.import-undone'].includes(event.action)), activity, 'Attributable import and undo history travels unchanged');
+    await receiving.api('/api/stall/review-imports/preview', { source: 'judge-me', csv: 'rating,body\n5,Test\n' }, { as: h.cookie, status: 401 });
   } finally { await receiving?.close(); await h.close(); }
 });
 
@@ -609,12 +643,14 @@ test('Review import authority, stale approvals and failed media never leak or pa
 });
 
 test('Review import source maps, owned data and erasure survive transfer without re-importing erased reviewers', async () => {
-  const h = await installation(); let receiving;
+  const { solidPng } = await import('./network.mjs');
+  const ownedPhoto = solidPng(32, 32, [50, 80, 90]);
+  const h = await installation({ outboundService: async request => new URL(request.url).hostname === 'cloudflare-dns.com' ? Response.json({ Status: 0, Answer: [{ type: 1, data: '8.8.8.8' }] }) : new Response(ownedPhoto, { headers: { 'content-type': 'image/png' } }) }); let receiving, fenced;
   try {
     const product = await h.command('product.prepare', { sku: 'synthetic-stall-1511', name: 'Studio mug', description: '', unitCents: 2800, active: false, details: { handle: 'studio-mug' } });
     await h.command('product.approve', { sku: product.id, revision: product.revision });
-    const header = 'id,product_id,rating,title,body,author,email,created_at,verified\n';
-    const csv = header + 'synthetic-stall-1516,legacy-mug,5,Original,Original content,Reviewer,synthetic-stall-1517@example.test,2024-02-03,TRUE\n';
+    const header = 'id,product_id,rating,title,body,author,email,created_at,verified,image_urls\n';
+    const csv = header + 'synthetic-stall-1516,legacy-mug,5,Original,Original content,Reviewer,synthetic-stall-1517@example.test,2024-02-03,TRUE,https://cdn.judge.me/synthetic-stall-3.png\n';
     const input = { source: 'shopify', csv, mappings: { 2: product.id } };
     const preview = await h.api('/api/stall/review-imports/preview', input);
     await h.api('/api/stall/review-imports/apply', { ...input, fingerprint: preview.fingerprint });
@@ -624,21 +660,35 @@ test('Review import source maps, owned data and erasure survive transfer without
     assert.equal(repeat.rows[0].productId, product.id, 'The reviewed source product ID map travels with the catalog');
     assert.equal(repeat.counts.duplicates, 1);
     assert.equal((await receiving.api('/api/stall/exports/records')).productReviews.reviews[0].reviewer_email, 'synthetic-stall-1517@example.test');
+    const beforeErasure = (await receiving.api('/api/stall/exports/records')).productReviews;
+    const erasedMedia = beforeErasure.reviews[0].value.media[0];
     await receiving.command('customer.erase', { email: 'synthetic-stall-1517@example.test', confirm: 'ERASE' });
     const fresh = await receiving.api('/api/stall/review-imports/preview', { source: 'shopify', csv });
     assert.equal(fresh.counts.mapped, 0); assert.equal(fresh.counts.orphans, 1); assert.match(fresh.rows[0].reason, /erased/);
     assert.deepEqual((await receiving.api('/api/stall/exports/records')).productReviews.reviews, []);
-    assert.ok(!JSON.stringify(await archive(receiving)).includes('synthetic-stall-1517@example.test'));
+    const erasedArchive = await archive(receiving);
+    assert.ok(!JSON.stringify(erasedArchive).includes('synthetic-stall-1517@example.test'));
+    assert.ok(!JSON.stringify(erasedArchive).includes(erasedMedia.id), 'Erased media bytes and ownership are removed from portable records');
+    await receiving.api(erasedMedia.url, undefined, { as: '', status: 404 });
+    fenced = await installation();
+    await restore(fenced, archiveLines, { status: 400, laterJournal: { sourceIdentity: erasedArchive[0].sourceIdentity, epoch: erasedArchive[0].epoch, journal: erasedArchive[0].journal } });
+    assert.deepEqual((await fenced.api('/api/stall/exports/records')).productReviews.reviews, []);
     // Other documented source CSV dialects go through the same reviewed public door.
-    for (const [source, columns, row] of [
-      ['okendo', 'reviewId,product_id,rating,body,name,dateCreated,isVerifiedBuyer', 'synthetic-stall-1518,synthetic-stall-1511,5,A cup,Reviewer,2024-02-03,true'],
-      ['loox', 'id,handle,rating,review,nickname,date,verified_purchase', 'synthetic-stall-1519,studio-mug,4,A cup,Reviewer,2024-02-03,true'],
-      ['stamped', 'id,sku,reviewRating,reviewMessage,author,reviewDate,verifiedBuyer', 'synthetic-stall-1520,synthetic-stall-1511,3,A cup,Reviewer,2024-02-03,false'],
+    for (const [source, columns, row, expected] of [
+      ['okendo', 'reviewId,product_id,rating,title,body,name,email,dateCreated,isVerifiedBuyer,reply,replyIsPublic,imageUrls,videoUrls', 'synthetic-stall-1518,synthetic-stall-1511,5,Okendo title,Okendo body,Okendo shopper,okendo@example.test,2024-02-03,true,Okendo reply,true,,', { rating: 5, title: 'Okendo title', body: 'Okendo body', reviewerName: 'Okendo shopper', date: '2024-02-03', sourceVerified: true, reply: 'Okendo reply', email: 'okendo@example.test', sourceId: 'synthetic-stall-1518' }],
+      ['loox', 'id,handle,rating,title,review,nickname,email,date,verified_purchase,reply,img', 'synthetic-stall-1519,studio-mug,4,Loox title,Loox body,Loox shopper,loox@example.test,2024-03-04,true,Loox reply,', { rating: 4, title: 'Loox title', body: 'Loox body', reviewerName: 'Loox shopper', date: '2024-03-04', sourceVerified: true, reply: 'Loox reply', email: 'loox@example.test', sourceId: 'synthetic-stall-1519' }],
+      ['stamped', 'id,sku,reviewRating,reviewTitle,reviewMessage,author,customerEmail,reviewDate,verifiedBuyer,reply,photoFilenames,videoFilenames', 'synthetic-stall-1520,synthetic-stall-1511,3,Stamped title,Stamped body,Stamped shopper,stamped@example.test,2024-04-05,false,Stamped reply,,', { rating: 3, title: 'Stamped title', body: 'Stamped body', reviewerName: 'Stamped shopper', date: '2024-04-05', sourceVerified: false, reply: 'Stamped reply', email: 'stamped@example.test', sourceId: 'synthetic-stall-1520' }],
     ]) {
       const input = { source, csv: columns + '\n' + row + '\n' }, checked = await receiving.api('/api/stall/review-imports/preview', input);
       assert.equal(checked.counts.mapped, 1);
       const job = await receiving.api('/api/stall/review-imports/apply', { ...input, fingerprint: checked.fingerprint });
       assert.equal(job.count, 1);
+      const stored = (await receiving.api('/api/stall/exports/records')).productReviews.reviews.find(review => review.source === source);
+      const { email, sourceId, ...facts } = expected;
+      assert.equal(stored.product_id, product.id); assert.equal(stored.source_id, sourceId); assert.equal(stored.reviewer_email, email);
+      assert.deepEqual(stored.value, { ...facts, verifiedPurchase: false, media: [] });
+      assert.equal(stored.import_id, job.id);
     }
-  } finally { await receiving?.close(); await h.close(); }
+
+  } finally { await fenced?.close(); await receiving?.close(); await h.close(); }
 });
