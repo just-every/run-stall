@@ -106,7 +106,7 @@ try {
   assert.equal(initial.reviews.length, 1)
   assert.equal(initial.reviews[0].id, native.id)
 
-  browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+  browser = await chromium.launch({ ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}), headless: true, args: ['--no-sandbox', '--use-mock-keychain', '--password-store=basic'] })
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' })
   await context.addCookies(cookie.split('; ').map(value => {
     const split = value.indexOf('=')
@@ -168,7 +168,7 @@ try {
   }
   const imports = []
   const sources = [
-    { id: 'judge-me', label: 'Judge.me', fixture: './fixtures/reviews-judge.csv', lead: 'Morning favourite', second: 'Solid everyday cup', orphan: 'Old collection', date: '2026-09-17', reply: 'Thank you for sharing.', verified: false },
+    { id: 'judge-me', label: 'Judge.me', fixture: './fixtures/reviews-judge.csv', lead: 'Morning favourite', second: 'Solid everyday cup', orphan: 'Old collection', date: '2026-09-17', reply: 'Thank you for sharing.', verified: true },
     { id: 'yotpo', label: 'Yotpo', fixture: './fixtures/reviews-yotpo.csv', lead: 'Excellent glaze', second: 'Nice size', orphan: 'From the archive', date: '2026-09-20T09:30:00Z', reply: 'Thank you for the photo.', verified: true },
   ]
   for (const item of sources) {
@@ -299,6 +299,18 @@ try {
     await expect(reviews.getByRole('heading', { name: 'Native review', exact: true })).toBeVisible()
     await expect(reviews.getByRole('article')).toHaveCount(1)
     await expect(reviews.locator('time')).toHaveAttribute('datetime', '2024-01-01T00:00:00.000Z')
+  })
+  const hostile = '<img id=synthetic-stall-1521 src=x onerror=globalThis.x=1>'
+  const hostileInput = { source: 'judge-me', csv: 'product_handle,rating,title,body,reviewer_name,reply,review_date\n' + ['studio-mug', 2, hostile, hostile, hostile, hostile, '2024-05-06'].join(',') + '\n' }
+  const hostilePreview = await api('/api/stall/review-imports/preview', hostileInput)
+  await api('/api/stall/review-imports/apply', { ...hostileInput, fingerprint: hostilePreview.fingerprint })
+  await page.goto(origin + '/shop/studio-mug')
+  await capture('MIGRATE-007-hostile-review-inert', reviews, async () => {
+    const review = reviews.getByRole('article').filter({ has: page.getByRole('heading', { name: hostile, exact: true }) })
+    await expect(review).toBeVisible()
+    assert.equal(await review.textContent().then(text => text.split(hostile).length - 1), 4, 'Title, body, display name and reply stay literal')
+    await expect(page.locator('#synthetic-stall-1521')).toHaveCount(0)
+    assert.equal(await page.evaluate(() => globalThis.x), undefined)
   })
   assert.deepEqual(errors, [])
   console.log('PASS MIGRATE-007: emitted Worker, native sessions and public uploads, both CSV dry runs, explicit remap and orphan exclusion, reviewed apply, original dates and replies, source claims without native purchase verification, public Product, Review and AggregateRating data, duplicate rerun and scoped undo at 1440 and 390. Browser CSV uploads omit source photos; API coverage proves media copying after source retirement.')

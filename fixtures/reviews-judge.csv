@@ -1,5 +1,5 @@
-title,body,rating,review_date,source,curated,reviewer_name,reviewer_email,product_id,product_handle,reply,reply_date,picture_urls
-Morning favourite,"Comfortable handle, and the glaze is lovely.",5,2026-09-17,email,ok,Alex Example,alex@example.test,,studio-mug,Thank you for sharing.,2026-09-18,https://reviews.example.test/photo.png
+title,body,rating,review_date,source,curated,reviewer_name,reviewer_email,product_id,product_handle,reply,reply_date,picture_urls,verified
+Morning favourite,"Comfortable handle, and the glaze is lovely.",5,2026-09-17,email,ok,Alex Example,alex@example.test,,studio-mug,Thank you for sharing.,2026-09-18,https://reviews.example.test/photo.png,true
 Solid everyday cup,"A useful size.
-The colour matches our kitchen.",4,2026-09-18,import,ok,Sam Example,sam@example.test,legacy-mug,,,,
-Old collection,A favourite from the old collection.,5,2026-09-19,web,not-yet,Casey Example,casey@example.test,,deleted-product,,,
+The colour matches our kitchen.",4,2026-09-18,import,ok,Sam Example,sam@example.test,legacy-mug,,,,,false
+Old collection,A favourite from the old collection.,5,2026-09-19,web,not-yet,Casey Example,casey@example.test,,deleted-product,,,,false
