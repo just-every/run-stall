@@ -468,8 +468,8 @@ The per-clause rows below record the current implementation, named public-door p
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 1 | 0 | 0 | 1 |
-| Target and push further | -1 | 0 | 0 | 78 |
-| All | 0 | 0 | 0 | 79 |
+| Target and push further | 22 | 29 | 27 | 78 |
+| All | 23 | 29 | 27 | 79 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |

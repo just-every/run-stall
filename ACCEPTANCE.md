@@ -369,4 +369,4 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
 Provider credentials, approvals and original idempotency references must stay local and private. No current proof claims live provider acceptance, inbox receipt, physical delivery, WCAG conformance, load capacity or operating cost. The target requires those measurements as applicable rather than excluding their features. No test or contract check may be weakened to make these documents pass.
 
-All clause totals: **23 done / 29 partial / 26 missing** (79 total).
+All clause totals: **23 done / 29 partial / 27 missing** (79 total).
