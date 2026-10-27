@@ -453,6 +453,8 @@ Every capability claim on the homepage built on the owner-approved structure pag
 
 ## Status
 
+Judged from the code and tests at commit `8bad726` (27 October 2026).
+
 The per-clause rows below record the current implementation, named public-door proofs and remaining work. Historical source audits do not certify later capabilities. MIGRATE-007 is PARTIAL under CT's 26 October ruling; its export proof has been extended in this round without waiving any original duty. Exact-SHA Verify and the fleet publication and landing gates remain required.
 
 `done` means the stated current slice has implementation and a relevant checked-in public journey/test. `partial` means cited code implements only part or the full public journey remains unproven. `missing` means no implementation of the named promise was found. Target/provider acceptance remains required by ACCEPTANCE.md. New product data must extend archive, security, audit and erasure coverage; current done slices do not automatically prove future records. Existing seed metadata describes the current release and does not limit this target.
