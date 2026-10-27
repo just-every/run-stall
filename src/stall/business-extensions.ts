@@ -1,3 +1,4 @@
+import { analyticsBusinessRecords } from './analytics/costs'
 import { reviewBusinessRecords } from './reviews/store'
 import { historyBusinessRecords } from './customers/order-history'
 import { balanceBusinessRecords } from './customers/balances'
@@ -32,6 +33,7 @@ export async function businessExtensions(db:D1Database) {
  ])
  return {
   buyLinks:(await db.prepare('SELECT id,revision,value_json,revoked_at,restored FROM st_buy_links ORDER BY id').all<any>()).results.map(({value_json,...row})=>({...row,value:JSON.parse(value_json)})),
+  analytics:await analyticsBusinessRecords(db),
   productReviews:await reviewBusinessRecords(db),
   merchandisingProposals:await merchandisingProposals(db),
   nativeCart:await cartBusinessRecords(db),

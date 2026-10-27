@@ -1,3 +1,4 @@
+import { analyticsTestSession } from './analytics/test-mode'
 import { requireTaxDestination } from './tax/commerce-provider'
 import { ensureSaleTax } from './tax/transactions'
 import { riskEnabled,inspectRisk } from './risk'
@@ -20,7 +21,7 @@ export async function paidSession(env:Bindings,order:Order,id:string,actor?:Acto
   // Store only the delivery fields the shop needs. Stripe holds the card and full payment record.
   const details=session.collected_information?.shipping_details
   const shippingDetails=details?.name&&details?.address?{name:String(details.name),address:{line1:details.address.line1??'',line2:details.address.line2??'',city:details.address.city??'',state:details.address.state??'',postal_code:details.address.postal_code??'',country:details.address.country??''}}:undefined
-  order=await saveOrder(env,{...order,...(shippingDetails?{shippingDetails}:{}),payment:{sessionId:session.id,intentId:session.payment_intent,paidAt:new Date().toISOString()},status:'paid'},'payment.confirmed',actor)
+  order=await saveOrder(env,{...order,...(session.livemode===false?{analyticsExcluded:'test' as const}:{}),...(shippingDetails?{shippingDetails}:{}),payment:{sessionId:session.id,intentId:session.payment_intent,paidAt:new Date().toISOString()},status:'paid'},'payment.confirmed',actor,'stripe',{before:session.livemode===false?analyticsTestSession(env.DB,order):[]})
  }
  await refreshRisk(env,order)
  order=await sendConfirmation(env,order)

@@ -63,6 +63,14 @@
         "pnpm run build",
         "node tests/ui/real-home.mjs tests/ui/review-import-journey.mjs"
       ]
+    },
+    {
+      "name": "analytics-browser",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "node tests/ui/real-home.mjs tests/ui/analytics-journey.mjs"
+      ]
     }
   ],
   "nightly": [

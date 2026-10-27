@@ -1,3 +1,5 @@
+import { checkoutAnalytics } from '../analytics/capture'
+import type { AnalyticsSnapshot } from '../analytics/model'
 import { activeBuyLink } from '../buy-links'
 import { operatorAuth,type Bindings } from '../../auth.server'
 import { audit,changed,clientKey,commit,current,digest,live } from '../access'
@@ -13,7 +15,7 @@ import { customerCommit,requireProvenEmail } from './account'
 import { reorder } from './reorder'
 import { checkoutFields,fieldReport,fieldSave,shopperDetails } from './checkout-details'
 import { rate } from '../headless/auth'
-export type CartContext={actor:Actor|null;guestHash:string;cookie:string;client:string}
+export type CartContext={actor:Actor|null;guestHash:string;cookie:string;client:string;analytics?:AnalyticsSnapshot}
 export type NativeCart={id:string;owner_email:string|null;guest_hash:string|null;revision:string;value_json:string;updated_at:string;review_digest:string|null;checkout_key:string|null;checkout_intent:string|null;order_id:string|null}
 export const cartPublic=(r:NativeCart)=>({id:r.id,revision:r.revision,value:JSON.parse(r.value_json),updatedAt:r.updated_at,locked:!!r.checkout_key,orderId:r.order_id})
 const json=(v:unknown,ctx?:CartContext)=>Response.json(v,{headers:{'cache-control':'no-store','referrer-policy':'no-referrer','x-content-type-options':'nosniff',...(ctx?{'set-cookie':ctx.cookie}:{})}})
@@ -24,7 +26,7 @@ export async function cartContext(request:Request,env:Bindings):Promise<CartCont
  const s=await operatorAuth(env).getSession(request),actor:Actor|null=s?{id:s.operator.id,email:s.operator.email,role:s.operator.role,version:s.operator.version,sessionId:s.id,agent:false}:null
  if(s)await requireProvenEmail(env,s.id,s.operator.id)
  const previous=request.headers.get('cookie')?.split(';').map(v=>v.trim()).find(v=>v.startsWith('stall_cart='))?.slice(11),token=previous&&/^[a-f0-9]{64}$/.test(previous)?previous:Array.from(crypto.getRandomValues(new Uint8Array(32)),v=>v.toString(16).padStart(2,'0')).join('')
- return {actor,guestHash:await digest(token),client:await clientKey(env,request),cookie:`stall_cart=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${new URL(env.AUTH_ORIGIN).protocol==='https:'?'; Secure':''}`}
+ return {analytics:await checkoutAnalytics(request,env),actor,guestHash:await digest(token),client:await clientKey(env,request),cookie:`stall_cart=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${new URL(env.AUTH_ORIGIN).protocol==='https:'?'; Secure':''}`}
 }
 function ownership(ctx:CartContext) {return ctx.actor?{sql:'owner_email=?',value:ctx.actor.email.toLowerCase()}:{sql:'owner_email IS NULL AND guest_hash=?',value:ctx.guestHash}}
 export async function cartRead(env:Bindings,ctx:CartContext,id?:string):Promise<NativeCart|null> {
@@ -95,7 +97,7 @@ async function buy(env:Bindings,ctx:CartContext,p:any) {
  const locked=(await cartRead(env,ctx,row.id))!
  const guard=()=>env.DB.prepare(`INSERT INTO st_guard(value) SELECT CASE WHEN EXISTS(SELECT 1 FROM st_shop_carts WHERE id=? AND revision=? AND checkout_key=? AND ${own.sql}) THEN 1 ELSE 0 END`).bind(row.id,row.revision,locked.checkout_key,own.value)
  const source=JSON.parse(row.value_json).source
- const result=await checkout(env,intent,{...(['checkout_link','buy_button'].includes(source?.channel)?{channel:source.channel as 'checkout_link'|'buy_button'}:{}),check:async()=>{await cartRead(env,ctx,row.id)},statements:()=>[guard(),...(ctx.actor?[env.DB.prepare(`INSERT INTO st_guard(value) SELECT CASE WHEN EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id WHERE s.id=? AND o.id=? AND o.version=? AND s.operator_version=o.version AND o.status='active' AND lower(o.email)=? AND s.revoked_at IS NULL AND s.expires_at>?) THEN 1 ELSE 0 END`).bind(ctx.actor.sessionId!,ctx.actor.id,ctx.actor.version,ctx.actor.email.toLowerCase(),Date.now())]:[])]},ctx.actor?undefined:ctx.client,ctx.actor?.email.toLowerCase())
+ const result=await checkout(env,intent,{...(['checkout_link','buy_button'].includes(source?.channel)?{channel:source.channel as 'checkout_link'|'buy_button'}:{}),check:async()=>{await cartRead(env,ctx,row.id)},statements:()=>[guard(),...(ctx.actor?[env.DB.prepare(`INSERT INTO st_guard(value) SELECT CASE WHEN EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id WHERE s.id=? AND o.id=? AND o.version=? AND s.operator_version=o.version AND o.status='active' AND lower(o.email)=? AND s.revoked_at IS NULL AND s.expires_at>?) THEN 1 ELSE 0 END`).bind(ctx.actor.sessionId!,ctx.actor.id,ctx.actor.version,ctx.actor.email.toLowerCase(),Date.now())]:[])]},ctx.actor?undefined:ctx.client,ctx.actor?.email.toLowerCase(),ctx.analytics)
  await cartWrite(env,ctx,[env.DB.prepare(`UPDATE st_shop_carts SET order_id=? WHERE id=? AND checkout_key=? AND ${own.sql}`).bind(result.orderId,row.id,locked.checkout_key,own.value)])
  return result
 }

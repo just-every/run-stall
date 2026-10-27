@@ -1,3 +1,7 @@
+import { analyticsLabels } from './analytics/model'
+import { analyticsCaptureResponse } from './analytics/capture-api'
+import { checkoutAnalytics,analyticsRetentionStatements } from './analytics/capture'
+import { analyticsReportResponse } from './analytics/report-api'
 import { buyLinkResponse } from './buy-links'
 import { reviewResponse } from './reviews/api'
 import { registrationResponse,expireCustomerRegistrations } from './customers/registration'
@@ -62,7 +66,8 @@ import { eraseCustomer } from './erasure'
 import { connectionCommand,connectionDetails,withConnections } from './connections'
 // Agent/connector readers retain commerce draft context, without staff annotations or staff-as-provider payment evidence.
 function agentRecord({notes,tags,manualPayment,...record}:any) { return {...record,...(manualPayment?{manualPayment:{...manualPayment,reference:undefined},payment:undefined}:{})} }
-function privateOrder(actor:import('./model').Actor,{requestDigest,checkoutKey,checkout,...record}:any) {
+function privateOrder(actor:import('./model').Actor,{requestDigest,checkoutKey,checkout,analytics,...rest}:any) {
+ const record={...rest,...(analytics&&!actor.agent&&!actor.staffRole?{analytics:analyticsLabels(analytics)}:{})}
  if(actor.agent)return agentRecord(record)
  if(permits(actor,'support'))return record
  const {notes,tags,manualPayment,...visible}=record
@@ -97,6 +102,8 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   const base=runtimeBindings(original)
   // A demo uses its simulated providers; otherwise saved Settings connections fill unset secrets.
   const env=base.RER_DEMO==='1'?base:await withConnections(base)
+  const captured=await analyticsCaptureResponse(request,env);if(captured)return captured
+  const reports=await analyticsReportResponse(request,env);if(reports)return reports
   const buyLinks=await buyLinkResponse(request,env);if(buyLinks)return buyLinks
   const reviews=await reviewResponse(request,env);if(reviews)return reviews
   const registration=await registrationResponse(request,env);if(registration)return registration
@@ -138,7 +145,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   if(path==='/api/stall/checkout'&&request.method==='POST') {
    if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own checkout page.',403)
    const input=await body(request)
-   return json(await checkout(env,input,undefined,await clientKey(env,request),input.taxQuoteId?await verifiedTaxCustomer(request,env):undefined))
+   return json(await checkout(env,input,undefined,await clientKey(env,request),input.taxQuoteId?await verifiedTaxCustomer(request,env):undefined,await checkoutAnalytics(request,env)))
   }
   if(path==='/api/stall/checkout/confirm'&&request.method==='POST') {
    if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own order page.',403)
@@ -261,6 +268,7 @@ export async function stallScheduled(original:Bindings) {
  const base=runtimeBindings(original)
  if(base.RER_DEMO==='1') return
  const env=await withConnections(base)
+ await env.DB.batch(analyticsRetentionStatements(env.DB))
  await expireCustomerRegistrations(env)
  await checkAwaitingPayments(env)
  await releaseExpiredHolds(env)

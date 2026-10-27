@@ -11,6 +11,8 @@ import { MoveIn } from './move-in'
 import { MerchandisingView } from './merchandising'
 import { ShippingView } from './shipping'
 import { Activity } from './activity'
+import { Analytics } from './analytics'
+import { AnalyticsSettings } from './analytics-settings'
 import { Settings } from './settings'
 import { Promotions } from './promotions'
 import { CustomerDirectory } from './customer-directory'
@@ -20,7 +22,7 @@ import { needs, orderTabs } from './order-status'
 import { defaultTimeZone, People, TimeZone } from './presentation'
 
 const searchLabel: Partial<Record<DeskView, string>> = { orders: 'Search orders, customers, items', products: 'Search products or SKUs', history: 'Search activity, records or people' }
-const titles: Record<DeskView, string> = { orders: 'Orders', products: 'Products', shopfront: 'Collections & search', shipping: 'Shipping', promotions: 'Promotions', requests: 'Customer requests', customers: 'Customers', 'move-in': 'Move in', history: 'Activity', settings: 'Settings' }
+const titles: Record<DeskView, string> = { orders: 'Orders', products: 'Products', shopfront: 'Collections & search', shipping: 'Shipping', promotions: 'Promotions', requests: 'Customer requests', customers: 'Customers', 'move-in': 'Move in', history: 'Activity', reports: 'Reports', settings: 'Settings' }
 
 export function ShopDesk() {
   const [state, setState] = useState<State | null>(null), [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true)
@@ -40,7 +42,7 @@ export function ShopDesk() {
     finally { lock.current = false; setBusy(false) }
   }
   const permissionActor=state?{...state.actor,agent:!!state.actor.agent}:{role:'member',agent:false}
-  const allowedViews:DeskView[]=state&&['owner','admin'].includes(state.actor.role)?['orders','products','shopfront','shipping','promotions','requests','customers','move-in','history','settings']:[...(permits(permissionActor,'support')?['customers' as const]:[]),...(permits(permissionActor,'orders')?['orders' as const]:[]),...(permits(permissionActor,'catalog')?['products' as const,'move-in' as const]:[]),...((permits(permissionActor,'marketing')||permits(permissionActor,'catalog'))?['shopfront' as const]:[]),...(permits(permissionActor,'admin')?['shipping' as const]:[]),'settings']
+  const allowedViews:DeskView[]=state&&['owner','admin'].includes(state.actor.role)?['orders','products','shopfront','shipping','promotions','requests','customers','move-in','history',...(!state.actor.agent&&!state.actor.staffRole?['reports' as const]:[]),'settings']:[...(permits(permissionActor,'support')?['customers' as const]:[]),...(permits(permissionActor,'orders')?['orders' as const]:[]),...(permits(permissionActor,'catalog')?['products' as const,'move-in' as const]:[]),...((permits(permissionActor,'marketing')||permits(permissionActor,'catalog'))?['shopfront' as const]:[]),...(permits(permissionActor,'admin')?['shipping' as const]:[]),'settings']
   const allowed=allowedViews.includes(view)
   const role = state?.actor.role.toLowerCase() ?? '', owner = role === 'owner', canApprove = !!state && !state.actor.agent && (['owner', 'admin'].includes(role)||!!state.actor.staffRole)
   const open = state?.orders.filter(order => orderTabs[1].keep(order) || needs(order)).length ?? 0
@@ -58,8 +60,9 @@ export function ShopDesk() {
       {allowed&&view === 'requests' && <RequestIntake />}
       {allowed&&view === 'promotions' && <Promotions />}
       {allowed&&view === 'move-in' && (canApprove ? <MoveIn reload={reload} /> : <Section title="Move in from Shopify"><p>Only an owner or administrator can import products.</p></Section>)}
+      {allowed&&view === 'reports' && <Analytics products={state.products} />}
       {allowed&&view === 'history' && <Activity state={state} query={query} />}
-      {allowed&&view === 'settings' && <Settings state={state} owner={owner} busy={busy} run={run} reload={reload} />}
+      {allowed&&view === 'settings' && <><Settings state={state} owner={owner} busy={busy} run={run} reload={reload} />{!state.actor.agent && !state.actor.staffRole && ['owner','admin'].includes(role) && <AnalyticsSettings orders={state.orders} owner={owner} />}</>}
     </Authority.Provider></People.Provider></TimeZone.Provider> : !loading && <Section title="Shop desk unavailable"><p>Sign in with your operator account to manage this shop. If you are already signed in, resolve the error above and refresh.</p><a href="/signin?returnTo=%2Fapp">Sign in</a></Section>}
   </DeskShell>
 }
