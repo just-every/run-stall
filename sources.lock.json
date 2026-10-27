@@ -3804,7 +3804,7 @@
       "executable": false
     },
     "src/stall/ui/primitives.tsx": {
-      "sha256": "7572b7f8f123f4213abc158371d6b268e930e6b3ded8e1aaf2c6429d5b055428",
+      "sha256": "3468a0e65c4bea678ecc70c0dab846e6fbfab81787d73ff3749a65975d5aaa4d",
       "executable": false
     },
     "src/stall/ui/product-details.tsx": {
