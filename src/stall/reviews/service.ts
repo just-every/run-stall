@@ -6,9 +6,15 @@ import { copyReviewMedia } from './media'
 import { reviewOwner,reviewPlan,type ReviewInput } from './plan'
 export type ReviewJob={id:string;source:string;count:number;state:string;createdAt:string}
 const jobColumns='id,source,count,state,created_at AS createdAt'
-export async function reviewImports(env:Bindings,actor:Actor) {
+export async function reviewImports(env:Bindings,actor:Actor,offset=0) {
  reviewOwner(actor);await commit(env.DB,actor,[])
- return (await env.DB.prepare(`SELECT ${jobColumns} FROM st_review_imports ORDER BY rowid DESC LIMIT 100`).all<ReviewJob>()).results
+ if(!Number.isSafeInteger(offset)||offset<0)fail('INPUT','Choose a nonnegative review history offset.',400)
+ const [page,count]=await env.DB.batch<ReviewJob&{total:number}>([
+  env.DB.prepare(`SELECT ${jobColumns} FROM st_review_imports ORDER BY rowid DESC LIMIT 100 OFFSET ?`).bind(offset),
+  env.DB.prepare('SELECT COUNT(*) AS total FROM st_review_imports'),
+ ])
+ const jobs:ReviewJob[]=page.results,total=count.results[0].total
+ return {jobs,total,nextOffset:offset+jobs.length<total?offset+jobs.length:null}
 }
 const inputHash=(input:ReviewInput)=>digest(canonicalJson({source:input.source,csv:input.csv,mappings:input.mappings??{},excludedRows:input.excludedRows??[]}))
 export async function applyReviews(env:Bindings,actor:Actor,input:ReviewInput) {

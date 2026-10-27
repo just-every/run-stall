@@ -24,7 +24,7 @@ export async function reviewResponse(request:Request,env:Bindings):Promise<Respo
   }
   const actor=await current(request,env);reviewOwner(actor)
   if(request.method!=='GET'&&request.headers.get('origin')!==env.AUTH_ORIGIN)fail('ORIGIN','Use this shop’s review import desk.',403)
-  if(path==='/api/stall/review-imports'&&request.method==='GET')return json({jobs:await reviewImports(env,actor),products:(await products(env.DB)).map(row=>({id:row.id,name:row.value.name,handle:handleOf(row.value)}))})
+  if(path==='/api/stall/review-imports'&&request.method==='GET')return json({...await reviewImports(env,actor,Number(url.searchParams.get('offset')??0)),products:(await products(env.DB)).map(row=>({id:row.id,name:row.value.name,handle:handleOf(row.value)}))})
   if(path==='/api/stall/review-imports/preview'&&request.method==='POST')return json(publicPlan(await reviewPlan(env,actor,await input(request))))
   if(path==='/api/stall/review-imports/apply'&&request.method==='POST')return json(await applyReviews(env,actor,await input(request)))
   const undo=path.match(/^\/api\/stall\/review-imports\/([^/]+)\/undo$/)

@@ -598,16 +598,21 @@ test('Review move-in preserves source provenance, owned photos, exact mapping, r
     assert.equal(activity.find(event => event.action === 'reviews.import-undone').subject, jobs[0].id);
     await receiving.close(); receiving = await installation();
     await restore(receiving, await archive(h));
-    assert.deepEqual((await receiving.api('/api/stall/state')).audit.filter(event => ['reviews.imported', 'reviews.import-undone'].includes(event.action)), activity, 'Attributable import and undo history travels unchanged');
+    assert.deepEqual((await receiving.api('/api/stall/state')).audit.filter(event => ['reviews.imported', 'reviews.import-undone'].includes(event.action)).sort((a, b) => a.id.localeCompare(b.id)), [...activity].sort((a, b) => a.id.localeCompare(b.id)), 'Attributable import and undo history travels unchanged');
     await receiving.api('/api/stall/review-imports/preview', { source: 'judge-me', csv: 'rating,body\n5,Test\n' }, { as: h.cookie, status: 401 });
   } finally { await receiving?.close(); await h.close(); }
 });
 
 test('Review import authority, stale approvals and failed media never leak or partially apply', async () => {
-  let refused = false;
+  let refused = false, revokeDuringCopy = false;
+  const { solidPng } = await import('./network.mjs');
   const h = await installation({ outboundService: async request => {
     const url = new URL(request.url);
     if (url.hostname === 'cloudflare-dns.com') return Response.json({ Status: 0, Answer: [{ type: 1, data: '8.8.8.8' }] });
+    if (revokeDuringCopy) {
+      assert.equal((await h.request('/auth/signout', { method: 'POST', body: {} })).status, 204);
+      return new Response(solidPng(32, 32, [50, 80, 90]), { headers: { 'content-type': 'image/png' } });
+    }
     refused = true; return new Response('Source gone', { status: 410 });
   } });
   try {
@@ -639,6 +644,13 @@ test('Review import authority, stale approvals and failed media never leak or pa
     const privatePreview = await h.api('/api/stall/review-imports/preview', { ...input, csv: privateCSV });
     await h.api('/api/stall/review-imports/apply', { ...input, csv: privateCSV, fingerprint: privatePreview.fingerprint, excludedRows }, { status: 400 });
     assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM st_review_media').first()).n, 0);
+    const beforeRevocation = await h.api('/api/stall/review-imports/preview', input);
+    revokeDuringCopy = true;
+    await h.api('/api/stall/review-imports/apply', { ...input, fingerprint: beforeRevocation.fingerprint, excludedRows }, { status: 409 });
+    assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM st_reviews').first()).n, 0);
+    assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM st_review_media').first()).n, 0);
+    assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM st_review_imports').first()).n, 0);
+    await h.api('/api/stall/review-imports', undefined, { status: 401 });
   } finally { await h.close(); }
 });
 
@@ -689,6 +701,21 @@ test('Review import source maps, owned data and erasure survive transfer without
       assert.deepEqual(stored.value, { ...facts, verifiedPurchase: false, media: [] });
       assert.equal(stored.import_id, job.id);
     }
+    const jobIds = (await receiving.api('/api/stall/review-imports')).jobs.map(job => job.id);
+    for (let index = 0; index < 100; index++) {
+      const input = { source: 'shopify', csv: 'id,product_id,rating,body,created_at\nsynthetic-stall-history-' + index + ',' + product.id + ',4,Historical review,2024-05-06\n' };
+      const preview = await receiving.api('/api/stall/review-imports/preview', input);
+      const job = await receiving.api('/api/stall/review-imports/apply', { ...input, fingerprint: preview.fingerprint });
+      jobIds.unshift(job.id);
+    }
+    const first = await receiving.api('/api/stall/review-imports');
+    assert.equal(first.total, 104); assert.equal(first.jobs.length, 100); assert.equal(first.nextOffset, 100);
+    const last = await receiving.api('/api/stall/review-imports?offset=100');
+    assert.equal(last.total, 104); assert.equal(last.jobs.length, 4); assert.equal(last.nextOffset, null);
+    assert.deepEqual([...first.jobs, ...last.jobs].map(job => job.id), jobIds, 'Complete history includes each imported job once beyond the first window');
+    await receiving.api('/api/stall/review-imports?offset=-1', undefined, { status: 400 });
+    await receiving.api('/api/stall/review-imports?offset=not-a-number', undefined, { status: 400 });
+
 
   } finally { await fenced?.close(); await receiving?.close(); await h.close(); }
 });
