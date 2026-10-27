@@ -1,3 +1,4 @@
+import { checkoutAnalytics } from '../analytics/capture'
 import type { Bindings } from '../../auth.server'
 import { digest,changed,systemAudit } from '../access'
 import { checkout } from '../checkout'
@@ -58,7 +59,7 @@ export async function buy(env:Bindings,a:App,c:Customer,request:Request,p:any) {
  // No separate commerce engine: the same Stripe/Pier work ledger, verified
  // payment callbacks and idempotency rules apply to both storefronts.
  await fenced(env,a,c)
- const result=await checkout(env,{customerEmail:email,lines:JSON.parse(found.value_json),idempotencyKey:previous.commerce_key,expectedTotalCents:p.expectedTotalCents,...(code!==undefined?{promotionCode:code}:{}),...(p.shipping!==undefined?{shipping:p.shipping}:{})},{check:()=>fenced(env,a,c),statements:()=>[appGuard(env,a),customerGuard(env,c)]})
+ const result=await checkout(env,{customerEmail:email,lines:JSON.parse(found.value_json),idempotencyKey:previous.commerce_key,expectedTotalCents:p.expectedTotalCents,...(code!==undefined?{promotionCode:code}:{}),...(p.shipping!==undefined?{shipping:p.shipping}:{})},{check:()=>fenced(env,a,c),statements:()=>[appGuard(env,a),customerGuard(env,c)]},undefined,undefined,await checkoutAnalytics(request,env))
  await fenced(env,a,c)
  return result
 }

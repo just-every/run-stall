@@ -1,3 +1,4 @@
+import { recordAnalytics } from './analytics-events'
 // One product's own page: gallery, option choice, personalization, and add to basket.
 import { useEffect, useState } from 'react'
 import { ProductReviews } from './product-reviews'
@@ -25,6 +26,7 @@ export function ProductPage() {
   const options = product?.options ?? []
   const item: Item | undefined = options.length ? stocked.find(entry => entry.variant && same(entry.variant.options, picked)) : stocked[0]
   useEffect(() => { const media = item?.variant?.mediaId && product?.media?.findIndex(entry => entry.id === item.variant!.mediaId); if (typeof media === 'number' && media >= 0) setShown(media) }, [item?.sku])
+  useEffect(()=>{if(!item?.sku)return;const record=()=>void recordAnalytics('product_view',item.sku);record();addEventListener('stall-analytics-consented',record);return ()=>removeEventListener('stall-analytics-consented',record)},[item?.sku])
   const fields = product?.personalization ?? [], addOn = fields.reduce((sum, field) => sum + (answers[field.key]?.value ? field.addOnCents ?? 0 : 0), 0)
   const unit = item ? item.unitCents + addOn : 0, count = Number(quantity), tooLong = fields.some(field => field.type === 'text' && [...(answers[field.key]?.value ?? '')].length > field.maxLength!), ready = !tooLong && !!item && Number(item.available) > 0 && Number.isSafeInteger(count) && count >= 1 && count <= Number(item.available)
   async function add() {

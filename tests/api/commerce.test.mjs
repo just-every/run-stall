@@ -1452,7 +1452,7 @@ test('AI-005: unsupported claims, stale sources and revoked authority cannot pub
 });
 
 test('merchant checkout links preload native carts, preserve reviewed discounts and channel, and refuse stale sale authority',async()=>{
- const stock=volumeStock(['MUG-BLUE','TOWEL-NAT']),edge=stripeEdge({forward:stock.forward}),secret=randomBytes(32).toString('hex')
+ const stock=volumeStock(['MUG-BLUE','TOWEL-NAT']),edge=stripeEdge({forward:stock.forward,livemode:true}),secret=randomBytes(32).toString('hex')
  const bindings={PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-3200',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'synthetic-stall-3201',STRIPE_WEBHOOK_SECRET:secret},h=await installation({bindings,outboundService:edge.handle})
  let destination
  try {
@@ -1570,7 +1570,8 @@ test('checkout links retain explicit guest tax consent and reserve promotions ag
   await h.api('/api/stall/tax/configuration',{revision:config.revision,value:{shipFrom:address,categories:['TEE-S','TEE-M'].map(sku=>({sku,taxCode:'txcd_99999999'})),thresholds:[]}})
   const mode=await h.api('/api/stall/tax/commerce?review=1');await h.api('/api/stall/tax/commerce',{revision:mode.revision,enabled:true,consent:mode.consent})
   const link=await h.api('/api/stall/buy-links',{label:'Two sizes',lines:[{sku:'TEE-S',quantity:2},{sku:'TEE-M',quantity:1}],promotionCode:'SYNTHETIC-STALL-3231'})
-  const opened=await h.request('/api/stall/buy-links/'+link.id+'/cart',{method:'POST',as:'',body:{}}),cookie=opened.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
+  const {visitor}=await import('./analytics-fixture.mjs'),analytics=visitor(h);await analytics.consent();await analytics.event('visit','/shop?buy='+link.id+'&utm_source=newsletter&utm_medium=email')
+  const opened=await h.request('/api/stall/buy-links/'+link.id+'/cart',{method:'POST',as:analytics.cookie(),body:{}}),cookie=analytics.cookie()+'; '+opened.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ')
   let cart=(await opened.json()).cart
   const shipping=await h.api('/api/stall/shipping/quote',{lines:cart.value.lines,postalCode:'78702'},{as:cookie}),service=shipping.services[0],chosen={service:service.code,postalCode:'78702',quote:service.quote}
   const input={id:randomUUID(),destination:address,customerEmail:'synthetic-stall-3232@example.test',lines:cart.value.lines,shipping:chosen,promotionCode:'SYNTHETIC-STALL-3231'}
@@ -1583,6 +1584,157 @@ test('checkout links retain explicit guest tax consent and reserve promotions ag
   assert.equal((await h.api('/api/stall/cart/checkout',intent,{as:cookie})).orderId,bought.orderId);assert.equal(edge.sessions.size,1)
   const session=[...edge.sessions.values()][0];assert.equal(session.amount_total,8337);await deliverWebhook(h,secret,edge.pay(session.id))
   const order=(await h.api('/api/stall/orders?channel=checkout_link')).orders[0];assert.equal(order.tax.taxCents,637);assert.equal(order.promotion.discountCents,625);assert.equal(order.status,'reserved')
+  const sales=await h.api('/api/stall/analytics/report?from=2020-01-01&to=2030-12-31&channel=checkout_link'),testPayment=sales.excludedTestOrders[0];assert.equal(sales.excludedTestOrders.length,1);assert.equal(testPayment.test,true);assert.deepEqual([testPayment.grossSalesCents,testPayment.netSalesCents,testPayment.discountsCents,testPayment.shippingCollectedCents,testPayment.taxCents,testPayment.netCollectedCents],[7700,7700,625,0,637,8337]);assert.equal(sales.totals.paidOrders,0);assert.equal(sales.totals.sessions,null);assert.equal(sales.totals.conversionRate,null);assert.equal(testPayment.references.taxTransaction,order.tax.transactionId)
   const report=await h.api('/api/stall/promotions/report?promotionId='+promotion.id);assert.equal(report.totals.paidUses,1);assert.equal(report.totals.committedDiscountCents,625)
  }finally{await h.close()}
+})
+
+test('first-party analytics attributes consented sessions and verified orders without replayed, bot or invented visits',async()=>{
+ const {analyticsFixture,visitor,analyticsWindow}=await import('./analytics-fixture.mjs'),f=await analyticsFixture(),{h}=f
+ try {
+  const v=visitor(h),empty=await v.event()
+  assert.equal(empty.captured,false);assert.equal(empty.reason,'consent_limited_unknown')
+  let report=await h.api('/api/stall/analytics/report'+analyticsWindow)
+  assert.equal(report.totals.sessions,null);assert.equal(report.totals.conversionRate,null)
+  await v.consent()
+  const firstId=randomUUID(),first={id:firstId,kind:'visit',path:'/shop?utm_source=newsletter&utm_medium=email&utm_campaign=autumn&utm_content=hero&email=private@example.test',referrer:'https://mail.example.test/inbox?private=secret'}
+  assert.equal((await v.call('/api/stall/analytics/events',first,{headers:{'user-agent':'synthetic-stall-desktop'}})).captured,true)
+  assert.equal((await v.call('/api/stall/analytics/events',first)).reason,'duplicate')
+  await v.event('product_view','/shop/blue-ceramic-mug',{sku:'MUG-BLUE'})
+  await v.event('add_to_cart','/shop',{sku:'MUG-BLUE'})
+  const email=await f.buy(v)
+  assert.equal(email.order.analytics.source,'newsletter');assert.equal(email.order.analytics.medium,'email');assert.equal(email.order.analytics.campaign,'autumn')
+  const search=await v.event('visit','/shop/towels',{referrer:'https://www.google.com/search?q=private'},{headers:{'user-agent':'synthetic-stall-iPhone Mobile'}})
+  assert.equal(search.captured,true)
+  const retained=visitor(h,v.cookie().split('; ').filter(c=>!c.startsWith('stall_analytics_session=')).join('; '))
+  assert.equal((await retained.event('visit','/shop')).captured,true)
+  const direct=await f.buy(retained,{lines:[{sku:'TOWEL-NAT',quantity:3}]})
+  assert.equal(direct.order.analytics.source,'www.google.com');assert.equal(direct.order.analytics.medium,'organic')
+  await deliverWebhook(h,f.secret,direct.session)
+  await retained.call('/api/stall/checkout',direct.payload)
+  await f.buy(visitor(h),{pay:false})
+  const unobserved=await f.buy(visitor(h),{extra:{analytics:{source:'fabricated',sessionId:'synthetic-stall-935'}}});assert.equal(unobserved.order.analytics,undefined)
+  const testVisitor=visitor(h);await testVisitor.consent();await testVisitor.event('visit','/shop?utm_source=test-campaign&utm_medium=email');f.edge.testNextCheckout();const testPayment=await f.buy(testVisitor);assert.equal(testPayment.order.analyticsExcluded,'test')
+  const bot=visitor(h);await bot.consent();assert.equal((await bot.event('visit','/shop',{}, {headers:{'user-agent':'Googlebot'}})).captured,false)
+  report=await h.api('/api/stall/analytics/report'+analyticsWindow)
+  assert.equal(report.excludedTestOrders.length,1);assert.equal(report.excludedTestOrders[0].id,testPayment.order.id);assert.equal(report.excludedTestOrders[0].test,true);assert.equal(report.traffic.source.some(row=>row.value==='test-campaign'),false)
+  assert.equal(report.totals.sessions,3);assert.equal(report.totals.paidOrders,3);assert.equal(report.totals.conversionOrders,2);assert.equal(report.totals.conversionRate,2/3)
+  assert.deepEqual(report.funnel,{visits:3,productViews:1,addToCart:1,checkouts:2,payments:2})
+  const emailSource=report.traffic.source.find(r=>r.value==='newsletter'),organic=report.traffic.source.find(r=>r.value==='www.google.com')
+  assert.deepEqual(emailSource,{value:'newsletter',sessions:1,paidOrders:1,netSalesCents:2000,conversionRate:1})
+  assert.deepEqual(organic,{value:'www.google.com',sessions:2,paidOrders:1,netSalesCents:1500,conversionRate:0.5})
+  assert.equal(report.traffic.campaign.find(r=>r.value==='autumn').sessions,1)
+  assert.equal(report.traffic.content.find(r=>r.value==='hero').paidOrders,1)
+  assert.equal(report.traffic.referrer.find(r=>r.value==='mail.example.test').paidOrders,1)
+  assert.equal(report.traffic.landingPage.find(r=>r.value==='/shop').paidOrders,2)
+  assert.equal(report.traffic.device.find(r=>r.value==='mobile').sessions,1)
+  assert.equal(report.traffic.location.find(r=>r.value==='US').sessions,3)
+  assert.ok(!JSON.stringify(report).includes('private@example.test'));assert.ok(!JSON.stringify(report).includes('private=secret'))
+  await retained.consent(false)
+  assert.equal((await retained.event()).captured,false)
+  report=await h.api('/api/stall/analytics/report'+analyticsWindow)
+  assert.equal(report.totals.sessions,null);assert.equal(report.totals.conversionRate,null);assert.equal(report.totals.paidOrders,3)
+  assert.equal(report.traffic.source.find(r=>r.value.startsWith('Unknown')).netSalesCents,5500)
+  const expired=visitor(h);await expired.consent();await expired.event('visit','/shop?utm_source=ancient&utm_medium=email')
+  const capability=Object.fromEntries(expired.cookie().split('; ').map(c=>c.split('='))).stall_analytics_visitor,hash=createHash('sha256').update(capability).digest('hex')
+  await h.db.prepare("UPDATE st_analytics_visitors SET value_json=json_set(value_json,'$.lastNonDirect.attributedAt','2020-01-01T00:00:00.000Z') WHERE id_hash=?").bind(hash).run()
+  await h.db.prepare("UPDATE st_analytics_sessions SET started_at='2020-01-01T00:00:00.000Z',last_at='2020-01-01T00:00:00.000Z' WHERE visitor_hash=?").bind(hash).run()
+  await expired.event('visit','/shop')
+  const afterExpiry=await h.api('/api/stall/analytics/report'+analyticsWindow)
+  assert.equal(afterExpiry.traffic.source.find(r=>r.value==='direct').sessions,1);assert.equal(afterExpiry.traffic.source.some(r=>r.value==='ancient'),false)
+
+ }finally{await f.close()}
+})
+
+test('sales reports reconcile refunds, ranked products, historical imports, exact costs and CSV drilldowns',async()=>{
+ const {analyticsFixture,visitor,analyticsWindow}=await import('./analytics-fixture.mjs'),f=await analyticsFixture(),{h}=f
+ try {
+  const v=visitor(h);await v.consent();await v.event('visit','/shop?utm_source=newsletter&utm_medium=email&utm_campaign=autumn')
+  const mug=await f.buy(v),towel=await f.buy(v,{lines:[{sku:'TOWEL-NAT',quantity:3}]})
+  await f.refund(mug.order.id)
+  let report=await h.api('/api/stall/analytics/report'+analyticsWindow)
+  assert.deepEqual([report.totals.grossSalesCents,report.totals.refundsCents,report.totals.netSalesCents,report.totals.shippingCollectedCents,report.totals.netCollectedCents],[3500,1000,2500,400,2900])
+  assert.equal(report.totals.conversionRate,2);assert.equal(report.funnel.checkouts,1);assert.equal(report.funnel.payments,1)
+  assert.equal(report.totals.itemCostCents,null);assert.equal(report.totals.taxCents,null);assert.equal(report.totals.giftLiabilityCents,null);assert.equal(report.totals.contributionMarginCents,null)
+  assert.deepEqual(report.bestSellers.variants.map(r=>[r.sku,r.unitsSold,r.unitsRefunded,r.netSalesCents]),[['TOWEL-NAT',3,0,1500],['MUG-BLUE',2,1,1000]])
+  assert.deepEqual(report.bestSellers.products.map(r=>[r.productSku,r.unitsSold,r.netSalesCents]),[['TOWEL-NAT',3,1500],['MUG-BLUE',2,1000]])
+  const mugRow=report.orders.find(o=>o.id===mug.order.id)
+  assert.equal(mugRow.references.processor,mug.session.payment_intent);assert.equal(mugRow.references.processorRefunds.length,1);assert.deepEqual(mugRow.references.accounting,[])
+  const costs='/api/stall/analytics/costs';await h.api(costs,{enabled:true})
+  for(const [id,itemCostCents,feesCents] of [[mug.order.id,400,60],[towel.order.id,300,45]])await h.api(costs,{orderId:id,orderRevision:(await f.order(id)).revision,itemCostCents,shippingCostCents:100,feesCents,giftLiabilityCents:0})
+  report=await h.api('/api/stall/analytics/report'+analyticsWindow)
+  assert.equal(report.totals.contributionMarginCents,1895);assert.equal(report.totals.itemCostCents,700);assert.equal(report.totals.feesCents,105)
+  await h.api(costs,{orderId:mug.order.id,orderRevision:'synthetic-stall-stale',itemCostCents:0,shippingCostCents:0,feesCents:0},{status:409})
+  const filtered=await h.api('/api/stall/analytics/report'+analyticsWindow+'&variant=MUG-BLUE&customer=synthetic-stall-928&channel=online')
+  assert.deepEqual(filtered.orders.map(o=>o.id),[mug.order.id]);assert.equal(filtered.totals.netSalesCents,1000)
+  const csv=await h.request('/api/stall/analytics/report.csv'+analyticsWindow),text=await csv.text();assert.equal(csv.status,200);assert.match(csv.headers.get('content-type'),/text\/csv/)
+  assert.ok(text.includes(mug.order.id));assert.ok(text.includes(towel.order.id));assert.ok(text.includes(mug.session.payment_intent))
+  const input={schema:'stall-analytics-history-v1',source:'synthetic-stall-928-history',rows:[{sourceId:'synthetic-stall-929',createdAt:'2024-06-15T12:00:00Z',channel:'historical',lines:[{sku:'HAT',productSku:'HAT',name:'=SUM(A1)',quantity:4,unitCents:250}],shippingCents:100,taxCents:0,discountCents:0,totalCents:1100,refundsCents:0,processorReference:'synthetic-stall-930',accountingReference:'synthetic-stall-931'}]}
+  const preview=await h.api('/api/stall/analytics/history',input)
+  assert.equal((await h.api('/api/stall/analytics/report'+analyticsWindow)).totals.paidOrders,2)
+  await h.api('/api/stall/analytics/history/apply',{previewId:preview.previewId,reviewed:false},{status:400})
+  await h.api('/api/stall/analytics/history/apply',{previewId:preview.previewId,reviewed:true})
+  assert.equal((await h.api('/api/stall/analytics/history/apply',{previewId:preview.previewId,reviewed:true})).replayed,true)
+  const again=await h.api('/api/stall/analytics/history',input);await h.api('/api/stall/analytics/history/apply',{previewId:again.previewId,reviewed:true})
+  report=await h.api('/api/stall/analytics/report'+analyticsWindow)
+  assert.equal(report.totals.paidOrders,3);assert.equal(report.totals.conversionOrders,2);assert.equal(report.totals.sessions,1);assert.equal(report.totals.netSalesCents,3500)
+  assert.deepEqual(report.bestSellers.products.map(r=>r.productSku),['HAT','TOWEL-NAT','MUG-BLUE'])
+  const ranked=await h.api('/api/stall/analytics/report'+analyticsWindow+'&rank=netSales');assert.equal(ranked.bestSellers.products[0].productSku,'TOWEL-NAT');assert.equal(ranked.bestSellers.variants[0].sku,'TOWEL-NAT')
+  assert.equal(report.channels.find(r=>r.value==='online').netCollectedCents,2900);assert.equal(report.channels.find(r=>r.value==='historical').netCollectedCents,1100);assert.equal(report.dates.find(r=>r.value==='2024-06-15').netCollectedCents,1100)
+  const historicalCsv=readCsv(await (await h.request('/api/stall/analytics/report.csv'+analyticsWindow)).text());assert.ok(historicalCsv.some(r=>r.record==='bestseller'&&r.name==="'=SUM(A1)"),'CSV neutralizes formula-shaped imported names')
+  assert.equal(report.orders.filter(o=>o.historical).length,1);assert.deepEqual(report.orders.find(o=>o.historical).references.accounting,['synthetic-stall-931'])
+  assert.equal((await h.api('/api/stall/analytics/report?from=2024-06-15&to=2024-06-15')).totals.netCollectedCents,1100)
+  assert.equal((await h.api('/api/stall/analytics/report?from=2024-06-16&to=2024-06-16')).orders.length,0)
+  await h.api('/api/stall/analytics/history',{...input,rows:[{...input.rows[0],sourceId:mug.order.id}]},{status:409})
+  await h.api(costs,{enabled:false});report=await h.api('/api/stall/analytics/report'+analyticsWindow);assert.equal(report.totals.contributionMarginCents,null);assert.equal(report.totals.itemCostCents,null)
+  const variants=await analyticsFixture({variantProducts:true})
+  try {
+   const shopper=visitor(variants.h);await shopper.consent();await shopper.event('visit');await shopper.event('product_view','/shop/studio',{sku:'MUG-BLUE'})
+   const bought=await variants.buy(shopper,{lines:[{sku:'MUG-BLUE',quantity:2},{sku:'TOWEL-NAT',quantity:3}]});await variants.refund(bought.order.id)
+   const grouped=await variants.h.api('/api/stall/analytics/report'+analyticsWindow)
+   assert.deepEqual(grouped.bestSellers.products.map(r=>[r.productSku,r.unitsSold,r.unitsRefunded,r.netUnits,r.netSalesCents]),[['STUDIO',5,1,4,2500]])
+   assert.deepEqual(grouped.bestSellers.variants.map(r=>[r.productSku,r.sku,r.unitsSold,r.unitsRefunded,r.netSalesCents]),[['STUDIO','TOWEL-NAT',3,0,1500],['STUDIO','MUG-BLUE',2,1,1000]])
+   assert.equal((await variants.h.api('/api/stall/analytics/report'+analyticsWindow+'&product=STUDIO')).totals.conversionRate,1)
+   const history={schema:'stall-analytics-history-v1',source:'synthetic-stall-936',rows:[{sourceId:'synthetic-stall-937',createdAt:'2024-01-10T12:00:00Z',channel:'historical',lines:[{sku:'HIST',productSku:'HIST',name:'Imported two items',quantity:2,unitCents:1000}],shippingCents:200,taxCents:100,discountCents:0,totalCents:2300,refundsCents:1150}]}
+   await variants.h.api('/api/stall/analytics/history',history,{status:400})
+   const exact=await variants.h.api('/api/stall/analytics/history',{...history,rows:[{...history.rows[0],refundTaxCents:50,refundShippingCents:100,lines:[{...history.rows[0].lines[0],refundedCents:1000,refundedQuantity:1}]}]})
+   await variants.h.api('/api/stall/analytics/history/apply',{previewId:exact.previewId,reviewed:true})
+   const original=await variants.h.api('/api/stall/analytics/report?from=2024-01-10&to=2024-01-10')
+   assert.deepEqual([original.totals.grossSalesCents,original.totals.netSalesCents,original.totals.shippingCollectedCents,original.totals.taxCents,original.totals.refundsCents,original.totals.netCollectedCents],[2000,1000,100,50,1150,1150])
+   assert.equal(original.bestSellers.variants[0].unitsRefunded,1)
+
+  }finally{await variants.close()}
+
+ }finally{await f.close()}
+})
+
+test('analytics reports refuse foreign authority and restore historical observation without visitor or cost authority',async()=>{
+ const {analyticsFixture,visitor,analyticsWindow}=await import('./analytics-fixture.mjs'),f=await analyticsFixture(),{h}=f
+ let fresh
+ try {
+  const v=visitor(h);await v.consent();await v.event('visit','/shop?utm_source=receipt&utm_medium=email');const purchase=await f.buy(v)
+  const member=await h.signIn('synthetic-stall-932@example.test'),admin=await h.signIn('synthetic-stall-933@example.test','admin'),agent=await h.api('/api/stall/agent-token',{})
+  for(const path of ['/api/stall/analytics/report'+analyticsWindow,'/api/stall/analytics/report.csv'+analyticsWindow,'/api/stall/analytics/costs','/api/stall/analytics/history']) {
+   await h.api(path,undefined,{as:'',status:401});await h.api(path,undefined,{as:member,status:403});await h.api(path,undefined,{headers:{authorization:'Bearer '+agent.token},status:403});await h.api(path,undefined,{headers:{origin:'https://foreign.example.test'},status:403})
+   assert.equal((await h.request(path,{as:admin})).status,path.endsWith('/history')?403:200)
+  }
+  for(const path of ['/api/stall/analytics/costs','/api/stall/analytics/history','/api/stall/analytics/history/apply']) {
+   await h.api(path,{enabled:true},{as:'',status:401});await h.api(path,{enabled:true},{as:member,status:403});await h.api(path,{enabled:true},{headers:{authorization:'Bearer '+agent.token},status:403});await h.api(path,{enabled:true},{headers:{origin:'https://foreign.example.test'},status:403})
+  }
+  const operator=(await h.api('/auth/session',undefined,{as:admin})).operator;await h.command('staff.configure',{actorId:operator.id,staffRole:'finance',refundLimitCents:0})
+  await h.api('/api/stall/analytics/report'+analyticsWindow,undefined,{as:admin,status:403})
+  await v.call('/api/stall/analytics/events',{id:randomUUID(),kind:'visit',path:'/shop',orderId:purchase.order.id},{status:400})
+  await h.api('/api/stall/analytics/costs',{enabled:true})
+  await h.api('/api/stall/analytics/costs',{orderId:purchase.order.id,orderRevision:(await f.order(purchase.order.id)).revision,itemCostCents:100,shippingCostCents:20,feesCents:30})
+  const records=await h.api('/api/stall/exports/records');assert.equal(records.analytics.costs.records.length,1);assert.equal(records.orders.find(o=>o.id===purchase.order.id).analytics.source,'receipt')
+  const history=await h.api('/api/stall/analytics/history',{schema:'stall-analytics-history-v1',source:'synthetic-stall-938',rows:[{sourceId:'synthetic-stall-939',createdAt:'2024-01-10T12:00:00Z',channel:'historical',lines:[{sku:'HIST',productSku:'HIST',name:'Historical item',quantity:1,unitCents:100}],shippingCents:0,taxCents:0,discountCents:0,totalCents:100,refundsCents:0}]})
+  await h.api('/api/stall/analytics/history/apply',{previewId:history.previewId,reviewed:true})
+  const bundle=await archive(h)
+  fresh=await installation({bindings:{...f.pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-934',STRIPE_WEBHOOK_SECRET:f.secret},outboundService:f.edge.handle})
+  await restore(fresh,bundle)
+  const restored=visitor(fresh,v.cookie());assert.equal((await restored.event()).captured,false)
+  const report=await fresh.api('/api/stall/analytics/report'+analyticsWindow)
+  assert.equal(report.totals.paidOrders,2);assert.equal(report.totals.conversionOrders,0);assert.equal(report.totals.sessions,null);assert.equal(report.costConsent,false);assert.equal(report.orders.filter(o=>o.historical).length,1)
+  await fresh.api('/api/stall/analytics/history/apply',{previewId:history.previewId,reviewed:true},{status:404})
+ }finally{await fresh?.close();await f.close()}
 })

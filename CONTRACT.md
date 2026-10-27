@@ -252,6 +252,8 @@ Current door semantics: the existing human owner or administrator generates and 
 
 - **ANALYTICS-001 — Sales, conversion and contribution margin.** Merchants inspect date/channel/product/variant/customer reports and traffic-source reports (sessions, conversion and sales by referrer, source and medium, UTM campaign, source, medium and content, landing page, device and location, under a stated last non-direct-click attribution window) for visits, product views, add-to-cart, checkout, payment conversion, gross/net sales, discounts, tax, shipping collected/cost, fees, refunds, gift liability and contribution margin using recorded cost data. Funnels disclose consent-limited/unknown traffic, bot exclusions, attribution window and historical import provenance. Reports drill to orders and export; canceled, test, imported and duplicate events never inflate new conversion.
 
+Adopted analytics boundary pending ct approval: native human owner or administrator report access only; current-policy explicit analytics choice, with no marketing authority; 30-minute sessions and a stated 30-day last non-direct-click window. Capture retains minimized events and sessions for 30 days, then removes browser correlation while retaining commercial source labels. Withdrawal and customer erasure remove linked capture and order attribution. Restored observation grants no visitor, cost-consent or import authority. Conversion discloses its eligible paid live order numerator and observed consented session denominator in the same shop-date window; unlinked sales and absent costs remain labelled unknown. Historical imports retain owner-supplied original references, create no live sale or new conversion, and never imply provider confirmation. ACCOUNT-001 retains the separate obligation to produce actual accounting posting references.
+
 CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in current orders and commercial exports. Future channel reports consume those recorded values; this does not claim a traffic report or pixel implementation.
 
   **Acceptance evidence:** Arrive through a UTM-tagged email link, a search referrer and a direct visit, and buy after two of them; verify the traffic-source report attributes sessions, conversion and sales to the right campaign, referrer and landing page. Follow a known visitor-to-refund journey, import historical sales, replay events and compare channel/date totals with orders and processor/accounting references. Remove cost/analytics consent and verify unknowns are labeled rather than fabricated margin or visits. Open the best-sellers report for a date range and verify products and variants ranked by units sold and by net sales after refunds match the orders exactly, and that its conversion rate equals paid orders over sessions for the same window.
@@ -404,7 +406,7 @@ The target adapters must verify the merchant-specific source version, permission
 
 ## Homepage claims
 
-Every capability claim on the homepage built on the owner-approved structure page-s1 (`src/site/landing/`, 18 October 2026; one shop, Fog & Clay, through one kiln batch) maps to the clauses that promise it, with the code that backs it today. A claim's status is `done` when every mapped clause is done (backed by code), `missing` when every one is missing (contract, not yet in code), and `partial` otherwise (partly in code). The sample shop, orders and figures in the drawings (kiln.ts) are illustrations, not claims; the honest-limits strip ("No warehouse purchasing, live chat or Etsy listings.") states what Stall leaves to Pier and the help desk ([Honest boundaries](#honest-boundaries), BOUNDARY-001) and is true of the code today. 42 claims: 8 done, 23 partial, 11 missing.
+Every capability claim on the homepage built on the owner-approved structure page-s1 (`src/site/landing/`, 18 October 2026; one shop, Fog & Clay, through one kiln batch) maps to the clauses that promise it, with the code that backs it today. A claim's status is `done` when every mapped clause is done (backed by code), `missing` when every one is missing (contract, not yet in code), and `partial` otherwise (partly in code). The sample shop, orders and figures in the drawings (kiln.ts) are illustrations, not claims; the honest-limits strip ("No warehouse purchasing, live chat or Etsy listings.") states what Stall leaves to Pier and the help desk ([Honest boundaries](#honest-boundaries), BOUNDARY-001) and is true of the code today. 42 claims: 8 done, 24 partial, 10 missing.
 
 | # | Section | Claim | Clause(s) | Backing in code today | Status |
 | --- | --- | --- | --- | --- | --- |
@@ -432,7 +434,7 @@ Every capability claim on the homepage built on the owner-approved structure pag
 | 22 | Friday 10:00 PM · The drop | Drawn: discount, shipping rate and sales tax in the checkout total | CART-001, PROMO-001, SHIP-001, TAX-001 | `src/stall/checkout.ts` (product lines only) | partial |
 | 23 | Friday 10:43 PM · Sold out | "When a hold runs out, the mug goes back on sale" | STOCK-002 | `src/stall/payments.ts` (shortfall shown after payment) | partial |
 | 24 | Friday 10:43 PM · Sold out | "and the shopper gets a note with what is still in stock." | RECOVERY-001 | — | missing |
-| 25 | Friday 10:43 PM · Sold out | Drawn: carts left, came back and recovered dollars | RECOVERY-001, ANALYTICS-001 | — | missing |
+| 25 | Friday 10:43 PM · Sold out | Drawn: carts left, came back and recovered dollars | RECOVERY-001, ANALYTICS-001 | `tests/api/commerce.test.mjs`; recovery remains unimplemented | partial |
 | 26 | Interlude | "38 orders while you slept" (orders complete without you) | PAY-003 | `src/stall/payments.ts` (signed webhook records payment and reserves stock); the count is sample data | done |
 | 27 | Saturday 8:00 AM · Packing day | "Live USPS and UPS rates" | SHIP-001 | `src/stall/shipping-charge.ts` (owner-set free or flat shipping; no live carrier rates) | partial |
 | 28 | Saturday 8:00 AM · Packing day | "addresses checked" | SHIP-001, SHIP-005 | `src/stall/shipping-charge.ts` (owner-set shipping; no address verification) | partial |
@@ -455,7 +457,7 @@ Every capability claim on the homepage built on the owner-approved structure pag
 
 Judged from the code and tests at commit `3428daf468f335301f950f76aedaec937d68a103` (21 October 2026).
 
-CHANNEL-004's current row and named public-door proofs supersede its historical audit baseline below. Other clause statuses are unchanged by this revision.
+CHANNEL-004 and ANALYTICS-001 follow their current rows and named public-door proofs; those rows supersede their historical audit baselines below. ANALYTICS-001 remains partial pending ct approval of its adopted policy boundary. Other clause statuses are unchanged by this revision.
 
 That is the main baseline for this revision; the earlier judgement was at `b4fc3b0ac94fd95df7ca1371cf52ba440554cb2c` (17 October 2026).
 
@@ -472,8 +474,8 @@ Judged against `main` **7eadb4b8faebf02302be95217ca8c2807fe5d986**, the same com
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 1 | 0 | 0 | 1 |
-| Target and push further | 23 | 27 | 28 | 78 |
-| All | 24 | 27 | 28 | 79 |
+| Target and push further | 23 | 28 | 27 | 78 |
+| All | 24 | 28 | 27 | 79 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -524,7 +526,7 @@ Judged against `main` **7eadb4b8faebf02302be95217ca8c2807fe5d986**, the same com
 | `CHANNEL-003` | Ad pixels, conversion APIs and custom storefront events | target | missing |  | No implementation found. Target journey not implemented. |
 | `CHANNEL-004` | Embeddable Buy Button and checkout links | target | done | `tests/api/commerce.test.mjs` — 'merchant checkout links preload native carts, preserve reviewed discounts and channel, and refuse stale sale authority' proves preloading, exact discounted totals, paid reservation, channel filters and exports, native custody, response-loss recovery, revocation and inactive restore; 'Buy Button, product card and collection embeds restrict exact origins and recheck native stock and publication' proves all three generators, exact-origin refusal, live prices, variants, stock and unpublishing; 'checkout links retain explicit guest tax consent and reserve promotions against tax-inclusive payments' proves guest consent refusal and exact taxed payment with one promotion use. `tests/ui/buy-link-journey.mjs` proves allowed external embeds and purchases, the two-variant discounted link, taxed and untaxed reviewed totals, Orders channel filtering, domain and availability refusals, revocation and account tooltips at 1440 and 390. `docs/BUY-LINKS.md` documents the HTTP generator and boundaries. |  |
 | `REVIEWS-001` | Verified reviews, upsells and cross-sells | target | missing |  | No implementation found. Target journey not implemented. |
-| `ANALYTICS-001` | Sales, conversion and contribution margin | target | missing |  | No implementation found. Target journey not implemented. |
+| `ANALYTICS-001` | Sales, conversion and contribution margin | target | partial | `tests/api/commerce.test.mjs` — “first-party analytics attributes consented sessions and verified orders without replayed, bot or invented visits” proves UTM, search, direct, source dimensions, exact conversion and consent unknowns; “sales reports reconcile refunds, ranked products, historical imports, exact costs and CSV drilldowns” proves refund money, history replay, channel and date totals, reference drilldown, exact margin, both rankings and exports; “analytics reports refuse foreign authority and restore historical observation without visitor or cost authority” proves access and inert archive restore; “checkout links retain explicit guest tax consent and reserve promotions against tax-inclusive payments” proves exact tax and shipping discount observations with test-payment exclusion. `tests/ui/analytics-journey.mjs` proves Reports, consent, cost settings, historical preview, drilldown, CSV and account tooltips at 1440 and 390. | ct approval pending for the adopted 30-day capture retention, minimized commercial source retention and native owner or administrator report-access boundary above. Native accounting posting evidence remains ACCOUNT-001; absent references are labelled unknown. No original acceptance point is waived. |
 | `ACCOUNT-001` | Reconciled QuickBooks Online and NetSuite posting | target | missing |  | No implementation found. Target journey not implemented. |
 | `MIGRATE-001` | Full reviewed Shopify migration | target | partial | `src/stall/imports/csv.ts`; `src/stall/imports/service.ts`; `tests/api/imports.test.mjs` | Only a bounded six-column product CSV stages simple unpublished products; full Shopify objects, media, variants, customers, orders, content pages, blogs, menus, discounts and redirects are absent. |
 | `MIGRATE-002` | Squarespace Commerce migration | target | missing |  | No implementation found. Target journey not implemented. |

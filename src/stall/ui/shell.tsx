@@ -17,6 +17,7 @@ export const deskViews = [
   { id: 'requests', label: 'Customer requests', icon: 'orders' },
   { id: 'promotions', label: 'Promotions', icon: 'products' },
   { id: 'move-in', label: 'Move in', icon: 'moveIn' },
+  { id: 'reports', label: 'Reports', icon: 'activity' },
   { id: 'history', label: 'Activity', icon: 'activity' },
   { id: 'settings', label: 'Settings', icon: 'settings' },
 ] as const satisfies readonly { id: string; label: string; icon: IconName }[]

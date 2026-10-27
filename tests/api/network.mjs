@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { createHmac,randomUUID } from 'node:crypto';
 import zlib from 'node:zlib';
 // Only Stripe is simulated. Pier requests are forwarded to the real fixture Worker.
-export function stripeEdge({forward}={}) {
+export function stripeEdge({forward,livemode=false}={}) {
  const sessions=new Map(),refunds=new Map(),writes=new Map();
- let loseCheckoutResponse=false,loseRefundResponse=false,losePierType=null,refuseCheckout=false;
+ let nextTest=false,loseCheckoutResponse=false,loseRefundResponse=false,losePierType=null,refuseCheckout=false;
  const pierCalls=[];
  const calls=[];
  async function handle(request) {
@@ -55,8 +55,8 @@ export function stripeEdge({forward}={}) {
     total+=Number(form.get(`line_items[${i}][quantity]`))*Number(form.get(`line_items[${i}][price_data][unit_amount]`));
    }
    total+=Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]')??0);
-   const id='cs_test_'+randomUUID().replaceAll('-','');
-   value={id,created:Math.floor(Date.now()/1000),object:'checkout.session',livemode:false,mode:'payment',shipping_address_collection:form.has('shipping_address_collection[allowed_countries][0]')?{allowed_countries:['US']}:null,client_reference_id:form.get('client_reference_id'),metadata:{stall_order_id:form.get('metadata[stall_order_id]')},amount_total:total,total_details:{amount_shipping:Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]')??0)},currency:'usd',status:'open',payment_status:'unpaid',payment_intent:null,url:'https://checkout.stripe.com/c/pay/'+id};
+   const sessionLive=livemode&&!nextTest;nextTest=false;const id=(sessionLive?'cs_live_':'cs_test_')+randomUUID().replaceAll('-','');
+   value={id,created:Math.floor(Date.now()/1000),object:'checkout.session',livemode:sessionLive,mode:'payment',shipping_address_collection:form.has('shipping_address_collection[allowed_countries][0]')?{allowed_countries:['US']}:null,client_reference_id:form.get('client_reference_id'),metadata:{stall_order_id:form.get('metadata[stall_order_id]')},amount_total:total,total_details:{amount_shipping:Number(form.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]')??0)},currency:'usd',status:'open',payment_status:'unpaid',payment_intent:null,url:'https://checkout.stripe.com/c/pay/'+id};
    sessions.set(id,value);
   } else if(url.pathname==='/v1/refunds') {
    const intent=form.get('payment_intent'),amount=Number(form.get('amount'));
@@ -82,7 +82,7 @@ export function stripeEdge({forward}={}) {
   const s=sessions.get(id);assert.ok(s);
   return Object.assign(s,{status:'expired',url:null});
  }
- return {handle,sessions,refunds,calls,pierCalls,pay,expire,loseNextPierResponse(type){losePierType=type;},loseNextCheckoutResponse(){loseCheckoutResponse=true;},refuseNextCheckout(){refuseCheckout=true;},loseNextRefundResponse(){loseRefundResponse=true;}};
+ return {handle,sessions,refunds,calls,pierCalls,pay,expire,testNextCheckout(){nextTest=true},loseNextPierResponse(type){losePierType=type;},loseNextCheckoutResponse(){loseCheckoutResponse=true;},refuseNextCheckout(){refuseCheckout=true;},loseNextRefundResponse(){loseRefundResponse=true;}};
 }
 export async function deliverWebhook(h,secret,session,{id='evt_'+randomUUID().replaceAll('-',''),timestamp=Math.floor(Date.now()/1000),type='checkout.session.completed',signatureBody,bodySuffix=''}={}) {
  const event={id,object:'event',type,data:{object:session}},body=JSON.stringify(event)+bodySuffix;

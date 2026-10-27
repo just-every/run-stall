@@ -1,3 +1,4 @@
+import { analyticsTestMode,analyticsTestSession } from './analytics/test-mode'
 import { checkoutTax,claimTaxQuote } from './tax/commerce-quote'
 import { publicTaxCommerce } from './tax/commerce'
 import { shopperDetails } from './customers/checkout-details'
@@ -13,8 +14,10 @@ import { email,fail,integer,shopCurrency,text,type Order } from './model'
 import { promotionCode } from './promotions/model'
 import { qualification,requireQualified,reservePromotion } from './promotions/eligibility'
 import { rate } from './headless/auth'
+import { checkoutAnalyticsStatements } from './analytics/capture'
+import type { AnalyticsSnapshot } from './analytics/model'
 /** `client` keys an unverified caller: one whose checkout email no session proves. */
-export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority,client?:string,verifiedCustomerEmail?:string) {
+export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority,client?:string,verifiedCustomerEmail?:string,analytics?:AnalyticsSnapshot) {
  await authority?.check()
  if((await publicTaxCommerce(env)).requiresReview)fail('TAX_CONFIGURATION','The owner must explicitly review restored tax sale authority before accepting payments.',503)
  const key=text(p.idempotencyKey,'Checkout idempotency key',100)
@@ -42,10 +45,10 @@ export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority,c
   const tax=await checkoutTax(env,p,lines,shippingCents,customerEmail,shipping,qualified?.snapshot,verifiedCustomerEmail),totalCents=tax?.totalCents??netTotalCents
   if(!tax&&code!==undefined&&integer(p.expectedTotalCents,'Reviewed total cents',50,99999999)!==totalCents) fail('PRICE_CHANGED','The promotion or total changed. Review the current quote before paying.')
   const id=crypto.randomUUID(),revision=crypto.randomUUID()
-  order={id,revision,customerEmail,...(authority?.channel?{channel:authority.channel}:{}),...(tax?{tax}:{}),...(shopper?{shopper}:{}),lines,totalCents,shippingCents,shipping,...(qualified?{promotion:qualified.snapshot}:{}),currency:shopCurrency,status:'checkout_pending',createdAt:new Date().toISOString(),requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,refunds:[]}
+  order={id,revision,customerEmail,...(analyticsTestMode(env)?{analyticsExcluded:'test' as const}:{}),...(authority?.channel?{channel:authority.channel}:{}),...(tax?{tax}:{}),...(shopper?{shopper}:{}),lines,totalCents,shippingCents,shipping,...(qualified?{promotion:qualified.snapshot}:{}),currency:shopCurrency,status:'checkout_pending',createdAt:new Date().toISOString(),requestDigest,checkoutKey,pierOrigin:pierOrigin(env),pierCustomerId:env.PIER_CUSTOMER_ID!,refunds:[]}
   // Unique checkout key prevents two orders even if concurrent requests observed no row.
   const files=lines.flatMap(line=>line.personalization?.flatMap(answer=>answer.fileId?[answer.fileId]:[])??[])
-  try { await env.DB.batch([...(authority?.statements()??[]),...claimTaxQuote(env,order),env.DB.prepare('INSERT INTO st_orders VALUES(?,?,?)').bind(id,JSON.stringify(order),revision),...(qualified?[reservePromotion(env.DB,order,qualified.snapshot,qualified.customerKey)]:[]),systemAudit(env.DB,id,'checkout.prepared','customer'),...files.map(file=>env.DB.prepare('UPDATE st_uploads SET order_id=? WHERE id=? AND order_id IS NULL').bind(id,file)),env.DB.prepare('INSERT INTO st_guard(value) SELECT CASE WHEN (SELECT COUNT(*) FROM st_uploads WHERE order_id=?)=? THEN 1 ELSE 0 END').bind(id,files.length),env.DB.prepare('DELETE FROM st_guard')]);allowCreate=true }
+  try { await env.DB.batch([...(authority?.statements()??[]),...claimTaxQuote(env,order),env.DB.prepare('INSERT INTO st_orders VALUES(?,?,?)').bind(id,JSON.stringify(order),revision),...checkoutAnalyticsStatements(env,id,analytics),...(qualified?[reservePromotion(env.DB,order,qualified.snapshot,qualified.customerKey)]:[]),systemAudit(env.DB,id,'checkout.prepared','customer'),...files.map(file=>env.DB.prepare('UPDATE st_uploads SET order_id=? WHERE id=? AND order_id IS NULL').bind(id,file)),env.DB.prepare('INSERT INTO st_guard(value) SELECT CASE WHEN (SELECT COUNT(*) FROM st_uploads WHERE order_id=?)=? THEN 1 ELSE 0 END').bind(id,files.length),env.DB.prepare('DELETE FROM st_guard')]);allowCreate=true;order=await readOrder(env.DB,id) }
   catch(error) {
    const winner=await env.DB.prepare("SELECT id FROM st_orders WHERE json_extract(value_json,'$.checkoutKey')=?").bind(checkoutKey).first<any>()
    if(!winner) {
@@ -72,7 +75,7 @@ export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority,c
   order=await readOrder(env.DB,order.id)
   validateSession(order,session)
   if(!order.checkout) {
-   try { order=await saveOrder(env,{...order,checkout:{id:session.id,url:link.href},status:order.status==='checkout_pending'?'awaiting_payment':order.status},'checkout.created') }
+   try { order=await saveOrder(env,{...order,...(session.livemode===false?{analyticsExcluded:'test' as const}:{}),checkout:{id:session.id,url:link.href},status:order.status==='checkout_pending'?'awaiting_payment':order.status},'checkout.created',undefined,'stripe',{before:session.livemode===false?analyticsTestSession(env.DB,order):[]}) }
    catch(error) {
     const winner=await readOrder(env.DB,order.id)
     if(winner.checkout?.id!==session.id) throw error

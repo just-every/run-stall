@@ -1,5 +1,7 @@
 import type { Bindings } from '../../auth.server'
-import { audit,commit,current,digest,live } from '../access'
+import { audit,commit,current,digest,live,systemAudit } from '../access'
+import { analyticsErasureStatements,analyticsRevocationStatements } from '../analytics/capture'
+import { clearAnalyticsCookies } from '../analytics/model'
 import { email,fail,integer,requirePerson,text,type Actor } from '../model'
 import { rawBody } from '../stripe'
 import { account,customerActor,customerCommit } from './account'
@@ -32,10 +34,15 @@ async function visitor(request:Request,env:Bindings,change?:any) {
  const prior=stored&&stored.policy_version===cfg.policyVersion?JSON.parse(stored.value_json):null
  const gpc=request.headers.get('sec-gpc')==='1'
  if(change&&(Object.keys(change).some(k=>!['analytics','advertising','doNotSellOrShare','policyVersion','region'].includes(k))||typeof change.analytics!=='boolean'||typeof change.advertising!=='boolean'||typeof change.doNotSellOrShare!=='boolean'||change.policyVersion!==cfg.policyVersion))fail('REVIEW_CHANGED','Review the current privacy policy and choose every category explicitly.',400)
- const value={analytics:change?.analytics??prior?.analytics??false,advertising:gpc?false:change?.advertising??prior?.advertising??false,doNotSellOrShare:gpc||change?.doNotSellOrShare===true||(!change&&prior?.doNotSellOrShare===true),region:change?.region?text(change.region,'Region',10).toUpperCase():prior?.region??'US'}
+ const value={analytics:change?.analytics??prior?.analytics??false,advertising:gpc?false:change?.advertising??prior?.advertising??false,doNotSellOrShare:gpc||change?.doNotSellOrShare===true||(!change&&prior?.doNotSellOrShare===true),region:change?.region?text(change.region,'Region',10).toUpperCase():prior?.region??'US',regionSelected:change&&Object.hasOwn(change,'region')?!!change.region:prior?.regionSelected===true}
  const mode=cfg.optInRegions.includes(value.region)?'opt_in':cfg.mode
- if(change||gpc)await env.DB.prepare('INSERT INTO st_customer_visitor_preferences VALUES(?,?,?,?) ON CONFLICT(id_hash) DO UPDATE SET policy_version=excluded.policy_version,value_json=excluded.value_json,updated_at=excluded.updated_at').bind(idHash,cfg.policyVersion,JSON.stringify(value),new Date().toISOString()).run()
- return json({policyVersion:cfg.policyVersion,mode,gpc,regionSource:'visitor_selected_not_geolocated',...value,analyticsAllowed:value.analytics,advertisingAllowed:value.advertising&&!value.doNotSellOrShare,googleConsentMode:{analytics_storage:value.analytics?'granted':'denied',ad_storage:value.advertising&&!value.doNotSellOrShare?'granted':'denied',ad_user_data:value.advertising&&!value.doNotSellOrShare?'granted':'denied',ad_personalization:value.advertising&&!value.doNotSellOrShare?'granted':'denied'},installedPixels:[],serverConversionProviders:[]},200,{'set-cookie':`stall_privacy=${id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000${new URL(env.AUTH_ORIGIN).protocol==='https:'?'; Secure':''}`})
+ const invalidate=!value.analytics||!!stored&&stored.policy_version!==cfg.policyVersion,statements:D1PreparedStatement[]=invalidate?analyticsRevocationStatements(env.DB,idHash):[]
+ if(change||gpc)statements.push(env.DB.prepare('INSERT INTO st_customer_visitor_preferences VALUES(?,?,?,?) ON CONFLICT(id_hash) DO UPDATE SET policy_version=excluded.policy_version,value_json=excluded.value_json,updated_at=excluded.updated_at').bind(idHash,cfg.policyVersion,JSON.stringify(value),new Date().toISOString()))
+ if(change)statements.push(systemAudit(env.DB,'privacy-analytics',value.analytics?'analytics.consent-granted':'analytics.consent-withdrawn','visitor'))
+ if(statements.length)await env.DB.batch(statements)
+ const result=json({policyVersion:cfg.policyVersion,mode,gpc,regionSource:'visitor_selected_not_geolocated',...value,analyticsAllowed:value.analytics,advertisingAllowed:value.advertising&&!value.doNotSellOrShare,googleConsentMode:{analytics_storage:value.analytics?'granted':'denied',ad_storage:value.advertising&&!value.doNotSellOrShare?'granted':'denied',ad_user_data:value.advertising&&!value.doNotSellOrShare?'granted':'denied',ad_personalization:value.advertising&&!value.doNotSellOrShare?'granted':'denied'},installedPixels:[],serverConversionProviders:[]},200,{'set-cookie':`stall_privacy=${id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000${new URL(env.AUTH_ORIGIN).protocol==='https:'?'; Secure':''}`})
+ if(invalidate)clearAnalyticsCookies(result.headers,env.AUTH_ORIGIN)
+ return result
 }
 async function importConsent(request:Request,env:Bindings,p:any) {
  const a=await owner(request,env)
@@ -92,7 +99,7 @@ export async function privacyResponse(request:Request,env:Bindings):Promise<Resp
 }
 export async function privacyErasureStatements(db:D1Database,email:string) {
  const hash=await digest(email),at=new Date().toISOString()
- return [db.prepare("INSERT OR REPLACE INTO st_customer_suppressions VALUES(?,'email',?)").bind(hash,at),db.prepare("INSERT OR REPLACE INTO st_customer_suppressions VALUES(?,'sms',?)").bind(hash,at),db.prepare('DELETE FROM st_customer_consents WHERE email=?').bind(email),db.prepare("UPDATE st_customer_privacy_requests SET email=NULL,status='erased',completed_at=? WHERE email=? AND kind='erasure'").bind(at,email),db.prepare("UPDATE st_customer_privacy_requests SET email=NULL WHERE email=?").bind(email)]
+ return [...analyticsErasureStatements(db,email),db.prepare("INSERT OR REPLACE INTO st_customer_suppressions VALUES(?,'email',?)").bind(hash,at),db.prepare("INSERT OR REPLACE INTO st_customer_suppressions VALUES(?,'sms',?)").bind(hash,at),db.prepare('DELETE FROM st_customer_consents WHERE email=?').bind(email),db.prepare("UPDATE st_customer_privacy_requests SET email=NULL,status='erased',completed_at=? WHERE email=? AND kind='erasure'").bind(at,email),db.prepare("UPDATE st_customer_privacy_requests SET email=NULL WHERE email=?").bind(email)]
 }
 export async function privacyBusinessRecords(db:D1Database) {
  const [history,suppressions,requests,settings,visitors]=await Promise.all([db.prepare('SELECT * FROM st_customer_consents ORDER BY created_at,id').all(),db.prepare('SELECT email_hash,channel,created_at FROM st_customer_suppressions ORDER BY email_hash,channel').all(),db.prepare('SELECT * FROM st_customer_privacy_requests ORDER BY created_at,id').all(),db.prepare('SELECT * FROM st_customer_privacy_config').all(),db.prepare('SELECT policy_version,value_json,updated_at FROM st_customer_visitor_preferences ORDER BY id_hash').all()])

@@ -54,6 +54,14 @@
       "commands": [
         "node tests/ui/real-home.mjs tests/ui/buy-link-journey.mjs"
       ]
+    },
+    {
+      "name": "analytics-browser",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "node tests/ui/real-home.mjs tests/ui/analytics-journey.mjs"
+      ]
     }
   ],
   "nightly": [
