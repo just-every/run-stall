@@ -238,3 +238,10 @@ an order, reservation or provider ledger. Complete files, business exports,
 installation archives, original source custody and the journal preserve the
 supported facts; original source bytes are distinct from the current catalog
 download.
+
+
+Native catalog jobs keep an independent, portable journal. A fresh reviewed
+native file may update an earlier import after a native edit; its before-image
+includes that edit, so undo restores it. Each publication batch records its
+native changes and checkpoint in one transaction. The existing Shopify import
+ownership and protected-undo rules remain unchanged.

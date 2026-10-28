@@ -1,9 +1,7 @@
 import { Buffer } from 'node:buffer'
 import type { Bindings } from '../../auth.server'
-import { canonicalJson, sha256, planD1Import, createD1ImportJob, applyD1ImportBatches, resumeD1Import,
+import { canonicalJson, sha256, planD1Import,
  type D1Database, type D1ImportContext, type ImportPlan, type Json, type SourceBundle } from '../../modules/import-kit/src/d1/index'
-import { stored } from '../../modules/import-kit/src/d1/jobs'
-import { audit, commit } from '../access'
 import type { Actor, ProductValue } from '../model'
 import { strictObject } from '../facts'
 import { collectionValue } from '../collections'
@@ -13,6 +11,7 @@ import { parseCSV, productImportDestination } from './csv'
 import { authorizeProductImport, importAuthority, productImportPrincipal } from './context'
 import { importError, stableId, validateProductValue } from './validation'
 import { catalogTargets } from './native-targets'
+import { nativeCatalogJob, createNativeCatalogJob, publishNativeCatalog } from './native-journal'
 
 export const catalogMapping = 'stall-catalog-v1'
 export type CatalogInput = { csv: string; namespace?: string; fingerprint?: string; excludedRows?: number[]; reviewedAt?: string }
@@ -57,9 +56,9 @@ function source(input: CatalogInput): SourceBundle {
  return { records, diagnostics: [{ severity: 'warning', code: 'CATALOG_REPLACEMENT', message: 'Native catalog rows replace complete records, including prepared revisions. Publication is approved by this exact apply after current Pier validation. Tax and customs fields are merchant facts, not provider verification. Only Pier-tracked stock is supported; no quantities change.' }],
   artifacts: [{ name: artifact, sha256: hash, size: Buffer.byteLength(csv), original: { status: 'available', base64: Buffer.from(csv).toString('base64') } }] }
 }
-async function validatePlan(env: Bindings, plan: ImportPlan) {
+async function validatePlan(env: Bindings, plan: ImportPlan, checkpoint = 0) {
  const native = await catalogTargets().list(env.DB, productImportDestination)
- const pending = plan.entries.flatMap(e => e.effects)
+ const pending = plan.entries.slice(checkpoint).flatMap(e => e.effects)
  const products = native.filter(row => row.targetKind === 'product').map(row => ({ id: row.targetId, value: row.value as unknown as ProductValue, revision: row.revision }))
  const combined = products.filter(p => !pending.some(e => e.targetKind === 'product' && e.targetId === p.id))
  for (const effect of pending.filter(e => e.targetKind === 'product')) combined.push({ id: effect.targetId, value: effect.value as unknown as ProductValue, revision: 'reviewed' })
@@ -100,6 +99,7 @@ async function prepare(env: Bindings, actor: Actor, input: CatalogInput) {
     value = { ...product, ...(product.active || product.archived ? { approval: { by: actor.id, version: actor.version, ...(actor.scopeRevision ? { scopeRevision: actor.scopeRevision } : {}), at: reviewedAt, revision: previous?.revision ?? 'new-catalog-record' } } : {}) }
    } else {
     strictObject(payload.value, ['handle', 'title', 'description', 'kind', 'published', 'skus', 'match', 'rules', 'sort'], 'Catalog collection')
+    if (typeof payload.value.published !== 'boolean') importError('CATALOG_COLLECTION', 'Collection publication must be true or false.')
     if (payload.value.handle !== payload.id) importError('CATALOG_COLLECTION', 'The collection handle must match its row ID.')
     value = collectionValue(payload.value, known)
    }
@@ -123,16 +123,12 @@ export async function previewCatalog(env: Bindings, actor: Actor, input: Catalog
 export async function applyCatalog(env: Bindings, actor: Actor, input: CatalogInput) {
  await authorizeProductImport(env.DB, actor, true)
  if (typeof input.fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(input.fingerprint)) importError('IMPORT_APPROVAL', 'Supply the exact reviewed fingerprint.')
- const operationKey = `stall-product-import:${input.fingerprint}`
- const prior = await env.DB.prepare('SELECT id,namespace,checkpoint,state FROM ik_jobs WHERE destination=? AND principal_id=? AND operation_key=? AND mapping_version=?').bind(productImportDestination, productImportPrincipal, operationKey, catalogMapping).first<{ id: string; namespace: string; checkpoint: number; state: string }>()
+ const prior = await nativeCatalogJob(env.DB, input.fingerprint, true)
  const bundle = source(input), namespace = `${catalogMapping}:${bundle.records[0].namespace}:${bundle.artifacts[0].sha256}`
- const context = catalogContext(env.DB, actor, namespace)
- context.operationKey = operationKey
- context.reviewedFingerprint = input.fingerprint
  let plan: ImportPlan
  if (prior) {
-  if (prior.namespace !== namespace) importError('IMPORT_REVIEW_CHANGED', 'Resume using the exact original source and namespace.')
-  plan = (await stored(prior.id, context, 'apply')).plan
+  if (prior.job.namespace !== namespace) importError('IMPORT_REVIEW_CHANGED', 'Resume using the exact original source and namespace.')
+  plan = prior.plan
  } else {
   if (!input.reviewedAt) importError('CATALOG_REVIEW', 'Supply the time returned by the dry run.')
   plan = (await prepare(env, actor, input)).plan
@@ -141,18 +137,11 @@ export async function applyCatalog(env: Bindings, actor: Actor, input: CatalogIn
  const rejected = plan.entries.filter(e => e.rejection).map(e => e.source.location.row!).sort((a, b) => a - b)
  if (!Array.isArray(input.excludedRows ?? []) || canonicalJson([...(input.excludedRows ?? [])].sort((a, b) => a - b)) !== canonicalJson(rejected) || !plan.counts.mapped) importError('IMPORT_EXCLUSIONS', 'Exclude exactly the rejected rows shown in the dry run.')
  if (plan.diagnostics.some(d => d.severity === 'error' && d.code !== 'REJECTED')) importError('IMPORT_DIAGNOSTICS', 'Resolve catalog conflicts before applying.')
- await validatePlan(env, plan)
- context.storage.targets = catalogTargets(false, { plan, jobId: prior?.id })
- let job
- if (prior) job = await resumeD1Import(prior.id, context)
- else {
-  job = await createD1ImportJob(plan, context)
-  context.storage.targets = catalogTargets(false, { plan, jobId: job.id })
-  job = await applyD1ImportBatches(job.id, context)
- }
- if (!prior || prior.checkpoint !== job.checkpoint || prior.state !== job.state) await commit(env.DB, actor, [audit(env.DB, actor, job.id, 'catalog.applied')])
- return job
+ if (prior?.job.state === 'completed') return prior.job
+ await validatePlan(env, plan, prior?.job.checkpoint ?? 0)
+ return publishNativeCatalog(env, actor, prior ?? await createNativeCatalogJob(env, actor, plan))
 }
+
 export async function exportCatalog(db: D1Database) {
  const rows = await catalogTargets().list(db, productImportDestination)
  const cell = (value: string) => '"' + value.replaceAll('"', '""') + '"'

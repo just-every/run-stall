@@ -497,6 +497,9 @@ test('CATALOG-002: reviewed metadata CSV survives resume and restore, exports ex
       const file = rows => 'Kind,ID,Value\n' + rows.map(([kind, id, value]) => [kind, id, JSON.stringify(value)].map(quote).join(',')).join('\n') + '\n';
       const nativeRows = [...values.map(value => ['product', value.sku, value]), ['collection', manual.handle, manual], ['collection', automatic.handle, automatic],
         ['product', 'synthetic-stall-1724', { ...values[1], sku: 'synthetic-stall-1724', stockMode: 'untracked' }]];
+      const invalidCollection = await native.api(`${base}/preview`, { csv: file([['collection', manual.handle, { ...manual, published: 'FALSE' }]]) });
+      assert.equal(invalidCollection.counts.rejected, 1);
+      assert.equal((await native.api('/api/stall/exports/records')).collections.length, 0);
       const csv = file(nativeRows), preview = await native.api(`${base}/preview`, { csv });
       assert.equal(preview.counts.mapped, 14);
       assert.equal(preview.counts.rejected, 1);
@@ -510,6 +513,8 @@ test('CATALOG-002: reviewed metadata CSV survives resume and restore, exports ex
       await native.api(`${base}/apply`, input, { as: '', status: 401 });
       const member = await native.signIn(['synthetic-stall-1725', 'example.test'].join('@'));
       await native.api(`${base}/apply`, input, { as: member, status: 403 });
+      await native.api(`${base}/catalog.csv`, undefined, { as: '', status: 401 });
+      await native.api(`${base}/catalog.csv`, undefined, { as: member, status: 403 });
       const grant = await native.api('/api/stall/agent-token', {});
       const headers = { authorization: `Bearer ${grant.token}` };
       await native.api(`${base}/apply`, input, { as: '', headers, status: 403 });
@@ -518,6 +523,7 @@ test('CATALOG-002: reviewed metadata CSV survives resume and restore, exports ex
       let job = await native.api(`${base}/apply`, input);
       assert.equal(job.state, 'applying');
       assert.ok(job.checkpoint > 0 && job.checkpoint < job.total);
+      await native.api(`${base}/${job.id}/undo`, {}, { status: 409 });
       restored = await installation(options);
       await restore(restored, await archive(native));
       await restored.api(`${base}/apply`, input, { as: native.cookie, status: 401 });
@@ -552,6 +558,22 @@ test('CATALOG-002: reviewed metadata CSV survives resume and restore, exports ex
       assert.deepEqual(await restored.api(`${base}/apply`, input), job);
       assert.deepEqual((await restored.api('/api/stall/state')).audit.filter(row => row.action === 'catalog.applied'), activityBeforeReplay);
       assert.deepEqual((await restored.api('/api/stall/exports/records')).products, complete.products, 'native resume never repeats revisions');
+      // A second complete file updates existing imported rows and resumes from journal custody alone.
+      const updateCSV = file([...values.map(value => ['product', value.sku, { ...value, unitCents: value.unitCents + 100 }]), ['collection', manual.handle, manual], ['collection', automatic.handle, automatic], ['product', 'synthetic-stall-1724', { ...values[1], sku: 'synthetic-stall-1724', stockMode: 'untracked' }]]);
+      const pendingBeforeUpdate = (await restored.api('/api/stall/state')).products.find(row => row.id === ids[11]);
+      await restored.command('product.prepare', { ...pendingBeforeUpdate.value, sku: pendingBeforeUpdate.id, revision: pendingBeforeUpdate.revision, name: 'Native work before file update', active: false });
+      const beforeUpdate = (await restored.api('/api/stall/exports/records')).products;
+      const updateReview = await restored.api(`${base}/preview`, { csv: updateCSV });
+      let updateJob = await restored.api(`${base}/apply`, { csv: updateCSV, fingerprint: updateReview.fingerprint, reviewedAt: updateReview.reviewedAt, excludedRows: [16] });
+      assert.equal(updateJob.state, 'applying');
+      const updateJournal = await restored.api(`${base}/${updateJob.id}`);
+      const updateOriginal = updateJournal.originals.find(item => item.kind === 'artifact' && item.original.status === 'retained');
+      updateJob = await restored.api(`${base}/apply`, { csv: Buffer.from(updateOriginal.original.base64, 'base64').toString('utf8'), namespace: 'stall-catalog', fingerprint: updateJournal.job.fingerprint, excludedRows: updateJournal.rejectedRows.map(row => row.row) });
+      assert.equal(updateJob.state, 'completed');
+      assert.equal((await restored.api('/api/stall/exports/records')).products.find(row => row.id === ids[0]).value.unitCents, values[0].unitCents + 100);
+      await undo(restored, updateJob, { bounded: true });
+      assert.deepEqual((await restored.api('/api/stall/exports/records')).products, beforeUpdate);
+
       // Review binds complete current records, including prepared revisions.
       const changedFile = file([['product', ids[11], { ...values[11], unitCents: 4321 }]]);
       const stale = await restored.api(`${base}/preview`, { csv: changedFile });
@@ -564,10 +586,17 @@ test('CATALOG-002: reviewed metadata CSV survives resume and restore, exports ex
       assert.equal(delivered.response.status, 200);
       const purchasedBefore = (await restored.api('/api/stall/state')).orders;
       const paidProduct = (await restored.api('/api/stall/state')).products.find(row => row.id === ids[0]);
+      await restored.command('shipping.profile.save', { id: 'synthetic-stall-1728', value: { name: 'Retained shipping profile', services: [{ code: 'standard', name: 'Standard', rate: { type: 'flat', cents: 600 } }] } });
+      const assignment = { assignments: [{ sku: ids[10], profile: 'synthetic-stall-1728' }] };
+      const assignmentReview = await restored.command('shipping.assign', assignment);
+      await restored.command('shipping.assign', { ...assignment, fingerprint: assignmentReview.fingerprint });
+      const shippingBeforeUndo = (await restored.api('/api/stall/exports/records')).shipping;
       const stockBefore = structuredClone([...stock.orders]);
       const outcomes = await undo(restored, job, { bounded: true });
       const after = await restored.api('/api/stall/state');
-      assert.deepEqual(after.products.map(row => row.id).sort(), [ids[0], ids[11]].sort(), 'all untouched products reverse, including former collection members');
+      assert.deepEqual(after.products.map(row => row.id).sort(), [ids[0], ids[10], ids[11]].sort(), 'all untouched products reverse; purchased, edited and assigned products remain');
+      assert.deepEqual((await restored.api('/api/stall/exports/records')).shipping, shippingBeforeUndo);
+      assert.equal(outcomes.dispositions.find(row => row.targetId === ids[10]).disposition, 'retained');
       assert.deepEqual(after.orders, purchasedBefore);
       assert.deepEqual([...stock.orders], stockBefore);
       assert.deepEqual(after.products.find(row => row.id === ids[0]), paidProduct, 'variant purchase protects the whole original product');

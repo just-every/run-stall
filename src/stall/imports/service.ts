@@ -8,6 +8,8 @@ import type { Actor } from '../model';
 import { productImportDestination, productImportMappingVersion, productImportSource, supportedProductMappings, legacyProductMappingVersion } from './csv';
 import { importError, stableId, validateProductValue } from './validation';
 import { productTargets, orderDependencySQL } from './targets';
+import { nativeCatalogJob, nativeCatalogJobs, nativeJournalReceipt, undoNativeCatalog } from './native-journal';
+import type { Bindings } from '../../auth.server';
 import { catalogMapping, catalogContext } from './native-catalog';
 import { stored } from '../../modules/import-kit/src/d1/jobs';
 
@@ -119,13 +121,16 @@ export async function listProductImports(db: D1Database, actor: Actor, limit = 5
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) importError('IMPORT_LIMIT', 'Journal limit must be from 1 through 100.');
   const rows = await db.prepare(`SELECT id,namespace,mapping_version FROM ik_jobs WHERE destination=? AND mapping_version IN (${[...supportedProductMappings, catalogMapping].map(() => '?').join(',')}) AND principal_id=? ORDER BY rowid DESC LIMIT ?`)
     .bind(productImportDestination, ...supportedProductMappings, catalogMapping, productImportPrincipal, limit).all<{ id: string; namespace: string; mapping_version: string }>();
-  const jobs = [];
+  const jobs = await nativeCatalogJobs(db, limit);
   for (const row of rows.results) jobs.push(await readD1ImportJob(row.id, row.mapping_version === catalogMapping ? catalogContext(db, actor, row.namespace) : productImportContext(db, actor, row.namespace, false, row.mapping_version)));
   await authorizeProductImport(db, actor);
-  return jobs;
+  return jobs.slice(0, limit);
 }
 
 export async function getProductImport(db: D1Database, actor: Actor, id: string) {
+  await authorizeProductImport(db, actor);
+  const native = await nativeCatalogJob(db, id);
+  if (native) { await authorizeProductImport(db, actor); return nativeJournalReceipt(native); }
   const context = await jobContext(db, actor, id);
   const job = await readD1ImportJob(id, context);
   const originals = await readD1ImportOriginals(id, context);
@@ -136,6 +141,9 @@ export async function getProductImport(db: D1Database, actor: Actor, id: string)
 }
 
 export async function undoProductImport(db: D1Database, actor: Actor, id: string) {
+  await authorizeProductImport(db, actor, true);
+  const native = await nativeCatalogJob(db, id);
+  if (native) return undoNativeCatalog({ DB: db } as Bindings, actor, native);
   const context = await jobContext(db, actor, id, true);
   const dependency = await db.prepare(`SELECT 1 AS found FROM ik_provenance p WHERE p.job_id=? AND p.target_kind='product' AND p.reversed=0 AND EXISTS(SELECT 1 FROM st_orders o,json_each(o.value_json,'$.lines') l WHERE json_extract(l.value,'$.sku')=p.target_id) LIMIT 1`)
     .bind(id).first();
