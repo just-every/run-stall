@@ -941,10 +941,9 @@ Core · target · **partial** · Cites BASE-ROLE-001, BASE-ACCESS-004
 
 **Acceptance.**
 1. Invite each role, perform its permitted workflow and try foreign customer, finance, bulk/export and direct API actions.
-2. Downgrade/revoke an active session/app grant during a prepared job and verify the next effect is refused without leaking private records.
 
 **Evidence.** `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs`; `tests/ui/staff-journey.mjs`
-**Gap.** Audit gap: Catalog and fulfillment mutations read back after permitted workflow; Marketing setting read back after permitted workflow; Customer support tags read back after permitted workflow; Administrator changed setting read back after permitted workflow; Private data absent from every denied response after revoke. Other carried outcomes are asserted in docs/contract/DONE-AUDIT.md.
+**Gap.** Audit gap: Catalog and fulfillment mutations read back after permitted workflow; Marketing setting read back after permitted workflow; Customer support tags read back after permitted workflow; Administrator changed setting read back after permitted workflow. Other carried outcomes are asserted in docs/contract/DONE-AUDIT.md.
 
 #### AGENT-001 — Exact agent commerce actions under company policy
 
@@ -1041,13 +1040,13 @@ Core · target · **partial** · Cites BASE-DATA-003, BASE-DATA-006
 
 #### AUDIT-001 — Durable attributable commercial action history
 
-Core · target · **partial** · Cites BASE-AUDIT-001, BASE-OPS-005
+Core · target · **partial** · Cites BASE-AUDIT-001, BASE-OPS-005, BASE-DATA-003
 
-**Requirement.** Commercial history joins purchases, product and shipment preparation, decisions, refunds, reconciliation, grants and erasure with immutable decision and provider references. Anonymous commercial references survive customer-contact erasure and archive transfer. Paging is a presentation bound and never a claim that history was deleted or made tamper-evident. Details are in [commerce mechanics](docs/COMMERCE-MECHANICS.md).
+**Requirement.** Commercial history joins purchases, product and shipment preparation, decisions, refunds, reconciliation, grants and erasure with immutable decision and provider references. Paging is a presentation bound and never a claim that history was deleted or made tamper-evident. Details are in [commerce mechanics](docs/COMMERCE-MECHANICS.md).
 
 **Acceptance.**
 1. Run a purchase, human approvals, reconciliation, agent grant/revoke and erasure through public commands, read activity and export/restore the shop.
-2. Verify relevant actor/action/time and approval/provider references remain without restoring erased customer contact.
+2. Verify relevant commercial actor/action/time and immutable decision/provider references agree across activity, export and restored records.
 
 **Evidence.** `src/stall/access.ts`; `src/stall/api.ts`; `src/stall/store.ts`; `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs`
 **Gap.** Audit gap: Reconciliation-specific actor action and time asserted in history; Grant revocation actor action and time asserted in restored history; Decision and provider references compared across export and restore. Other carried outcomes are asserted in docs/contract/DONE-AUDIT.md.
@@ -1069,15 +1068,13 @@ Core · target · **partial** · Cites BASE-INSTALL-001, BASE-BACKUP-001, BASE-O
 
 Core · target · **partial** · Cites BASE-INSTALL-001, BASE-OPS-002, BASE-BACKUP-001 · Register R-8
 
-**Requirement.** Stall’s own-computer and owner-server paths preserve the shop’s commerce and local owner settings. The Linux production path provides durable storage, owner-domain HTTPS, supervision after crash or reboot and continuous service beyond the development idle-stop window; its upgrades preserve an existing order. Fresh-machine and live-host receipts are recorded separately from runnable installation fixtures. Details are in [commerce mechanics](docs/COMMERCE-MECHANICS.md).
+**Requirement.** Stall’s Linux production path preserves the shop’s commerce and local owner settings with durable storage, owner-domain HTTPS, supervision after crash or reboot and continuous service beyond the development idle-stop window; its upgrades preserve an existing order. Fresh-machine and live-host receipts are recorded separately from runnable installation fixtures. Details are in [commerce mechanics](docs/COMMERCE-MECHANICS.md).
 
 **Acceptance.**
-1. On each supported fresh-machine fixture, run the documented start and verify a local owner, empty real shop and retained settings after restart.
-2. Deploy the same checkout with `rer deploy` to an owner's Cloudflare account, sign in and buy through checkout.
-3. Follow the server guide on a fresh Linux VPS: serve the shop over HTTPS on a test domain, take an order, reboot the server and verify it returns with the order intact, leave it idle for more than 12 hours and verify it still serves, then upgrade to a newer release and verify migrations apply and the data remains.
+1. Follow the server guide on a fresh Linux VPS: serve the shop over HTTPS on a test domain, take an order, reboot the server and verify it returns with the order intact, leave it idle for more than 12 hours and verify it still serves, then upgrade to a newer release and verify migrations apply and the data remains.
 
 **Evidence.** `src/site/run.json`; `scripts/installer/local.mjs`; `deploy.json`; `tests/clone-journey.mjs`
-**Gap.** The one-line local start and own-account Cloudflare deploy exist; there is no own-server production path (`rer dev` and `rer preview` are rer-managed servers with a 12-hour idle stop), and the one-line start has no recorded fresh-machine acceptance.
+**Gap.** Local start and own-account Cloudflare deployment exist; their shared BASE-INSTALL-001 conformance is not run. The Linux production path is absent; development servers stop after 12 idle hours.
 
 #### BASE-001 — Preserved Base guarantees with scoped replacements
 

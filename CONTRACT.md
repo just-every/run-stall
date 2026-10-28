@@ -44,7 +44,7 @@ The core records are stores/themes/pages, collections/products/variants/media/cu
 | BASE-SECRET-002 | Startup | none | not run |
 | BASE-DATA-001 | Export and import | CATALOG-002, SHIP-004, MIGRATE-001, MIGRATE-002, MIGRATE-003, MIGRATE-004, MIGRATE-005, MIGRATE-006, MIGRATE-007, EXPORT-001, DATA-001, BASE-001 | not run |
 | BASE-DATA-002 | Retention | none | not run |
-| BASE-DATA-003 | Erasure | CATALOG-001, ORDER-001, ORDER-007, ORDER-008, ORDER-009, RETURN-001, CUSTOMER-002, ANALYTICS-001, ERASURE-001, BASE-001 | not run |
+| BASE-DATA-003 | Erasure without restoring erased contact on transfer | CATALOG-001, ORDER-001, ORDER-007, ORDER-008, ORDER-009, RETURN-001, CUSTOMER-002, ANALYTICS-001, ERASURE-001, AUDIT-001, BASE-001 | not run |
 | BASE-DATA-004 | Outbound flows | DEMO-001, MARKET-001, CHANNEL-001, CHANNEL-002, CHANNEL-003, ACCOUNT-001, API-001, INTEGRATION-001, BASE-001 | not run |
 | BASE-DATA-005 | Independence | OPS-001, OPEN-001 | not run |
 | BASE-PUBLIC-001 | Privacy | STORE-001, STORE-002, STORE-003, CUSTOMER-002, CHANNEL-003, CHANNEL-004 | not run |
@@ -55,13 +55,13 @@ The core records are stores/themes/pages, collections/products/variants/media/cu
 | BASE-OPS-003 | Idempotency | PAY-002, PAY-003, ORDER-002, ORDER-003, RETURN-002, RECOVERY-001, ACCOUNT-001, API-001, FLOW-001, INTEGRATION-001 | not run |
 | BASE-OPS-004 | Failure is visible | PAY-002, FLOW-001 | not run |
 | BASE-OPS-005 | Audit | AUDIT-001 | not run |
-| BASE-ROLE-001 | Roles through every door | STORE-002, MOBILE-002, CATALOG-002, RISK-001, SHIP-004, ORDER-001, ORDER-007, ORDER-008, ORDER-009, ORDER-003, CUSTOMER-001, ANALYTICS-001, EXPORT-001, ROLE-001, API-001, SECURITY-001, BASE-001 | not run |
-| BASE-AUDIT-001 | Searchable, durable audit | RISK-001, ORDER-001, ORDER-007, ORDER-008, ORDER-009, INTEGRATION-001, AUDIT-001 | not run |
+| BASE-ROLE-001 | Roles through every door, including current authority and next-request revocation | STORE-002, MOBILE-002, CATALOG-002, RISK-001, SHIP-004, ORDER-001, ORDER-007, ORDER-008, ORDER-009, ORDER-003, CUSTOMER-001, ANALYTICS-001, EXPORT-001, ROLE-001, API-001, SECURITY-001, BASE-001 | not run |
+| BASE-AUDIT-001 | Searchable, durable audit, including anonymised history after erasure and archive transfer | RISK-001, ORDER-001, ORDER-007, ORDER-008, ORDER-009, INTEGRATION-001, AUDIT-001 | not run |
 | BASE-BACKUP-001 | Independent backup, restore and rollback | DATA-001, OPS-001, OPS-002 | not run |
 | BASE-DATA-006 | Erasure respects retention and legal hold | CUSTOMER-001, CUSTOMER-002, ERASURE-001 | not run |
 | BASE-SIGNIN-001 | Standards-based SSO and lifecycle | CUSTOMER-001 | not run |
 | BASE-SIGNIN-002 | Native multi-factor authentication | none | not run |
-| BASE-INSTALL-001 | Free self-host and removal | OPS-001, OPS-002, OPEN-001 | not run |
+| BASE-INSTALL-001 | Free self-host and removal; fresh macOS/Linux/WSL2 and owner-Cloudflare shop conformance, local owner, empty real shop, retained settings and signed-in checkout | OPS-001, OPS-002, OPEN-001 | not run |
 | BASE-MAIL-001 | Truthful mail outcomes | DEMO-001, STORE-003, CATALOG-001, SHIP-003, MAIL-001, RECOVERY-001, MARKET-001 | not run |
 | BASE-ACCESSIBILITY-001 | One accessibility bar | MOBILE-001 | not run |
 | BASE-DOCS-001 | On-site docs from one contract | HTTP-001 | not run |
@@ -819,7 +819,6 @@ The core records are stores/themes/pages, collections/products/variants/media/cu
 
 **Acceptance.**
 1. Invite each role, perform its permitted workflow and try foreign customer, finance, bulk/export and direct API actions.
-2. Downgrade/revoke an active session/app grant during a prepared job and verify the next effect is refused without leaking private records.
 
 #### AGENT-001 — Exact agent commerce actions under company policy
 
@@ -895,13 +894,13 @@ The core records are stores/themes/pages, collections/products/variants/media/cu
 
 #### AUDIT-001 — Durable attributable commercial action history
 
-*Tier:* Core · *Cites:* BASE-AUDIT-001, BASE-OPS-005
+*Tier:* Core · *Cites:* BASE-AUDIT-001, BASE-OPS-005, BASE-DATA-003
 
-**Requirement.** Commercial history joins purchases, product and shipment preparation, decisions, refunds, reconciliation, grants and erasure with immutable decision and provider references. Anonymous commercial references survive customer-contact erasure and archive transfer. Paging is a presentation bound and never a claim that history was deleted or made tamper-evident. Details are in [commerce mechanics](docs/COMMERCE-MECHANICS.md).
+**Requirement.** Commercial history joins purchases, product and shipment preparation, decisions, refunds, reconciliation, grants and erasure with immutable decision and provider references. Paging is a presentation bound and never a claim that history was deleted or made tamper-evident. Details are in [commerce mechanics](docs/COMMERCE-MECHANICS.md).
 
 **Acceptance.**
 1. Run a purchase, human approvals, reconciliation, agent grant/revoke and erasure through public commands, read activity and export/restore the shop.
-2. Verify relevant actor/action/time and approval/provider references remain without restoring erased customer contact.
+2. Verify relevant commercial actor/action/time and immutable decision/provider references agree across activity, export and restored records.
 
 #### OPS-001 — Owned installation, recovery and explicit operating limits
 
@@ -917,12 +916,10 @@ The core records are stores/themes/pages, collections/products/variants/media/cu
 
 *Tier:* Core · *Cites:* BASE-INSTALL-001, BASE-OPS-002, BASE-BACKUP-001 · *Register:* R-8
 
-**Requirement.** Stall’s own-computer and owner-server paths preserve the shop’s commerce and local owner settings. The Linux production path provides durable storage, owner-domain HTTPS, supervision after crash or reboot and continuous service beyond the development idle-stop window; its upgrades preserve an existing order. Fresh-machine and live-host receipts are recorded separately from runnable installation fixtures. Details are in [commerce mechanics](docs/COMMERCE-MECHANICS.md).
+**Requirement.** Stall’s Linux production path preserves the shop’s commerce and local owner settings with durable storage, owner-domain HTTPS, supervision after crash or reboot and continuous service beyond the development idle-stop window; its upgrades preserve an existing order. Fresh-machine and live-host receipts are recorded separately from runnable installation fixtures. Details are in [commerce mechanics](docs/COMMERCE-MECHANICS.md).
 
 **Acceptance.**
-1. On each supported fresh-machine fixture, run the documented start and verify a local owner, empty real shop and retained settings after restart.
-2. Deploy the same checkout with `rer deploy` to an owner's Cloudflare account, sign in and buy through checkout.
-3. Follow the server guide on a fresh Linux VPS: serve the shop over HTTPS on a test domain, take an order, reboot the server and verify it returns with the order intact, leave it idle for more than 12 hours and verify it still serves, then upgrade to a newer release and verify migrations apply and the data remains.
+1. Follow the server guide on a fresh Linux VPS: serve the shop over HTTPS on a test domain, take an order, reboot the server and verify it returns with the order intact, leave it idle for more than 12 hours and verify it still serves, then upgrade to a newer release and verify migrations apply and the data remains.
 
 #### BASE-001 — Preserved Base guarantees with scoped replacements
 
@@ -1354,7 +1351,7 @@ Judged from the code and tests at commit `66ce5e9be39baa833aa221018ba6a044e758df
 | `MIGRATE-006` | Cutover completeness, source limitations and outstanding liabilities | target | partial | `src/stall/imports/service.ts`; `src/stall/imports/targets.ts`; `tests/api/imports.test.mjs` | Current product import binds reviewed source/native snapshots and protects undo; complete cross-platform cutover, media, redirects, customer activation and outstanding liability handling are absent. |
 | `MIGRATE-007` | Product review and rating migration | target | partial | `tests/api/imports.test.mjs`; `tests/ui/review-import-journey.mjs` | Judge.me and Yotpo authorized API import adapters and native BigCommerce and WooCommerce review intake remain unimplemented or unproved; their duties remain MIGRATE-007 requirements and are not explicitly inherited in both receiving entries. Stamped mapped fields and the legacy Shopify subset are documented source-format boundaries, not complete native-export proof. CUSTOMER-002 retains request eligibility and REVIEWS-001 retains native collection, moderation and permitted requests. Connection-pinned media egress remains an unresolved runtime boundary under API-001 and the Base guarantees. Qualifying exact-SHA push Verify of the newly loaded review browser journey remains required before landing. All original MIGRATE-007 requirements remain. |
 | `EXPORT-001` | Business CSVs and complete merchant exit | target | partial | `src/stall/exports.ts`; `src/stall/tools.ts`; `src/stall/ui/business-exports.tsx`; `docs/BUSINESS-EXPORTS.md`; `tests/api/data.test.mjs`; `tests/api/commerce.test.mjs` | Audit gap: Declared resource bounds and excluded future record kinds asserted. Other carried outcomes are asserted in docs/contract/DONE-AUDIT.md. |
-| `ROLE-001` | Staff and app least privilege | target | partial | `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs`; `tests/ui/staff-journey.mjs` | Audit gap: Catalog and fulfillment mutations read back after permitted workflow; Marketing setting read back after permitted workflow; Customer support tags read back after permitted workflow; Administrator changed setting read back after permitted workflow; Private data absent from every denied response after revoke. Other carried outcomes are asserted in docs/contract/DONE-AUDIT.md. |
+| `ROLE-001` | Staff and app least privilege | target | partial | `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs`; `tests/ui/staff-journey.mjs` | Audit gap: Catalog and fulfillment mutations read back after permitted workflow; Marketing setting read back after permitted workflow; Customer support tags read back after permitted workflow; Administrator changed setting read back after permitted workflow. Other carried outcomes are asserted in docs/contract/DONE-AUDIT.md. |
 | `AGENT-001` | Exact agent commerce actions under company policy | target | partial | `src/stall/api.ts`; `src/stall/products.ts`; `src/stall/fulfilment.ts`; `src/stall/refunds.ts`; `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs` | Audit gap: Held company-policy classification and decision rather than fixed native gate; Export and erasure dispositions evaluated by their declared classes; All-autonomous company policy completes each permitted class. Other carried outcomes are asserted in docs/contract/DONE-AUDIT.md. |
 | `API-001` | Documented headless API and signed events | target | partial | `docs/HEADLESS-API.md`; `tests/api/commerce.test.mjs`; `tests/api/operations.test.mjs`; `tests/api/data.test.mjs` | The scoped native purchase and signed-event slice is asserted. Connection-pinned DNS/TLS egress remains unavailable, and subscription-governed automatic delivery, complete headless commerce and additional return lifecycle events under RL-101 remain unproved. |
 | `FLOW-001` | Event and scheduled workflows with visible follow-up | target | partial | `tests/api/operations.test.mjs`; `tests/api/data.test.mjs`; `tests/ui/staff-journey.mjs`; `tests/ui/workflow-journey.mjs` | Versioned native rules, deduplicated follow-up and human shipment preparation are asserted. RL-105’s policy-governed commerce execution and effect-time authority across broader actions remain unproved. Physical return stock resolution, accounting, approved integration and budget effects remain owed; safe egress is blocked by API-001. |
@@ -1364,7 +1361,7 @@ Judged from the code and tests at commit `66ce5e9be39baa833aa221018ba6a044e758df
 | `ERASURE-001` | Owner-directed contact erasure and backup fencing | target | partial | `src/stall/erasure.ts`; `src/stall/portability-policy.mjs`; `tests/api/data.test.mjs` | Audit gap: Exact retained decision references after post-erasure restore. Other carried outcomes are asserted in docs/contract/DONE-AUDIT.md. |
 | `AUDIT-001` | Durable attributable commercial action history | target | partial | `src/stall/access.ts`; `src/stall/api.ts`; `src/stall/store.ts`; `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs` | Audit gap: Reconciliation-specific actor action and time asserted in history; Grant revocation actor action and time asserted in restored history; Decision and provider references compared across export and restore. Other carried outcomes are asserted in docs/contract/DONE-AUDIT.md. |
 | `OPS-001` | Owned installation, recovery and explicit operating limits | target | partial | `src/stall/operations.ts`; `src/stall/ops-providers.ts`; `src/stall/ui/operations.tsx`; `docs/OPERATIONS.md`; `tests/api/operations.test.mjs`; `tests/runtime.mjs`; `tests/clone-journey.mjs`; `tests/ui/journey.mjs` | Audit gap: Declared storage and cost bounds checked through the operating door; Outside request inventory reconciled rather than inferred from readiness. Other carried outcomes are asserted in docs/contract/DONE-AUDIT.md. |
-| `OPS-002` | Run Stall on the owner's own computer or own server | target | partial | `src/site/run.json`; `scripts/installer/local.mjs`; `deploy.json`; `tests/clone-journey.mjs` | The one-line local start and own-account Cloudflare deploy exist; there is no own-server production path (`rer dev` and `rer preview` are rer-managed servers with a 12-hour idle stop), and the one-line start has no recorded fresh-machine acceptance. |
+| `OPS-002` | Run Stall on the owner's own computer or own server | target | partial | `src/site/run.json`; `scripts/installer/local.mjs`; `deploy.json`; `tests/clone-journey.mjs` | Local start and own-account Cloudflare deployment exist; their shared BASE-INSTALL-001 conformance is not run. The Linux production path is absent; development servers stop after 12 idle hours. |
 | `BASE-001` | Preserved Base guarantees with scoped replacements | target | done | `src/stall/imports/description.ts`; `src/stall/portability-policy.mjs`; `tests/api/imports.test.mjs` — “BASE-001: hostile descriptions become plain text; malformed and unsupported source rows never write products”; `tests/api/data.test.mjs` — “post-erasure archive restores commercial history and the import journal”; `tests/api/commerce.test.mjs` — “payment survives a lost Pier response and duplicate delivery reserves only once”; “ORDER-003: partial line refund recovery cannot overrefund and never restocks the shipped item”; `tests/ui/journey.mjs` — “BASE-001 browser journey” |  |
 | `OPEN-001` | Free and open source under the MIT license | target | partial | `LICENSE`; `package.json`; `src/stall/ui/connect-forms.tsx`; `tests/api/commerce.test.mjs`; `tests/ui/journey.mjs` | Audit gap: Executable assertion of MIT source license; Executable assertion of package MIT declaration; No author payment gate across the complete fresh-install journey; No license cap or upgrade prompt across that whole journey; Every supported provider price and activation order asserted. Other carried outcomes are asserted in docs/contract/DONE-AUDIT.md. |
 | `BOUNDARY-001` | Separate products with usable commerce connections | target | partial | `src/stall/pier.ts`; `src/stall/api.ts` | Pier is a separate product adapter today, but mandatory; Mango and alternative-provider handoffs are absent. |

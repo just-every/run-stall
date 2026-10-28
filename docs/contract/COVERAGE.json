@@ -1559,7 +1559,31 @@
     {
       "file": "CONTRACT.md",
       "line": 303,
-      "text": " Refund limits and approval separation are configurable, and staff never acquire provider credentials from the UI. Current functional grants are installation-local, owner-managed and transaction-fenced by revision. Fulfillment and customer support inherit ORDER-001 internal notes, tags and search; finance inherits paid manual orders and ORDER-003 refund preparation/approval. Owner-only redaction, erasure, connection custody and whole-business exports remain restricted. New functional grants start with a zero refund ceiling and another-person approval; native administrators retain their prior behavior until configured. Customer self-access uses the independently verified native email and returns minimal own-order summaries, never staff annotations or payment authority. ct approved these defaults with riders on 23 October 2026: single-role grants managed only by the owner, a zero refund ceiling and another-person approval unless the owner changes them, refunds needing separate approval, customer custody through the independently verified native email, scoped apps issued only by the owner, and revocation or downgrade taking effect on the next request. API-001 supplies separately revocable scoped integration credentials; future CUSTOMER-001/002 and all new private doors inherit these checks.",
+      "text": " Refund limits and approval separation are configurable, and staff never acquire provider credentials from the UI. Current functional grants are installation-local, owner-managed and transaction-fenced by revision. Fulfillment and customer support inherit ORDER-001 internal notes, tags and search; finance inherits paid manual orders and ORDER-003 refund preparation/approval. Owner-only redaction, erasure, connection custody and whole-business exports remain restricted. New functional grants start with a zero refund ceiling and another-person approval; native administrators retain their prior behavior until configured. Customer self-access uses the independently verified native email and returns minimal own-order summaries, never staff annotations or payment authority. ct approved these defaults with riders on 23 October 2026: single-role grants managed only by the owner, a zero refund ceiling and another-person approval unless the owner changes them, refunds needing separate approval, customer custody through the independently verified native email, scoped apps issued only by the owner, ",
+      "to": "clause",
+      "ids": [
+        "ROLE-001"
+      ],
+      "also": [
+        {
+          "to": "docs",
+          "path": "docs/COMMERCE-MECHANICS.md"
+        }
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 303,
+      "text": "and revocation or downgrade taking effect on the next request.",
+      "to": "base",
+      "ids": [
+        "BASE-ROLE-001"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 303,
+      "text": " API-001 supplies separately revocable scoped integration credentials; future CUSTOMER-001/002 and all new private doors inherit these checks.",
       "to": "clause",
       "ids": [
         "ROLE-001"
@@ -1574,10 +1598,19 @@
     {
       "file": "CONTRACT.md",
       "line": 305,
-      "text": "**Acceptance evidence:** Invite each role, perform its permitted workflow and try foreign customer, finance, bulk/export and direct API actions. Downgrade/revoke an active session/app grant during a prepared job and verify the next effect is refused without leaking private records.",
+      "text": "**Acceptance evidence:** Invite each role, perform its permitted workflow and try foreign customer, finance, bulk/export and direct API actions. ",
       "to": "clause",
       "ids": [
         "ROLE-001"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 305,
+      "text": "Downgrade/revoke an active session/app grant during a prepared job and verify the next effect is refused without leaking private records.",
+      "to": "base",
+      "ids": [
+        "BASE-ROLE-001"
       ]
     },
     {
@@ -1775,7 +1808,8 @@
       "text": "History survives customer contact erasure and product archive transfer.",
       "to": "base",
       "ids": [
-        "BASE-AUDIT-001"
+        "BASE-AUDIT-001",
+        "BASE-DATA-003"
       ]
     },
     {
@@ -1796,10 +1830,20 @@
     {
       "file": "CONTRACT.md",
       "line": 337,
-      "text": "**Acceptance evidence:** Run a purchase, human approvals, reconciliation, agent grant/revoke and erasure through public commands, read activity and export/restore the shop. Verify relevant actor/action/time and approval/provider references remain without restoring erased customer contact.",
+      "text": "**Acceptance evidence:** Run a purchase, human approvals, reconciliation, agent grant/revoke and erasure through public commands, read activity and export/restore the shop. Verify relevant actor/action/time and approval/provider references remain ",
       "to": "clause",
       "ids": [
         "AUDIT-001"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 337,
+      "text": "without restoring erased customer contact.",
+      "to": "base",
+      "ids": [
+        "BASE-AUDIT-001",
+        "BASE-DATA-003"
       ]
     },
     {
@@ -1878,7 +1922,7 @@
     {
       "file": "CONTRACT.md",
       "line": 343,
-      "text": "**OPS-002 — Run Stall on the owner's own computer or own server.** A merchant runs Stall on their own computer or on a server they control. On a computer with git, the one line `npx -y @runeditrun/rer dev just-every/run-stall` clones, installs, sets up a local owner and starts the shop with empty real business state, and `rer deploy` publishes the same checkout to the owner's own Cloudflare account. A documented production path runs the built shop on an owner-operated Linux server (a VPS or on-premises machine) with durable database storage, HTTPS on the owner's domain, a supervisor that restarts it after a crash or reboot, backups through the DATA-001 archive and upgrades that apply migrations; it keeps serving without the development server's idle stop and needs no account from Stall's authors. Every path keeps owner data and settings across restarts and upgrades.",
+      "text": "**OPS-002 — Run Stall on the owner's own computer or own server.** A merchant runs Stall on their own computer or on a server they control. ",
       "to": "clause",
       "ids": [
         "OPS-002"
@@ -1892,8 +1936,70 @@
     },
     {
       "file": "CONTRACT.md",
+      "line": 343,
+      "text": "On a computer with git, the one line `npx -y @runeditrun/rer dev just-every/run-stall` clones, installs, sets up a local owner and starts the shop with empty real business state, and `rer deploy` publishes the same checkout to the owner's own Cloudflare account.",
+      "to": "base",
+      "ids": [
+        "BASE-INSTALL-001"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 343,
+      "text": " A documented production path runs the built shop on an owner-operated Linux server (a VPS or on-premises machine) with durable database storage, HTTPS on the owner's domain, a supervisor that restarts it after a crash or reboot, backups through the DATA-001 archive and upgrades that apply migrations; it keeps serving without the development server's idle stop",
+      "to": "clause",
+      "ids": [
+        "OPS-002"
+      ],
+      "also": [
+        {
+          "to": "docs",
+          "path": "docs/COMMERCE-MECHANICS.md"
+        }
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 343,
+      "text": " and needs no account from Stall's authors. ",
+      "to": "base",
+      "ids": [
+        "BASE-INSTALL-001"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 343,
+      "text": "Every path keeps owner data and settings across restarts and upgrades.",
+      "to": "base",
+      "ids": [
+        "BASE-INSTALL-001",
+        "BASE-OPS-002",
+        "BASE-BACKUP-001"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
       "line": 345,
-      "text": "**Acceptance evidence:** On fresh macOS, Linux and Windows (WSL2) machines with git, run the one-line start and verify the shop opens with a local owner and no demo data. Deploy the same checkout with `rer deploy` to an owner's Cloudflare account, sign in and buy through checkout. Follow the server guide on a fresh Linux VPS: serve the shop over HTTPS on a test domain, take an order, reboot the server and verify it returns with the order intact, leave it idle for more than 12 hours and verify it still serves, then upgrade to a newer release and verify migrations apply and the data remains.",
+      "text": "**Acceptance evidence:** ",
+      "to": "clause",
+      "ids": [
+        "OPS-002"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 345,
+      "text": "On fresh macOS, Linux and Windows (WSL2) machines with git, run the one-line start and verify the shop opens with a local owner and no demo data. Deploy the same checkout with `rer deploy` to an owner's Cloudflare account, sign in and buy through checkout.",
+      "to": "base",
+      "ids": [
+        "BASE-INSTALL-001"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 345,
+      "text": " Follow the server guide on a fresh Linux VPS: serve the shop over HTTPS on a test domain, take an order, reboot the server and verify it returns with the order intact, leave it idle for more than 12 hours and verify it still serves, then upgrade to a newer release and verify migrations apply and the data remains.",
       "to": "clause",
       "ids": [
         "OPS-002"
@@ -5537,7 +5643,25 @@
     {
       "file": "ACCEPTANCE.md",
       "line": 631,
-      "text": "**ROLE-001 — Staff and app least privilege.** Owners invite and revoke staff with distinct catalog, fulfillment, customer-support, marketing, finance and administrator permissions, plus customer self-access and scoped app credentials. Server-side checks guard every private read, mutation, bulk job and export; role changes and revocation invalidate stale authority. Refund limits and approval separation are configurable, and staff never acquire provider credentials from the UI. Current functional grants are installation-local, owner-managed and transaction-fenced by revision. Fulfillment and customer support inherit ORDER-001 internal notes, tags and search; finance inherits paid manual orders and ORDER-003 refund preparation and approval. Owner-only redaction, erasure, connection custody and whole-business exports remain restricted. New functional grants start with a zero refund ceiling and another-person approval; native administrators retain their prior behavior until configured. Customer self-access uses the independently verified native email and returns minimal own-order summaries, never staff annotations or payment authority. ct approved these defaults with riders on 23 October 2026: single-role grants managed only by the owner, a zero refund ceiling and another-person approval unless the owner changes them, refunds needing separate approval, customer custody through the independently verified native email, scoped apps issued only by the owner, and revocation or downgrade taking effect on the next request. API-001 supplies separately revocable scoped integration credentials; future CUSTOMER-001/002 and all new private doors inherit these checks.",
+      "text": "**ROLE-001 — Staff and app least privilege.** Owners invite and revoke staff with distinct catalog, fulfillment, customer-support, marketing, finance and administrator permissions, plus customer self-access and scoped app credentials. Server-side checks guard every private read, mutation, bulk job and export; role changes and revocation invalidate stale authority. Refund limits and approval separation are configurable, and staff never acquire provider credentials from the UI. Current functional grants are installation-local, owner-managed and transaction-fenced by revision. Fulfillment and customer support inherit ORDER-001 internal notes, tags and search; finance inherits paid manual orders and ORDER-003 refund preparation and approval. Owner-only redaction, erasure, connection custody and whole-business exports remain restricted. New functional grants start with a zero refund ceiling and another-person approval; native administrators retain their prior behavior until configured. Customer self-access uses the independently verified native email and returns minimal own-order summaries, never staff annotations or payment authority. ct approved these defaults with riders on 23 October 2026: single-role grants managed only by the owner, a zero refund ceiling and another-person approval unless the owner changes them, refunds needing separate approval, customer custody through the independently verified native email, scoped apps issued only by the owner, ",
+      "to": "clause",
+      "ids": [
+        "ROLE-001"
+      ]
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 631,
+      "text": "and revocation or downgrade taking effect on the next request.",
+      "to": "base",
+      "ids": [
+        "BASE-ROLE-001"
+      ]
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 631,
+      "text": " API-001 supplies separately revocable scoped integration credentials; future CUSTOMER-001/002 and all new private doors inherit these checks.",
       "to": "clause",
       "ids": [
         "ROLE-001"
@@ -5546,10 +5670,19 @@
     {
       "file": "ACCEPTANCE.md",
       "line": 633,
-      "text": "**Acceptance evidence:** Invite each role, perform its permitted workflow and try foreign customer, finance, bulk and export and direct API actions. Downgrade and revoke an active session and app grant during a prepared job and verify the next effect is refused without leaking private records.",
+      "text": "**Acceptance evidence:** Invite each role, perform its permitted workflow and try foreign customer, finance, bulk and export and direct API actions. ",
       "to": "clause",
       "ids": [
         "ROLE-001"
+      ]
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 633,
+      "text": "Downgrade and revoke an active session and app grant during a prepared job and verify the next effect is refused without leaking private records.",
+      "to": "base",
+      "ids": [
+        "BASE-ROLE-001"
       ]
     },
     {
@@ -5855,7 +5988,8 @@
       "text": "History survives customer contact erasure and product archive transfer.",
       "to": "base",
       "ids": [
-        "BASE-AUDIT-001"
+        "BASE-AUDIT-001",
+        "BASE-DATA-003"
       ]
     },
     {
@@ -5870,10 +6004,20 @@
     {
       "file": "ACCEPTANCE.md",
       "line": 713,
-      "text": "**Acceptance evidence:** Run a purchase, human approvals, reconciliation, agent grant and revoke and erasure through public commands, read activity and export and restore the shop. Verify relevant actor and action and time and approval and provider references remain without restoring erased customer contact.",
+      "text": "**Acceptance evidence:** Run a purchase, human approvals, reconciliation, agent grant and revoke and erasure through public commands, read activity and export and restore the shop. Verify relevant actor and action and time and approval and provider references remain ",
       "to": "clause",
       "ids": [
         "AUDIT-001"
+      ]
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 713,
+      "text": "without restoring erased customer contact.",
+      "to": "base",
+      "ids": [
+        "BASE-AUDIT-001",
+        "BASE-DATA-003"
       ]
     },
     {
@@ -5951,7 +6095,54 @@
     {
       "file": "ACCEPTANCE.md",
       "line": 731,
-      "text": "**OPS-002 — Run Stall on the owner's own computer or own server.** A merchant runs Stall on their own computer or on a server they control. On a computer with git, the one line `npx -y @runeditrun/rer dev just-every/run-stall` clones, installs, sets up a local owner and starts the shop with empty real business state, and `rer deploy` publishes the same checkout to the owner's own Cloudflare account. A documented production path runs the built shop on an owner-operated Linux server (a VPS or on-premises machine) with durable database storage, HTTPS on the owner's domain, a supervisor that restarts it after a crash or reboot, backups through the DATA-001 archive and upgrades that apply migrations; it keeps serving without the development server's idle stop and needs no account from Stall's authors. Every path keeps owner data and settings across restarts and upgrades.",
+      "text": "**OPS-002 — Run Stall on the owner's own computer or own server.** A merchant runs Stall on their own computer or on a server they control. ",
+      "to": "clause",
+      "ids": [
+        "OPS-002"
+      ]
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 731,
+      "text": "On a computer with git, the one line `npx -y @runeditrun/rer dev just-every/run-stall` clones, installs, sets up a local owner and starts the shop with empty real business state, and `rer deploy` publishes the same checkout to the owner's own Cloudflare account.",
+      "to": "base",
+      "ids": [
+        "BASE-INSTALL-001"
+      ]
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 731,
+      "text": " A documented production path runs the built shop on an owner-operated Linux server (a VPS or on-premises machine) with durable database storage, HTTPS on the owner's domain, a supervisor that restarts it after a crash or reboot, backups through the DATA-001 archive and upgrades that apply migrations; it keeps serving without the development server's idle stop",
+      "to": "clause",
+      "ids": [
+        "OPS-002"
+      ]
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 731,
+      "text": " and needs no account from Stall's authors. ",
+      "to": "base",
+      "ids": [
+        "BASE-INSTALL-001"
+      ]
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 731,
+      "text": "Every path keeps owner data and settings across restarts and upgrades.",
+      "to": "base",
+      "ids": [
+        "BASE-INSTALL-001",
+        "BASE-OPS-002",
+        "BASE-BACKUP-001"
+      ]
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 733,
+      "text": "**Acceptance evidence:** ",
       "to": "clause",
       "ids": [
         "OPS-002"
@@ -5960,7 +6151,16 @@
     {
       "file": "ACCEPTANCE.md",
       "line": 733,
-      "text": "**Acceptance evidence:** On fresh macOS, Linux and Windows (WSL2) machines with git, run the one-line start and verify the shop opens with a local owner and no demo data. Deploy the same checkout with `rer deploy` to an owner's Cloudflare account, sign in and buy through checkout. Follow the server guide on a fresh Linux VPS: serve the shop over HTTPS on a test domain, take an order, reboot the server and verify it returns with the order intact, leave it idle for more than 12 hours and verify it still serves, then upgrade to a newer release and verify migrations apply and the data remains.",
+      "text": "On fresh macOS, Linux and Windows (WSL2) machines with git, run the one-line start and verify the shop opens with a local owner and no demo data. Deploy the same checkout with `rer deploy` to an owner's Cloudflare account, sign in and buy through checkout.",
+      "to": "base",
+      "ids": [
+        "BASE-INSTALL-001"
+      ]
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 733,
+      "text": " Follow the server guide on a fresh Linux VPS: serve the shop over HTTPS on a test domain, take an order, reboot the server and verify it returns with the order intact, leave it idle for more than 12 hours and verify it still serves, then upgrade to a newer release and verify migrations apply and the data remains.",
       "to": "clause",
       "ids": [
         "OPS-002"
