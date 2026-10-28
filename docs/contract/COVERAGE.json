@@ -34,7 +34,14 @@
     {
       "file": "CONTRACT.md",
       "line": 9,
-      "text": "Every record has an explicit store, identity, revision/state and permission boundary appropriate to its job.",
+      "text": "Every record has an explicit store, identity, revision/state ",
+      "to": "section",
+      "section": "Product target"
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 9,
+      "text": "and permission boundary appropriate to its job.",
       "to": "base",
       "ids": [
         "BASE-ROLE-001"
@@ -1123,10 +1130,19 @@
     {
       "file": "CONTRACT.md",
       "line": 221,
-      "text": "Durable message IDs, provider acknowledgment, delivery/bounce/complaint outcomes and failed-work tasks distinguish submitted from delivered; marketing suppression does not silently suppress necessary service mail.",
+      "text": "Durable message IDs, provider acknowledgment, delivery/bounce/complaint outcomes and failed-work tasks distinguish submitted from delivered; ",
       "to": "base",
       "ids": [
         "BASE-MAIL-001"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 221,
+      "text": "marketing suppression does not silently suppress necessary service mail.",
+      "to": "clause",
+      "ids": [
+        "MAIL-001"
       ]
     },
     {
@@ -1496,9 +1512,9 @@
       "file": "CONTRACT.md",
       "line": 297,
       "text": "credentials never travel.",
-      "to": "base",
+      "to": "clause",
       "ids": [
-        "BASE-SECRET-001"
+        "EXPORT-001"
       ]
     },
     {
@@ -1679,9 +1695,9 @@
       "file": "CONTRACT.md",
       "line": 327,
       "text": "Source agent tokens, sessions and connection secrets never become destination authority,",
-      "to": "base",
+      "to": "clause",
       "ids": [
-        "BASE-SECRET-001"
+        "DATA-001"
       ]
     },
     {
@@ -1925,9 +1941,9 @@
       "file": "CONTRACT.md",
       "line": 347,
       "text": "Current conformance does not mark any future feature as passing.",
-      "to": "base",
+      "to": "clause",
       "ids": [
-        "BASE-DOCS-001"
+        "BASE-001"
       ]
     },
     {
@@ -1943,9 +1959,9 @@
       "file": "CONTRACT.md",
       "line": 349,
       "text": "BASE-001 is done only when all those current doors conform.",
-      "to": "base",
+      "to": "clause",
       "ids": [
-        "BASE-DOCS-001"
+        "BASE-001"
       ]
     },
     {
@@ -5479,9 +5495,9 @@
       "file": "ACCEPTANCE.md",
       "line": 619,
       "text": "credentials never travel.",
-      "to": "base",
+      "to": "clause",
       "ids": [
-        "BASE-SECRET-001"
+        "EXPORT-001"
       ]
     },
     {
@@ -5740,9 +5756,9 @@
       "file": "ACCEPTANCE.md",
       "line": 691,
       "text": "Source agent tokens, sessions and connection secrets never become destination authority,",
-      "to": "base",
+      "to": "clause",
       "ids": [
-        "BASE-SECRET-001"
+        "DATA-001"
       ]
     },
     {
@@ -5997,9 +6013,9 @@
       "file": "ACCEPTANCE.md",
       "line": 741,
       "text": "Current conformance does not mark any future feature as passing.",
-      "to": "base",
+      "to": "clause",
       "ids": [
-        "BASE-DOCS-001"
+        "BASE-001"
       ]
     },
     {
@@ -6015,9 +6031,9 @@
       "file": "ACCEPTANCE.md",
       "line": 743,
       "text": "BASE-001 is done only when all those current doors conform.",
-      "to": "base",
+      "to": "clause",
       "ids": [
-        "BASE-DOCS-001"
+        "BASE-001"
       ]
     },
     {
