@@ -75,7 +75,7 @@ Core · target · **done** · Cites BASE-PUBLIC-001, BASE-ROLE-001
 2. Change publication and stock, refresh the public results, and verify matching counts, saved URLs and a useful no-results state.
 3. Add a synonym and a pinned product for a query and verify both change results; search a term with no results and find it in the search report.
 
-**Evidence.** `tests/api/commerce.test.mjs`; `tests/ui/discovery-journey.mjs`
+**Evidence.** `tests/api/commerce.test.mjs` — “STORE-002: collections, menus, search, filters, synonyms and pins agree with the published sellable catalog”; `tests/ui/discovery-journey.mjs` — “discovery”
 **Gap.** None.
 
 #### STORE-003 — Content, blog, contact, newsletter and search visibility
@@ -135,7 +135,7 @@ Core · target · **done** · Cites BASE-INPUT-001, BASE-INPUT-003, BASE-DATA-00
 2. Buy one variant, change its current price and archive another; verify gallery/selection and immutable order snapshots through public product and order views.
 3. Add an engraving field (20 characters, +$5) and an artwork upload to a product, refuse over-length text and a disallowed file type, buy with valid personalization and verify it with the add-on price on the cart, order, packing slip and confirmation email.
 
-**Evidence.** `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs`; `tests/ui/catalog-journey.mjs`
+**Evidence.** `tests/api/commerce.test.mjs` — “CATALOG-001: variants, galleries, handles and listing states sell the exact variant and keep immutable order history”; `tests/api/data.test.mjs` — “CATALOG-001: exact approved metadata stays private until publication, renders typed facts and travels without losing purchased descriptions”; “CATALOG-001: personalization is validated, priced and carried to the order, packing slip, confirmation, exports and erasure”; `tests/ui/catalog-journey.mjs` — “CATALOG-001 catalog journey”
 **Gap.** None.
 
 #### CATALOG-002 — Bulk catalog operations and portable files
@@ -426,7 +426,7 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-DATA-001
 3. Send the oversized item to a ZIP its profile does not serve and verify refusal before payment naming that line.
 4. Bulk-reassign the oversized products to the general profile through the CATALOG-002 grid and a catalog or inventory CSV, verify the open quote is invalidated and the new quote changes, and verify an earlier paid order still shows its original profile revision and charge.
 
-**Evidence.** `tests/api/shipping.test.mjs`; `tests/ui/shipping-journey.mjs`
+**Evidence.** `tests/api/shipping.test.mjs` — “SHIP-004: profiles price mixed baskets per service, refuse unserved lines before payment, and bulk reassignment invalidates open quotes while paid orders keep their profile revision and charge”; `tests/ui/shipping-journey.mjs` — “shipping”
 **Gap.** None.
 
 #### SHIP-005 — Bulk label purchase and batch fulfillment
@@ -488,7 +488,7 @@ Core · target · **done** · From ORDER-001 · Cites BASE-ROLE-001, BASE-DATA-0
 2. Change a catalog price/customer address and verify historical commercial snapshots and original provider references remain.
 3. Search more than 100 orders by email, name and SKU and find the oldest match with the full count.
 
-**Evidence.** `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs`; `tests/ui/journey.mjs`; `tests/ui/order-desk.mjs`
+**Evidence.** `tests/api/commerce.test.mjs` — “ORDER-009: manual paid sales reserve once, preserve commercial truth and record reviewed refunds without moving money”; “payment survives a lost Pier response and duplicate delivery reserves only once”; “ORDER-007 / ORDER-001: time zones and revision-checked staff assignments survive transfer without granting authority”; “warehouse dispatches refresh into Stall without a second dispatch; partial work stays unfinished”; “OPEN-001: an owned installation publishes 200 products, adds 10 staff and takes 1000 paid orders without author fees or gates”; `tests/api/data.test.mjs` — “ORDER-008: internal notes and tags require human staff, exact revisions and owner redaction”; `tests/ui/journey.mjs` — “orderDeskJourney (through tests/ui/order-desk.mjs)”; `tests/ui/order-desk.mjs`
 **Gap.** None.
 
 #### ORDER-007 — Shop time zones and daylight-saving dates
@@ -527,7 +527,7 @@ Core · target · **done** · From ORDER-001 · Cites BASE-ROLE-001, BASE-DATA-0
 **Acceptance.**
 1. Record a manual order paid by check and verify the staff-recorded label, one Pier reservation, the explicit absence of a tax record, no message sent and the Manual channel filter. Then refund it and verify a recorded refund within ORDER-003 limits with no processor call.
 
-**Evidence.** `tests/api/commerce.test.mjs`; `tests/api/data.test.mjs`; `tests/ui/journey.mjs`; `tests/ui/order-desk.mjs`
+**Evidence.** `tests/api/commerce.test.mjs` — “ORDER-009: manual paid sales reserve once, preserve commercial truth and record reviewed refunds without moving money”; `tests/api/data.test.mjs`; `tests/ui/journey.mjs` — “orderDeskJourney (through tests/ui/order-desk.mjs)”; `tests/ui/order-desk.mjs`
 **Gap.** None.
 
 #### ORDER-006 — Complete retail order desk: risk and draft invoices
@@ -672,7 +672,7 @@ Core · target · **done** · Cites BASE-ACCESS-004 · Rules D-3
 3. Complete checkout and verify a new order with its own payment while the original order is unchanged.
 4. Reorder from a guest order link, then try to reorder another customer's order through the direct API and verify refusal.
 
-**Evidence.** `tests/api/commerce.test.mjs`; `tests/api/operations.test.mjs`; `tests/ui/customer-account-journey.mjs`
+**Evidence.** `tests/api/commerce.test.mjs` — “verified account reorder names current price and stock changes without spending before a new checkout”; `tests/api/operations.test.mjs`; `tests/ui/customer-account-journey.mjs` — “customer-account”
 **Gap.** None.
 
 #### MAIL-001 — Transactional confirmations and delivery evidence
@@ -1088,7 +1088,7 @@ Core · target · **done** · Cites BASE-ACCESS-002, BASE-ROLE-001, BASE-INPUT-0
 **Acceptance.**
 1. Run a product purchase and its refund using hosted processor custody and Pier-owned stock; render hostile product/import descriptions as plain text and restore the product history without source authority.
 
-**Evidence.** `src/stall/imports/description.ts`; `src/stall/portability-policy.mjs`; `tests/api/imports.test.mjs`; `tests/api/data.test.mjs`; `tests/api/commerce.test.mjs`; `tests/ui/journey.mjs`
+**Evidence.** `src/stall/imports/description.ts`; `src/stall/portability-policy.mjs`; `tests/api/imports.test.mjs` — “BASE-001: hostile descriptions become plain text; malformed and unsupported source rows never write products”; `tests/api/data.test.mjs` — “post-erasure archive restores commercial history and the import journal”; `tests/api/commerce.test.mjs` — “payment survives a lost Pier response and duplicate delivery reserves only once”; “ORDER-003: partial line refund recovery cannot overrefund and never restocks the shipped item”; `tests/ui/journey.mjs` — “BASE-001 browser journey”
 **Gap.** None.
 
 #### OPEN-001 — Free and open source under the MIT license
