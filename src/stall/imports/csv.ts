@@ -12,7 +12,7 @@ export const productDetailsHeader = 'Stall Details';
 export const supportedProductMappings = [legacyProductMappingVersion, preservedProductMappingVersion, rejectedProductMappingVersion, productImportMappingVersion] as const;
 export const productImportDestination = 'stall-products';
 type CSVRow = { cells: string[]; row: number };
-function parseCSV(input: string, preserveEmptyFields = false): CSVRow[] {
+export function parseCSV(input: string, preserveEmptyFields = false): CSVRow[] {
   const rows: CSVRow[] = [];
   let row: string[] = [], cell = '', quoted = false, closed = false;
   let line = 1, rowStart = 1;

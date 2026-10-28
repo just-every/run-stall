@@ -7,7 +7,7 @@ import { ImportJournal, type Journal } from './import-journal'
 import { Dialog } from './dialog'
 import { ReviewImport } from './review-import'
 
-interface Preview { plan: ImportPlan; fingerprint: string; counts: ImportPlan['counts']; diagnostics: Diagnostic[] }
+interface Preview { reviewedAt?: string; plan: ImportPlan; fingerprint: string; counts: ImportPlan['counts']; diagnostics: Diagnostic[] }
 
 export function MoveIn({ reload }: { reload: () => Promise<void> }) {
   const [csv, setCsv] = useState('')
@@ -32,12 +32,23 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
   }
   const input = { csv, ...(namespace.trim() ? { namespace: namespace.trim() } : {}) }
   function changed() { setPreview(null); setApplied(null); setExcludeRejected(false); setNotice('') }
+  async function downloadCatalog() {
+    const response = await fetch('/api/stall/imports/catalog.csv', { credentials: 'same-origin', cache: 'no-store' })
+    if (!response.ok) {
+      const body = await response.json().catch(() => null) as { error?: { message?: string } } | null
+      throw new Error(body?.error?.message ?? 'The catalog download could not finish. Try again.')
+    }
+    const url = URL.createObjectURL(await response.blob()), anchor = document.createElement('a')
+    anchor.href = url; anchor.download = 'stall-catalog.csv'
+    document.body.appendChild(anchor); anchor.click(); anchor.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
   async function dryRun() { setPreview(await request<Preview>('/api/stall/imports/preview', input)); setApplied(null); setExcludeRejected(false) }
   async function apply() {
     if (!preview) return
-    const job = await request<ImportJob>('/api/stall/imports/apply', { ...input, fingerprint: preview.fingerprint, ...(excludeRejected ? { excludedRows } : {}) })
+    const job = await request<ImportJob>('/api/stall/imports/apply', { ...input, fingerprint: preview.fingerprint, reviewedAt: preview.reviewedAt, ...(excludeRejected ? { excludedRows } : {}) })
     setApplied(job)
-    setNotice(job.state === 'completed' ? 'Import completed. Products are staged for review.' : `Import is ${humanLabel(job.state)}: ${job.checkpoint} / ${job.total}. Use Resume apply to continue the next batch.`)
+    setNotice(job.state === 'completed' ? 'Import completed. Review the journal for the applied product and collection values.' : `Import is ${humanLabel(job.state)}: ${job.checkpoint} / ${job.total}. Use Resume apply to continue the next batch.`)
     await list(); await reload()
   }
   async function undo(id: string) {
@@ -53,7 +64,7 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
     if (!original || original.status !== 'retained') throw new Error('The original CSV is unavailable. This import cannot be resumed from its journal.')
     const bytes = Uint8Array.from(atob(original.base64), character => character.charCodeAt(0))
     const source = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-    const job = await request<ImportJob>('/api/stall/imports/apply', { csv: source, namespace: journal.job.namespace.replace(/^stall-shopify-products-v[234]:/, '').replace(/:[a-f0-9]{64}$/, ''), fingerprint: journal.job.fingerprint, excludedRows: journal.rejectedRows.map(entry => entry.row) })
+    const job = await request<ImportJob>('/api/stall/imports/apply', { csv: source, namespace: journal.job.namespace.replace(/^(?:stall-shopify-products-v[234]|stall-catalog-v1):/, '').replace(/:[a-f0-9]{64}$/, ''), fingerprint: journal.job.fingerprint, excludedRows: journal.rejectedRows.map(entry => entry.row) })
     setJournal(await request<Journal>(`/api/stall/imports/${encodeURIComponent(job.id)}`))
     setNotice(job.state === 'completed' ? 'Import completed.' : `Import is ${humanLabel(job.state)}: ${job.checkpoint} / ${job.total}. Resume again to continue.`)
     await list(); await reload()
@@ -62,11 +73,11 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
   const excludedRows = preview?.plan.entries.filter(entry => entry.rejection).map(entry => entry.source.location.row!) ?? []
   const canApply = preview && preview.counts.mapped > 0 && (!excludedRows.length || excludeRejected) && !preview.diagnostics.some(diagnostic => diagnostic.severity === 'error' && diagnostic.code !== 'REJECTED') && !applied
   return <Section id="move-in" title="Move in from Shopify">
-    <p>Bring Shopify products into Stall as staged revisions. Imported products remain unpublished until a person approves them. Review a dry run before applying any changes.</p>
+    <p>Bring Shopify products into Stall as staged revisions, or use a native catalog file for complete product and collection edits. Native catalog publication is approved by the exact reviewed apply after current Pier validation.</p><div className="st-actions"><button className="st-secondary" disabled={busy} onClick={() => void act(downloadCatalog)}>Export native catalog CSV</button><a href="/docs/move-in">Catalog file guide</a></div>
     {error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}
     <div className="st-panel st-stack">
       <div className="st-heading-row"><h2><span className="st-step-number">1.</span> Add your CSV</h2></div>
-      <p className="st-small">Use a Shopify product export with Handle, Title, Body (HTML), Variant SKU, Variant Price and Published columns (these six in this order; optionally append Stall Details with a complete JSON details object, or <code>{'{}'}</code> to clear it). Prices are imported as USD. Review every warning; published source products are still staged for approval here.</p>
+      <p className="st-small">Use a Shopify product export with Handle, Title, Body (HTML), Variant SKU, Variant Price and Published columns (these six in this order; optionally append Stall Details with a complete JSON details object, or <code>{'{}'}</code> to clear it). Prices are imported as USD. Shopify source products are still staged for approval here. Native files use Kind, ID and Value columns for product and collection records; export the current catalog as a starting point.</p>
       <label>Choose a CSV file<input type="file" accept=".csv,text/csv" disabled={busy} onChange={event => {
         const file = event.target.files?.[0]
         if (file) void act(async () => { const value = await file.text(); changed(); setCsv(value) })

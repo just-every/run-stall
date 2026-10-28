@@ -1,5 +1,10 @@
 # Move products into Stall
 
+Stall accepts a complete native catalog format as well as the legacy Shopify
+subset below. Use **Edit complete catalog fields** in the bulk editor to change
+existing products and collections together, or use the native file format.
+
+
 The first move-in kit imports listing metadata from a deliberately small Shopify
 product CSV subset. It uses Base import-kit for a read-only dry-run, exact reviewed
 fingerprint, retained source bytes, resumable journal and protected partial undo. It never
@@ -177,3 +182,66 @@ available after either form of undo.
 
 Publication and undo are separate human decisions. An agent can prepare and
 review a move-in, but cannot grant itself either decision.
+
+
+## Complete native catalog files
+
+From **Move in**, choose **Export native catalog CSV**. This downloads current
+product and collection records with the headers `Kind,ID,Value`. Each `Value`
+cell is a complete JSON object; standard CSV quoting doubles embedded quotes.
+The file holds at most 200 records and 256 KiB. Original files and rejected
+physical row numbers remain in the same import journal as Shopify jobs.
+
+A `product` row's ID equals its `sku`. Its value includes `sku`, `name`,
+`description` (plain text), `unitCents` (USD integer cents), `stockMode` (`pier`),
+`publication` (`draft`, `published`, `scheduled` or `archived`), optional
+`publishAt` for a scheduled product, and complete optional `details`.
+Details use the native product editor's fields, including option definitions,
+variant SKUs and prices, tax category, weight in grams, dimensions in
+millimeters, HS code, country of origin and typed custom fields. Empty details
+clear them. Only the existing Pier-tracked mode is available; the file never
+changes stock quantities. Other stock modes and quantity changes remain the
+stock clauses' work. Tax categories and customs values are merchant facts,
+not provider tax calculation or customs verification.
+
+A `collection` row's ID equals its `handle`. Its value is the native collection
+record: `handle`, `title`, `description`, `kind` (`manual` or `rule`), `published`,
+optional `sort`, and either `skus` or `match` and `rules`. Manual membership lists
+product IDs, including products in the same file. Rule-based collections use
+the existing category, tag, title, attribute and price rules. Product and
+collection identities must be unique. Existing shipping-profile assignments
+stay in the independent reviewed shipping-assignment grid and catalog CSV;
+these edits preserve them.
+
+Run a dry run and inspect the complete before-images and effects. Native
+catalog publication is an explicit human approval in **Apply reviewed import**:
+every live variant must currently exist and be active in Pier, and native
+handle, SKU, price and media checks still apply. Draft, scheduled and archived
+states remain private under their ordinary listing rules. The native format
+can update an already published or ordered product; orders keep their purchased
+snapshots. Unlike Shopify's six-column mapping, native descriptions stay literal
+plain text and native records replace any pending revision too.
+
+For the API, send the returned `reviewedAt` with the exact `fingerprint`, CSV,
+namespace and rejected-row exclusions on the first apply. The reviewed time,
+current actor, complete catalog before-images and source bind the review.
+A stale review cannot write. Apply processes at most ten source records per
+request. Resume with the original file and fingerprint, or use **Resume apply
+from retained source** after leaving the form. Every resume checks current
+local authority and current listing and stock validity; restored sessions and
+credentials grant nothing. Completed replay returns the original job.
+
+Native undo restores complete before-images for untouched records and names
+records kept because of later edits, purchases or retained collection
+references. A purchased variant protects its whole product. Undo never changes
+an order, reservation or provider ledger. Complete files, business exports,
+installation archives, original source custody and the journal preserve the
+supported facts; original source bytes are distinct from the current catalog
+download.
+
+
+Native catalog jobs keep an independent, portable journal. A fresh reviewed
+native file may update an earlier import after a native edit; its before-image
+includes that edit, so undo restores it. Each publication batch records its
+native changes and checkpoint in one transaction. The existing Shopify import
+ownership and protected-undo rules remain unchanged.

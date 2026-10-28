@@ -8,12 +8,12 @@ The primary journey: Exercise the capabilities and acceptance journeys below.
 
 | Tier | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Core | 23 | 29 | 27 | 79 |
+| Core | 24 | 28 | 27 | 79 |
 | Agent surface | 0 | 0 | 0 | 0 |
 | Later | 0 | 0 | 0 | 0 |
-| Full target | 23 | 29 | 27 | 79 |
+| Full target | 24 | 28 | 27 | 79 |
 
-Judged from the code and tests at commit `8bad726` (27 October 2026). Field proof register: 0 rows; 0 passed, 0 failed, 0 not run.
+Judged from the code and tests at commit `66ce5e9be39baa833aa221018ba6a044e758dfb6` (28 October 2026). Field proof register: 0 rows; 0 passed, 0 failed, 0 not run.
 
 ## Core
 
@@ -147,16 +147,18 @@ Current listing semantics: A product's page is `/shop/<handle>` (lowercase lette
 
 #### CATALOG-002 — Bulk catalog operations and portable files
 
-Core · target · **partial**
+Core · target · **done**
 
 **Requirement.** Merchants import, export and bulk-edit products/variants, collections, prices, publication, tax settings, stock mode, weight, dimensions, HS codes, countries of origin and custom fields. A dry run shows creations, changes, conflicts and rejected rows before an exact reviewed apply; jobs resume without duplicates and offer undo only where later native edits or orders will be preserved. Original source custody and row-level outcomes remain inspectable.
+
+Current bulk semantics: the native catalog CSV uses Kind, ID and Value columns for complete product and collection records; the legacy Shopify subset keeps its draft-only behavior. The complete grid reuses native product and variant editors. Native apply is an explicit exact-reviewed human catalog approval, replacing any prepared revision; publication and scheduling require current active Pier items for every live variant and the same listing checks as individual approval. Tax categories and customs fields remain merchant-authored facts, not provider verification. Pier-tracked is the currently supported stock mode; STOCK-001 and STOCK-003 retain other stock authorities and CATALOG-003 retains quantity adjustments. Shipping-profile assignments keep their separate SHIP-004 reviewed grid and catalog CSV, remain unchanged by catalog edits and protect products or variants that undo would otherwise remove. Current local authority is checked on every apply, resume, export and undo. Complete before-images, original source bytes and per-row outcomes travel with the journal; undo preserves later native work, purchased variants and retained collection references without changing orders or provider stock.
 
 **Acceptance.**
 1. Upload a mixed valid/invalid catalog file, inspect a read-only preview, apply the reviewed rows, resume an interrupted batch, export them and undo untouched changes.
 2. Edit/purchase an imported SKU first and verify undo reports the protected row rather than overwriting it.
 
-**Evidence.** `tests/api/imports.test.mjs` — 'CATALOG-002: exact rejected-row acknowledgement applies only valid rows with complete source custody' proves mixed valid/invalid read-only preview, explicit reviewed-row apply and source custody; 'CATALOG-002: bulk catalogue review, bounded resume and undo preserve native edits and custody' proves grid review, interrupted-batch resume and undo preserving native edits; 'CATALOG-002: undo preserves a real paid order and its published product while reversing unused imports' proves purchased-row protection and named undo outcomes; 'CATALOG-002: reviewed metadata CSV survives resume and restore, exports exact facts, and protects later native work on undo' proves metadata CSV, resume after archive restore, CSV/JSON export and undo preserving later edits. `tests/ui/bulk-products-journey.mjs` proves grid review, stale-review refusal, completed apply, journal/source custody and undo at 1440/390.
-**Gap.** Quantity-adjustment acceptance moved intact to CATALOG-003 (ct 22 October split). CATALOG-002 remains partial: no executed bulk grid/file journey proves the full products/variants, collections, publication, tax-settings and stock-mode scope; the current grid edits unpublished names/descriptions/prices, and the file stages drafts. The missing test is a public-door bulk grid/file journey covering those remaining fields with exact review, export and protected undo. Tax-category facts do not verify tax/customs.
+**Evidence.** `tests/api/imports.test.mjs` — 'CATALOG-002: exact rejected-row acknowledgement applies only valid rows with complete source custody', 'CATALOG-002: bulk catalogue review, bounded resume and undo preserve native edits and custody', 'CATALOG-002: undo preserves a real paid order and its published product while reversing unused imports', and 'CATALOG-002: reviewed metadata CSV survives resume and restore, exports exact facts, and protects later native work on undo' prove mixed previews, exact apply, full native product and collection fields, current authority, bounded resume after transfer, duplicate-safe replay, complete CSV and JSON exports, original source and rejected-row custody, and undo preserving native edits, paid variants, collection references and later shipping assignments. `tests/ui/bulk-products-journey.mjs` proves basic and complete grid and native file edits, full field review, stale-review refusal, bounded retained-source resume, native CSV download, per-row outcomes and protected undo through the merchant desk; its changed screens are captured at 1440 and 390. Push Verify loads this journey in the review-browser shard.
+**Gap.** None.
 
 #### CATALOG-003 — Bulk quantity adjustments through the stock authority
 
