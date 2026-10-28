@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { expect } from '@playwright/test'
 import { createRequire } from 'node:module'
+import { readFile } from 'node:fs/promises'
 import { startJourney } from './journey-kit.mjs'
 import { volumeStock } from '../api/volume-stock.mjs'
 import { deliverWebhook, sendFile, solidPng } from '../api/network.mjs'
@@ -72,7 +73,7 @@ try {
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 1000 })
       await page.evaluate(() => document.fonts.ready)
-      await page.addScriptTag({ path: require.resolve('axe-core/axe.min.js') })
+      await page.evaluate(await readFile(require.resolve('axe-core/axe.min.js'), 'utf8'))
       const result = await page.evaluate(async () => window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] } }))
       assert.ok(result.passes.some(rule => rule.id === 'color-contrast'), name + ' must execute contrast checks')
       const failures = result.violations.map(rule => ({ id: rule.id, impact: rule.impact, nodes: rule.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))
