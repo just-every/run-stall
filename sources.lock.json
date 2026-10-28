@@ -4244,7 +4244,7 @@
       "executable": false
     },
     "tests/ui/promotion-journey.mjs": {
-      "sha256": "22302a5f66b2f7e580df0b1aa78a4f53e2456ec167056afbc7578f2f65ca7ce3",
+      "sha256": "c50e74da0bb019a3b05b2b13a5a2018094f07967204312aecff1e49dd2390d8a",
       "executable": false
     },
     "tests/ui/real-home.mjs": {

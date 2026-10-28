@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import { pierInstallation } from '../api/pier.mjs'
 import { startJourney } from './journey-kit.mjs'
 import { publish, deliverWebhook } from '../api/network.mjs'
@@ -124,13 +125,16 @@ try {
   await productCard.getByLabel('Number of unique codes',{exact:true}).fill('3')
   await productCard.getByRole('button',{name:'Generate unique codes',exact:true}).click()
   await productCard.getByRole('button',{name:'Download code CSV',exact:true}).waitFor()
-  const download=page.waitForEvent('download');await productCard.getByRole('button',{name:'Download code CSV',exact:true}).click();assert.equal(await (await download).failure(),null,'generated codes download through the merchant desk')
+  const download=page.waitForEvent('download');await productCard.getByRole('button',{name:'Download code CSV',exact:true}).click()
+  const downloaded=await download;assert.equal(await downloaded.failure(),null)
+  const rows=(await readFile(await downloaded.path(),'utf8')).trim().split(/\r?\n/).slice(1),downloadedCode=rows[0]?.split(',')[1]
+  assert.ok(downloadedCode,'the merchant can retrieve a usable code from the downloaded CSV')
   await capture('PROMO-001-batch-codes',productCard)
   await page.goto(ready.url+'/shop')
   await page.getByLabel('Quantity for Blue ceramic mug',{exact:true}).fill('1')
   await page.getByLabel('Email for your order',{exact:true}).fill('synthetic-stall-4301'+'@'+'example.test')
   await page.getByText('Promotion discounts',{exact:true}).waitFor()
-  await page.getByRole('textbox',{name:'Promotion code',exact:true}).fill('SYNTHETIC-STALL-4300')
+  await page.getByRole('textbox',{name:'Promotion code',exact:true}).fill(downloadedCode)
   await page.getByRole('button',{name:'Apply code',exact:true}).click()
   await page.getByText('MUG-BLUE discount',{exact:true}).waitFor()
   await page.getByRole('button',{name:'Review order',exact:true}).click()
