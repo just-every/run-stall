@@ -266,6 +266,13 @@ try {
   assert.deepEqual(erased.cases, []); assert.deepEqual(erased.receipts, [])
   await h.api('/api/stall/returns', captured, { status: 404 })
   assert.equal(edge.sessions.size, 1); assert.equal(edge.refunds.size, 1)
+  await page.goto(ready.url + '/auth/settings/identity')
+  await page.getByRole('heading', { name: 'Sign-in settings', exact: true }).waitFor()
+  await scan('sign-in-settings')
+  await context.clearCookies()
+  await page.goto(ready.url + '/signin?returnTo=%2Forder')
+  await page.getByRole('heading', { name: /^Sign in to/ }).waitFor()
+  await scan('sign-in')
   assert.deepEqual(journey.errors, [])
   console.log('PASS MOBILE-001 keyboard purchase, validation recovery, receipt, account, dialog and WCAG scans:', JSON.stringify(scans))
 } catch (error) {
