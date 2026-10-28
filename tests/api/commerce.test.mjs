@@ -1738,3 +1738,133 @@ test('analytics reports refuse foreign authority and restore historical observat
   await fresh.api('/api/stall/analytics/history/apply',{previewId:history.previewId,reviewed:true},{status:404})
  }finally{await fresh?.close();await f.close()}
 })
+
+test('promotion rules price code and automatic product, variant, collection, order, quantity rewards, spend rewards and bounded shipping through checkout quotes',async()=>{
+ const {taxCommerceInstallation}=await import('./tax-commerce.mjs'),kit=await taxCommerceInstallation(),{h}=kit
+ const address='synthetic-stall-4100'+'@'+'example.test',base='/api/stall/promotions',lines=[{sku:'MUG-BLUE',quantity:2},{sku:'TOWEL-NAT',quantity:1}]
+ try {
+  await h.command('collection.save',{handle:'synthetic-stall-mugs',title:'Mugs',description:'Selected mugs',kind:'manual',skus:['MUG-BLUE'],published:true})
+  const cases=[
+   {type:'product',targets:{products:['MUG-BLUE']},valueType:'percentage',value:1000,discount:200,line:[200,0]},
+   {type:'product',targets:{variants:['MUG-BLUE']},valueType:'amount',value:333,discount:333,line:[333,0]},
+   {type:'product',targets:{collections:['synthetic-stall-mugs']},valueType:'amount',value:101,discount:101,line:[101,0]},
+   {type:'product',targets:{collections:['synthetic-stall-mugs']},valueType:'percentage',value:1250,discount:250,line:[250,0]},
+   {type:'order',valueType:'amount',value:333,discount:333,line:[266,67]},
+   {type:'order',valueType:'percentage',value:1000,discount:250,line:[200,50]},
+   {type:'buy_get',targets:{products:['MUG-BLUE']},buy:{products:['MUG-BLUE']},buyQuantity:1,getQuantity:1,maxApplications:1,valueType:'free',discount:1000,line:[1000,0]},
+   {type:'buy_get',targets:{products:['TOWEL-NAT']},buy:{products:['MUG-BLUE']},buySpendCents:2000,getQuantity:1,valueType:'percentage',value:5000,discount:250,line:[0,250]},
+   {type:'buy_get',targets:{products:['TOWEL-NAT']},buy:{products:['MUG-BLUE']},buySpendCents:2000,getQuantity:1,valueType:'amount',value:123,discount:123,line:[0,123]},
+   {type:'free_shipping',minimumBasketCents:5000,minimumQuantity:3,countries:['US'],zones:['787'],maximumRateCents:200,lines:[{sku:'MUG-BLUE',quantity:6}],discount:200,line:[0]},
+  ]
+  let n=0
+  for(const method of ['code','automatic'])for(const item of cases){
+   const code='SYNTHETIC-STALL-4101-'+n++,{discount,line,lines:basket,minimumBasketCents,...rule}=item
+   const input={...(method==='code'?{code}:{}),startsAt:'2000-01-01T00:00:00Z',endsAt:'2100-01-01T00:00:00Z',minimumBasketCents:minimumBasketCents??1,maxUsesPerCustomer:10,maxTotalUses:20,maxShippingDiscountCents:99999,rule:{...rule,method}},saved=await h.api(base,input)
+   const body={customerEmail:address,lines:basket??lines,shipping:{postalCode:'78702'},...(method==='code'?{promotionCode:code}:{})},quote=await h.api(base+'/quote',body,{as:''})
+   assert.equal(quote.applicable,true,JSON.stringify({method,rule,quote}));assert.equal(quote.discountCents,discount);assert.equal(quote.totalCents,item.type==='free_shipping'?6000:2700-discount)
+   assert.deepEqual(quote.lineDiscounts.map(l=>l.discountCents),line);assert.equal(quote.promotion.components[0].revision,saved.revision)
+   const refused=await h.api(base+'/quote',{...body,lines:[{sku:'TOWEL-NAT',quantity:1}],...(item.type==='order'?{customerEmail:address}:{} )},{as:''})
+   if(item.type!=='order')assert.equal(refused.applicable,false,JSON.stringify({rule,refused}))
+   await h.api(base+'/revoke',saved)
+  }
+  const shipping=await h.api(base,{code:'SYNTHETIC-STALL-4102',startsAt:'2000-01-01T00:00:00Z',endsAt:'2100-01-01T00:00:00Z',minimumBasketCents:0,maxUsesPerCustomer:10,maxTotalUses:20,maxShippingDiscountCents:99999,rule:{type:'free_shipping',minimumQuantity:3,countries:['US'],zones:['787'],maximumRateCents:200}})
+  const shipQuote=extra=>h.api(base+'/quote',{customerEmail:address,lines,shipping:{postalCode:'78702'},promotionCode:'SYNTHETIC-STALL-4102',...extra},{as:''})
+  assert.equal((await shipQuote({shipping:{postalCode:'90210'}})).reason,'SHIPPING_ZONE');assert.equal((await shipQuote({destination:{country:'CA'}})).reason,'COUNTRY')
+  await h.api(base,{...shipping,code:'SYNTHETIC-STALL-4102',startsAt:'2000-01-01T00:00:00Z',endsAt:'2100-01-01T00:00:00Z',minimumBasketCents:0,maxUsesPerCustomer:10,maxTotalUses:20,maxShippingDiscountCents:99999,rule:{type:'free_shipping',maximumRateCents:199}})
+  assert.equal((await shipQuote({})).reason,'SHIPPING_RATE')
+  await h.api(base+'/revoke',(await h.api(base)).promotions.find(p=>p.id===shipping.id))
+  const importInput={rows:[{email:address,name:'Eligible shopper',tags:['synthetic-stall-vip']}]},preview=await h.api('/api/stall/customers/import/preview',importInput)
+  const directory=await h.api('/api/stall/customers/import/apply',{...importInput,fingerprint:preview.fingerprint}),profile=directory.customers.find(c=>c.emails.includes(address))
+  const segmented=await h.api('/api/stall/customers',{type:'segment.save',segment:{name:'VIP',tag:'synthetic-stall-vip',minimumSpentCents:0,minimumOrders:0}}),segment=segmented.segments[0]
+  const restricted=await h.api(base,{code:'SYNTHETIC-STALL-4103',startsAt:'2000-01-01T00:00:00Z',endsAt:'2100-01-01T00:00:00Z',minimumBasketCents:0,maxUsesPerCustomer:10,maxTotalUses:20,maxShippingDiscountCents:99999,rule:{type:'order',valueType:'amount',value:100,segmentIds:[segment.id]}})
+  const restrictedInput={customerEmail:address,lines,promotionCode:'SYNTHETIC-STALL-4103'}
+  assert.equal((await h.api(base+'/quote',restrictedInput,{as:''})).reason,'CUSTOMER_ELIGIBILITY')
+  const customer=await h.signIn(address)
+  assert.equal((await h.api(base+'/quote',restrictedInput,{as:customer})).discountCents,100)
+  await h.api('/api/stall/customers',{type:'profile.save',id:profile.id,revision:profile.revision,name:'Eligible shopper',tags:[]})
+  assert.equal((await h.api(base+'/quote',restrictedInput,{as:customer})).reason,'CUSTOMER_ELIGIBILITY')
+  await h.api(base+'/revoke',restricted)
+  const denied=await h.api(base,{code:'SYNTHETIC-STALL-4104',startsAt:'2000-01-01T00:00:00Z',endsAt:'2100-01-01T00:00:00Z',minimumBasketCents:0,maxUsesPerCustomer:10,maxTotalUses:20,maxShippingDiscountCents:99999,rule:{type:'order',valueType:'amount',value:100}})
+  const automatic=await h.api(base,{startsAt:'2000-01-01T00:00:00Z',endsAt:'2100-01-01T00:00:00Z',minimumBasketCents:0,maxUsesPerCustomer:10,maxTotalUses:20,maxShippingDiscountCents:99999,rule:{method:'automatic',type:'product',valueType:'percentage',value:1000,targets:{products:['MUG-BLUE']}}})
+  assert.equal((await h.api(base+'/quote',{customerEmail:address,lines,promotionCode:'SYNTHETIC-STALL-4104'},{as:''})).reason,'COMBINATION')
+  await h.api(base+'/revoke',automatic);await h.api(base+'/revoke',denied)
+  await h.api(base,{startsAt:'2000-01-01T00:00:00Z',endsAt:'2100-01-01T00:00:00Z',minimumBasketCents:0,maxUsesPerCustomer:10,maxTotalUses:20,maxShippingDiscountCents:99999,rule:{method:'automatic',type:'order',valueType:'amount',value:100}})
+  const attempts=[]
+  for(let n=0;n<6;n++){
+   const quoted=await kit.quote({customerEmail:'synthetic-stall-4110-'+n+'@'+'example.test'}),q=quoted.input
+   const started=await h.request('/api/stall/checkout',{method:'POST',as:'',headers:{'cf-connecting-ip':'198.51.100.81'},body:{idempotencyKey:randomUUID(),customerEmail:q.customerEmail,lines:q.lines,shipping:q.shipping,taxQuoteId:quoted.result.quoteId,expectedTotalCents:quoted.result.totalCents}})
+   attempts.push(started.status)
+  }
+  assert.deepEqual(attempts,[200,200,200,200,200,429],'automatic promotions rate-limit unverified budget reservations independently of claimed mailbox')
+
+
+ }finally{await kit.close()}
+})
+
+test('combined discount purchases bind net tax, odd-cent line refunds, single-use races and campaign events without duplicating paid totals',async()=>{
+ const {taxCommerceInstallation}=await import('./tax-commerce.mjs'),kit=await taxCommerceInstallation(),{h}=kit,base='/api/stall/promotions',address='synthetic-stall-4200'+'@'+'example.test'
+ const common={startsAt:'2000-01-01T00:00:00Z',endsAt:'2100-01-01T00:00:00Z',minimumBasketCents:0,maxUsesPerCustomer:10,maxTotalUses:20,maxShippingDiscountCents:99999},combines={product:true,order:true,shipping:true}
+ try {
+  const product=await h.api(base,{...common,code:'SYNTHETIC-STALL-4201',rule:{type:'product',targets:{products:['MUG-BLUE']},valueType:'percentage',value:1000,combines}})
+  const orderPromo=await h.api(base,{...common,rule:{method:'automatic',type:'order',valueType:'amount',value:333,combines}})
+  const quote=await kit.quote({customerEmail:address,promotionCode:'SYNTHETIC-STALL-4201'})
+  assert.equal(quote.result.taxCents,144);assert.equal(quote.result.totalCents,2311)
+  const sale=await kit.buy(quote),o=sale.order
+  assert.equal(o.totalCents,2311);assert.equal(sale.session.amount_total,2311);assert.equal(o.promotion.discountCents,533);assert.equal(o.shippingCents,200)
+  assert.deepEqual(o.promotion.lineDiscounts,[{sku:'MUG-BLUE',discountCents:461},{sku:'TOWEL-NAT',discountCents:72}]);assert.deepEqual(o.tax.lines.map(l=>[l.amount,l.taxCents]),[[1539,127],[428,0]])
+  const stockOrder=(await kit.pier.api('/api/pier/state')).orders.find(p=>p.id===o.reservation.id)
+  assert.equal(Number(stockOrder.total),19.67);assert.equal(stockOrder.channelPayment.amount,'19.67');assert.deepEqual(stockOrder.lines.filter(l=>l.itemId===o.lines[0].itemId).map(l=>[Number(l.quantity),Number(l.price)]).sort(),[[1,7.69],[1,7.7]].sort())
+  await kit.ship(o.id)
+  const first=await kit.refund(o.id),refund=first.refunds.at(-1)
+  assert.equal(refund.amountCents,834);assert.equal(refund.taxAllocation.lines[0].amount,770);assert.equal(refund.taxAllocation.taxCents,64);assert.ok(refund.taxReversalId)
+  const second=await kit.refund(o.id),last=second.refunds.at(-1)
+  assert.equal(last.amountCents,832);assert.equal(last.taxAllocation.lines[0].amount,769);assert.equal(last.taxAllocation.taxCents,63)
+  const report=await h.api(base+'/campaign-report')
+  assert.deepEqual(report.totals,{orders:1,paidOrders:1,subtotalCents:2500,discountCents:533,lineDiscountCents:533,shippingCents:200,taxCents:144,totalCents:2311,refundedCents:1666,refundedTaxCents:127,pendingTaxReversalCents:0,netPaidCents:645})
+  assert.deepEqual(report.allocations.map(a=>[a.promotionId,a.uses,a.discountCents]).sort(),[[product.id,1,200],[orderPromo.id,1,333]].sort())
+  assert.equal(report.events.filter(e=>e.id.startsWith('promotion.qualified.')).length,2);assert.equal(report.events.filter(e=>e.id.startsWith('promotion.redeemed.')).length,2);assert.equal(report.events.filter(e=>e.id.startsWith('promotion.reversed.')).length,4)
+  const repeated=await h.command('refund.approve',{orderId:second.id,revision:second.revision,refundId:last.id});assert.equal(repeated.refunds.length,2)
+  assert.deepEqual((await h.api(base+'/campaign-report')).totals,report.totals)
+  const member=await h.signIn(address)
+  await h.api(base+'/campaign-report',undefined,{as:member,status:403});await h.api(base+'/codes',{...product,count:2},{as:member,status:403})
+  await h.api(base+'/revoke',orderPromo)
+  const batch=await h.api(base+'/codes',{...product,count:3});assert.equal(batch.codes.length,3);assert.equal(new Set(batch.codes.map(c=>c.code)).size,3);assert.equal(readCsv(batch.csv).length,3)
+  const code=batch.codes[0].code
+  const attempts=await Promise.all([1,2].map(n=>kit.quote({customerEmail:'synthetic-stall-4202-'+n+'@'+'example.test',promotionCode:code})))
+  const race=await Promise.all(attempts.map(async q=>{try{return {status:200,result:await kit.buy(q,{pay:false})}}catch(error){assert.match(String(error),/Promotion availability|single-use/);return {status:409}}}))
+  assert.deepEqual(race.map(r=>r.status).sort(),[200,409]);assert.equal((await h.api(base+'/quote',{customerEmail:address,lines:[{sku:'MUG-BLUE',quantity:1}],promotionCode:code},{as:''})).reason,'CODE_USED')
+  const usage=await h.api(base+'/codes?promotionId='+product.id);assert.deepEqual(usage.codes.map(c=>c.uses).sort(),[0,0,1]);assert.ok(!JSON.stringify(usage).includes(code))
+  assert.equal((await h.api(base+'/quote',{customerEmail:address,lines:[{sku:'MUG-BLUE',quantity:1}],promotionCode:'SYNTHETIC-STALL-4201,'+batch.codes[1].code},{as:''})).reason,'COMBINATION')
+  const saved=await archive(h),restored=await installation({bindings:{...kit.pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-806',STRIPE_WEBHOOK_SECRET:kit.secret},outboundService:request=>new URL(request.url).hostname==='api.stripe.com'&&(/^\/v1\/tax\//.test(new URL(request.url).pathname)||new URL(request.url).pathname==='/v1/account')?kit.tax.handle(request):kit.stripe.handle(request)})
+  try{
+   await restore(restored,saved)
+   assert.deepEqual((await restored.api(base+'/codes?promotionId='+product.id)).codes,usage.codes)
+   assert.equal((await restored.api(base+'/quote',{customerEmail:address,lines:[{sku:'MUG-BLUE',quantity:1}],promotionCode:code},{as:''})).reason,'AUTHORITY_REQUIRED')
+   const current=(await restored.api(base)).promotions.find(p=>p.id===product.id)
+   await restored.api(base,{...common,id:current.id,revision:current.revision,rule:current.rule})
+   assert.equal((await restored.api(base+'/quote',{customerEmail:address,lines:[{sku:'MUG-BLUE',quantity:1}],promotionCode:code},{as:''})).reason,'CODE_USED')
+   assert.deepEqual((await restored.api(base+'/campaign-report')).totals,(await h.api(base+'/campaign-report')).totals)
+  }finally{await restored.close()}
+  await h.api(base+'/revoke',product)
+  await h.api(base,{...common,code:'SYNTHETIC-STALL-4205',rule:{type:'buy_get',buy:{products:['MUG-BLUE']},buyQuantity:2,targets:{products:['TOWEL-NAT']},getQuantity:1,valueType:'free'}})
+  const reward=await kit.buy(await kit.quote({customerEmail:address,promotionCode:'SYNTHETIC-STALL-4205'}))
+  assert.equal(reward.order.tax.lines.find(l=>l.sku==='TOWEL-NAT').amount,0)
+  const shippedReward=await kit.ship(reward.order.id),refundCount=kit.stripe.refunds.size
+  const zero=await h.command('refund.prepare',{orderId:shippedReward.id,revision:shippedReward.revision,lines:[{sku:'TOWEL-NAT',quantity:1}],reason:'Return the free reward'},{status:409})
+  assert.equal(zero.error.code,'NO_PAID_VALUE');assert.equal(kit.stripe.refunds.size,refundCount)
+  kit.tax.fault='lost-reversal'
+  await assert.rejects(()=>kit.refund(reward.order.id),/Stripe Tax|tax.*unavailable/i)
+  const uncertain=await kit.order(reward.order.id),uncertainRefund=uncertain.refunds.at(-1),pending=await h.api(base+'/campaign-report')
+  assert.equal(uncertainRefund.status,'succeeded');assert.equal(uncertainRefund.taxReversalId,undefined)
+  assert.equal(pending.totals.pendingTaxReversalCents,uncertainRefund.taxAllocation.taxCents);assert.equal(pending.totals.refundedTaxCents,127)
+  const perPromotion=await h.api(base+'/report?promotionId='+reward.order.promotion.id)
+  assert.equal(perPromotion.taxTotals.refundedTaxCents,0);assert.equal(perPromotion.taxTotals.pendingTaxReversalCents,uncertainRefund.taxAllocation.taxCents)
+  const original=[...kit.tax.transactions.values()].find(t=>t.reference==='stall-tax-refund-'+uncertainRefund.id),writes=kit.tax.calls.filter(c=>c.method==='POST').length
+  await h.api('/api/stall/tax/recover',{orderId:reward.order.id,refundId:uncertainRefund.id,transactionId:original.id})
+  const recovered=await h.api(base+'/campaign-report');assert.equal(recovered.totals.pendingTaxReversalCents,0);assert.equal(recovered.totals.refundedTaxCents,127+uncertainRefund.taxAllocation.taxCents)
+  assert.equal(kit.tax.calls.filter(c=>c.method==='POST').length,writes,'uncertain tax reversal recovery observes only its original provider reference')
+
+
+
+ }finally{await kit.close()}
+})

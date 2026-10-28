@@ -24,7 +24,7 @@ export async function businessExtensions(db:D1Database) {
   db.prepare('SELECT * FROM st_workflow_requests ORDER BY id').all(),
   db.prepare('SELECT * FROM st_workflow_drafts ORDER BY prepared_at,task_id').all(),
   db.prepare('SELECT id,request_id AS requestId,order_id AS orderId,source_revision AS sourceRevision,lines_json,received_by AS receivedBy,created_at AS createdAt FROM st_return_receipts ORDER BY created_at,id').all<any>(),
-  db.prepare('SELECT id,revision,starts_at,ends_at,minimum_cents,max_customer_uses,max_total_uses,max_discount_cents,kind,revoked_at,created_at,updated_at FROM st_promotions ORDER BY created_at,id').all(),
+  db.prepare('SELECT rule_json,id,revision,starts_at,ends_at,minimum_cents,max_customer_uses,max_total_uses,max_discount_cents,kind,revoked_at,created_at,updated_at FROM st_promotions ORDER BY created_at,id').all(),
   db.prepare('SELECT order_id,promotion_id,promotion_revision,discount_cents,status,reserved_at,used_at FROM st_promotion_allocations ORDER BY reserved_at,order_id').all(),
   db.prepare('SELECT revision,value_json FROM st_return_policy WHERE id=1').first<any>(),
   db.prepare('SELECT * FROM st_return_cases ORDER BY created_at,id').all<any>(),

@@ -2,7 +2,7 @@ import type { Bindings } from '../../auth.server'
 import { email,fail,integer,text,type Line,type Order } from '../model'
 import { priceSelection,selectLines } from '../order-selection'
 import { promotionCode } from '../promotions/model'
-import { qualification,requireQualified } from '../promotions/eligibility'
+import { purchasePromotion } from '../promotions/eligibility'
 import { readTaxConfiguration } from './configuration'
 import { publicTaxCommerce,shopperTaxConsent,taxCommerceState } from './commerce'
 import { calculationItem,commerceCall,nontaxableCode,unpricedObligation,jurisdictions,taxAddress,taxTestMode,protectedTaxHash,taxDestinationHash,type TaxSnapshot } from './commerce-provider'
@@ -24,9 +24,9 @@ export async function quoteTax(env:Bindings,p:any,verifiedCustomerEmail?:string)
  const code=p.promotionCode===undefined?undefined:promotionCode(p.promotionCode),priced=await priceSelection(env,selectLines(p.lines),undefined,p.shipping)
  if(priced.shipping.service.kind==='pickup')fail('TAX_DESTINATION','Taxed pickup checkout is not supported. Choose delivery.',409)
  if(priced.shipping.postalCode&&priced.shipping.postalCode!==destination.postal_code.slice(0,5))fail('TAX_ADDRESS','The tax destination must match the reviewed shipping ZIP code.',409)
- const qualified=code===undefined?undefined:requireQualified(await qualification(env,code,customerEmail,priced.totalCents-priced.shippingCents,priced.shippingCents,priced.shipping.service.kind))
- const shippingCents=priced.shippingCents-(qualified?.discountCents??0),subtotal=priced.totalCents-(qualified?.discountCents??0)
- const expected=priced.lines.map((line,i)=>{const taxCode=config.categories.find(c=>c.sku===line.sku)?.taxCode;if(!taxCode)fail('TAX_CONFIGURATION','An explicit Stripe Tax code is missing for a selected SKU.',503);return {reference:'line-'+i,quantity:line.quantity,amount:integer(line.quantity*line.unitCents,'Extended line cents',1,99999999),taxCode,sku:line.sku}})
+ const qualified=await purchasePromotion(env,{...p,customerEmail,promotionCode:code},priced,verifiedCustomerEmail)
+ const shippingCents=priced.shippingCents-(qualified?.snapshot.shippingDiscountCents??0),subtotal=priced.totalCents-(qualified?.discountCents??0)
+ const expected=priced.lines.map((line,i)=>{const taxCode=config.categories.find(c=>c.sku===line.sku)?.taxCode;if(!taxCode)fail('TAX_CONFIGURATION','An explicit Stripe Tax code is missing for a selected SKU.',503);return {reference:'line-'+i,quantity:line.quantity,amount:integer(line.quantity*line.unitCents-(qualified?.snapshot.lineDiscounts?.find(l=>l.sku===line.sku)?.discountCents??0),'Extended line cents',0,99999999),taxCode,sku:line.sku}})
  const evidence=verifiedCustomerEmail===customerEmail?await env.DB.prepare('SELECT id,revision FROM st_tax_exemptions WHERE customer_email=? AND state=? AND revoked=0 AND restored=0 AND expires_on>=? ORDER BY reviewed_at DESC,id LIMIT 1').bind(customerEmail,destination.state,new Date().toISOString().slice(0,10)).first<{id:string;revision:string}>():null
  const exemption=evidence?{id:evidence.id,revision:evidence.revision}:undefined
 

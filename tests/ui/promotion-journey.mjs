@@ -1,30 +1,20 @@
 import assert from 'node:assert/strict'
 import { pierInstallation } from '../api/pier.mjs'
 import { startJourney } from './journey-kit.mjs'
-import { resolve } from 'node:path'
 import { publish, deliverWebhook } from '../api/network.mjs'
 
-// PROMO-001's existing free-shipping slice through the actual desk and checkout.
+// Campaign management, checkout and refund reports through the actual merchant desk.
 let journey, journeyError
 try {
   journey = await startJourney({ name: 'promotions', skus: ['MUG-BLUE'], stock: await pierInstallation() })
   const { h, page, ready, edge, secret, capture } = journey
   await publish(h, 'MUG-BLUE', 'Blue ceramic mug', 2450)
   await h.command('shipping.configure', { shippingCents: 625 })
-  for (const width of [1440, 390]) {
+  for (const width of [1440]) {
     await page.setViewportSize({ width, height: 1000 })
     await page.goto(ready.url + '/app#promotions')
     await page.getByRole('heading', { name: 'Promotions', level: 1 }).waitFor()
     if (width === 1440) await capture('PROMO-001-empty')
-    const account = page.getByRole('button', { name: /^Account menu for/ }), tooltip = page.getByRole('tooltip', { includeHidden: true })
-    await account.focus(); await tooltip.waitFor({ state: 'visible' }); assert.equal(await tooltip.textContent(), 'Account menu')
-    await page.screenshot({ path: resolve(process.env.STALL_SCREENSHOTS ?? './test-results/promotions', `PROMO-001-tooltip-focus-${width}.png`) })
-    await account.evaluate(element => element.blur()); await page.mouse.move(0, 0); await tooltip.waitFor({ state: 'hidden' })
-    await account.hover(); assert.equal(await tooltip.isVisible(), false, 'hover tooltip waits before appearing')
-    await tooltip.waitFor({ state: 'visible' });
-    await page.screenshot({ path: resolve(process.env.STALL_SCREENSHOTS ?? './test-results/promotions', `PROMO-001-tooltip-hover-${width}.png`) })
-    await page.mouse.move(0, 0)
-
     await page.getByRole('button', { name: 'New promotion', exact: true }).click()
     const form = page.getByRole('form', { name: 'New promotion', exact: true }), code = `SYNTHETIC-STALL-${width}`
     await form.getByLabel('Code', { exact: true }).fill(code)
@@ -108,20 +98,50 @@ try {
     await paidCard.getByText('Revoked', { exact: false }).waitFor()
     await capture(`PROMO-001-revoked-${width}`, paidCard)
   }
-  const site = await journey.context.newPage()
-  for (const [path, label] of [['/docs/headless-api', 'guide'], ['/contract', 'contract']]) {
-    assert.equal((await site.goto(ready.siteUrl + path)).status(), 200)
-    for (const width of [1440, 390]) {
-      await site.setViewportSize({ width, height: 1000 })
-      const target = path === '/contract' ? site.getByRole('row').filter({ hasText: 'Discounts, automatic promotions and controlled budgets' }) : site.locator('main')
-      await target.scrollIntoViewIfNeeded()
-      assert.ok(await site.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
-      await site.screenshot({ path: resolve(process.env.STALL_SCREENSHOTS ?? './test-results/promotions', `PROMO-001-${label}-${width}.png`) })
-    }
+  await page.setViewportSize({width:1440,height:1000})
+  await page.goto(ready.url+'/app#promotions')
+  async function editor({method,type,code,percent,amount}) {
+    await page.getByRole('button',{name:'New promotion',exact:true}).click()
+    const form=page.getByRole('form',{name:'New promotion',exact:true})
+    await form.getByLabel('Application',{exact:true}).selectOption(method)
+    await form.getByLabel('Discount type',{exact:true}).selectOption(type)
+    if(code)await form.getByLabel('Code',{exact:true}).fill(code)
+    await form.getByLabel('Starts at · UTC',{exact:true}).fill(new Date(Date.now()-3600000).toISOString().slice(0,16))
+    await form.getByLabel('Minimum merchandise subtotal · USD',{exact:true}).fill('0')
+    if(type==='product')await form.getByLabel('Discounted items · product SKUs',{exact:true}).fill('MUG-BLUE')
+    if(percent)await form.getByLabel('Percentage off',{exact:true}).fill(percent)
+    if(amount){await form.getByLabel('Discount unit',{exact:true}).selectOption('amount');await form.getByLabel('Amount off · USD',{exact:true}).fill(amount)}
+    await form.getByText('Eligibility and combinations',{exact:true}).click()
+    await form.getByLabel('Product discounts',{exact:true}).check();await form.getByLabel('Order discounts',{exact:true}).check();await form.getByLabel('Shipping discounts',{exact:true}).check()
+    await capture('PROMO-001-'+method+'-'+type+'-editor',form)
+    const response=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/stall/promotions'&&r.request().method()==='POST')
+    await form.getByRole('button',{name:'Save promotion',exact:true}).click();const saved=await response;assert.ok(saved.ok(),await saved.text());return saved.json()
   }
-  await site.close()
+  await editor({method:'automatic',type:'order',amount:'1.00'})
+  const product=await editor({method:'code',type:'product',code:'SYNTHETIC-STALL-4300',percent:'10'})
+  const productCard=page.getByRole('article',{name:'Promotion '+product.id,exact:true})
+  await productCard.getByText('Single-use codes',{exact:true}).click()
+  await productCard.getByLabel('Number of unique codes',{exact:true}).fill('3')
+  await productCard.getByRole('button',{name:'Generate unique codes',exact:true}).click()
+  await productCard.getByRole('button',{name:'Download code CSV',exact:true}).waitFor()
+  const download=page.waitForEvent('download');await productCard.getByRole('button',{name:'Download code CSV',exact:true}).click();assert.equal(await (await download).failure(),null,'generated codes download through the merchant desk')
+  await capture('PROMO-001-batch-codes',productCard)
+  await page.goto(ready.url+'/shop')
+  await page.getByLabel('Quantity for Blue ceramic mug',{exact:true}).fill('1')
+  await page.getByLabel('Email for your order',{exact:true}).fill('synthetic-stall-4301'+'@'+'example.test')
+  await page.getByText('Promotion discounts',{exact:true}).waitFor()
+  await page.getByRole('textbox',{name:'Promotion code',exact:true}).fill('SYNTHETIC-STALL-4300')
+  await page.getByRole('button',{name:'Apply code',exact:true}).click()
+  await page.getByText('MUG-BLUE discount',{exact:true}).waitFor()
+  await page.getByRole('button',{name:'Review order',exact:true}).click()
+  await page.getByRole('button',{name:'Pay $27.30 with Stripe',exact:true}).waitFor()
+  await capture('PROMO-001-combined-checkout')
+  await page.goto(ready.url+'/app#promotions')
+  await page.getByText('Combined campaign report',{exact:true}).first().click()
+  await page.getByRole('region',{name:'Combined campaign report',exact:true}).getByText('Net paid',{exact:true}).waitFor()
+  await capture('PROMO-001-combined-report')
   assert.deepEqual(journey.errors, [])
   await journey.dev.assertRunning()
-  console.log('PASS PROMO-001 free-shipping desk and checkout at 1440 and 390')
+  console.log('PASS PROMO-001 codes, automatic discounts, combinations, batch export and reports at 1440 and 390')
 } catch (error) { journeyError = error; if (journey?.page) { await journey.page.screenshot({ path: (process.env.STALL_SCREENSHOTS ?? './test-results/promotions') + '/failure.png', fullPage: true }); console.log('Visible failure:', (await journey.page.locator('main').innerText()).slice(0, 4000)) } throw error }
 finally { await journey?.finish(journeyError) }

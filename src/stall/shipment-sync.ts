@@ -49,8 +49,8 @@ export async function observeShipment(env:Bindings,actor:Actor|undefined,order:O
  if((order.shipment?.pierShipmentId&&!ids.has(order.shipment.pierShipmentId))||order.shipment?.dispatches?.some(s=>!ids.has(s.id))) fail('PIER_SHIPMENT_MISSING','Pier is missing a previously recorded dispatch, possibly after a restore. Restore its dispatch history before shipping again.')
  const complete=order.lines.map(line=>{
   const matches=order.reservation!.lines.filter((l:any)=>l.itemId===line.itemId)
-  if(matches.length!==1) fail('PIER_RESPONSE','Pier order lines do not match this order.',502)
-  const quantity=totals.get(matches[0].id)??0n,wanted=BigInt(line.quantity)*1000000n
+  if((order.promotion?.lineDiscounts?.some(l=>l.discountCents>0)?matches.length<1||matches.length>2:matches.length!==1)) fail('PIER_RESPONSE','Pier order lines do not match this order.',502)
+  const quantity=matches.reduce((n:bigint,l:any)=>n+(totals.get(l.id)??0n),0n),wanted=BigInt(line.quantity)*1000000n
   if(quantity>wanted) fail('PIER_RESPONSE','Pier reports more shipped units than this order purchased. Review its dispatch history.',502)
   return quantity===wanted
  }).every(Boolean)
