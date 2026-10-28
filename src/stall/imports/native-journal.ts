@@ -112,7 +112,14 @@ export function nativeJournalReceipt(journal: CatalogJournal) {
   jobId: job.id, kind: 'artifact', key: artifact.sha256, name: artifact.name, sha256: artifact.sha256, size: artifact.size,
   original: artifact.original?.status === 'available' ? { status: 'retained', base64: artifact.original.base64 } : { status: 'unavailable', reason: 'not-supplied' },
  }))
- return { job, originals, rejectedRows: plan.entries.filter(entry => entry.rejection).map(entry => ({ row: entry.source.location.row!, sourceId: entry.source.sourceId, reason: entry.rejection! })),
+ const rows = plan.entries.map((entry, ordinal) => {
+  const payload = entry.source.payload as unknown as { kind: string; id: string; previous: TargetRow | null }
+  const disposition = report.find(row => row.effectId === sha256(canonicalJson([job.id, ordinal, payload.kind, payload.id])))
+  return { row: entry.source.location.row, kind: payload.kind, id: payload.id,
+   outcome: entry.rejection ? ordinal < job.checkpoint ? 'excluded' : 'rejected' : disposition?.disposition ?? (ordinal < job.checkpoint ? 'applied' : 'pending'),
+   before: payload.previous, changes: entry.effects, ...(entry.rejection ? { reason: entry.rejection } : {}) }
+ })
+ return { job, originals, rows, rejectedRows: plan.entries.filter(entry => entry.rejection).map(entry => ({ row: entry.source.location.row!, sourceId: entry.source.sourceId, reason: entry.rejection! })),
   undoReport: { job, policy: 'preserve-conflicts', cursor: report.length, total: plan.entries.reduce((sum, entry) => sum + entry.effects.length, 0), nextOffset: job.state === 'undone' ? null : report.length,
    dispositions: report, outcome: job.state !== 'undone' ? 'pending' : report.some(row => row.disposition === 'retained') ? 'compensated' : 'undone' } }
 }

@@ -496,8 +496,8 @@ test('CATALOG-002: reviewed metadata CSV survives resume and restore, exports ex
       const automatic = { handle: 'synthetic-stall-1723', title: 'Matching catalog', description: 'Reviewed rule', kind: 'rule', published: true, match: 'all', rules: [{ field: 'category', value: 'Catalog proof' }] };
       const file = rows => 'Kind,ID,Value\n' + rows.map(([kind, id, value]) => [kind, id, JSON.stringify(value)].map(quote).join(',')).join('\n') + '\n';
       const nativeRows = [...values.map(value => ['product', value.sku, value]), ['collection', manual.handle, manual], ['collection', automatic.handle, automatic],
-        ['product', 'synthetic-stall-1724', { ...values[1], sku: 'synthetic-stall-1724', stockMode: 'untracked' }]];
-      const invalidCollection = await native.api(`${base}/preview`, { csv: file([['collection', manual.handle, { ...manual, published: 'FALSE' }]]) });
+        ['product', 'synthetic-stall-1724', { ...values[1], sku: 'synthetic-stall-1724', publication: 'draft', stockMode: 'untracked', details: { ...facts, handle: 'synthetic-stall-1724' } }]];
+      const invalidCollection = await native.api(`${base}/preview`, { csv: file([['collection', automatic.handle, { ...automatic, published: 'FALSE' }]]) });
       assert.equal(invalidCollection.counts.rejected, 1);
       assert.equal((await native.api('/api/stall/exports/records')).collections.length, 0);
       const csv = file(nativeRows), preview = await native.api(`${base}/preview`, { csv });
@@ -552,6 +552,8 @@ test('CATALOG-002: reviewed metadata CSV survives resume and restore, exports ex
       assert.deepEqual(JSON.parse(exported.find(row => row.ID === manual.handle).Value), manual);
       assert.deepEqual(JSON.parse(exported.find(row => row.ID === automatic.handle).Value), automatic);
       const journal = await restored.api(`${base}/${job.id}`);
+      assert.deepEqual(journal.rows.map(row => row.outcome), [...Array(14).fill('applied'), 'excluded']);
+      assert.deepEqual(journal.rows.map(row => row.row), Array.from({ length: 15 }, (_, index) => index + 2));
       assert.equal(Buffer.from(journal.originals.find(item => item.original.status === 'retained').original.base64, 'base64').toString(), csv);
       assert.deepEqual(journal.rejectedRows.map(row => row.row), [16]);
       const activityBeforeReplay = (await restored.api('/api/stall/state')).audit.filter(row => row.action === 'catalog.applied');
@@ -559,7 +561,7 @@ test('CATALOG-002: reviewed metadata CSV survives resume and restore, exports ex
       assert.deepEqual((await restored.api('/api/stall/state')).audit.filter(row => row.action === 'catalog.applied'), activityBeforeReplay);
       assert.deepEqual((await restored.api('/api/stall/exports/records')).products, complete.products, 'native resume never repeats revisions');
       // A second complete file updates existing imported rows and resumes from journal custody alone.
-      const updateCSV = file([...values.map(value => ['product', value.sku, { ...value, unitCents: value.unitCents + 100 }]), ['collection', manual.handle, manual], ['collection', automatic.handle, automatic], ['product', 'synthetic-stall-1724', { ...values[1], sku: 'synthetic-stall-1724', stockMode: 'untracked' }]]);
+      const updateCSV = file([...values.map(value => ['product', value.sku, { ...value, unitCents: value.unitCents + 100 }]), ['collection', manual.handle, manual], ['collection', automatic.handle, automatic], ['product', 'synthetic-stall-1724', { ...values[1], sku: 'synthetic-stall-1724', publication: 'draft', stockMode: 'untracked', details: { ...facts, handle: 'synthetic-stall-1724' } }]]);
       const pendingBeforeUpdate = (await restored.api('/api/stall/state')).products.find(row => row.id === ids[11]);
       await restored.command('product.prepare', { ...pendingBeforeUpdate.value, sku: pendingBeforeUpdate.id, revision: pendingBeforeUpdate.revision, name: 'Native work before file update', active: false });
       const beforeUpdate = (await restored.api('/api/stall/exports/records')).products;
@@ -604,6 +606,9 @@ test('CATALOG-002: reviewed metadata CSV survives resume and restore, exports ex
       assert.equal(outcomes.dispositions.find(row => row.targetId === ids[0]).disposition, 'retained');
       assert.equal(outcomes.dispositions.find(row => row.targetId === ids[11]).disposition, 'retained');
       assert.equal(outcomes.dispositions.find(row => row.targetId === ids[4]).disposition, 'reversed');
+      const completedJournal = await restored.api(`${base}/${job.id}`);
+      assert.equal(completedJournal.rows.find(row => row.id === ids[0]).outcome, 'retained');
+      assert.equal(completedJournal.rows.find(row => row.id === ids[4]).outcome, 'reversed');
       assert.ok(!after.products.some(row => row.id === ids[4]));
       assert.deepEqual((await restored.api('/api/stall/exports/records')).collections, []);
       // Native validation also rejects unknown publication stock and conflicting listing identities.

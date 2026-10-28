@@ -3268,7 +3268,7 @@
       "executable": false
     },
     "src/stall/imports/native-journal.ts": {
-      "sha256": "9e4bca699df04bfb28be737113812b8e93042507e7cb9e4b2e4a9d9e4a9dac3f",
+      "sha256": "47a8d4165f44eedc0f5147fac35388a2ea44e8b0f6a71de52ab063874cbf0471",
       "executable": false
     },
     "src/stall/imports/native-targets.ts": {
@@ -3728,7 +3728,7 @@
       "executable": false
     },
     "src/stall/ui/import-journal.tsx": {
-      "sha256": "0dce4f9835e3d632631da52fee4a6de6f9bc56c5a3d63064ba2331c2bac403c5",
+      "sha256": "f6200e7b505a364d6e620a7a1a98ccb2addbea8cce5e17332f38a1d0c21db5c1",
       "executable": false
     },
     "src/stall/ui/listing-editor.tsx": {
@@ -4080,7 +4080,7 @@
       "executable": false
     },
     "tests/api/imports.test.mjs": {
-      "sha256": "1f0d5efd37ce371c609a02aa44dac1785b9ff35ae298791f432898bc772aadbc",
+      "sha256": "a210a5cdac2a4a71ce969df41b2760223e391a4f178e5be8533106413c9890fc",
       "executable": false
     },
     "tests/api/local-payments.test.mjs": {
@@ -4148,7 +4148,7 @@
       "executable": false
     },
     "tests/ui/bulk-products-journey.mjs": {
-      "sha256": "8a126000b25fcf86f4fef036d39bc6be86609829c9fe1f1b1f1f60cd447ff788",
+      "sha256": "f3f8662229a07b882a809a494cc5b6a1e9c760a366d2fed25e409ea0bd059ecb",
       "executable": false
     },
     "tests/ui/buy-link-journey.mjs": {

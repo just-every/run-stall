@@ -297,7 +297,7 @@ try {
   } else { value.title = 'File collection'; value.skus = [ids[0], ids[2]] }
   return [row.Kind, row.ID, value]
  })
- fileRows.push(['product', 'synthetic-stall-1821', { ...exportedFirst, sku: 'synthetic-stall-1821', stockMode: 'untracked' }])
+ fileRows.push(['product', 'synthetic-stall-1821', { ...exportedFirst, sku: 'synthetic-stall-1821', publication: 'draft', stockMode: 'untracked', details: richDetails }])
  const catalogCell = value => '"' + String(value).replaceAll('"', '""') + '"'
  const nativeCSV = 'Kind,ID,Value\n' + fileRows.map(([kind, id, value]) => [kind, id, JSON.stringify(value)].map(catalogCell).join(',')).join('\n') + '\n'
  await page.getByLabel('Choose a CSV file', { exact: true }).setInputFiles({ name: 'synthetic-stall-catalog.csv', mimeType: 'text/csv', buffer: Buffer.from(nativeCSV) })
@@ -331,6 +331,8 @@ try {
   } else assert.deepEqual(native.collections.find(row => row.id === id).value, value)
  }
  assert.ok(!native.products.some(row => row.id === 'synthetic-stall-1821'))
+ await page.getByText('Catalog row outcomes', { exact: true }).click()
+ await page.getByText('excluded', { exact: true }).waitFor()
  await capture('complete-file-resumed', page.getByText('Import completed.', { exact: true }))
  // Both jobs protect a subsequent native edit while untouched changes reverse.
  let firstCurrent = (await h.api('/api/stall/state')).products.find(row => row.id === ids[0])
@@ -362,6 +364,6 @@ try {
  await sitePage.close()
  assert.deepEqual(errors, [])
  await dev.assertRunning()
- console.log('CATALOG-002 bulk journey passed: exact-cent grid, read-only review, concurrent-edit refusal with retained input, staged apply, literal text, retained source, untouched reversal and named native-edit protection, explicit mixed-row exclusion, metadata review/import/journal resume/undo and guides/contract at 1440/390.')
+ console.log('CATALOG-002 bulk journey passed: exact-cent grid, read-only review, concurrent-edit refusal with retained input, staged apply, literal text, retained source, untouched reversal and named native-edit protection, explicit mixed-row exclusion, metadata and complete catalog grid and file edits, variants, collections, publication, tax and customs facts, current stock mode, exports, retained-source resume, per-row outcomes and protected undo, plus guides and contract at 1440 and 390.')
 } catch (error) { journeyError = error; throw error }
 finally { try { await finishCleanup(cleanup, journeyError) } finally { for (const signal of ['SIGINT', 'SIGTERM']) process.off(signal, interrupted) } }
