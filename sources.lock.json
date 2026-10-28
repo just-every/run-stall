@@ -3616,11 +3616,11 @@
       "executable": false
     },
     "src/stall/ui/analytics.css": {
-      "sha256": "dc813875062f61f1def7bbb163b18485661eeefec642c1f4485601ad97aef509",
+      "sha256": "bf517b79e1e1c26aa863c0ea534048e129154a1ba4672bdf0f7d0de4a410c112",
       "executable": false
     },
     "src/stall/ui/analytics.tsx": {
-      "sha256": "056fb82665573afdf862b816e73fc63262676998dbdfe4177e49ced8e2886dde",
+      "sha256": "4001001b27ea22473555777fb83c2498c8aa8a60d0b8f73bfe1f7d693284f4c9",
       "executable": false
     },
     "src/stall/ui/api.ts": {
@@ -4192,7 +4192,7 @@
       "executable": false
     },
     "tests/ui/mobile-journey.mjs": {
-      "sha256": "cc546ca8e9035b851404013b27d0a2763033ee70ec505920e28524e0696f3dcc",
+      "sha256": "887021fa382d2023ad83438dc08c2ad514c43d68ed27e5a419e5c077d58da11a",
       "executable": false
     },
     "tests/ui/order-desk.mjs": {

@@ -23,7 +23,7 @@ function initialDates(timeZone: string): Filters {
 }
 const queryOf = (filters: Filters) => new URLSearchParams(Object.entries(filters).filter(([, value]) => value !== '')).toString()
 function Metric({ label, value, note }: { label: string; value: string; note?: string }) {
- return <div className="st-report-metric" data-metric={label}><dt>{label}</dt><dd>{value}</dd>{note && <p>{note}</p>}</div>
+ return <div className="st-report-metric" data-metric={label}><dt>{label}</dt><dd><span>{value}</span>{note && <p>{note}</p>}</dd></div>
 }
 function ReportTable({ caption, headings, children }: { caption: string; headings: string[]; children: ReactNode }) {
  return <div className="st-report-table-wrap" role="region" aria-label={caption} tabIndex={0}><table><caption className="st-sr-only">{caption}</caption><thead><tr>{headings.map(heading => <th scope="col" key={heading}>{heading}</th>)}</tr></thead><tbody>{children}</tbody></table></div>

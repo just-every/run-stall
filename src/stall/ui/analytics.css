@@ -8,7 +8,8 @@
 .st-report-metric { display: grid; align-content: start; gap: 6px; min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 12px; }
 .st-report-metric dt { color: var(--muted); }
 .st-analytics .st-report-metric dd { font: 700 25px/1.2 var(--font-head); letter-spacing: -.025em; overflow-wrap: anywhere; }
-.st-report-metric p { color: var(--muted); }
+.st-report-metric dd { display: grid; gap: 6px; }
+.st-report-metric p { color: var(--muted); font: 400 13px/1.5 var(--font-body); letter-spacing: normal; }
 .st-report-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
 .st-app .st-report-tabs button[aria-current=page] { background: var(--tangerine-wash); color: var(--tangerine-text); border-color: var(--tangerine-line); }
 .st-report-amounts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; }

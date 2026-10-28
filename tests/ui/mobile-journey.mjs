@@ -14,17 +14,19 @@ import { stripeEdge, deliverWebhook } from '../api/network.mjs'
 const screenshots = resolve(process.env.STALL_SCREENSHOTS ?? './test-results/mobile')
 const small = 'synthetic-stall-2701', large = 'synthetic-stall-2702', productId = 'synthetic-stall-2703'
 const email = ['synthetic-stall-2704', 'example.test'].join('@')
-let h, browser, page, server, as
+let h, browser, page, server, as, checkoutGate
+let stockUnavailable = false, guestCookie = ''
 const scans = [], failures = []
 await mkdir(screenshots, { recursive: true })
 try {
   const stock = volumeStock([small, large]), shipments = [], forward = stock.forward
   stock.forward = async request => {
     const url = new URL(request.url)
+    if (stockUnavailable) return Response.json({ error: 'Stock provider unavailable' }, { status: 503 })
     if (request.method === 'POST') {
       const { type, payload, commandId } = await request.clone().json()
       if (type === 'dispatch.create') {
-        if (!shipments.some(row => row.id === commandId)) shipments.push({ id: commandId, orderId: payload.orderId, reference: payload.shipmentReference, createdAt: new Date().toISOString(), lines: payload.lines, tracking: [] })
+        if (!shipments.some(row => row.id === commandId)) shipments.push({ id: commandId, orderId: payload.orderId, reference: payload.shipmentReference, createdAt: new Date().toISOString(), lines: payload.lines.map(line => ({ ...line, itemId: stock.orders.get(payload.orderId).lines.find(original => original.id === line.orderLineId).itemId })), tracking: [] })
         return Response.json({ result: shipments.find(row => row.id === commandId) })
       }
     }
@@ -36,14 +38,19 @@ try {
   server = createServer(async (incoming, outgoing) => {
     try {
       const chunks = []; for await (const chunk of incoming) chunks.push(chunk)
-      const headers = { ...incoming.headers, cookie: as ?? '', origin: h.origin }; delete headers['content-length']
+      const headers = { ...incoming.headers, cookie: as || guestCookie, origin: h.origin }; delete headers['content-length']
       const response = await h.mf.dispatchFetch(h.origin + incoming.url, { method: incoming.method, headers, redirect: 'manual', ...(chunks.length ? { body: Buffer.concat(chunks) } : {}) })
+      const cookies = response.headers.getSetCookie()
+      if (cookies.length) guestCookie = cookies.map(cookie => cookie.split(';')[0]).join('; ')
       const reply = Object.fromEntries(response.headers); delete reply['content-encoding']; delete reply['content-length']; delete reply['transfer-encoding']
       outgoing.writeHead(response.status, reply); outgoing.end(Buffer.from(await response.arrayBuffer()))
     } catch { outgoing.writeHead(502); outgoing.end('Owned Worker transport failed') }
   })
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
-  h = await installation({ built: true,  bindings: { PIER_ORIGIN: 'https://stock.example.test', PIER_SESSION: 'synthetic-stall-2705', PIER_CUSTOMER_ID: 'shop', STRIPE_SECRET_KEY: 'synthetic-stall-2706', STRIPE_WEBHOOK_SECRET: secret }, outboundService: edge.handle, onProgress: stage => console.log('[mobile]', stage) })
+  h = await installation({ built: true,  bindings: { PIER_ORIGIN: 'https://stock.example.test', PIER_SESSION: 'synthetic-stall-2705', PIER_CUSTOMER_ID: 'shop', STRIPE_SECRET_KEY: 'synthetic-stall-2706', STRIPE_WEBHOOK_SECRET: secret }, outboundService: async request => {
+    if (checkoutGate && new URL(request.url).pathname === '/v1/checkout/sessions' && request.method === 'POST') await checkoutGate
+    return edge.handle(request)
+  }, onProgress: stage => console.log('[mobile]', stage) })
   let product = await h.command('product.prepare', { sku: productId, name: 'Studio shirt', description: 'Cotton shirt in two sizes', unitCents: 2500, active: true, details: { handle: 'studio-shirt', options: [{ name: 'Size', values: ['Small', 'Large'] }], variants: [{ sku: small, options: { Size: 'Small' } }, { sku: large, unitCents: 2800, options: { Size: 'Large' } }] } })
   await h.command('product.approve', { sku: productId, revision: product.revision })
   await h.command('return.policy.save', { revision: null, windowDays: 30, condition: 'Unused', feeCents: 0, returnShipping: 'Return postage paid by shopper', finalSaleSkus: [], exchanges: false })
@@ -92,7 +99,27 @@ try {
   await audit('desk-empty')
   as = ''
   await visit('/shop', page.getByRole('link', { name: 'Studio shirt', exact: true }))
+  const observed = page.locator('time[datetime]').first()
+  await expect(observed).toBeVisible()
+  assert.ok(Number.isFinite(Date.parse(await observed.getAttribute('datetime'))))
   await audit('storefront')
+  stockUnavailable = true
+  await activate(page.getByRole('button', { name: 'Refresh availability', exact: true }))
+  await expect(page.getByRole('heading', { name: 'The shop is not ready for orders', exact: true })).toBeVisible()
+  await expect(page.getByRole('alert')).toContainText(/stock|Pier|unavailable/i)
+  await expect(page.getByText('Sold out', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Review order', exact: true })).toHaveCount(0)
+  await audit('store-unavailable')
+  stockUnavailable = false
+  stock.setAvailable(large, '0')
+  await activate(page.getByRole('button', { name: 'Refresh availability', exact: true }))
+  await activate(page.getByRole('link', { name: 'Studio shirt', exact: true }))
+  await activate(page.getByRole('button', { name: 'Large', exact: true }))
+  await expect(page.getByText('Sold out · ' + large, { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add to basket · $28.00', exact: true })).toBeDisabled()
+  await audit('variant-sold-out')
+  stock.setAvailable(large, '10')
+  await visit('/shop', page.getByRole('link', { name: 'Studio shirt', exact: true }))
   await activate(page.getByRole('link', { name: 'Studio shirt', exact: true }))
   await page.getByRole('heading', { name: 'Studio shirt', exact: true }).waitFor()
   await activate(page.getByRole('button', { name: 'Large', exact: true }))
@@ -121,9 +148,16 @@ try {
   const pay = page.getByRole('button', { name: 'Pay $36.00 with Stripe', exact: true })
   await pay.waitFor()
   edge.loseNextCheckoutResponse()
+  let releaseCheckout
+  checkoutGate = new Promise(resolve => { releaseCheckout = resolve })
   await activate(pay)
+  await expect(page.getByRole('button', { name: 'Opening Stripe…', exact: true })).toBeDisabled()
+  await expect(page.getByLabel('Email for your order', { exact: true })).toBeDisabled()
+  await page.keyboard.press('Enter')
+  releaseCheckout(); checkoutGate = undefined
   await expect(alert).toContainText(/Stripe|saved|retry/i)
   assert.equal(edge.sessions.size, 1)
+  assert.equal((await h.api('/api/stall/state')).orders.length, 1)
   await context.route('https://checkout.stripe.com/**', route => route.fulfill({ status: 200, contentType: 'text/html', body: '<title>Payment edge</title><main>Hosted payment provider</main>' }))
   await activate(pay)
   await page.waitForURL(url => url.hostname === 'checkout.stripe.com')
@@ -135,7 +169,11 @@ try {
   assert.equal((await deliverWebhook(h, secret, paid)).response.status, 200)
   assert.equal(stock.orders.size, 1, 'Replayed payment must reserve once')
   await visit('/order?checkout=success&orderId=' + orderId, page.getByText('Thank you, your payment is confirmed', { exact: true }))
-  await expect(page.getByText('Studio shirt — Large × 1', { exact: true })).toBeVisible()
+  const receipt = page.getByRole('region', { name: 'Your order', exact: true })
+  await expect(receipt.getByRole('listitem')).toHaveCount(1)
+  await expect(receipt.getByRole('listitem')).toContainText('Studio shirt — Large × 1')
+  await expect(receipt.getByRole('listitem')).toContainText('Size: Large')
+  await expect(receipt.getByRole('listitem')).toContainText('$30.00')
   await audit('receipt')
   as = h.cookie
   await visit('/app#orders/' + orderId, page.getByLabel('Shipping reference', { exact: true }))
@@ -182,7 +220,35 @@ try {
   await expect(card.getByText('$30.00 · succeeded', { exact: true })).toBeVisible()
   await expect(card.getByText('Return accepted. We will refund the shirt after inspection.', { exact: false })).toBeVisible()
   await audit('account-processed')
+  await activate(card.getByRole('button', { name: /^Reorder order/ }))
+  await page.getByRole('heading', { name: 'Review your reorder', exact: true }).waitFor()
+  await expect(page.getByRole('button', { name: 'Review current total', exact: true })).toBeEnabled()
+  await audit('account-reorder')
+  const link = await h.api('/api/stall/account/guest-order-link', { orderId }, { as: customer })
+  as = ''
+  await visit('/order#orderLink=' + link.token, page.getByRole('heading', { name: 'Your guest order', exact: true }))
+  await audit('guest-order')
+  await h.api('/api/stall/account/guest-order-link', { orderId }, { as: customer, method: 'DELETE' })
+  await visit('/order#orderLink=' + link.token, page.getByRole('alert'))
+  await expect(page.getByRole('alert')).toContainText(/expired|revoked|unavailable/i)
+  await expect(page.getByRole('article', { name: 'Order ' + orderId, exact: true })).toHaveCount(0)
+  await audit('guest-order-revoked')
+  await visit('/order', page.getByRole('form', { name: 'Customer account request', exact: true }))
+  await audit('account-request')
+  await visit('/signin?returnTo=%2Forder', page.locator('main'))
+  await audit('account-signin')
+  as = customer
+  await visit('/auth/settings/identity', page.locator('main'))
+  await audit('account-identity')
+  const buy = await h.api('/api/stall/buy-links', { label: 'Studio shirt link', lines: [{ sku: large, quantity: 1 }] })
+  await visit('/shop?buy=' + buy.id, page.getByRole('heading', { name: 'Studio shirt link', exact: true }))
+  await audit('checkout-link')
+  await activate(page.getByRole('button', { name: 'Continue to native cart', exact: true }))
+  await page.getByRole('heading', { name: 'Review checkout link', exact: true }).waitFor()
+  await audit('checkout-link-review')
   as = h.cookie
+  await visit('/api/stall/packing-slip?orderId=' + orderId, page.getByRole('heading', { name: 'Packing slip', exact: true }))
+  await audit('packing-slip')
   // Derive current desk destinations from its public navigation so new pages
   // cannot silently escape the accessibility scan.
   await visit('/app#settings', page.getByRole('heading', { name: 'Settings', level: 1, exact: true }))
@@ -190,16 +256,27 @@ try {
   assert.ok(destinations.length > 0)
   for (const hash of destinations) {
     await visit('/app' + hash)
-    await page.getByRole('heading', { level: 1 }).first().waitFor()
+    await expect(page.getByRole('navigation', { name: 'Shop desk', exact: true }).locator(`a[href="${hash}"]`)).toHaveAttribute('aria-current', 'page')
+    await page.locator('main').getByRole('heading').first().waitFor()
     await page.waitForFunction(() => ![...document.querySelectorAll('main [role="status"]')].some(element => /Loading|Checking/.test(element.textContent) && element.getClientRects().length))
     await audit('desk-' + hash.slice(1))
+    if (hash === '#reports') {
+      for (const name of ['Traffic & funnel', 'Best sellers', 'Orders']) {
+        await activate(page.getByRole('navigation', { name: 'Report sections', exact: true }).getByRole('button', { name, exact: true }))
+        await audit('desk-reports-' + name.toLowerCase().replace(/[^a-z]+/g, '-'))
+      }
+    }
   }
   await visit('/app#settings', page.getByRole('button', { name: 'Review customer erasure', exact: true }))
   const trigger = page.getByRole('button', { name: 'Review customer erasure', exact: true })
-  await enter(page.getByLabel('Customer email', { exact: true }), email)
+  const erasure = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Erase customer details', exact: true }) })
+  await enter(erasure.getByLabel('Customer email', { exact: true }), email)
   await activate(trigger)
   await expect(page.getByLabel('Type ERASE to confirm', { exact: true })).toBeFocused()
   await audit('erasure-dialog')
+  await reach(page.getByRole('button', { name: 'Cancel', exact: true }))
+  await page.keyboard.press('Tab')
+  await expect(page.getByLabel('Type ERASE to confirm', { exact: true })).toBeFocused()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(trigger).toBeFocused()
