@@ -1826,5 +1826,24 @@ test('combined discount purchases bind net tax, odd-cent line refunds, single-us
   assert.deepEqual(race.map(r=>r.status).sort(),[200,409]);assert.equal((await h.api(base+'/quote',{customerEmail:address,lines:[{sku:'MUG-BLUE',quantity:1}],promotionCode:code},{as:''})).reason,'CODE_USED')
   const usage=await h.api(base+'/codes?promotionId='+product.id);assert.deepEqual(usage.codes.map(c=>c.uses).sort(),[0,0,1]);assert.ok(!JSON.stringify(usage).includes(code))
   assert.equal((await h.api(base+'/quote',{customerEmail:address,lines:[{sku:'MUG-BLUE',quantity:1}],promotionCode:'SYNTHETIC-STALL-4201,'+batch.codes[1].code},{as:''})).reason,'COMBINATION')
+  const saved=await archive(h),restored=await installation({bindings:{...kit.pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-806',STRIPE_WEBHOOK_SECRET:kit.secret},outboundService:request=>new URL(request.url).hostname==='api.stripe.com'&&(/^\/v1\/tax\//.test(new URL(request.url).pathname)||new URL(request.url).pathname==='/v1/account')?kit.tax.handle(request):kit.stripe.handle(request)})
+  try{
+   await restore(restored,saved)
+   assert.deepEqual((await restored.api(base+'/codes?promotionId='+product.id)).codes,usage.codes)
+   assert.equal((await restored.api(base+'/quote',{customerEmail:address,lines:[{sku:'MUG-BLUE',quantity:1}],promotionCode:code},{as:''})).reason,'AUTHORITY_REQUIRED')
+   const current=(await restored.api(base)).promotions.find(p=>p.id===product.id)
+   await restored.api(base,{...common,id:current.id,revision:current.revision,rule:current.rule})
+   assert.equal((await restored.api(base+'/quote',{customerEmail:address,lines:[{sku:'MUG-BLUE',quantity:1}],promotionCode:code},{as:''})).reason,'CODE_USED')
+   assert.deepEqual((await restored.api(base+'/campaign-report')).totals,(await h.api(base+'/campaign-report')).totals)
+  }finally{await restored.close()}
+  await h.api(base+'/revoke',product)
+  await h.api(base,{...common,code:'SYNTHETIC-STALL-4205',rule:{type:'buy_get',buy:{products:['MUG-BLUE']},buyQuantity:2,targets:{products:['TOWEL-NAT']},getQuantity:1,valueType:'free'}})
+  const reward=await kit.buy(await kit.quote({customerEmail:address,promotionCode:'SYNTHETIC-STALL-4205'}))
+  assert.equal(reward.order.tax.lines.find(l=>l.sku==='TOWEL-NAT').amount,0)
+  const shippedReward=await kit.ship(reward.order.id),refundCount=kit.stripe.refunds.size
+  const zero=await h.command('refund.prepare',{orderId:shippedReward.id,revision:shippedReward.revision,lines:[{sku:'TOWEL-NAT',quantity:1}],reason:'Return the free reward'},{status:409})
+  assert.equal(zero.error.code,'NO_PAID_VALUE');assert.equal(kit.stripe.refunds.size,refundCount)
+
+
  }finally{await kit.close()}
 })

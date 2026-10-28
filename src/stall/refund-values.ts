@@ -37,6 +37,7 @@ export function refundValue(order: Order, input: any): Pick<Refund, 'kind'|'line
  if (kind === 'goodwill' && order.tax && input.taxUnchanged !== true) fail('TAX_GOODWILL', 'Confirm that goodwill leaves the recorded sales tax unchanged, or refund purchased items or shipping to reverse tax.', 400)
  const taxAllocation=refundTaxAllocation(order,{kind,lines,amountCents})
  amountCents+=taxAllocation?.taxCents??0
+ if(amountCents===0)fail('NO_PAID_VALUE','These reward items have no refundable paid value. Record their return separately; no payment refund is needed.',409)
  if (committed.reduce((sum, refund) => sum + refund.amountCents, 0) + amountCents > order.totalCents) fail('REFUND_LIMIT', 'Refunds cannot exceed the paid amount.')
  const taxTreatment = taxAllocation ? 'original_tax_allocated' : kind === 'address_change' ? 'sale_never_recorded' : kind === 'goodwill' && order.tax ? 'goodwill_tax_unchanged' : 'no_tax_recorded'
  return { kind, lines, amountCents, taxTreatment,...(taxAllocation?{taxAllocation}:{}), accountingCategory: kind === 'lines' ? 'merchandise' : kind }

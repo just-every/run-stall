@@ -140,7 +140,7 @@ try {
   await page.getByLabel('Quantity for Blue ceramic mug',{exact:true}).fill('1')
   await page.getByLabel('Email for your order',{exact:true}).fill('synthetic-stall-4301'+'@'+'example.test')
   await page.getByText('Promotion discounts',{exact:true}).waitFor()
-  await page.getByLabel('Promotion code',{exact:true}).fill('SYNTHETIC-STALL-4300')
+  await page.getByRole('textbox',{name:'Promotion code',exact:true}).fill('SYNTHETIC-STALL-4300')
   await page.getByRole('button',{name:'Apply code',exact:true}).click()
   await page.getByText('MUG-BLUE discount',{exact:true}).waitFor()
   await page.getByRole('button',{name:'Review order',exact:true}).click()

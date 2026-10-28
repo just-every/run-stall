@@ -134,3 +134,11 @@ their maintenance.
 
 Pinned reference: https://github.com/runeditrun/base/blob/ada9f574d8a7247edc3a1180b593ad182b1fbb37/TANSTACK-START-MIGRATION.md
 Native-session/runtime evidence: https://github.com/runeditrun/base/tree/ada9f574d8a7247edc3a1180b593ad182b1fbb37/default-seed
+
+## Contract projections
+
+CONTRACT.md remains the canonical acceptance and status source. After editing
+PROMO-001, run `node scripts/contract-docs.mjs write` and then
+`node scripts/contract-docs.mjs check`. This scoped generator preserves the other
+clauses' existing projections. Regenerate the edition source lock last with
+`node scripts/edition-authoring/cli.mjs lock`, then run that CLI's `check`.
