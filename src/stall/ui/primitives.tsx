@@ -1,10 +1,14 @@
 import { AnalyticsConsent } from './analytics-consent'
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { humanLabel, shortId, usePerson, When } from './presentation'
 import { HydrationUnit } from '../../base/hydration/unit'
 import type { Tone } from './order-status'
 import { HeaderMenu } from './menus'
-export function Notice({ children, error = false }: { children: ReactNode; error?: boolean }) { return <div className={`st-notice ${error ? 'st-error' : ''}`} role={error ? 'alert' : 'status'}>{children}</div> }
+export function Notice({ children, error = false }: { children: ReactNode; error?: boolean }) {
+  const notice = useRef<HTMLDivElement>(null)
+  useEffect(() => { if (error) notice.current?.focus() }, [error])
+  return <div ref={notice} tabIndex={error ? -1 : undefined} className={`st-notice ${error ? 'st-error' : ''}`} role={error ? 'alert' : 'status'}>{children}</div>
+}
 export function Section({ children, id, title, className = '' }: { children: ReactNode; id?: string; title: string; className?: string }) { return <HydrationUnit><section className={`st-panel st-stack ${className}`} id={id}><h2>{title}</h2>{children}</section></HydrationUnit> }
 export function Empty({ children }: { children: ReactNode }) { return <div className="st-empty"><span className="st-empty-mark" aria-hidden="true"><img src="/brand/mark.svg" width="40" height="41" alt="" /></span><div>{children}</div></div> }
 function RecordedValue({ value, field = '' }: { value: unknown; field?: string }) {

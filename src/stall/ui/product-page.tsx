@@ -57,6 +57,7 @@ export function ProductPage() {
       })}</div></fieldset>)}
       {options.length > 0 && Object.keys(picked).length === options.length && !item && <Notice error>This combination is not available. Choose another.</Notice>}
       {item && <p className="st-small">{Number(item.available) > 0 ? `${item.available} available` : 'Sold out'}{item.variant ? ` · ${item.sku}` : ''}</p>}
+      {catalogue?.observedAt && <p className="st-small">Availability checked <time dateTime={catalogue.observedAt}>{new Date(catalogue.observedAt).toLocaleString()}</time>.</p>}
       <CustomFields fields={product.customFields} />
       {product.attributes?.length ? <dl className="st-attributes">{product.attributes.map(attribute => <div key={attribute.name}><dt>{attribute.name}</dt><dd>{attribute.value}</dd></div>)}</dl> : null}
       {fields.length > 0 && <Personalization fields={fields} sku={item?.sku ?? product.skus[0]} answers={answers} setAnswers={next => { setAnswers(next); setAdded(''); setError('') }} disabled={busy} />}
