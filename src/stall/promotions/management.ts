@@ -23,6 +23,7 @@ export async function savePromotion(env:Bindings,actor:Actor,p:any) {
  if(previous?.revoked_at) fail('PROMOTION_REVOKED','A revoked promotion cannot be changed. Create a new promotion.')
  const id=previous?.id??crypto.randomUUID(),revision=crypto.randomUUID(),at=new Date().toISOString()
  const rule=promotionRule(p.rule??(previous?.rule_json?JSON.parse(previous.rule_json):{}))
+ if(p.code!==undefined&&promotionCode(p.code).includes(','))fail('INPUT','A promotion has one primary code. Generate a batch for additional single-use codes.',400)
  const codeHash=rule.method==='automatic'?(previous?.code_hash??await digest(crypto.randomUUID())):p.code===undefined&&previous?previous.code_hash:await digest(promotionCode(p.code))
  const starts=instant(p.startsAt,'Start time'),ends=instant(p.endsAt,'End time')
  if(ends<=starts) fail('INPUT','The end time must follow the start time.',400)

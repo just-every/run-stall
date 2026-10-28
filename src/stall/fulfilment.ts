@@ -47,6 +47,11 @@ export async function finishShipment(env:Bindings,actor:Actor,order:Order) {
  return saveOrder(env,{...order,status:'shipped',shipment:{...order.shipment,status:'shipped',pierShipmentId:result.id}},'shipment.shipped',actor)
 }
 export function validateShipment(order:Order,result:any) {
+ if(order.promotion?.lineDiscounts?.some(l=>l.discountCents>0)) {
+  const reserved=order.reservation?.lines??[]
+  if(typeof result?.id!=='string'||result.orderId!==order.reservation?.id||result.reference!==order.shipment?.reference||!Array.isArray(result.lines)||result.lines.length!==reserved.length||!reserved.every(original=>{const matches=result.lines.filter((x:any)=>x.orderLineId===original.id&&x.itemId===original.itemId);return matches.length===1&&decimal(matches[0].quantity)===decimal(original.quantity)}))fail('PIER_RESPONSE','Pier shipment does not match the approved discounted order. Reconcile this shipment.',502)
+  return
+ }
  if(typeof result?.id!=='string'||result.orderId!==order.reservation?.id||result.reference!==order.shipment?.reference||!Array.isArray(result.lines)||result.lines.length!==order.lines.length||!order.lines.every(l=>{
   const matches=result.lines.filter((x:any)=>x.itemId===l.itemId)
   return matches.length===1&&decimal(matches[0].quantity)===BigInt(l.quantity)*1000000n

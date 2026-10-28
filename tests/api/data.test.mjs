@@ -478,6 +478,7 @@ test('staff, customer carts, events and workflow history transfer without restor
   await destination.api(base+'/orders',undefined,{as:'',headers,status:401})
   assert.equal((await destination.api('/api/stall/staff')).staff.filter(p=>p.staffRole).length,0)
   await destination.command('customer.erase',{email:address,confirm:'ERASE'})
+  assert.equal((await destination.db.prepare('SELECT customer_key FROM st_promotion_allocations WHERE order_id=?').bind(bought.orderId).first()).customer_key,'erased:'+bought.orderId)
   const erased=await destination.api('/api/stall/exports/records')
   assert.deepEqual(erased.headless.customers,[]);assert.deepEqual(erased.headless.carts,[]);assert.deepEqual(erased.workflows.requests,[])
   assert.ok(erased.workflows.tasks.every(t=>t.status==='paused'&&t.error_code==='CUSTOMER_ERASED'))

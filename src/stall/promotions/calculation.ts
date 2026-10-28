@@ -22,7 +22,7 @@ export function calculate(rule:Rule,lines:Line[],remaining:number[],shippingCent
    let qty=rule.buySpendCents?0:rule.buyQuantity,spendNeeded=rule.buySpendCents
    for(const i of buy)while(units[i]>0&&(qty>0||spendNeeded>0)){units[i]--;qty--;spendNeeded-=Math.floor(remaining[i]/lines[i].quantity)}
   }
-  for(const i of eligible)discounts[i]=amount(Math.floor(remaining[i]*reserved[i]/lines[i].quantity))
+  for(const i of eligible)discounts[i]=rule.valueType==='amount'?Math.min(Math.floor(remaining[i]*reserved[i]/lines[i].quantity),rule.value*reserved[i]):amount(Math.floor(remaining[i]*reserved[i]/lines[i].quantity))
  } else {
   const indexes=rule.type==='order'?lines.map((_,i)=>i):eligible,weights=indexes.map(i=>remaining[i]),total=weights.reduce((n,v)=>n+v,0),parts=allocate(amount(total),weights)
   indexes.forEach((i,n)=>discounts[i]=parts[n])

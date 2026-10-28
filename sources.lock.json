@@ -575,6 +575,10 @@
       "sha256": "5c7190c6d2908d1f7855ac9c51ef7b7a4bab0cca878fe0f8736c2d9d77c6364f",
       "executable": false
     },
+    "migrations/core/0054_discount_campaigns.sql": {
+      "sha256": "a316a3f00c747ecafc07247ca1b7b9fd960cd788ac80426c9f86478ffba6410a",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "4c55a4e5db5d0015e544fea492219fa45ac5f74dd66a36b7803873cc710741ae",
       "executable": false
@@ -3196,7 +3200,7 @@
       "executable": false
     },
     "src/stall/fulfilment.ts": {
-      "sha256": "f037112ce1e714092300bd8ddd63972621a93f5818ecb3e219cab3b226c05864",
+      "sha256": "d73060b3dedaf3806ea5fe27582808080e0f01b20fd7cae86284fa10c899b4b0",
       "executable": false
     },
     "src/stall/headless/admin.ts": {
@@ -3344,7 +3348,7 @@
       "executable": false
     },
     "src/stall/payments.ts": {
-      "sha256": "fe5d6c7d181840739c1a73f7f14d0daca69b4f947e2205ae9bade8b3e50cd63b",
+      "sha256": "17c87293bef2518e552e0a4a15a82c55b2040698dad522e8731a4c6194458017",
       "executable": false
     },
     "src/stall/permissions.ts": {
@@ -3360,7 +3364,7 @@
       "executable": false
     },
     "src/stall/pier.ts": {
-      "sha256": "599c403581a253d01506aac9213cf51e017c9a30403cadb67ef7258785b7df5e",
+      "sha256": "b7b60c5c8a5304269b8b35102ba90138fd17a3d0d8155cbb0463367eefca5a2b",
       "executable": false
     },
     "src/stall/portability-policy.d.mts": {
@@ -3391,8 +3395,12 @@
       "sha256": "33a2ae9cc1de6e6cffeaa4c348733d468ccaa9cc306bb2eb75ade15da6c31991",
       "executable": false
     },
+    "src/stall/promotions/calculation.ts": {
+      "sha256": "5ca8d979dfb4b356bf5eedf66c4bbbea1e907d8dca9b4c9d676de612fd739540",
+      "executable": false
+    },
     "src/stall/promotions/eligibility.ts": {
-      "sha256": "941e23146b8dc795e84340345246832b18751ce4899bcc9c31f52912bd6af6f0",
+      "sha256": "11276eb0445e7792be0c9586214de833b57dd81afb70261488754703e0b0f043",
       "executable": false
     },
     "src/stall/promotions/holds.ts": {
@@ -3400,19 +3408,27 @@
       "executable": false
     },
     "src/stall/promotions/index.ts": {
-      "sha256": "0db9aad3c43cda29ffb9845737ee6bbdd4619674d733fae19f5ea5da33ccf4d5",
+      "sha256": "985ffb77f8e73449ab8dbb1be21cb2f98755371e4f6aebc36811d8bb839c6ecd",
       "executable": false
     },
     "src/stall/promotions/management.ts": {
-      "sha256": "cb08c244ec82848436772610d94dedb29b6849155bc5b3e9349a399dab47e241",
+      "sha256": "f6d74ed521e4e0197b7992102fed124f1921732863378a535fd0ed89f4a699e1",
       "executable": false
     },
     "src/stall/promotions/model.ts": {
       "sha256": "63d60d6f6db99767cefa67513f49d20940c906261f1fc06a424f7d6cdfc05645",
       "executable": false
     },
+    "src/stall/promotions/paid-values.ts": {
+      "sha256": "db4eb35f717f85ac36d4d9f2abe7f83978d3ca0e77caf58e21f77348dce07d76",
+      "executable": false
+    },
     "src/stall/promotions/report.ts": {
-      "sha256": "0895f1c8156718b1aa6ce25e6481799ddec38b359b9b11e2b983ec9c8295e669",
+      "sha256": "cc9aacc6253952eb4d77cc21ecd683a29bc8ba0624e436d2ae1ee7b256ff04c4",
+      "executable": false
+    },
+    "src/stall/promotions/rules.ts": {
+      "sha256": "04f3ab16dc6fa8579b5a98fb5fc29f2b68ef82083e7c7ab77ba327e687c4d787",
       "executable": false
     },
     "src/stall/proposals/changes.ts": {
@@ -3504,7 +3520,7 @@
       "executable": false
     },
     "src/stall/shipment-sync.ts": {
-      "sha256": "4773441a5df2af8d7412c7bd2be2df15dfb09d815b6be64d142e047084140ccc",
+      "sha256": "d74ecaa73e881b7d55ef81c6c5ae79629514723c31b75553477e0582d162c357",
       "executable": false
     },
     "src/stall/shipping-charge.ts": {
@@ -3824,15 +3840,15 @@
       "executable": false
     },
     "src/stall/ui/promotion-code.tsx": {
-      "sha256": "a93dbe16af9029fbbf1bb12a4536785b852af6498d1296cd10b8d882e1bb8f7c",
+      "sha256": "fc0f66471b5a89cc66908ba7d0fb0da411ed2676c7ed21342f1d07e6164dbf34",
       "executable": false
     },
     "src/stall/ui/promotion-report.tsx": {
-      "sha256": "01abbfad849577b04e0d66196fe416d1d17e47870ceb80fd6310068e41a179a0",
+      "sha256": "5545a474301bd4ba7223f2e1ba138a3b747c76db2dd898d5a5eb4c126cb78ccc",
       "executable": false
     },
     "src/stall/ui/promotions.tsx": {
-      "sha256": "c2af7cd6001c6849eee88d754733ce0dfb9e215b7e6980fa554728688a24202a",
+      "sha256": "a30bd26e19a5eed4547ad8b04bf1932d16075ee068407ae9aa121792f3ab4217",
       "executable": false
     },
     "src/stall/ui/provider-boundaries.tsx": {
@@ -3912,7 +3928,7 @@
       "executable": false
     },
     "src/stall/ui/shop.tsx": {
-      "sha256": "6843ee708b233ae81d8d60c6e966da541111a0b72cf37a5f5c8276274a6701a2",
+      "sha256": "76c86e2ad9d8d3e3a2ae08f4e261006d8d51216cd90e53bf308b3c50f159fef4",
       "executable": false
     },
     "src/stall/ui/staff-access.tsx": {
@@ -4016,7 +4032,7 @@
       "executable": false
     },
     "tests/api/commerce.test.mjs": {
-      "sha256": "8b7524cde6ad0805a3ec0bfd84b8a145c5f696560d062cd917b4ae21fd3cd8f6",
+      "sha256": "edabaa1c7d2b9cd0732ba037bbbbe3f89b9c3a64252bbf35d6ae86ca0d09cc52",
       "executable": false
     },
     "tests/api/csv-reader.mjs": {
@@ -4036,7 +4052,7 @@
       "executable": false
     },
     "tests/api/data.test.mjs": {
-      "sha256": "b08b70f1f62ee19075dd132ca6b72a16935f2ab51dc7dac5135554a0692dc6c6",
+      "sha256": "240ed8e5896be1f2f49cbe2d6c9dd67537670aa11ea0599d7d606364e41d444e",
       "executable": false
     },
     "tests/api/demo-worker.ts": {
@@ -4196,7 +4212,7 @@
       "executable": false
     },
     "tests/ui/promotion-journey.mjs": {
-      "sha256": "76c4617d8aa82da3cddd1fe5246d8567888750fb4f0091b74ef03ae6e7ee7adb",
+      "sha256": "24bef2adbd240710ab03e2ae263d59ed21055c524cecc049ca645a4bd77eeb8d",
       "executable": false
     },
     "tests/ui/real-home.mjs": {
@@ -4240,7 +4256,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "78d7cbbbcb71c6ff98ab1bc6005d492fff55b4eee71ea17ff19332a272f05da6",
+      "sha256": "c7a5c3cad9b4660b3ce5f3a65e16c024b02a327ec12d8c5e40d94dcd6550de89",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

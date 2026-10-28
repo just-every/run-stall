@@ -35,7 +35,9 @@ async function customerEligible(env:Bindings,rule:Rule,address:string,verifiedEm
 export async function qualification(env:Bindings,code:unknown,address:string,subtotalCents:number,shippingCents:number,shippingKind:string,context?:Context) {
  const customer=await customerKey(env,address),codes=code===undefined?[]:promotionCode(code).split(','),hashes=await Promise.all(codes.map(digest))
  const all=(await env.DB.prepare('SELECT * FROM st_promotions ORDER BY created_at,id').all<Promotion>()).results
- const explicit=hashes.map(hash=>all.find(row=>row.code_hash===hash||false))
+ const batchCodes=(await env.DB.prepare('SELECT code_hash,promotion_id FROM st_promotion_codes').all<{code_hash:string;promotion_id:string}>()).results
+ const explicit=hashes.map(hash=>all.find(row=>row.code_hash===hash||batchCodes.some(c=>c.code_hash===hash&&c.promotion_id===row.id)))
+ if(new Set(explicit.filter(Boolean).map(p=>p!.id)).size!==explicit.filter(Boolean).length)return {applicable:false as const,reason:'COMBINATION',message:'Use only one code from each promotion.',discountCents:0}
  const refuse=(reason:string,message:string)=>({applicable:false as const,reason,message,discountCents:0})
  if(explicit.some(row=>!row||storedRule(row).method!=='code'))return refuse('UNKNOWN_CODE','This promotion code is not available.')
  const selected=[...explicit as Promotion[],...all.filter(row=>storedRule(row).method==='automatic'&&!explicit.some(p=>p?.id===row.id))]
@@ -48,7 +50,7 @@ export async function qualification(env:Bindings,code:unknown,address:string,sub
  const members=new Map(groups.map(group=>[group.id,collectionMembers({...stock!,collections:groups,config:{} as any},group.id).map(p=>p.sku)]))
  const matches=(target:Targets,line:Line)=>!Object.values(target).some(v=>v.length)||target.products.includes(line.productSku??line.sku)||target.variants.includes(line.sku)||target.collections.some(c=>members.get(c)?.includes(line.productSku??line.sku))
  for(const promotion of selected) {
-  const rule=storedRule(promotion),explicitCode=hashes.includes(promotion.code_hash),at=new Date().toISOString()
+  const rule=storedRule(promotion),selectedHash=hashes.find(hash=>promotion.code_hash===hash||batchCodes.some(c=>c.code_hash===hash&&c.promotion_id===promotion.id)),explicitCode=!!selectedHash,at=new Date().toISOString()
   let reason='',message=''
   const deny=(r:string,m:string)=>{if(!reason){reason=r;message=m}}
   if(promotion.revoked_at)deny('REVOKED','This promotion has been revoked.')
@@ -68,12 +70,13 @@ export async function qualification(env:Bindings,code:unknown,address:string,sub
   const result=context?calculate(rule,lines,remaining,shippingRemaining,matches):{lineDiscounts:[],shippingDiscountCents:rule.type==='free_shipping'?shippingRemaining:0}
   const discountCents=result.lineDiscounts.reduce((n,v)=>n+v,0)+result.shippingDiscountCents
   if(!discountCents)deny('NO_QUALIFYING_ITEMS','This basket has no qualifying discount value. Add the required qualifying and reward items.')
+  if(selectedHash&&batchCodes.some(c=>c.code_hash===selectedHash)&&await env.DB.prepare('SELECT 1 FROM st_promotion_allocations WHERE code_hash=?').bind(selectedHash).first())deny('CODE_USED','This single-use code has already been reserved or redeemed.')
   const usage=await env.DB.prepare('SELECT COUNT(*) AS uses,COALESCE(SUM(discount_cents),0) AS discount,COALESCE(SUM(CASE WHEN customer_key=? THEN 1 ELSE 0 END),0) AS customerUses FROM st_promotion_allocations WHERE promotion_id=?').bind(customer,promotion.id).first<Usage>()
   if(usage!.customerUses>=promotion.max_customer_uses)deny('CUSTOMER_LIMIT','This customer has already reserved or used the allowed number of checkouts.')
   if(usage!.uses>=promotion.max_total_uses)deny('TOTAL_LIMIT','All checkouts available under this promotion are reserved or used.')
   if(usage!.discount+discountCents>promotion.max_discount_cents)deny('DISCOUNT_BUDGET','The remaining promotion budget cannot cover this discount.')
   if(reason){if(explicitCode)return refuse(reason,message);explanations.push({id:promotion.id,applied:false,reason});continue}
-  components.push({id:promotion.id,revision:promotion.revision,kind:rule.type,discountCents,shippingDiscountCents:result.shippingDiscountCents,lineDiscounts:lines.map((l,i)=>({sku:l.sku,discountCents:result.lineDiscounts[i]})),...(explicitCode?{codeHash:promotion.code_hash}:{})})
+  components.push({id:promotion.id,revision:promotion.revision,kind:rule.type,discountCents,shippingDiscountCents:result.shippingDiscountCents,lineDiscounts:lines.map((l,i)=>({sku:l.sku,discountCents:result.lineDiscounts[i]})),...(explicitCode?{codeHash:selectedHash}:{})})
   applied.push(rule);result.lineDiscounts.forEach((value,i)=>remaining[i]-=value);shippingRemaining-=result.shippingDiscountCents;explanations.push({id:promotion.id,applied:true,reason:'QUALIFIED'})
  }
  if(!components.length)return {...refuse('NO_PROMOTIONS','No automatic promotion applies to this basket.'),explanations}
