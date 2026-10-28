@@ -134,3 +134,19 @@ their maintenance.
 
 Pinned reference: https://github.com/runeditrun/base/blob/ada9f574d8a7247edc3a1180b593ad182b1fbb37/TANSTACK-START-MIGRATION.md
 Native-session/runtime evidence: https://github.com/runeditrun/base/tree/ada9f574d8a7247edc3a1180b593ad182b1fbb37/default-seed
+
+## Contract documentation
+
+CONTRACT.md owns acceptance and status. For the legacy document shape, regenerate
+only the clause rows changed in the round, preserving other builders' rows:
+
+```sh
+node scripts/contract-docs.mjs write PROMO-001
+node scripts/contract-docs.mjs check PROMO-001
+node scripts/edition-authoring/cli.mjs lock
+node scripts/edition-authoring/cli.mjs check
+```
+
+Replace the example clause ID with the changed IDs. Stage new source files before
+locking. ACCEPTANCE.md and docs/CLAIMS.md are derived; keep acceptance wording in
+CONTRACT.md and never edit the derived rows by hand.

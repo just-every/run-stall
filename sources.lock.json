@@ -204,7 +204,7 @@
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "aab119cf25713ae70fd9fc1314d1d956a2d469ab6074725607491ac55256fbeb",
+      "sha256": "56fd80ab81eeb4fd2383f06f486c8742000c69d68f88057e1a4298f670510127",
       "executable": false
     },
     "ANALYTICS.md": {
@@ -851,6 +851,10 @@
       "sha256": "ee78dcc055dc0047455656e8f84007e8451159c33632d1c7124a1fed963d3b9c",
       "executable": false
     },
+    "scripts/contract-docs.mjs": {
+      "sha256": "ae1d259c8ab9020cd94fa633e7f057a12d64b31fe31d2693c610f700698f98d5",
+      "executable": false
+    },
     "scripts/delivery/base/artifact.mjs": {
       "sha256": "129f210f1556e816ba94ffe74359ac553cd26466aaf8c6c299765e9cea29aa07",
       "executable": false
@@ -1009,6 +1013,10 @@
     },
     "scripts/operations-config.mjs": {
       "sha256": "decbd8619e40c741708b49639d54282bd19edc4581a782b240d96a423ad47f01",
+      "executable": false
+    },
+    "scripts/promotion-tax-sandbox.mjs": {
+      "sha256": "fffe95ce76cf9d5089c828aac222368a5606c6f56a007d376ef514e6fc3ee6b3",
       "executable": false
     },
     "scripts/tax-live-receipt.mjs": {
@@ -3396,11 +3404,11 @@
       "executable": false
     },
     "src/stall/promotions/eligibility.ts": {
-      "sha256": "08801863dc2af557e93100f3ee19f408f544c4007d5fc89bd5f23e2904ff3f43",
+      "sha256": "64b647cb641843244870e78a106c6a5b3e20181d5f93a7d86a36099592a332d9",
       "executable": false
     },
     "src/stall/promotions/engine.ts": {
-      "sha256": "da0fbc549d786a367f58bdf775a90de6b9abdd359ce6f1021a78317924a2c5bb",
+      "sha256": "20befa3e2bc9703fe12d4332159903e80310e8d53980e50c53773f8063fde231",
       "executable": false
     },
     "src/stall/promotions/holds.ts": {
@@ -3844,7 +3852,7 @@
       "executable": false
     },
     "src/stall/ui/promotion-code.tsx": {
-      "sha256": "083aec7d1ba2be6c11712a879d1d35bfca77108e45859c22e6e1f4f6d904c7b2",
+      "sha256": "fb1859afacd4e5f17e62e7cf8bfe26166d7829a386bc68e73bb5c5477c8bf4c1",
       "executable": false
     },
     "src/stall/ui/promotion-report.tsx": {
@@ -4220,7 +4228,7 @@
       "executable": false
     },
     "tests/ui/promotion-journey.mjs": {
-      "sha256": "76c4617d8aa82da3cddd1fe5246d8567888750fb4f0091b74ef03ae6e7ee7adb",
+      "sha256": "92705b43329f8b589c4750e3502e5688fc66c5e181beb4757934e849a75b8f2f",
       "executable": false
     },
     "tests/ui/real-home.mjs": {

@@ -108,6 +108,52 @@ try {
     await paidCard.getByText('Revoked', { exact: false }).waitFor()
     await capture(`PROMO-001-revoked-${width}`, paidCard)
   }
+  // Additional campaign behavior asserts at the desktop width; capture records both release widths.
+  await page.setViewportSize({width:1440,height:1000})
+  await h.command('collection.save',{handle:'synthetic-stall-ui-mugs',title:'Mugs',description:'Selected mugs',kind:'manual',skus:['MUG-BLUE']})
+  const scenarios=[
+    {type:'product',benefit:'amount',value:'3.33',target:'product SKUs',targetValue:'MUG-BLUE',quantity:1,total:'27.42'},
+    {type:'product',benefit:'percentage',value:'10',target:'collection handles',targetValue:'synthetic-stall-ui-mugs',quantity:1,total:'28.30'},
+    {type:'order',benefit:'amount',value:'1.01',quantity:1,total:'29.74'},
+    {type:'buy_get',benefit:'percentage',value:'100',quantity:2,total:'30.75'},
+    {type:'buy_get',benefit:'amount',value:'5.00',spend:'24.50',quantity:2,total:'50.25'},
+    {type:'shipping',quantity:3,minimum:'50.00',total:'73.50'},
+  ]
+  let campaignNumber=0
+  for(const mode of ['code','automatic'])for(const scenario of scenarios){
+    const code='SYNTHETIC-STALL-UI-'+(++campaignNumber)
+    await page.goto(ready.url+'/app#promotions');await page.getByRole('button',{name:'New promotion',exact:true}).click()
+    const form=page.getByRole('form',{name:'New promotion',exact:true})
+    await form.getByLabel('Application',{exact:true}).selectOption(mode);await form.getByLabel('Discount type',{exact:true}).selectOption(scenario.type)
+    if(mode==='code')await form.getByLabel('Code',{exact:true}).fill(code)
+    await form.getByLabel('Starts at · UTC',{exact:true}).fill('2000-01-01T00:00');await form.getByLabel('Ends at · UTC',{exact:true}).fill('2100-01-01T00:00')
+    await form.getByLabel('Minimum merchandise subtotal · USD',{exact:true}).fill(scenario.minimum??'0')
+    if(scenario.benefit){await form.getByLabel('Benefit type',{exact:true}).selectOption(scenario.benefit);await form.getByLabel(scenario.benefit==='amount'?'Amount off · USD':'Percentage off',{exact:true}).fill(scenario.value)}
+    if(scenario.target)await form.getByLabel('Eligible items · '+scenario.target,{exact:true}).fill(scenario.targetValue)
+    if(scenario.type==='buy_get'){
+      await form.getByLabel('Reward items · product SKUs',{exact:true}).fill('MUG-BLUE');await form.getByLabel('Qualifying items · product SKUs',{exact:true}).fill('MUG-BLUE')
+      if(scenario.spend){await form.getByLabel('Buy quantity',{exact:true}).fill('0');await form.getByLabel('Buy spend · USD',{exact:true}).fill(scenario.spend)}
+      if(campaignNumber===4){await form.locator('summary').filter({hasText:'Eligibility and combinations'}).click();await capture('PROMO-001-campaign-editor',form)}
+    }
+    const savedResponse=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/stall/promotions'&&r.request().method()==='POST')
+    await form.getByRole('button',{name:'Save promotion',exact:true}).click();const response=await savedResponse;assert.ok(response.ok(),await response.text());const saved=await response.json()
+    const savedRule=(await h.api('/api/stall/promotions')).promotions.find(p=>p.id===saved.id);assert.equal(savedRule.rule.type,scenario.type);assert.equal(savedRule.rule.mode,mode)
+    if(campaignNumber===1){
+      const card=page.getByRole('article',{name:'Promotion '+saved.id,exact:true});await card.locator('summary').filter({hasText:'Single-use code batch'}).click();await card.getByLabel('Number of unique codes',{exact:true}).fill('2');await card.getByRole('button',{name:'Generate single-use codes',exact:true}).click()
+      const downloadEvent=page.waitForEvent('download');await card.getByRole('link',{name:'Download code CSV',exact:true}).click();const download=await downloadEvent
+      const {readFile}=await import('node:fs/promises'),{readCsv}=await import('../api/csv-reader.mjs'),rows=readCsv(await readFile(await download.path(),'utf8'));assert.equal(rows.length,2);assert.equal(new Set(rows.map(row=>row.code)).size,2)
+    }
+    await page.goto(ready.url+'/shop');await page.getByLabel('Quantity for Blue ceramic mug',{exact:true}).fill(String(scenario.quantity));await page.getByLabel('Email for your order',{exact:true}).fill('synthetic-stall-ui-'+campaignNumber+String.fromCharCode(64)+'example.test')
+    if(mode==='code'){await page.getByRole('textbox',{name:'Promotion code',exact:true}).fill(code);await page.getByRole('button',{name:'Apply code',exact:true}).click()}
+    await page.getByText(scenario.type==='shipping'?'Promotion · free shipping':'Promotion · merchandise',{exact:true}).waitFor()
+    await page.getByRole('button',{name:'Review order',exact:true}).click();await page.getByRole('button',{name:'Pay $'+scenario.total+' with Stripe',exact:true}).waitFor()
+    if(campaignNumber===9)await capture('PROMO-001-automatic-checkout',page.locator('.st-checkout'))
+    await h.api('/api/stall/promotions/revoke',saved)
+  }
+  await page.goto(ready.url+'/app#promotions');await page.locator('summary').filter({hasText:'Combined campaign report'}).click()
+  const combined=page.getByLabel('Combined campaign report',{exact:true});await combined.getByRole('button',{name:'Refresh campaign report',exact:true}).click()
+  await combined.getByText('2 unique orders · 2 paid · 0 fulfillment canceled',{exact:true}).waitFor();assert.equal(await combined.locator('dt').filter({hasText:/^Consumed discounts$/}).locator('..').locator('dd').textContent(),'$12.50');assert.equal(await combined.locator('dt').filter({hasText:/^Net paid$/}).locator('..').locator('dd').textContent(),'$39.00');await capture('PROMO-001-combined-report',combined)
+
   const site = await journey.context.newPage()
   for (const [path, label] of [['/docs/headless-api', 'guide'], ['/contract', 'contract']]) {
     assert.equal((await site.goto(ready.siteUrl + path)).status(), 200)
@@ -122,6 +168,6 @@ try {
   await site.close()
   assert.deepEqual(journey.errors, [])
   await journey.dev.assertRunning()
-  console.log('PASS PROMO-001 free-shipping desk and checkout at 1440 and 390')
+  console.log('PASS PROMO-001 campaign types, automatic checkout, unique-code CSV and combined reports; free-shipping desk and checkout at 1440 and 390')
 } catch (error) { journeyError = error; if (journey?.page) { await journey.page.screenshot({ path: (process.env.STALL_SCREENSHOTS ?? './test-results/promotions') + '/failure.png', fullPage: true }); console.log('Visible failure:', (await journey.page.locator('main').innerText()).slice(0, 4000)) } throw error }
 finally { await journey?.finish(journeyError) }

@@ -13,7 +13,7 @@ import { customerKey } from './identity'
 type Priced={lines:Line[];shippingCents:number;totalCents:number;shipping:OrderShipping}
 export type Qualified={applicable:true;reason:string;message:string;discountCents:number;snapshot:PromotionSnapshot;customerKey:string;messages:{id:string;reason:string;message:string}[]}
 const refused=(reason:string,message:string)=>({applicable:false as const,reason,message,discountCents:0})
-export async function evaluate(env:Bindings,code:unknown,address:string,priced:Priced,verifiedEmail?:string):Promise<Qualified|ReturnType<typeof refused>> {
+export async function evaluate(env:Bindings,code:unknown,address:string,priced:Priced,verifiedEmail?:string):Promise<Qualified|(ReturnType<typeof refused>&{messages?:Qualified['messages']})> {
  const hash=code===undefined?null:await digest(promotionCode(code)),customer=await customerKey(env,address)
  const rows=(await env.DB.prepare(`SELECT p.*,r.value_json AS rule_json,c.id AS code_id FROM st_promotions p LEFT JOIN st_promotion_rules r ON r.promotion_id=p.id LEFT JOIN st_promotion_codes c ON c.promotion_id=p.id AND c.code_hash=? WHERE p.code_hash=? OR c.id IS NOT NULL OR json_extract(r.value_json,'$.mode')='automatic' ORDER BY CASE WHEN p.code_hash=? OR c.id IS NOT NULL THEN 0 ELSE 1 END,CASE json_extract(r.value_json,'$.type') WHEN 'product' THEN 0 WHEN 'buy_get' THEN 0 WHEN 'order' THEN 1 ELSE 2 END,p.id`).bind(hash,hash,hash).all<Promotion&{rule_json:string|null;code_id:string|null}>()).results
  if(hash&&!rows.some(p=>p.code_hash===hash||p.code_id))return refused('UNKNOWN_CODE','This promotion code is not available.')
@@ -32,6 +32,7 @@ export async function evaluate(env:Bindings,code:unknown,address:string,priced:P
   let rejection:ReturnType<typeof refused>|undefined
   const no=(reason:string,message:string)=>{rejection=refused(reason,message)}
   const at=new Date().toISOString()
+  if(p.revoked_at&&!explicit)continue
   if(p.revoked_at)no('REVOKED','This promotion has been revoked.')
   else if(!await env.DB.prepare("SELECT 1 FROM st_promotion_authority a JOIN oa_operators o ON o.id=a.custodian_id WHERE a.promotion_id=? AND a.revision=? AND o.version=a.custodian_version AND o.status='active' AND (o.role='owner' OR (o.role='admin' AND NOT EXISTS(SELECT 1 FROM st_staff s WHERE s.actor_id=o.id)))").bind(p.id,p.revision).first())no('AUTHORITY_REQUIRED','The owner or an administrator must review and enable this promotion again.')
   else if(at<p.starts_at)no('NOT_STARTED','This promotion has not started.')
@@ -100,7 +101,7 @@ export async function evaluate(env:Bindings,code:unknown,address:string,priced:P
   selected.push(snapshot);allocation.forEach((v,i)=>discounts[i]+=v);shippingCents+=shipping
   messages.push({id:p.id,reason:'QUALIFIED',message:rule&&rule.type!=='shipping'?'Promotion applied. Availability is reserved at checkout.':'Free shipping applies. Availability is reserved when you create checkout.'})
  }
- if(!selected.length)return refused('NO_PROMOTION','No automatic promotion applies to this basket.')
+ if(!selected.length)return {...refused('NO_PROMOTION',messages.length?'Automatic offers did not apply. '+[...new Set(messages.map(m=>m.message))].join(' '):'No automatic promotion applies to this basket.'),messages}
  const snapshot=selected.length===1?selected[0]:{...selected[0],kind:'combined' as const,discountCents:selected.reduce((n,s)=>n+s.discountCents,0),shippingDiscountCents:shippingCents,lineDiscounts:priced.lines.map((l,i)=>({sku:l.sku,discountCents:discounts[i]})),components:selected}
  return {applicable:true,reason:'QUALIFIED',message:messages.filter(m=>m.reason==='QUALIFIED').map(m=>m.message).join(' '),discountCents:snapshot.discountCents,snapshot,customerKey:customer,messages}
 }
