@@ -45,6 +45,6 @@ export async function businessExtensions(db:D1Database) {
   headless:{customers:customers.results,carts:carts.results.map(({value_json,...r})=>({...r,lines:JSON.parse(value_json)})),events:events.results,deliveries:deliveries.results},
   workflows:{rules:workflowRules.results.map(({value_json,...r})=>({...r,value:JSON.parse(value_json)})),tasks:tasks.results,notifications:notifications.results,requests:requests.results,drafts:drafts.results},
   returns:{receipts:receipts.results.map(({lines_json,...r})=>({...r,lines:JSON.parse(lines_json)})),policy:returnPolicy?{revision:returnPolicy.revision,...JSON.parse(returnPolicy.value_json)}:null,cases:returnCases.results.map(({lines_json,policy_json,reservation_json,...r})=>({...r,lines:JSON.parse(lines_json),policy:JSON.parse(policy_json),reservation:reservation_json?JSON.parse(reservation_json):null})),events:returnEvents.results,attachments:returnFiles.results},
-  promotions:{rules:promotions.results,allocations:allocations.results},
+  promotions:{rules:promotions.results,allocations:allocations.results,campaignRules:(await db.prepare('SELECT * FROM st_promotion_rules ORDER BY promotion_id').all<any>()).results.map(({value_json,...row})=>({...row,rule:JSON.parse(value_json)})),codes:(await db.prepare('SELECT id,promotion_id FROM st_promotion_codes ORDER BY id').all()).results},
  }
 }

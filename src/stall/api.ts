@@ -145,7 +145,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   if(path==='/api/stall/checkout'&&request.method==='POST') {
    if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own checkout page.',403)
    const input=await body(request)
-   return json(await checkout(env,input,undefined,await clientKey(env,request),input.taxQuoteId?await verifiedTaxCustomer(request,env):undefined,await checkoutAnalytics(request,env)))
+   return json(await checkout(env,input,undefined,await clientKey(env,request),await verifiedTaxCustomer(request,env),await checkoutAnalytics(request,env)))
   }
   if(path==='/api/stall/checkout/confirm'&&request.method==='POST') {
    if(request.headers.get('origin')!==env.AUTH_ORIGIN) fail('ORIGIN','Use this shop’s own order page.',403)

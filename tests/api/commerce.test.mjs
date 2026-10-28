@@ -9,6 +9,84 @@ import { volumeStock } from './volume-stock.mjs';
 import { readCsv } from './csv-reader.mjs';
 const state=h=>h.api('/api/stall/state');
 const order=async(h,id)=>(await state(h)).orders.find(o=>o.id===id);
+const promoMailbox=n=>'synthetic-stall-'+n+String.fromCharCode(64)+'example.test';
+const campaignInput=(code,rule,overrides={})=>({code,rule,startsAt:'2000-01-01T00:00:00Z',endsAt:'2100-01-01T00:00:00Z',minimumBasketCents:0,maxUsesPerCustomer:100,maxTotalUses:100,maxDiscountCents:100000,...overrides});
+
+test('campaign discount types price exact selected merchandise and automatic offers before provider tax',async()=>{
+ const {taxCommerceInstallation}=await import('./tax-commerce.mjs'),kit=await taxCommerceInstallation(),{h}=kit;
+ try {
+  await h.command('collection.save',{handle:'synthetic-stall-mugs',title:'Mugs',description:'Selected mugs',kind:'manual',skus:['MUG-BLUE']});
+  const cases=[
+   {type:'product',targets:{skus:['MUG-BLUE']},benefit:{kind:'percentage',value:10},discount:200,amounts:[1800,500],tax:166,total:2666},
+   {type:'product',targets:{products:['MUG-BLUE']},benefit:{kind:'amount',value:333},discount:333,amounts:[1667,500],tax:154,total:2521},
+   {type:'product',targets:{collections:['synthetic-stall-mugs']},benefit:{kind:'percentage',value:25},discount:500,amounts:[1500,500],tax:142,total:2342},
+   {type:'product',targets:{collections:['synthetic-stall-mugs']},benefit:{kind:'amount',value:101},discount:101,amounts:[1899,500],tax:173,total:2772},
+   {type:'order',benefit:{kind:'amount',value:101},discount:101,amounts:[1919,480],tax:176,total:2775},
+   {type:'order',benefit:{kind:'percentage',value:10},discount:250,amounts:[1800,450],tax:166,total:2616},
+   {type:'buy_get',targets:{skus:['MUG-BLUE']},buy:{targets:{skus:['MUG-BLUE']},quantity:1,getQuantity:1,maxUses:1},benefit:{kind:'percentage',value:100},discount:1000,amounts:[1000,500],tax:100,total:1800},
+   {type:'buy_get',targets:{skus:['TOWEL-NAT']},buy:{targets:{skus:['MUG-BLUE']},spendCents:2000,getQuantity:1,maxUses:1},benefit:{kind:'amount',value:250},discount:250,amounts:[2000,250],tax:182,total:2632},
+   {type:'shipping',minimum:5000,benefit:{kind:'percentage',value:100},lines:[{sku:'MUG-BLUE',quantity:5},{sku:'TOWEL-NAT',quantity:1}],discount:200,amounts:[5000,500],tax:413,total:5913},
+  ];
+  let n=0;
+  for(const mode of ['code','automatic'])for(const entry of cases) {
+   const {minimum=0,lines,discount,amounts,tax,total,...details}=entry,code='SYNTHETIC-STALL-CAMPAIGN-'+(++n),saved=await h.api('/api/stall/promotions',campaignInput(code,{mode,...details},{minimumBasketCents:minimum}));
+   const quoted=await kit.quote({customerEmail:promoMailbox(4100+n),...(lines?{lines}:{}),...(mode==='code'?{promotionCode:code}:{})});
+   assert.equal(quoted.result.totalCents,total,code+' total');assert.equal(quoted.result.taxCents,tax,code+' tax');
+   const calculation=kit.tax.calculations.get(quoted.result.calculationId);assert.deepEqual(calculation.items.map(l=>l.amount),amounts,code+' provider net lines');
+   const quote=await h.api('/api/stall/promotions/quote',{lines:quoted.input.lines,customerEmail:quoted.input.customerEmail,shipping:quoted.input.shipping,...(mode==='code'?{promotionCode:code}:{})},{as:''});
+   assert.equal(quote.discountCents,discount);assert.equal(quote.totalCents,total-tax);assert.equal(quote.promotion.revision,saved.revision);
+   if(n===5) {
+    const bought=await kit.buy(quoted);assert.equal(bought.session.amount_total,2775);assert.deepEqual(bought.order.lines.map(l=>l.discountCents??0),[81,20]);
+    await kit.ship(bought.order.id);const refunded=await kit.refund(bought.order.id),refund=refunded.refunds.at(-1);
+    assert.equal(refund.amountCents,1040);assert.equal(refund.taxAllocation.lines[0].amount,960);assert.equal(refund.taxAllocation.taxCents,80);assert.equal(refund.status,'succeeded');
+    const report=await h.api('/api/stall/promotions/report?promotionId='+saved.id);assert.equal(report.campaign.totals.taxCents,176);assert.equal(report.campaign.totals.refundTaxCents,80);assert.equal(report.campaign.totals.netPaidCents,1735);assert.ok(report.campaign.events.some(e=>e.id==='promotion.reversed.'+bought.order.id+'.'+saved.id+'.'+refund.id));
+   }
+   if(entry.type==='buy_get'||minimum) {
+    const failed=await h.api('/api/stall/promotions/quote',{lines:[{sku:'MUG-BLUE',quantity:1}],customerEmail:promoMailbox(4200+n),...(mode==='code'?{promotionCode:code}:{})},{as:''});assert.equal(failed.applicable,false,code+' refuses nonqualifying basket');
+   }
+   await h.api('/api/stall/promotions/revoke',saved);
+  }
+ }finally{await kit.close()}
+});
+
+test('campaign combinations allocate each cent once and reserve every shared cap atomically',async()=>{
+ const stock=volumeStock(['MUG-BLUE','TOWEL-NAT']),edge=stripeEdge({forward:stock.forward}),h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-4300',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'synthetic-stall-4301',STRIPE_WEBHOOK_SECRET:'synthetic-stall-4302'},outboundService:edge.handle});
+ try {
+  await publish(h,'MUG-BLUE','Mug',1001);await publish(h,'TOWEL-NAT','Towel',501);await h.command('shipping.configure',{shippingCents:200});
+  const combines=['product','order','shipping'],first=await h.api('/api/stall/promotions',campaignInput('SYNTHETIC-STALL-4303',{mode:'code',type:'product',targets:{skus:['MUG-BLUE']},benefit:{kind:'percentage',value:10},combines})),second=await h.api('/api/stall/promotions',campaignInput('SYNTHETIC-STALL-4304',{mode:'automatic',type:'order',benefit:{kind:'amount',value:101},combines},{maxTotalUses:1,maxUsesPerCustomer:1})),shipping=await h.api('/api/stall/promotions',campaignInput('SYNTHETIC-STALL-4305',{mode:'automatic',type:'shipping',combines}));
+  const input={lines:[{sku:'MUG-BLUE',quantity:1},{sku:'TOWEL-NAT',quantity:1}],customerEmail:promoMailbox(4306),promotionCode:'SYNTHETIC-STALL-4303'};
+  const quote=await h.api('/api/stall/promotions/quote',input,{as:''});assert.equal(quote.discountCents,401);assert.equal(quote.totalCents,1301);assert.equal(quote.shippingCents,0);assert.deepEqual(quote.promotion.lineDiscounts,[{sku:'MUG-BLUE',discountCents:165},{sku:'TOWEL-NAT',discountCents:36}]);assert.equal(quote.promotion.components.length,3);
+  const attempts=[4307,4308].map(n=>({...input,customerEmail:promoMailbox(n),idempotencyKey:randomUUID(),expectedTotalCents:1301})),raced=await Promise.all(attempts.map(body=>h.request('/api/stall/checkout',{method:'POST',as:'',body})));
+  assert.deepEqual(raced.map(r=>r.status).sort(),[200,409]);assert.equal(edge.sessions.size,1);
+  const report=await h.api('/api/stall/promotions/report');assert.equal(report.totals.uniqueOrders,1);assert.equal(report.totals.consumedDiscountCents,401);assert.equal(report.allocations.length,3);assert.equal(report.events.filter(e=>e.id.startsWith('promotion.qualified.')).length,3);
+  await h.api('/api/stall/promotions/revoke',second);await h.api('/api/stall/promotions/revoke',shipping);
+  const blocked=await h.api('/api/stall/promotions',campaignInput('SYNTHETIC-STALL-4309',{mode:'automatic',type:'order',benefit:{kind:'amount',value:200},combines:[]}));
+  const solo=await h.api('/api/stall/promotions/quote',input,{as:''});assert.equal(solo.totalCents,1602);assert.equal(solo.promotion.id,first.id);assert.ok(solo.messages.some(m=>m.reason==='COMBINATION'));
+  await h.api('/api/stall/promotions/revoke',blocked);
+ }finally{await h.close()}
+});
+
+test('campaign single-use exports refuse reuse and retain per-code redemption after cancellation',async()=>{
+ const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret='synthetic-stall-4400',h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-4401',STRIPE_WEBHOOK_SECRET:secret},outboundService:async request=>{const path=new URL(request.url).pathname;if(path.startsWith('/v1/payment_intents/')){const session=[...edge.sessions.values()].find(s=>s.payment_intent===path.split('/').at(-1));return Response.json({id:session.payment_intent,object:'payment_intent',amount:session.amount_total,currency:'usd',status:'succeeded',metadata:{stall_order_id:session.client_reference_id},latest_charge:{id:'synthetic-stall-4408',object:'charge',payment_intent:session.payment_intent,outcome:{risk_level:'elevated',risk_score:80}}})}return edge.handle(request)}});
+ try {
+  await publish(h,'MUG-BLUE','Mug',1000);await h.command('shipping.configure',{shippingCents:200});
+  const promotion=await h.api('/api/stall/promotions',campaignInput('SYNTHETIC-STALL-4402',{mode:'code',type:'order',benefit:{kind:'amount',value:101}}));
+  await h.api('/api/stall/promotions/codes',{...promotion,count:3},{as:'',status:401});
+  const batch=await h.api('/api/stall/promotions/codes',{...promotion,count:3});assert.equal(batch.codes.length,3);assert.equal(new Set(batch.codes.map(c=>c.code)).size,3);assert.deepEqual(readCsv(batch.csv).map(c=>c.code),batch.codes.map(c=>c.code));
+  const input={lines:[{sku:'MUG-BLUE',quantity:2}],customerEmail:promoMailbox(4403),promotionCode:batch.codes[0].code,idempotencyKey:randomUUID(),expectedTotalCents:2099};
+  edge.loseNextCheckoutResponse();await h.api('/api/stall/checkout',input,{as:'',status:503});const started=await h.api('/api/stall/checkout',input,{as:''});assert.equal(edge.sessions.size,1);
+  const second=await h.api('/api/stall/promotions/quote',{...input,customerEmail:promoMailbox(4404)},{as:''});assert.equal(second.reason,'CODE_USED');
+  await h.api('/api/stall/checkout',{...input,customerEmail:promoMailbox(4404),idempotencyKey:randomUUID()},{as:'',status:409});
+  const session=[...edge.sessions.values()][0],paid=edge.pay(session.id);
+  await h.command('risk.configure',{enabled:true,holdElevated:true,holdHighest:true,holdAddressMismatch:true,holdPaymentMismatch:true,scoreThreshold:null});
+  assert.equal((await deliverWebhook(h,secret,paid)).response.status,200);assert.equal((await deliverWebhook(h,secret,paid)).response.status,200);
+  let risk=(await h.api('/api/stall/risk')).queue.find(r=>r.orderId===started.orderId);assert.ok(risk);
+  await h.command('risk.cancel',{orderId:started.orderId,revision:risk.revision});
+  const report=await h.api('/api/stall/promotions/report?promotionId='+promotion.id);assert.equal(report.totals.paidUses,1);assert.equal(report.totals.committedDiscountCents,101);assert.equal(report.campaign.totals.canceledOrders,1);assert.equal(report.campaign.totals.netPaidCents,2099);assert.equal(report.campaign.codes.find(c=>c.id===batch.codes[0].id).status,'used');assert.ok(report.campaign.events.some(e=>e.id==='promotion.reversed.cancel.'+started.orderId+'.'+promotion.id));
+  assert.equal((await h.api('/api/stall/promotions/quote',{...input,customerEmail:promoMailbox(4405)},{as:''})).reason,'CODE_USED');
+  const exported=await archive(h);const text=JSON.stringify(exported);assert.ok(text.includes('st_promotion_rules'));assert.ok(!text.includes(batch.codes[0].code));assert.ok(!JSON.stringify(report).includes(batch.codes[0].code));
+ }finally{await h.close();await pier.close()}
+});
 test('free shipping promotions reserve real checkout budgets atomically and redeem only verified paid orders',async()=>{
  const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex'),received=[];
  const h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'synthetic-stall-801',STRIPE_WEBHOOK_SECRET:secret},outboundService:async request=>{

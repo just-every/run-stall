@@ -575,6 +575,10 @@
       "sha256": "5c7190c6d2908d1f7855ac9c51ef7b7a4bab0cca878fe0f8736c2d9d77c6364f",
       "executable": false
     },
+    "migrations/core/0054_promotion_campaigns.sql": {
+      "sha256": "da703863c641b6e8124312ccf21235e40a2c384455a8649441e5e8ddf1e5fec0",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "4c55a4e5db5d0015e544fea492219fa45ac5f74dd66a36b7803873cc710741ae",
       "executable": false
@@ -3056,7 +3060,7 @@
       "executable": false
     },
     "src/stall/analytics/money.ts": {
-      "sha256": "20b6aa0eeba472454e9db121a49bbc79bd8c3db1808965805dbdfee4661ede50",
+      "sha256": "90ee421ca0d7ea2a4a68fa7c42955163101d1712247be55f34970613b3567c3e",
       "executable": false
     },
     "src/stall/analytics/report-api.ts": {
@@ -3064,7 +3068,7 @@
       "executable": false
     },
     "src/stall/analytics/report-model.ts": {
-      "sha256": "7ecd8303cd77d9ccd6bd4539dc24842d65a8c290643c15a0caaa6a7263bccd11",
+      "sha256": "ca3d6f5e640e2e22f67fb36a828b2991caf7b330caccbe135c6ab05cbe1cb9b5",
       "executable": false
     },
     "src/stall/analytics/report.ts": {
@@ -3076,7 +3080,7 @@
       "executable": false
     },
     "src/stall/api.ts": {
-      "sha256": "9874a9f1cc2700ee8ac47516c6b3a52eb7431e06d4c2d6a9272a7b2654e05cb3",
+      "sha256": "7ad85ecb26e019f2c15d23d9ed9caec4bff5b6ef927d2939775ba5445db5d0c8",
       "executable": false
     },
     "src/stall/base-exports.d.ts": {
@@ -3084,7 +3088,7 @@
       "executable": false
     },
     "src/stall/business-extensions.ts": {
-      "sha256": "477d10f98addde158485002be58beae4e47cbfe831e0add39f2a8cc0bbd38da3",
+      "sha256": "7084aedb14686ba31af9dd3c6d3f9a395b595c5103482c6a7d644fe5df02fdca",
       "executable": false
     },
     "src/stall/buy-links.ts": {
@@ -3096,7 +3100,7 @@
       "executable": false
     },
     "src/stall/checkout.ts": {
-      "sha256": "7836c336bdd1073b4037c13214963d597a5ff813f952660be6c2a08db6938d5f",
+      "sha256": "e01b1c9a97a475d3f2a02a92921bc1c63bb5223f0862d9b99bac7a9cf4041bc8",
       "executable": false
     },
     "src/stall/collections.ts": {
@@ -3120,7 +3124,7 @@
       "executable": false
     },
     "src/stall/customers/cart.ts": {
-      "sha256": "5c99bb2774a70059912871059a10d151a9fb643b478768d52ba453f63571fa1c",
+      "sha256": "759bdaba4fa0a64f26d983097d74af78bb87c29b2002ee903dd1d9f7f9d55eb7",
       "executable": false
     },
     "src/stall/customers/checkout-details.ts": {
@@ -3300,7 +3304,7 @@
       "executable": false
     },
     "src/stall/model.ts": {
-      "sha256": "7b8f320cca14c7a843f92fd6a6d8399226ca6a5cdee3239f8a12488a1c20215a",
+      "sha256": "889e65bbc3ef8746d3372a07fa4fca139ed60ea33ceb2467e2e6337ce9539b94",
       "executable": false
     },
     "src/stall/operations.ts": {
@@ -3392,27 +3396,39 @@
       "executable": false
     },
     "src/stall/promotions/eligibility.ts": {
-      "sha256": "016d62df526bc60a89918066e542b41b77140666d0405a98ba89637ea86ae0fc",
+      "sha256": "08801863dc2af557e93100f3ee19f408f544c4007d5fc89bd5f23e2904ff3f43",
+      "executable": false
+    },
+    "src/stall/promotions/engine.ts": {
+      "sha256": "954a9e370c26a6ddf1ffea782ca4f1c47929219be1ad930099141c6d38ee1c00",
       "executable": false
     },
     "src/stall/promotions/holds.ts": {
       "sha256": "9bce3356a397bc0e44b081005c2a3a900f3875b18e085d547d8a835fcefab83c",
       "executable": false
     },
+    "src/stall/promotions/identity.ts": {
+      "sha256": "ca00383b6455ae4713a5244f42fb6e7dc24bc87636b820ed2488af55207d8574",
+      "executable": false
+    },
     "src/stall/promotions/index.ts": {
-      "sha256": "f51debfe920014283c8b49ed00d96d235ec7de64bb2bf95cb8779af13bf28409",
+      "sha256": "9795d8aa8c9d4c8191574505a12d99afdf375d998d133fc11b53c24d33d7caba",
       "executable": false
     },
     "src/stall/promotions/management.ts": {
-      "sha256": "48df64709c6fe76bdd35925d6d11aa9971b58b7b98e4992cc8753169cfc5ed7e",
+      "sha256": "a68b7c140d12939d6bbb09b8bc5530b6a87c9617545b02b0f09edcdddc990743",
       "executable": false
     },
     "src/stall/promotions/model.ts": {
-      "sha256": "f4ac4a5298bfffdad34e151e8e1508a5355b34e529cf3094e3bdbc5e973474ec",
+      "sha256": "f4cc8f303e6cf7517e976586922c605acb304123d23a208b7aaef66c865b0c7e",
       "executable": false
     },
     "src/stall/promotions/report.ts": {
-      "sha256": "0895f1c8156718b1aa6ce25e6481799ddec38b359b9b11e2b983ec9c8295e669",
+      "sha256": "dd6f60295030b596cadf3f2a3d587ed437814aaf43dcf6e0bc59ba47533ecb26",
+      "executable": false
+    },
+    "src/stall/promotions/rules.ts": {
+      "sha256": "87da262927e423c4cc1724c9c86842d6391af884d070fd55a99f92102a0625eb",
       "executable": false
     },
     "src/stall/proposals/changes.ts": {
@@ -3436,7 +3452,7 @@
       "executable": false
     },
     "src/stall/refund-values.ts": {
-      "sha256": "36fbf81c76dd4596c6957a6f59e095ac7c65cde507ec8ca48a2fc6a10dbde69a",
+      "sha256": "234bd9525f1aa9846c077e5c78de969ee277d4efe14e45b0daef6cee1505503f",
       "executable": false
     },
     "src/stall/refunds.ts": {
@@ -3536,7 +3552,7 @@
       "executable": false
     },
     "src/stall/stripe.ts": {
-      "sha256": "f2b33ad659af63e13d8e2a50264cd0921981912154650fa00ebbf2da8fdab51e",
+      "sha256": "a2dc3274641e2682071b8655ba554fd5ccf7577fedde498593b5ed3f10856b14",
       "executable": false
     },
     "src/stall/tax/commerce-provider.ts": {
@@ -3544,7 +3560,7 @@
       "executable": false
     },
     "src/stall/tax/commerce-quote.ts": {
-      "sha256": "3bb283d0a0cb690f671f8162fd96fb84edd66e201e0b79a99623c3c544c717c6",
+      "sha256": "22ee278b3434ab684c77d083b0a830917f0e8cfc66459222d7bc3115954dff69",
       "executable": false
     },
     "src/stall/tax/commerce.ts": {
@@ -3572,7 +3588,7 @@
       "executable": false
     },
     "src/stall/tax/transactions-refunds.ts": {
-      "sha256": "4ccf631188b0dcd0270ec7fece54f76b126bb38c841773abe1f6f59c9c9e500b",
+      "sha256": "d2da912ae62365bd532491e7a04d4388ada9231ddc07b22d633cf9fad577bb28",
       "executable": false
     },
     "src/stall/tax/transactions.ts": {
@@ -4016,7 +4032,7 @@
       "executable": false
     },
     "tests/api/commerce.test.mjs": {
-      "sha256": "8b7524cde6ad0805a3ec0bfd84b8a145c5f696560d062cd917b4ae21fd3cd8f6",
+      "sha256": "fe2bf6096dfdf28c8adc60dd19222a46a911cab7ca580e9aaf99079cd907fdfa",
       "executable": false
     },
     "tests/api/csv-reader.mjs": {

@@ -1,3 +1,4 @@
+import { linePaid,portion } from '../promotions/rules'
 import { fail,type Order,type Refund } from '../model'
 import type { TaxItem,TaxJurisdiction } from './commerce-provider'
 import type { TaxRefundAllocation } from './transactions'
@@ -16,7 +17,7 @@ function attribute(taxCents:number,original:TaxJurisdiction[],reversed:TaxJurisd
  for(let left=taxCents-floors.reduce((n,v)=>n+v,0),k=0;left>0;left--,k++)floors[order[k].i]++
  return original.flatMap((j,i)=>floors[i]>0?[{...j,amountCents:floors[i],taxableCents:taxableCents(j)}]:[])
 }
-export function refundTaxAllocation(order:{tax?:Order['tax'];lines:{sku:string;quantity:number;unitCents:number}[];shippingCents?:number|null;refunds:Refund[]},refund:Pick<Refund,'kind'|'lines'|'amountCents'>):TaxRefundAllocation|undefined {
+export function refundTaxAllocation(order:{tax?:Order['tax'];lines:{sku:string;quantity:number;unitCents:number;discountCents?:number}[];shippingCents?:number|null;refunds:Refund[]},refund:Pick<Refund,'kind'|'lines'|'amountCents'>):TaxRefundAllocation|undefined {
  if(!order.tax||refund.kind==='address_change')return undefined
  if(!order.tax.transactionId)fail('TAX_RECOVERY','Record the paid order’s original Stripe Tax transaction before preparing a refund.')
  if(refund.kind==='goodwill')return undefined
@@ -33,7 +34,7 @@ export function refundTaxAllocation(order:{tax?:Order['tax'];lines:{sku:string;q
   if(!tax?.providerLineId)fail('TAX_RECOVERY','Recover the original tax transaction’s purchased line references.')
   const before=committed.reduce((n,r)=>n+(r.lines.find(l=>l.sku===line.sku)?.quantity??0),0)
   const taxCents=share(tax.taxCents,before,line.quantity,source.quantity)
-  return {...tax,amount:line.quantity*source.unitCents,quantity:line.quantity,taxCents,taxableCents:share(tax.taxableCents,before,line.quantity,source.quantity),exemptCents:share(tax.exemptCents,before,line.quantity,source.quantity),jurisdictions:attribute(taxCents,tax.jurisdictions,committed.map(r=>r.taxAllocation?.lines.find(l=>l.reference===tax.reference)?.jurisdictions??[]),j=>share(j.taxableCents,before,line.quantity,source.quantity))}
+  return {...tax,amount:portion(linePaid(source),before,line.quantity,source.quantity),quantity:line.quantity,taxCents,taxableCents:share(tax.taxableCents,before,line.quantity,source.quantity),exemptCents:share(tax.exemptCents,before,line.quantity,source.quantity),jurisdictions:attribute(taxCents,tax.jurisdictions,committed.map(r=>r.taxAllocation?.lines.find(l=>l.reference===tax.reference)?.jurisdictions??[]),j=>share(j.taxableCents,before,line.quantity,source.quantity))}
  })
  return {lines,shippingCents,shippingTaxCents,taxCents:lines.reduce((n,l)=>n+l.taxCents,shippingTaxCents),shippingJurisdictions}
 }

@@ -1,6 +1,6 @@
 import { fail,text } from '../model'
 
-export type PromotionSnapshot={id:string;revision:string;kind:'free_shipping';originalShippingCents:number;discountCents:number}
+export type PromotionSnapshot={id:string;revision:string;kind:'free_shipping'|'product'|'order'|'buy_get'|'combined';originalShippingCents:number;discountCents:number;shippingDiscountCents?:number;lineDiscounts?:{sku:string;discountCents:number}[];rule?:import('./rules').Rule;codeId?:string;components?:PromotionSnapshot[]}
 export type Promotion={id:string;revision:string;code_hash:string;starts_at:string;ends_at:string;minimum_cents:number;max_customer_uses:number;max_total_uses:number;max_discount_cents:number;revoked_at:string|null;created_at:string;updated_at:string}
 export function promotionCode(value:unknown) {
  const code=text(value,'Promotion code',64).toUpperCase()

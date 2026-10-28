@@ -18,13 +18,14 @@ export function orderMoney(order:ReportOrder,cost:CostRecord|null,costEnabled:bo
  const refundedTax=refunds.reduce((n,r)=>n+(r.taxAllocation?.taxCents??(r.kind==='address_change'?(order.tax?.taxCents??0):0)),0)
  const refundedShipping=refunds.reduce((n,r)=>n+(r.taxAllocation?.shippingCents??(r.kind==='shipping'?r.amountCents:r.kind==='address_change'?shipping:0)),0)
  const merchandiseRefund=refundsCents-refundedTax-refundedShipping
- const netSalesCents=grossSalesCents-merchandiseRefund
+ const merchandiseDiscount=order.lines.reduce((n,l)=>n+(l.discountCents??0),0)
+ const netSalesCents=grossSalesCents-merchandiseDiscount-merchandiseRefund
  const lineRefunds=order.lines.map(line=>fullReversal?line.quantity:refunds.reduce((n,r)=>n+(r.lines.find(l=>l.sku===line.sku)?.quantity??0),0))
  const itemWeights=order.lines.map((line,i)=>lineRefunds[i]*line.unitCents)
  const itemRefunds=itemWeights.reduce((n,v)=>n+v,0)
  const direct=allocate(Math.min(merchandiseRefund,itemRefunds),itemWeights),other=allocate(Math.max(0,merchandiseRefund-itemRefunds),order.lines.map(line=>line.quantity*line.unitCents))
  const allocated=direct.map((value,i)=>value+other[i])
- const lines=order.lines.map((line,i)=>({sku:line.sku,productSku:line.productSku??line.sku,name:line.name,quantity:line.quantity,unitCents:line.unitCents,refundedQuantity:lineRefunds[i],grossSalesCents:line.quantity*line.unitCents,netSalesCents:line.quantity*line.unitCents-allocated[i]}))
+ const lines=order.lines.map((line,i)=>({sku:line.sku,productSku:line.productSku??line.sku,name:line.name,quantity:line.quantity,unitCents:line.unitCents,refundedQuantity:lineRefunds[i],grossSalesCents:line.quantity*line.unitCents,netSalesCents:line.quantity*line.unitCents-(line.discountCents??0)-allocated[i]}))
  const shippingCollectedCents=shipping-refundedShipping,taxCents=order.tax?order.tax.taxCents-refundedTax:null
  const shippingCostCents=costEnabled?(cost?.shippingCostCents??null):null,feesCents=costEnabled?(cost?.feesCents??null):null,itemCostCents=costEnabled?(cost?.itemCostCents??null):null
  return {lines,money:{grossSalesCents,discountsCents,netSalesCents,taxCents,shippingCollectedCents,refundsCents,netCollectedCents:order.totalCents-refundsCents,shippingCostCents,feesCents,itemCostCents,contributionMarginCents:shippingCostCents===null||feesCents===null||itemCostCents===null?null:netSalesCents+shippingCollectedCents-shippingCostCents-feesCents-itemCostCents,giftLiabilityCents:costEnabled?(cost?.giftLiabilityCents??null):null}}
