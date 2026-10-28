@@ -4256,7 +4256,7 @@
       "executable": false
     },
     "tests/ui/review-import-journey.mjs": {
-      "sha256": "f3ceb9b928cae2ca9c18036ac9ae072589a40c7b114721f8b40e9aad993b3be2",
+      "sha256": "29319cd4b9e6b7130a442f5fa437a02525775db1718c633f56c964e7256bd43a",
       "executable": false
     },
     "tests/ui/risk-journey.mjs": {

@@ -1,39 +1,25 @@
 import assert from 'node:assert/strict'
 import { chromium, expect } from '@playwright/test'
-import { execFile, spawn } from 'node:child_process'
+import { createTestHarness } from 'wrangler'
 import { randomBytes } from 'node:crypto'
 import { createServer } from 'node:http'
-import { mkdtemp, mkdir, readFile, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir, readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
-import { promisify } from 'node:util'
 import { volumeStock } from '../api/volume-stock.mjs'
 import { solidPng } from '../api/network.mjs'
 import { finishCleanup } from '../owned-dev.mjs'
 
 // Run after `rer build`. The emitted Worker owns sessions, migrations and review data.
 // Only the external stock desk is simulated; API coverage proves retired source media.
-const exec = promisify(execFile), persist = await mkdtemp(join(tmpdir(), 'stall-review-import-'))
+// The supported harness serves the emitted artifact directly, without dev's keep-alive proxy.
 const screenshots = resolve(process.env.STALL_SCREENSHOTS ?? './test-results/reviews'), stock = volumeStock(['synthetic-stall-1511'])
 stock.setAvailable('synthetic-stall-1511', '12')
-let worker, browser, edge, page, journeyError, cleaning, workerError
-const pause = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
+let worker, browser, edge, page, journeyError, cleaning
 function cleanup() {
   return cleaning ??= (async () => {
     await browser?.close()
-    if (worker?.pid && worker.exitCode === null && worker.signalCode === null) {
-      const exited = new Promise(resolve => worker.once('exit', resolve))
-      worker.kill('SIGTERM')
-      let timer
-      try {
-        if (!await Promise.race([exited.then(() => true), new Promise(resolve => { timer = setTimeout(() => resolve(false), 10000) })])) {
-          worker.kill('SIGKILL')
-          await exited
-        }
-      } finally { clearTimeout(timer) }
-    }
+    await worker?.close()
     if (edge?.listening) { edge.closeAllConnections(); await new Promise((resolve, reject) => edge.close(error => error ? reject(error) : resolve())) }
-    await rm(persist, { recursive: true, force: true })
   })()
 }
 const interrupted = () => { void cleanup().then(() => process.exit(1), () => process.exit(1)) }
@@ -49,30 +35,17 @@ try {
   })
   await new Promise(resolve => edge.listen(0, '127.0.0.1', resolve))
   const edgeOrigin = `http://127.0.0.1:${edge.address().port}`
-  const portSocket = createServer()
-  await new Promise(resolve => portSocket.listen(0, '127.0.0.1', resolve))
-  const port = portSocket.address().port
-  await new Promise(resolve => portSocket.close(resolve))
-  const origin = `http://127.0.0.1:${port}`, setup = randomBytes(32).toString('hex')
-  const env = { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' }, config = 'dist/server/wrangler.json'
-  await exec(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'd1', 'migrations', 'apply', 'foundation', '--local', '--persist-to', persist, '--config', config], { env })
+  const setup = randomBytes(32).toString('hex'), config = 'dist/server/wrangler.json'
+  let origin = 'http://localhost:0'
   const bindings = { AUTH_ORIGIN: origin, AUTH_LOCAL: 'true', RER_DEMO: '0', RER_DEV_ORIGIN: '', OWNER_EMAIL: 'synthetic-stall-1512@example.test', SESSION_SECRET: randomBytes(32).toString('hex'), SETUP_TOKEN: setup, MAIL_PROVIDER: 'development', PIER_ORIGIN: edgeOrigin, PIER_SESSION: 'synthetic-stall-1513', PIER_CUSTOMER_ID: 'shop' }
-  const args = ['node_modules/wrangler/bin/wrangler.js', 'dev', '--inspector-port', '0', '--local', '--persist-to', persist, '--ip', '127.0.0.1', '--config', config, '--port', String(port), ...Object.entries(bindings).flatMap(([key, value]) => ['--var', `${key}:${value}`])]
-  worker = spawn(process.execPath, args, { env, stdio: ['ignore', 'pipe', 'pipe'] })
-  // Runtime output may contain synthetic credentials; consume it without logging it.
-  worker.stdout.resume(); worker.stderr.resume(); worker.once('error', error => { workerError = error.code ?? 'spawn' })
-  let ready = false
-  for (let attempt = 0; attempt < 160; attempt++) {
-    assert.ok(!workerError && worker.exitCode === null && worker.signalCode === null, 'The owned emitted Worker stopped before readiness')
-    try { ready = (await fetch(origin + '/health')).ok } catch {}
-    if (ready) break
-    await pause(250)
-  }
-  assert.ok(ready, 'The emitted Worker did not become healthy')
+  worker = createTestHarness({ workers: [{ configPath: config, vars: bindings }] })
+  origin = (await worker.listen()).url.origin
+  await worker.update({ workers: [{ configPath: config, vars: { ...bindings, AUTH_ORIGIN: origin } }] })
+  await worker.getWorker().applyD1Migrations('DB')
+  assert.equal((await fetch(origin + '/health')).status, 200, 'The emitted Worker is healthy')
   let cookie = ''
   async function request(path, { body, method = body === undefined ? 'GET' : 'POST', bytes, mime } = {}) {
-    // Avoid the local ProxyWorker's idle keep-alive close race without replaying writes.
-    return fetch(origin + path, { method, redirect: 'manual', headers: { connection: 'close', origin, ...(cookie ? { cookie } : {}), 'content-type': mime ?? 'application/json' }, ...(bytes ? { body: bytes } : body === undefined ? {} : { body: JSON.stringify(body) }) })
+    return fetch(origin + path, { method, redirect: 'manual', headers: { origin, ...(cookie ? { cookie } : {}), 'content-type': mime ?? 'application/json' }, ...(bytes ? { body: bytes } : body === undefined ? {} : { body: JSON.stringify(body) }) })
   }
   async function api(path, body, options) {
     const response = await request(path, { body, ...options }), value = await response.json()
