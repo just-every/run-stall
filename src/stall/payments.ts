@@ -45,7 +45,7 @@ export async function reservePaid(env:Bindings,order:Order,actor?:Actor):Promise
   result=state.orders.find((x:any)=>x.id===order.reservation!.id)
  } else result=await reserveOrder(env,order)
  if(typeof result?.id!=='string'||typeof result?.reference!=='string'||!Array.isArray(result?.lines)) fail('PIER_RESPONSE','Pier returned an incomplete reservation. Reconcile this order.',502)
- const full=fullyReserved(result,order.lines)
+ const full=fullyReserved(result,order.lines,!!order.promotion?.lineDiscounts?.some(l=>l.discountCents>0))
  const reservation={id:result.id,reference:result.reference,lines:result.lines},status=full?'reserved' as const:'shortfall' as const
  if(order.status===status&&JSON.stringify(order.reservation)===JSON.stringify(reservation)) return order
  return saveOrder(env,{...order,reservation,status},full?'stock.reserved':'stock.shortfall',actor)

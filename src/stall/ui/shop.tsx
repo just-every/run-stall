@@ -51,7 +51,7 @@ function ShopBrowse() {
   const shippingInput = service ? { service: service.code, ...(zipOf(zip) ? { postalCode: zipOf(zip) } : {}), quote: service.quote } : undefined
   const promotion = usePromotionCode({ lines, customerEmail: email.trim(), shipping: shippingInput, subtotal, shippingCents: shipping })
   useEffect(() => { setReview(false); key.current = '' }, [service?.code, service?.quote])
-  const tax=useTaxCheckout({lines,customerEmail:email.trim(),shipping:shippingInput,...(promotion.applied?{promotionCode:promotion.code.trim()}:{})},zip,value=>{setReview(false);key.current='';setZip(value)})
+  const tax=useTaxCheckout({lines,customerEmail:email.trim(),shipping:shippingInput,...(promotion.applied&&promotion.code.trim()?{promotionCode:promotion.code.trim()}:{})},zip,value=>{setReview(false);key.current='';setZip(value)})
   const total = tax.quote?.totalCents??(subtotal + shipping - (promotion.applied?.discountCents ?? 0))
   useEffect(()=>{setReview(false);key.current=''},[tax.quote?.quoteId])
   const invalid = items.some(item => quantities[item.sku] && (!Number.isSafeInteger(Number(quantities[item.sku])) || Number(quantities[item.sku]) < 0 || Number(quantities[item.sku]) > Number(item.available)))
@@ -63,7 +63,7 @@ function ShopBrowse() {
     lock.current = true; setBusy(true); setError('')
     key.current ||= crypto.randomUUID()
     try {
-      const result = await request<{ url: string }>('/api/stall/checkout', { ...(tax.quote?{taxQuoteId:tax.quote.quoteId}:{}),...(promotion.applied ? { promotionCode: promotion.code.trim() } : {}), customerEmail: email.trim(), lines: chosen.map(item => ({ sku: item.sku, quantity: Number(quantities[item.sku]), ...(extras[item.sku]?.personalization ? { personalization: extras[item.sku].personalization } : {}) })), expectedTotalCents: total, shipping: { service: service!.code, ...(zipOf(zip) ? { postalCode: zipOf(zip) } : {}), quote: service!.quote }, idempotencyKey: key.current })
+      const result = await request<{ url: string }>('/api/stall/checkout', { ...(tax.quote?{taxQuoteId:tax.quote.quoteId}:{}),...(promotion.applied&&promotion.code.trim() ? { promotionCode: promotion.code.trim() } : {}), customerEmail: email.trim(), lines: chosen.map(item => ({ sku: item.sku, quantity: Number(quantities[item.sku]), ...(extras[item.sku]?.personalization ? { personalization: extras[item.sku].personalization } : {}) })), expectedTotalCents: total, shipping: { service: service!.code, ...(zipOf(zip) ? { postalCode: zipOf(zip) } : {}), quote: service!.quote }, idempotencyKey: key.current })
       const url = new URL(result.url, window.location.origin)
       if (!(url.protocol === 'https:' && url.hostname === 'checkout.stripe.com') && !(url.origin === window.location.origin && url.pathname === '/order')) throw new Error('The payment provider did not return a valid hosted Stripe checkout. Contact the shop.')
       window.location.assign(url.href)

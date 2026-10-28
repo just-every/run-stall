@@ -1,3 +1,4 @@
+import { netLineCents } from './promotions/paid-values'
 import type { Bindings } from '../auth.server'
 import { fail,type Line,type Order } from './model'
 import { products } from './store'
@@ -67,11 +68,11 @@ async function commandWork(env:Bindings,o:Order,command:Parameters<typeof pierWr
 }
 export async function reserveOrder(env:Bindings,o:Order) {
  assertOriginalPier(env,o)
- const result=await commandWork(env,o,{commandId:`stall-reserve-${o.id}`,type:'order.create',payload:{customerId:o.pierCustomerId,channel:'stall',currency:o.currency.toUpperCase(),lines:o.lines.map(l=>({itemId:l.itemId,quantity:String(l.quantity),price:(l.unitCents/100).toFixed(2)}))}},o.id)
+ const result=await commandWork(env,o,{commandId:`stall-reserve-${o.id}`,type:'order.create',payload:{customerId:o.pierCustomerId,channel:'stall',currency:o.currency.toUpperCase(),lines:o.lines.flatMap(l=>{const cents=netLineCents(o,l),unit=Math.floor(cents/l.quantity),extra=cents%l.quantity;return [{itemId:l.itemId,quantity:l.quantity-extra,price:unit},{itemId:l.itemId,quantity:extra,price:unit+1}].filter(b=>b.quantity>0).map(b=>({...b,quantity:String(b.quantity),price:(b.price/100).toFixed(2)}))})}},o.id)
  if(typeof result?.id!=='string') fail('PIER_RESPONSE','Pier did not return the reserved order. Reconcile the same order to recover it.',502)
  // Pier's order contains merchandise only. Allocate that portion of the verified
  // charge to it; the separate shipping charge and gross payment remain in Stall.
- const merchandiseCents=o.lines.reduce((sum,line)=>sum+line.quantity*line.unitCents,0)
+ const merchandiseCents=o.lines.reduce((sum,line)=>sum+netLineCents(o,line),0)
  if(o.payment&&o.payment.source!=='staff') await commandWork(env,o,{commandId:`stall-payment-${o.id}`,type:'order.channelPayment',payload:{orderId:result.id,payment:{provider:'stripe',reference:o.payment.intentId,amount:(merchandiseCents/100).toFixed(2),currency:o.currency.toUpperCase(),paidAt:o.payment.paidAt,orderReference:o.id}}},o.payment.intentId)
  return result
 }
@@ -89,19 +90,18 @@ export async function reserveExchange(env:Bindings,o:Order,caseId:string,lines:{
  if(typeof result?.id!=='string'||!fullyReserved(result,wanted as unknown as Line[])) fail('PIER_RESPONSE','Pier did not reserve the full replacement. Try the same decision again to recover it.',502)
  return {pierOrderId:result.id as string,lines:lines.map(({sku,quantity})=>({sku,quantity}))}
 }
-export function fullyReserved(result:any,lines:Line[]) {
- return Array.isArray(result?.lines)&&result.lines.length===lines.length&&lines.every(l=>{
+export function fullyReserved(result:any,lines:Line[],splitLines=false) {
+ return Array.isArray(result?.lines)&&(splitLines?result.lines.length>=lines.length&&result.lines.length<=lines.length*2:result.lines.length===lines.length)&&result.lines.every((x:any)=>lines.some(l=>l.itemId===x.itemId))&&lines.every(l=>{
   const matches=result.lines.filter((x:any)=>x.itemId===l.itemId)
-  return matches.length===1&&decimal(matches[0].quantity)===BigInt(l.quantity)*SCALE&&decimal(matches[0].reserved)===BigInt(l.quantity)*SCALE&&decimal(matches[0].cancelled)===0n&&decimal(matches[0].dispatched)===0n
+  return (splitLines?matches.length>=1&&matches.length<=2:matches.length===1)&&matches.reduce((n:bigint,x:any)=>n+decimal(x.quantity),0n)===BigInt(l.quantity)*SCALE&&matches.reduce((n:bigint,x:any)=>n+decimal(x.reserved),0n)===BigInt(l.quantity)*SCALE&&matches.every((x:any)=>decimal(x.quantity)>0n&&decimal(x.cancelled)===0n&&decimal(x.dispatched)===0n)
  })
 }
 export async function dispatchOrder(env:Bindings,o:Order) {
  assertOriginalPier(env,o)
  if(!o.reservation||!o.shipment) fail('RESERVATION','Reserve stock and prepare a shipment first.')
- const lines=o.lines.map(l=>{
-  const line=o.reservation!.lines.find(x=>x.itemId===l.itemId)
-  if(typeof line?.id!=='string') fail('PIER_RESPONSE','Pier order line is missing. Reconcile this order first.',502)
-  return {orderLineId:line.id,quantity:String(l.quantity)}
+ const lines=o.reservation.lines.map(line=>{
+  if(typeof line?.id!=='string'||!o.lines.some(l=>l.itemId===line.itemId))fail('PIER_RESPONSE','Pier order line is missing. Reconcile this order first.',502)
+  return {orderLineId:line.id,quantity:String(line.quantity)}
  })
  return commandWork(env,o,{commandId:`stall-ship-${o.shipment.id}`,type:'dispatch.create',payload:{orderId:o.reservation.id,shipmentReference:o.shipment.reference,lines}},o.reservation.id)
 }

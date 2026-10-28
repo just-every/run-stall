@@ -81,7 +81,7 @@ export async function ownOrders(env:Bindings,a:App,c:Customer,url:URL) {
 
 export async function cartQuote(env:Bindings,a:App,c:Customer,id:string,p:any) {
  const found=await cart(env,a,c,id),quote=await quoteShipping(env.DB,await priceLines(env,JSON.parse(found.value_json)),postalCodeOf(p.postalCode))
- const promotion=p.promotionCode===undefined?undefined:await promotionQuote(env,{lines:JSON.parse(found.value_json),customerEmail:c.actor.email,promotionCode:p.promotionCode,shipping:p.shipping??{postalCode:p.postalCode}})
+ const promotion=await promotionQuote(env,{lines:JSON.parse(found.value_json),customerEmail:c.actor.email,promotionCode:p.promotionCode,shipping:p.shipping??{postalCode:p.postalCode}},c.actor.email.toLowerCase())
  await fenced(env,a,c);return {...quote,...(promotion?{promotion}:{})}
 }
 export async function confirmCheckout(env:Bindings,a:App,c:Customer,p:any) {
