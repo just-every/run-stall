@@ -200,7 +200,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "cee742f7330f719f1bf55bce08d2b31d7e19eebd58601c45274c5b4d5bb2f16a",
+      "sha256": "13cc580016fa0d999909ddab3a54444db9e616a44b80f23ce0a50d64a14cb129",
       "executable": false
     },
     "AGENTS.md": {
@@ -224,7 +224,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "e4441a2f9e6d246548be23be5369b3b92946d5e1d01d0ef18cf81c9382a7c698",
+      "sha256": "5a9d83f138f6ff1d1f4dccbed5500d6938bced7b73198e25eac8795ba739e995",
       "executable": false
     },
     "deploy-demo.json": {
@@ -272,7 +272,7 @@
       "executable": false
     },
     "docs/contract/DONE-AUDIT.md": {
-      "sha256": "d9d47fefcb027d8193ddb97708a8755ea7bfe7f876ffe1ea192acdcb79b475df",
+      "sha256": "e8cfd798b30b7ad3a1354e96f0146675ad1b451631ab1c54dd080a7b87885aa6",
       "executable": false
     },
     "docs/contract/ID-MAP.json": {
@@ -4256,7 +4256,7 @@
       "executable": false
     },
     "tests/ui/review-import-journey.mjs": {
-      "sha256": "1653a0e71219ff530ed7d3bc10513c059b3fa12f6dd6a7539bbbf74141f1cc26",
+      "sha256": "f3ceb9b928cae2ca9c18036ac9ae072589a40c7b114721f8b40e9aad993b3be2",
       "executable": false
     },
     "tests/ui/risk-journey.mjs": {

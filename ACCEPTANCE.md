@@ -797,7 +797,7 @@ Core · target · **missing**
 
 Core · target · **partial** · Cites BASE-DATA-003, BASE-ROLE-001
 
-**Requirement.** Merchants inspect date/channel/product/variant/customer reports and traffic-source reports (sessions, conversion and sales by referrer, source and medium, UTM campaign, source, medium and content, landing page, device and location, under a stated last non-direct-click attribution window) for visits, product views, add-to-cart, checkout, payment conversion, gross/net sales, discounts, tax, shipping collected/cost, fees, refunds, gift liability and contribution margin using recorded cost data. Funnels disclose consent-limited/unknown traffic, bot exclusions, attribution window and historical import provenance. Reports drill to orders and export; canceled, test, imported and duplicate events never inflate new conversion. Minimized capture lasts thirty days; sessions last thirty minutes, and last non-direct attribution uses thirty days. Historical imports create no live sale or conversion. This boundary awaits the existing ct ruling; its delivered scope and unresolved accounting references are recorded only in Status.
+**Requirement.** Merchants inspect date/channel/product/variant/customer reports and traffic-source reports (sessions, conversion and sales by referrer, source and medium, UTM campaign, source, medium and content, landing page, device and location, under a stated last non-direct-click attribution window) for visits, product views, add-to-cart, checkout, payment conversion, gross/net sales, discounts, tax, shipping collected/cost, fees, refunds, gift liability and contribution margin using recorded cost data. Funnels disclose consent-limited/unknown traffic, bot exclusions, attribution window and historical import provenance. Reports drill to orders and export; canceled, test, imported and duplicate events never inflate new conversion. Minimized capture lasts thirty days; sessions last thirty minutes, and last non-direct attribution uses thirty days. Historical imports create no live sale or conversion.
 
 **Acceptance.**
 1. Arrive through a UTM-tagged email link, a search referrer and a direct visit, and buy after two of them; verify the traffic-source report attributes sessions, conversion and sales to the right campaign, referrer and landing page.
@@ -1100,7 +1100,7 @@ Core · target · **partial** · Cites BASE-DATA-005, BASE-INSTALL-001
 **Acceptance.**
 1. Verify the source license and package declaration are MIT.
 2. Install from the public source with no account or key from Stall's authors, publish 200 products, add 10 staff and take 1,000 test-mode orders with no payment, license, cap or upgrade prompt and no fee added by Stall to any order.
-3. Begin enabling each supported provider (Stripe and Pier today) and verify its name and pricing before activation; repeat this journey when PAY-001, SHIP-001/002, MAIL-001, MARKET-001, ACCOUNT-001 or EXTEND-001 adds a provider.
+3. Begin enabling Stripe and Pier and verify each provider’s name and pricing before activation.
 
 **Evidence.** `LICENSE`; `package.json`; `src/stall/ui/connect-forms.tsx`; `tests/api/commerce.test.mjs`; `tests/ui/journey.mjs`
 **Gap.** Audit gap: Executable assertion of MIT source license; Executable assertion of package MIT declaration; No author payment gate across the complete fresh-install journey; No license cap or upgrade prompt across that whole journey; Every supported provider price and activation order asserted. Other carried outcomes are asserted in docs/contract/DONE-AUDIT.md.
