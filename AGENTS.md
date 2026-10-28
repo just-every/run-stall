@@ -134,3 +134,18 @@ their maintenance.
 
 Pinned reference: https://github.com/runeditrun/base/blob/ada9f574d8a7247edc3a1180b593ad182b1fbb37/TANSTACK-START-MIGRATION.md
 Native-session/runtime evidence: https://github.com/runeditrun/base/tree/ada9f574d8a7247edc3a1180b593ad182b1fbb37/default-seed
+
+
+## Contract regeneration
+
+CONTRACT.md is the acceptance and status source. After an intentional contract
+edit run the seed's Lander-Regenerate command:
+
+    node scripts/contract-docs.mjs write
+    node scripts/contract-docs.mjs check
+
+Commit CONTRACT.md with both generated documents, ACCEPTANCE.md and
+docs/CLAIMS.md. The generator also updates the Status summary from its complete
+per-clause rows. Stage source changes before regenerating the edition lock
+with node scripts/edition-authoring/cli.mjs lock, then run the same command
+with check. Keep the existing Base and rer pins.

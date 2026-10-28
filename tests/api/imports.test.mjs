@@ -565,6 +565,7 @@ test('CATALOG-002: reviewed metadata CSV survives resume and restore, exports ex
       const stockBefore = structuredClone([...stock.orders]);
       const outcomes = await undo(restored, job, { bounded: true });
       const after = await restored.api('/api/stall/state');
+      assert.deepEqual(after.products.map(row => row.id).sort(), [ids[0], ids[11]].sort(), 'all untouched products reverse, including former collection members');
       assert.deepEqual(after.orders, purchasedBefore);
       assert.deepEqual([...stock.orders], stockBefore);
       assert.deepEqual(after.products.find(row => row.id === ids[0]), paidProduct, 'variant purchase protects the whole original product');
