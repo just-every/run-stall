@@ -39,7 +39,7 @@ export async function startJourney({ name, skus, stock, installationFactory, cap
   kit.edge = stripeEdge({ forward: kit.stock.forward }); kit.secret = randomBytes(32).toString('hex')
   kit.h = installationFactory ? await installationFactory(kit) : await installation({ bindings: { ...(kit.stock.bindings ?? { PIER_ORIGIN: 'https://stock.example.test', PIER_SESSION: 'test-stock-network-edge', PIER_CUSTOMER_ID: 'shop' }), STRIPE_SECRET_KEY: 'test-network-edge', STRIPE_WEBHOOK_SECRET: kit.secret }, outboundService: kit.edge.handle, onProgress:stage=>progress('Commerce '+stage) })
   progress('Commerce Worker ready; launch browser')
-  kit.browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+  kit.browser = await chromium.launch({ ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}), headless: true, args: ['--no-sandbox', '--use-mock-keychain', '--password-store=basic'] })
   kit.context = await kit.browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' }); kit.page = await kit.context.newPage(); kit.errors = []
   kit.page.on('pageerror', error => kit.errors.push(error.message))
   // Test transport to the real migrated commerce Worker; no application fixtures. File bodies pass through as bytes.

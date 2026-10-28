@@ -5,7 +5,7 @@
    2026), a white canvas, hairline dividers, near-black Inter Tight headings,
    Inter body with tabular figures and tangerine as the one accent. */
 body:has(.st-app) { margin: 0; padding: 0; background: var(--surface); }
-.st-app { color: var(--ink); font: 400 14px/1.5 var(--font-body); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
+.st-app { --field-line: #81858e; color: var(--ink); font: 400 14px/1.5 var(--font-body); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
 .st-app *, .st-app *::before, .st-app *::after { box-sizing: border-box; }
 .st-app :where(h1, h2, h3, h4, p, dl, dd, figure) { margin: 0; }
 .st-app h1 { font: 800 34px/1.15 var(--font-head); letter-spacing: -.035em; }
@@ -21,7 +21,7 @@ body:has(.st-app) { margin: 0; padding: 0; background: var(--surface); }
 
 /* Buttons: the tangerine pill is the primary action; quiet outlined pills
    for the rest; red only for erasing or undoing. */
-.st-app button, .st-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; max-width: 100%; padding: 9px 18px; border: 1px solid var(--tangerine-press); border-radius: 999px; background: var(--tangerine-press); color: #fff; font: 600 14px/1.2 var(--font-body); cursor: pointer; text-decoration: none; transition: background .12s ease, border-color .12s ease; }
+.st-app button, .st-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; max-width: 100%; padding: 9px 18px; border: 1px solid var(--tangerine-press); border-radius: 999px; background: var(--tangerine-press); color: var(--ink); font: 600 14px/1.2 var(--font-body); cursor: pointer; text-decoration: none; transition: background .12s ease, border-color .12s ease; }
 .st-app button:hover { background: #e45204; border-color: #e45204; }
 .st-app button.st-secondary, .st-app .st-secondary { background: var(--surface); border-color: var(--field-line); color: var(--ink); font-weight: 500; }
 .st-app button.st-secondary:hover { background: var(--row); border-color: var(--faint); }
@@ -48,14 +48,14 @@ body:has(.st-app) { margin: 0; padding: 0; background: var(--surface); }
 .st-app select:not([multiple],[size]:not([size="1"])):focus-visible { --rer-select-ink: var(--rer-text); }
 .st-app select:not([multiple],[size]:not([size="1"])):disabled { --rer-select-ink: color-mix(in srgb, var(--rer-muted) 55%, transparent); }
 .st-app :is(input, textarea, select):hover { border-color: var(--faint); }
-.st-app :is(input, textarea, select):focus { outline: none; border-color: var(--tangerine); box-shadow: var(--focus-ring); background-color: var(--surface); }
+.st-app :is(input, textarea, select):focus { outline: 2px solid var(--rer-focus); outline-offset: 2px; border-color: var(--tangerine); box-shadow: var(--focus-ring); background-color: var(--surface); }
 .st-app :is(input, textarea, select):disabled { background-color: var(--row); color: var(--muted); }
 .st-app textarea { resize: vertical; }
 .st-app input[type=checkbox] { width: 18px; min-height: 18px; height: 18px; flex: none; margin: 1px 0 0; padding: 0; accent-color: var(--tangerine-press); }
 .st-app input[type=file] { padding: 7px 8px; }
 .st-app label { display: grid; gap: 6px; font-size: 13px; font-weight: 500; color: var(--body); }
 .st-app .st-checkbox { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: var(--ink); }
-.st-mono { font-family: var(--font-mono); font-size: 12px; overflow-wrap: anywhere; }
+.st-mono { font-family: var(--font-mono); font-size: 13px; overflow-wrap: anywhere; }
 
 /* Layout helpers. */
 .st-stack { display: grid; gap: 16px; min-width: 0; }
@@ -71,7 +71,7 @@ body:has(.st-app) { margin: 0; padding: 0; background: var(--surface); }
 
 /* Pills: neutral grey with a dot; green only for Paid; tangerine only where a
    person is needed; red only for a failure. */
-.st-badge { display: inline-flex; align-items: center; gap: 6px; width: max-content; max-width: 100%; padding: 4px 10px; border: 1px solid transparent; border-radius: 999px; background: var(--chip); color: var(--body); font-size: 12px; font-weight: 500; line-height: 1.35; white-space: nowrap; }
+.st-badge { display: inline-flex; align-items: center; gap: 6px; width: max-content; max-width: 100%; padding: 4px 10px; border: 1px solid transparent; border-radius: 999px; background: var(--chip); color: var(--body); font-size: 13px; font-weight: 500; line-height: 1.35; white-space: nowrap; }
 .st-badge::before { content: ''; width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--faint); }
 .st-badge-good { background: var(--green-tint); color: var(--green-ink); }
 .st-badge-good::before { background: var(--green); }
@@ -97,7 +97,7 @@ body:has(.st-app) { margin: 0; padding: 0; background: var(--surface); }
 .st-table-wrap { overflow-x: auto; min-width: 0; }
 .st-app table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
 .st-app th, .st-app td { padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; font-weight: 400; }
-.st-app thead th { padding-top: 10px; padding-bottom: 10px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.st-app thead th { padding-top: 10px; padding-bottom: 10px; color: var(--muted); font-size: 13px; white-space: nowrap; }
 .st-app th small, .st-app td small { display: block; }
 .st-num { text-align: right !important; white-space: nowrap; }
 
