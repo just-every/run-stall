@@ -101,7 +101,7 @@ function AddressFields({title,value,disabled,update}:{title:string;value:TaxAddr
  </div>
 }
 function PreviewObservation({result}:{result:PreviewResult}) {
- return <div className="st-stack" aria-label="Tax preview observation">
+ return <div className="st-stack" role="group" aria-label="Tax preview observation">
   <Notice>{result.historicalObservation?'Historical tax observation':'Tax preview only'} · no authority to charge a sale.</Notice>
   <p>Subtotal {money(result.subtotalCents)} · tax {money(result.taxCents)} · total {money(result.totalCents)}</p>
   <p style={{overflowWrap:'anywhere'}}>Calculation: {result.calculationId}</p>

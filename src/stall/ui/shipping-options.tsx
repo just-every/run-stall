@@ -25,7 +25,7 @@ export function useShippingQuote(lines: QuoteLine[], zip: string) {
 }
 export function ShippingChoice({ state, zip, setZip, busy }: { state: ReturnType<typeof useShippingQuote>; zip: string; setZip: (value: string) => void; busy: boolean }) {
   const { quote, chosen, setPicked, problem, loading, unasked } = state
-  return <div className="st-stack" aria-label="Shipping options">
+  return <div className="st-stack" role="group" aria-label="Shipping options">
     {(quote?.needsPostalCode || zip) && <label>ZIP code for shipping options<input inputMode="numeric" autoComplete="postal-code" maxLength={10} value={zip} disabled={busy} onChange={event => setZip(event.target.value)} /></label>}
     {zip && !zipOf(zip) && <p className="st-small" role="status">Enter a five-digit US ZIP code.</p>}
     {loading && <p role="status" className="st-small">Checking shipping options…</p>}

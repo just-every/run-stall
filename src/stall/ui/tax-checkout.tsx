@@ -28,7 +28,7 @@ export function TaxCheckout({state,disabled}:{state:ReturnType<typeof useTaxChec
  if(state.loading)return <p role="status">Checking tax checkout availability…{state.error&&<span role="alert"> {state.error}</span>}</p>
  if(state.requiresReview)return <Notice error>The shop owner needs to review restored tax settings before checkout can accept payments.</Notice>
  if(!state.enabled)return null
- return <div className="st-stack" aria-label="Sales tax quote">
+ return <div className="st-stack" role="group" aria-label="Sales tax quote">
   <fieldset className="st-stack" disabled={disabled||state.busy}><legend>US address for sales tax</legend>
    {([['line1','Street address','address-line1'],['line2','Address line 2','address-line2'],['city','City','address-level2'],['state','State','address-level1'],['postal_code','ZIP code','postal-code']] as const).map(([key,label,complete])=><label key={key}>{label}<input autoComplete={complete} required={key!=='line2'} maxLength={key==='state'?2:key==='postal_code'?10:200} value={state.address[key]} onChange={event=>state.change(key,event.target.value)} /></label>)}
    <p>Country: United States</p>

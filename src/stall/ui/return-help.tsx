@@ -15,7 +15,7 @@ export function PhotoLink({id,name,headers}:{id:string;name:string;headers:Recor
 }
 export function ReturnProgress({cases,headers={}}:{cases:ReturnCase[];headers?:Record<string,string>}) {
  if(!cases.length)return null
- return <div className="st-stack" aria-label="Request progress">{cases.map(item=><article key={item.id} className="st-panel st-stack" aria-label={`Request ${item.id}`}>
+ return <div className="st-stack" role="group" aria-label="Request progress">{cases.map(item=><article key={item.id} className="st-panel st-stack" aria-label={`Request ${item.id}`}>
   <h4>{label(item.kind)} request · {item.state==='requested'?'awaiting a person’s review':item.state}</h4>
   <ul>{item.lines.map(line=><li key={line.sku}>{line.name} × {line.quantity}{line.toName?` → ${line.toName}`:''}{line.reason?` · ${reasons[line.reason]??line.reason}`:''}</li>)}</ul>
   {!!item.attachments?.length&&<p>Photos: {item.attachments.map(photo=><PhotoLink key={photo.id} id={photo.id} name={photo.name} headers={headers} />)}</p>}
@@ -45,7 +45,7 @@ export function ReturnHelp({order,token,cases,refresh}:{order:OwnOrder;token:str
  const policy=view?.policy,exchanges=!!policy?.configured&&policy.exchanges
  const choose=(line:LineView,on:boolean)=>setPicked(current=>{const next={...current};if(on)next[line.sku]={quantity:1,reason:'wrong_size',toSku:line.exchangeOptions[0]?.sku??''};else delete next[line.sku];return next})
  const edit=(sku:string,patch:Partial<{quantity:number;reason:string;toSku:string}>)=>setPicked(current=>({...current,[sku]:{...current[sku],...patch}}))
- return <div className="st-stack" aria-label={`Returns and exchanges for order ${order.id}`}>
+ return <div className="st-stack" role="group" aria-label={`Returns and exchanges for order ${order.id}`}>
   <h4>Return, exchange or cancel</h4>
   {error&&<Notice error>{error}</Notice>}
   {!view&&!error&&<p role="status">Loading the shop’s policy and what this order allows…</p>}

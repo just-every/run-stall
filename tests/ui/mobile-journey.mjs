@@ -2,14 +2,32 @@ import assert from 'node:assert/strict'
 import { expect } from '@playwright/test'
 import { createRequire } from 'node:module'
 import { startJourney } from './journey-kit.mjs'
+import { volumeStock } from '../api/volume-stock.mjs'
 import { deliverWebhook } from '../api/network.mjs'
 
 // MOBILE-001: one essential keyboard journey, plus every current commerce view at both release widths.
 const require = createRequire(import.meta.url)
 let journey, journeyError
 try {
-  journey = await startJourney({ name: 'mobile', skus: ['synthetic-stall-1801', 'synthetic-stall-1802'] })
-  const { h, page, context, ready, edge, secret, capture, stock } = journey
+  const stock = volumeStock(['synthetic-stall-1801', 'synthetic-stall-1802'])
+  // Simulate only stock-provider dispatches, preserving the provider's original order-line identities.
+  const shipments = [], forward = stock.forward
+  stock.forward = async request => {
+    if (request.method === 'POST') {
+      const { type, payload, commandId } = await request.clone().json()
+      if (type === 'dispatch.create') {
+        const order = stock.orders.get(payload.orderId)
+        let shipment = shipments.find(item => item.id === commandId)
+        if (!shipment) { shipment = { id: commandId, orderId: order.id, reference: payload.shipmentReference, createdAt: new Date().toISOString(), lines: payload.lines.map(line => ({ ...line, itemId: order.lines.find(original => original.id === line.orderLineId).itemId })) }; shipments.push(shipment) }
+        return Response.json({ result: shipment })
+      }
+    }
+    const response = await forward(request)
+    if (request.method === 'GET') { const state = await response.json(); return Response.json({ ...state, shipments }) }
+    return response
+  }
+  journey = await startJourney({ name: 'mobile', stock })
+  const { h, page, context, ready, edge, secret, capture } = journey
   const email = ['synthetic-stall-1803', 'example.test'].join('@'), member = await h.signIn(email)
   const product = await h.command('product.prepare', { sku: 'synthetic-stall-1800', name: 'Studio tee', description: 'Soft cotton tee', unitCents: 2400, active: true,
     details: { handle: 'studio-tee', options: [{ name: 'Size', values: ['Small', 'Large'] }], variants: [
@@ -108,21 +126,55 @@ try {
   await page.getByText('Thank you, your payment is confirmed', { exact: true }).waitFor()
   await expect(page.locator('main')).toContainText('Studio tee — Large')
   await scan('receipt')
+  await page.goto(ready.url + '/app')
+  await activate(page.locator('#orders .st-order-id').first())
+  await type(page.getByLabel('Shipping reference', { exact: true }), 'synthetic-stall-1804')
+  await activate(page.getByRole('button', { name: 'Prepare shipping for approval', exact: true }))
+  await activate(page.getByRole('button', { name: /Approve shipping · revision/ }))
+  await page.getByText('Shipping has been confirmed by Pier.', { exact: true }).waitFor()
+  assert.equal(shipments.length, 1)
+  await scan('merchant-order')
   as = member
   await page.goto(ready.url + '/order')
   const card = page.getByRole('article', { name: 'Order ' + session.client_reference_id, exact: true })
-  await expect(card).toContainText('reserved')
+  await expect(card).toContainText('shipped')
   await expect(card).toContainText('$28.00')
   await scan('account')
   // Current return policy and independently verified customer custody, never a bearer-only write.
   as = h.cookie
-  await h.api('/api/stall/returns/policy', { revision: 'initial', windowDays: 30, condition: 'Unworn', feeCents: 0, returnShipping: 'Contact the shop', finalSaleSkus: [], exchanges: true })
+  await h.command('return.policy.save', { revision: null, windowDays: 30, condition: 'Unworn', feeCents: 0, returnShipping: 'Contact the shop', finalSaleSkus: [], exchanges: true })
   as = member
   await activate(card.locator('summary', { hasText: 'Returns, exchanges and cancellation' }))
   const form = card.getByRole('form', { name: 'Request help with this order', exact: true })
   await form.getByRole('checkbox', { name: /Studio tee/ }).waitFor()
   await scan('return-request')
-  // Completion below exercises the return once the dispatched order is eligible.
+  await activate(form.getByRole('checkbox', { name: /Studio tee/ }), 'Space')
+  await type(form.getByLabel('Note for the shop (optional)', { exact: true }), 'The large size does not fit.')
+  await activate(form.getByRole('button', { name: 'Send request for review', exact: true }))
+  await card.getByText('awaiting a person’s review', { exact: false }).waitFor()
+  const cases = (await h.api('/api/stall/returns')).cases
+  assert.equal(cases.length, 1)
+  assert.equal(cases[0].lines[0].sku, 'synthetic-stall-1802')
+  as = h.cookie
+  await page.goto(ready.url + '/app#requests')
+  const request = page.getByRole('article', { name: 'Case ' + cases[0].id, exact: true })
+  await type(request.getByLabel('Explanation the shopper will read', { exact: true }), 'Please return the unworn tee for inspection.')
+  await activate(request.getByRole('button', { name: /^Accept request/ }))
+  await request.getByText('Please return the unworn tee for inspection.', { exact: false }).waitFor()
+  await activate(request.getByRole('button', { name: 'Review goods received', exact: true }))
+  const receipt = request.getByRole('form', { name: 'Received goods for request ' + cases[0].id, exact: true })
+  await expect(receipt.getByRole('button', { name: 'Confirm goods received', exact: true })).toBeDisabled()
+  await activate(receipt.getByRole('checkbox'), 'Space')
+  await scan('return-receipt-review')
+  await activate(receipt.getByRole('button', { name: 'Confirm goods received', exact: true }))
+  await request.getByText('Goods received', { exact: false }).waitFor()
+  assert.equal((await h.api('/api/stall/returns')).receipts.length, 1)
+  assert.equal(edge.refunds.size, 0, 'Receiving goods does not issue a refund')
+  await scan('return-processed')
+  as = member
+  await page.goto(ready.url + '/order')
+  await card.getByText('Goods received', { exact: false }).waitFor()
+  await scan('customer-return-progress')
   assert.deepEqual(journey.errors, [])
   console.log('PASS MOBILE-001 keyboard purchase, validation recovery, receipt, account, dialog and WCAG scans:', JSON.stringify(scans))
 } catch (error) {

@@ -37,7 +37,7 @@ export function AssignProducts({ data, reload }: { data: ShippingState; reload: 
     <form className="st-stack" onSubmit={event => { event.preventDefault(); void preview({ csv }) }}><h3>Assign by catalog CSV</h3>
       <label>Catalog CSV (headers SKU,Shipping Profile; the profile is its ID, such as general)<textarea rows={5} value={csv} disabled={busy} onChange={event => { setReview(null); setCsv(event.target.value) }} /></label>
       <div className="st-actions"><button disabled={busy}>Review CSV</button></div></form>
-    {review && <div className="st-panel st-stack" aria-label="Reviewed assignment changes"><h3>Review exact changes</h3>
+    {review && <div className="st-panel st-stack" role="group" aria-label="Reviewed assignment changes"><h3>Review exact changes</h3>
       {review.result.changes.length ? <ul>{review.result.changes.map(change => <li key={change.sku}>{change.name} <small>{change.sku}</small>: {nameOf(change.from)} → {nameOf(change.to)}</li>)}</ul> : <p>Every listed SKU already has that profile.</p>}
       {review.result.unchanged > 0 && <p className="st-small">{review.result.unchanged} already in the chosen profile.</p>}
       <div className="st-actions"><button disabled={busy || !review.result.changes.length} onClick={() => void apply()}>Apply reviewed assignment</button></div></div>}

@@ -25,7 +25,7 @@ export function usePromotionCode(input: Input) {
   return { code, setCode, current, applied, loading, apply, ready: !!input.lines.length && !!input.customerEmail && !!input.shipping, blocked: !!code.trim() && !applied }
 }
 export function PromotionCode({ state, busy, changed }: { state: ReturnType<typeof usePromotionCode>; busy: boolean; changed: () => void }) {
-  return <div className="st-stack" aria-label="Promotion code">
+  return <div className="st-stack" role="group" aria-label="Promotion code">
     <label>Promotion code<input maxLength={64} autoComplete="off" value={state.code} disabled={busy} onChange={event => { changed(); state.setCode(event.target.value) }} /></label>
     <div className="st-actions"><button type="button" className="st-secondary" disabled={busy || state.loading || !state.code.trim() || !state.ready} onClick={() => { changed(); void state.apply() }}>{state.loading ? 'Checking code…' : 'Apply code'}</button>{state.code && <button type="button" className="st-link" disabled={busy} onClick={() => { changed(); state.setCode('') }}>Remove code</button>}</div>
     {state.current?.quote && <Notice error={!state.current.quote.applicable}>{state.current.quote.message}</Notice>}

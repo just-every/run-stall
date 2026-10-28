@@ -155,7 +155,7 @@ export function CustomerDirectory({ canManage, canReviewRegistration=false, quer
       <p>{visible.length} customers shown{segment ? ` in ${segment.value.name}` : ''}</p>
       <p className="st-small">Paid order count includes recorded payments. Net lifetime value is paid USD totals less succeeded refunds; pending refunds do not reduce it. Refresh to include new orders and refunds.</p>
       {!visible.length && <p>No customers match this view.</p>}
-      <div className="st-stack" aria-label="Customer directory">{visible.map(customer => <article className="st-panel st-stack" key={customer.id} aria-label={`Customer ${customer.emails[0]}`}>
+      <div className="st-stack" role="group" aria-label="Customer directory">{visible.map(customer => <article className="st-panel st-stack" key={customer.id} aria-label={`Customer ${customer.emails[0]}`}>
         <h2>{labelOf(customer)}</h2><p style={{ overflowWrap: 'anywhere' }}>{customer.emails.join(', ')}</p><p>Tags: {customer.tags.join(', ') || 'None'}</p>
         <dl className="st-definition"><div><dt>Paid orders</dt><dd>{customer.orderCount}</dd></div><div><dt>Paid total</dt><dd>{money(customer.paidCents)}</dd></div><div><dt>Succeeded refunds</dt><dd>{money(customer.refundedCents)}</dd></div><div><dt>Net lifetime value</dt><dd>{money(customer.lifetimeValueCents)}</dd></div></dl>
         <p>Observed states and provinces: {customer.states.join(', ') || 'None recorded'}</p>

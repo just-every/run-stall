@@ -68,7 +68,7 @@ export function BulkProducts({ products, reload, close }: { products: Product[];
       </fieldset>
       <div className="st-actions"><button disabled={busy || !valid || !!job}>Review bulk edit ({selected.length})</button><button type="button" className="st-secondary" disabled={busy} onClick={close}>Back to products</button></div>
     </form>}
-    {preview && <div className="st-panel st-stack" aria-label="Reviewed bulk changes">
+    {preview && <div className="st-panel st-stack" role="group" aria-label="Reviewed bulk changes">
       <h2>Review exact changes</h2>
       {changes.map(({ before, after }) => <div key={after.sku}>
         <h3>{after.sku}</h3><p>{before?.name} → {after.name}</p><p>{before ? money(before.unitCents) : 'New product'} → {money(after.unitCents)}</p>
