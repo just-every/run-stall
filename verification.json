@@ -61,7 +61,8 @@
       "hosted": false,
       "commands": [
         "pnpm run build",
-        "node tests/ui/real-home.mjs tests/ui/review-import-journey.mjs"
+        "node tests/ui/real-home.mjs tests/ui/review-import-journey.mjs",
+        "node tests/ui/real-home.mjs tests/ui/bulk-products-journey.mjs"
       ]
     },
     {
@@ -83,7 +84,6 @@
         "node tests/ui/integration-journey.mjs",
         "node tests/ui/merch-proposals-journey.mjs",
         "pnpm run build && node tests/ui/merch-seo-journey.mjs",
-        "node tests/ui/bulk-products-journey.mjs",
         "node tests/ui/real-home.mjs tests/ui/staff-journey.mjs",
         "node tests/ui/real-home.mjs tests/ui/promotion-journey.mjs",
         "node tests/ui/real-home.mjs tests/ui/request-journey.mjs"

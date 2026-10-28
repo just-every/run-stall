@@ -17,7 +17,7 @@ export async function productCommand(env:Bindings,actor:Actor,type:string,p:any)
   let publishAt=p.publishAt===undefined?before?.publishAt:undefined
   if(p.publishAt!==undefined&&p.publishAt!==null) { const time=Date.parse(typeof p.publishAt==='string'?p.publishAt:''); if(!Number.isFinite(time)) fail('INPUT','Scheduled publication needs a valid date and time.',400);publishAt=new Date(time).toISOString() }
   if(archived) publishAt=undefined
-  const draft:Omit<ProductValue,'draft'>={...(details&&Object.keys(details).length?{details}:{}),...(publishAt?{publishAt}:{}),...(archived?{archived:true as const}:{}),sku,name:text(p.name,'Product name'),description:typeof p.description==='string'&&p.description.length<=4000?p.description:fail('INPUT','Description must be at most 4000 characters.',400),unitCents:integer(p.unitCents,'Unit cents',1),active:archived?false:p.active===true}
+  const draft:Omit<ProductValue,'draft'>={...(details&&Object.keys(details).length?{details}:{}),...(publishAt?{publishAt}:{}),...(archived?{archived:true as const}:{}),...(before?.stockMode ? {stockMode:before.stockMode}:{}),sku,name:text(p.name,'Product name'),description:typeof p.description==='string'&&p.description.length<=4000?p.description:fail('INPUT','Description must be at most 4000 characters.',400),unitCents:integer(p.unitCents,'Unit cents',1),active:archived?false:p.active===true}
   await checkListing(env.DB,draft,await products(env.DB))
   const {publishAt:_when,archived:_gone,...unlisted}=draft
   value=prior?{...prior.value,draft}:{...unlisted,active:false,draft}

@@ -39,9 +39,9 @@ export async function toolsResponse(request: Request, original: Bindings): Promi
   }
   authorize(actor,'bulk')
   if (path === '/api/stall/imports' && request.method === 'GET') return json({ jobs: await listProductImports(env.DB, actor) })
-  if (path === '/api/stall/imports/preview' && request.method === 'POST') return json(await dryRunProductImport(env.DB, actor, await boundedJson(request, 1_000_000) as any))
+  if (path === '/api/stall/imports/preview' && request.method === 'POST') return json(await dryRunProductImport(env, actor, await boundedJson(request, 1_000_000) as any))
   requirePerson(actor)
-  if (path === '/api/stall/imports/apply' && request.method === 'POST') return json(await applyProductImport(env.DB, actor, await boundedJson(request, 1_000_000) as any))
+  if (path === '/api/stall/imports/apply' && request.method === 'POST') return json(await applyProductImport(env, actor, await boundedJson(request, 1_000_000) as any))
   const match = /^\/api\/stall\/imports\/([^/]+)(\/undo)?$/.exec(path)
   if (match && match[2] && request.method === 'POST') return json(await undoProductImport(env.DB, actor, match[1]))
   if (match && !match[2] && request.method === 'GET') return json(await getProductImport(env.DB, actor, match[1]))

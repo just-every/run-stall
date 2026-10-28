@@ -21,7 +21,7 @@ export function productImportContext(db: D1Database, actor: Actor, namespace = d
     destination: productImportDestination, namespace, mappingVersion,
     ...(mappingVersion !== legacyProductMappingVersion ? { reversalPolicy: 'preserve-conflicts' as const } : {}),
     batchSize: 10, maxBatches: 1,
-    storage: { database: db, targets: productTargets(reversing, undefined, reversing && mappingVersion !== legacyProductMappingVersion) },
+    storage: { database: db, targets: productTargets(reversing, undefined, reversing && mappingVersion !== legacyProductMappingVersion, mappingVersion === productImportMappingVersion) },
     authorization: { principalId: productImportPrincipal, predicate: action => importAuthority(actor, !['read', 'plan'].includes(action)) },
   };
 }

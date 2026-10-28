@@ -11,7 +11,7 @@ import { merchandising } from './merchandising'
 import { searchReport } from './search-report'
 import { shippingAssignments, shippingPlaces, shippingProfiles } from './shipping-profiles'
 
-const kinds = ['products', 'customers', 'orders', 'lines', 'payments', 'refunds', 'shipments', 'reconciliation', 'stripe-work', 'pier-work', 'records'] as const
+const kinds = ['catalog', 'products', 'customers', 'orders', 'lines', 'payments', 'refunds', 'shipments', 'reconciliation', 'stripe-work', 'pier-work', 'records'] as const
 type Row = Record<string, unknown>
 // Never spread stored/provider objects: only these commercial fields may leave.
 function fields(value: any, names: string[]): Row {
@@ -29,7 +29,7 @@ function approved(value?: Approval) {
  return value ? { ...fields(value, ['by', 'version', 'revision']), at: utc(value.at) } : undefined
 }
 function productValue(value: Omit<ProductValue, 'draft'>) {
- return { ...fields(value, ['sku', 'name', 'description', 'unitCents', 'active', 'publishAt', 'archived']), approval: approved(value.approval), ...(value.details ? { details: productDetails(value.details) } : {}) }
+ return { ...fields(value, ['sku', 'name', 'description', 'unitCents', 'active', 'publishAt', 'archived', 'stockMode']), approval: approved(value.approval), ...(value.details ? { details: productDetails(value.details) } : {}) }
 }
 function commercialOrder(order: Order) {
  const shipment = order.shipment, shipping = order.shippingDetails
@@ -81,7 +81,7 @@ function reconciliation(order: Order) {
   pendingRefundIds: order.refunds.filter(refund => refund.status === 'pending').map(refund => refund.id) }
 }
 const columns: Record<string, string[]> = {
- products: ['id', 'revision', 'state', 'sku', 'name', 'description', 'unitCents', 'currency', 'active', 'publishAt', 'archived', 'approval', 'details'],
+ products: ['id', 'revision', 'state', 'sku', 'name', 'description', 'unitCents', 'currency', 'active', 'publishAt', 'archived', 'approval', 'details', 'stockMode'],
  customers: ['email', 'orderCount', 'firstOrderAt', 'lastOrderAt', 'orderIds', 'currency', 'paidCents', 'refundedCents'],
  orders: ['analyticsExcluded','analytics','shopper','notes', 'tags', 'channel', 'manualPayment', 'taxTreatment', 'assignments', 'id', 'revision', 'customerEmail', 'status', 'createdAt', 'erasedAt', 'totalCents', 'shippingCents', 'shipping', 'currency', 'shippingDetails', 'checkout', 'payment', 'reservation', 'shipment', 'refunds'],
  lines: ['orderId', 'lineNumber', 'sku', 'productSku', 'name', 'variant', 'personalization', 'description', 'itemId', 'quantity', 'unitCents', 'addOnCents', 'lineTotalCents', 'currency'],
@@ -112,6 +112,13 @@ export async function businessExport(db: D1Database, kind: string): Promise<Resp
  const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff',
   'content-type': kind === 'records' ? 'application/json; charset=utf-8' : 'text/csv; charset=utf-8',
   'content-disposition': `attachment; filename="stall-${kind}.${kind === 'records' ? 'json' : 'csv'}"` }
+ if (kind === 'catalog') {
+  const entries = catalogue.map<unknown[]>(product => {
+   const { approval, draft, ...value } = product.value
+   return ['product', product.id, { ...value, stockMode: 'pier', details: value.details ?? {} }]
+  }).concat((await collections(db)).map(entry => ['collection', entry.id, entry.value]))
+  return new Response(['Record Type,ID,Value', ...entries.map(row => row.map(value => cell(value)).join(','))].join('\r\n') + '\r\n', { headers })
+ }
  if (kind === 'records') return new Response(JSON.stringify({ schema: 'stall-business-export-v1', exportedAt: new Date().toISOString(),
   currency: shopCurrency, ...await businessExtensions(db), timeZone: await businessTimeZone(db), shipping: { profiles: await shippingProfiles(db), places: await shippingPlaces(db), assignments: await shippingAssignments(db) }, collections: (await collections(db)).map(entry => ({ id: entry.id, revision: entry.revision, value: entry.value })), merchandising: (await merchandising(db)).value, searchTerms: (await searchReport(db)).top, products: productRecords, customers: customerRecords, orders: orderRecords, reconciliation: reconciliationRecords, stripeWork: workRecords, pierWork: pierRecords }, null, 2), { headers })
  let rows: Row[]

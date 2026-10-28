@@ -3100,7 +3100,7 @@
       "executable": false
     },
     "src/stall/collections.ts": {
-      "sha256": "27554038180890e629c8fa9848c83fce5d5b5577603f3fd9a156759c3a58c783",
+      "sha256": "9e511843a555b088b79401059b785153d28f827058b0cda0417efa621cd28515",
       "executable": false
     },
     "src/stall/commerce-authority.ts": {
@@ -3184,7 +3184,7 @@
       "executable": false
     },
     "src/stall/exports.ts": {
-      "sha256": "2a77f3d9f2cab796288af3ae9df45bac0b15e958607722957fe7e0f40c793a73",
+      "sha256": "5d15e283383dec05ebebefb884f38dcfd94865bbe007ffb6c3e24174b8ce9d77",
       "executable": false
     },
     "src/stall/facts.ts": {
@@ -3239,12 +3239,20 @@
       "sha256": "6a29b7d6bc2d58b3735498668a87751103d0cb748785ca146fcb51061ceaa394",
       "executable": false
     },
+    "src/stall/imports/catalog-targets.ts": {
+      "sha256": "32ce7bbe39495f9d2ac4f4801d2a27609070bb7251d27ae1357cea8b479478cf",
+      "executable": false
+    },
+    "src/stall/imports/catalog.ts": {
+      "sha256": "e3995d31e56b245c59c3ac6d50dc40a4c95cf838ec08cf2c9a0bc9d4122004a3",
+      "executable": false
+    },
     "src/stall/imports/context.ts": {
-      "sha256": "cf4b4bb1620401a41ac57d049e7bd3f62a45acf15302552c31868bbf983bded9",
+      "sha256": "da66f54b6cd03b880081b4deb84e38ca547ace9f0d2638e71c08c9a0c2de5a09",
       "executable": false
     },
     "src/stall/imports/csv.ts": {
-      "sha256": "b120ddeda61672b883871de8a125cc1b5bc9596e4bab9ca09d0936cffe153d5c",
+      "sha256": "a407b45a3167e296571b4d14210b495fd39864d221b391ad69fe40c49330d156",
       "executable": false
     },
     "src/stall/imports/description.ts": {
@@ -3256,11 +3264,11 @@
       "executable": false
     },
     "src/stall/imports/service.ts": {
-      "sha256": "8dcc965e5ec92a284a9e0240c5a1911326c5201e0fea85cfd07a2df3eeaa7fe7",
+      "sha256": "3201686018b03a5f5e9793b4c0e63cc696f6dceba699ba549480883631564963",
       "executable": false
     },
     "src/stall/imports/targets.ts": {
-      "sha256": "2981ad25f58c553d370abb24fac0b6a040c88551adcb145c5d6f9ab5eb7ba836",
+      "sha256": "2916d4d15c3a458d7796f4967423e35787b851048b82615ce7fc35488cbd9809",
       "executable": false
     },
     "src/stall/imports/validation.ts": {
@@ -3300,7 +3308,7 @@
       "executable": false
     },
     "src/stall/model.ts": {
-      "sha256": "7b8f320cca14c7a843f92fd6a6d8399226ca6a5cdee3239f8a12488a1c20215a",
+      "sha256": "1f9c6b25f269d3902e7250fbcd230e6d02e8958a5bacdebacb55511ffebc01c2",
       "executable": false
     },
     "src/stall/operations.ts": {
@@ -3388,7 +3396,7 @@
       "executable": false
     },
     "src/stall/products.ts": {
-      "sha256": "33a2ae9cc1de6e6cffeaa4c348733d468ccaa9cc306bb2eb75ade15da6c31991",
+      "sha256": "6c154385093c8ba6f0b917ac85ca0f560d14a12f8c798a666620e3b8b95e32a0",
       "executable": false
     },
     "src/stall/promotions/eligibility.ts": {
@@ -3580,7 +3588,7 @@
       "executable": false
     },
     "src/stall/tools.ts": {
-      "sha256": "f12d5ff0a674cd33697b6c1e74b335436329cfbc8a743a990fe97bae407d579d",
+      "sha256": "8521c9d4193fef3f77e50bb63a18f961787c3ac16f2c6eb4b02220b0304c4f94",
       "executable": false
     },
     "src/stall/ui/activity.tsx": {
@@ -3640,11 +3648,11 @@
       "executable": false
     },
     "src/stall/ui/bulk-products.tsx": {
-      "sha256": "edcc3605fa034be6ad0c8e8fbf596aab936a20561648d6f0debb01311c710c13",
+      "sha256": "4a4045b710f2aff9deca47cdea138f1ffd8ad999d57d892194157e78328eea69",
       "executable": false
     },
     "src/stall/ui/business-exports.tsx": {
-      "sha256": "e473c3cb46574217703f183746093f8dd3bf55543b370c12999eba6d7e09d3de",
+      "sha256": "a6babea514697342be8ff1b33e301893a9bbdd41631c05875b15096ca63172a1",
       "executable": false
     },
     "src/stall/ui/buy-link.tsx": {
@@ -3740,7 +3748,7 @@
       "executable": false
     },
     "src/stall/ui/move-in.tsx": {
-      "sha256": "80a9b4adcd3dedb95fa39a1c887d1142663fa84bdfeee9e0e9de5e724ccd9909",
+      "sha256": "989b19729d6af890bf24a7a4fe7e84d8f17c3c8ae5c2c313ed5d2d2a8be7bde1",
       "executable": false
     },
     "src/stall/ui/operations.tsx": {
@@ -3952,7 +3960,7 @@
       "executable": false
     },
     "src/stall/ui/types.ts": {
-      "sha256": "45d721b76a5f24ff558e30d5762d106d586b6047be5b587d4a3dd69b84e5c55a",
+      "sha256": "279a70be50e44551b652b3f40cc0b19fcbd518ebc13001d111789465b725687c",
       "executable": false
     },
     "src/stall/ui/variants-editor.tsx": {
@@ -4240,7 +4248,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "78d7cbbbcb71c6ff98ab1bc6005d492fff55b4eee71ea17ff19332a272f05da6",
+      "sha256": "4be49afeec39f47cab269e50315162f336529097056e8a5a90b418604397f7f9",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

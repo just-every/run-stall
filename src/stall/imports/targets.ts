@@ -1,4 +1,5 @@
 import { canonicalJson, sha256, type D1Database, type D1Sql, type D1TargetAdapter, type D1UndoEffect, type D1UndoSnapshot, type ImportPlan, type TargetRow } from '../../modules/import-kit/src/d1/index';
+import { catalogTargets } from './catalog-targets';
 import { productImportDestination } from './csv';
 import { importError, validateProductValue } from './validation';
 const sql = (sql: string, ...params: unknown[]): D1Sql => ({ sql, params });
@@ -60,7 +61,8 @@ async function preparePreservedUndo(db: D1Database, destination: string, effects
     guards: [sql(`(${orderReferencesSQL})=?`, ids, references.edges_json)],
   };
 }
-export function productTargets(reversing = false, review?: { plan: ImportPlan; jobId: string }, preserveUndo = false): D1TargetAdapter {
+export function productTargets(reversing = false, review?: { plan: ImportPlan; jobId: string }, preserveUndo = false, catalog = false): D1TargetAdapter {
+  if (catalog) return catalogTargets(productTargets(reversing, review, preserveUndo), reversing, review);
   const beforeImages = new Map(review?.plan.entries.filter(entry => !entry.erased && entry.effects.some(effect => effect.targetKind === 'product')).map(entry => [entry.source.sourceId,
     (entry.source.payload as unknown as { previous: TargetRow | null }).previous]) ?? []);
   return {

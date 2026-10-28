@@ -1,3 +1,4 @@
+import { catalogSource } from './catalog';
 import { plainDescription } from './description';
 import { Buffer } from 'node:buffer';
 import { canonicalJson, sha256, type SourceBundle } from '../../modules/import-kit/src/d1/index';
@@ -7,12 +8,13 @@ export const defaultProductNamespace = 'shopify-products';
 export const legacyProductMappingVersion = 'stall-shopify-products-v1';
 export const preservedProductMappingVersion = 'stall-shopify-products-v2';
 export const rejectedProductMappingVersion = 'stall-shopify-products-v3';
-export const productImportMappingVersion = 'stall-shopify-products-v4';
+export const metadataProductMappingVersion = 'stall-shopify-products-v4';
+export const productImportMappingVersion = 'stall-catalog-v5';
 export const productDetailsHeader = 'Stall Details';
-export const supportedProductMappings = [legacyProductMappingVersion, preservedProductMappingVersion, rejectedProductMappingVersion, productImportMappingVersion] as const;
+export const supportedProductMappings = [legacyProductMappingVersion, preservedProductMappingVersion, rejectedProductMappingVersion, metadataProductMappingVersion, productImportMappingVersion] as const;
 export const productImportDestination = 'stall-products';
 type CSVRow = { cells: string[]; row: number };
-function parseCSV(input: string, preserveEmptyFields = false): CSVRow[] {
+export function parseCSV(input: string, preserveEmptyFields = false): CSVRow[] {
   const rows: CSVRow[] = [];
   let row: string[] = [], cell = '', quoted = false, closed = false;
   let line = 1, rowStart = 1;
@@ -66,13 +68,14 @@ const rowValueErrors = new Set(['PRODUCT_FIELD', 'PRODUCT_ID', 'PRODUCT_VALUE', 
 export function productImportSource(csv: string, namespace = defaultProductNamespace, mappingVersion: string = productImportMappingVersion): SourceBundle {
   stableId(namespace, 'namespace');
   if (!supportedProductMappings.some(version => version === mappingVersion)) importError('IMPORT_MAPPING', 'Unsupported product import mapping version.');
-  const preserveRejected = mappingVersion === productImportMappingVersion || mappingVersion === rejectedProductMappingVersion;
+  const preserveRejected = [productImportMappingVersion, metadataProductMappingVersion, rejectedProductMappingVersion].includes(mappingVersion);
   if (typeof csv !== 'string' || csv.length > 256 * 1024) importError('CSV_SIZE', 'CSV must be UTF-8 text of at most 256 KiB.');
   const bytes = Buffer.from(csv, 'utf8');
   if (bytes.length > 256 * 1024 || bytes.toString('utf8') !== csv) importError('CSV_SIZE', 'CSV must be valid UTF-8 text of at most 256 KiB.');
   const rows = parseCSV(csv, preserveRejected);
   const headers = rows.shift()?.cells;
-  const withDetails = mappingVersion === productImportMappingVersion && headers?.length === 7 && headers[6] === productDetailsHeader;
+  if (mappingVersion === productImportMappingVersion && headers?.join(',') === 'Record Type,ID,Value') return catalogSource(csv, namespace, rows);
+  const withDetails = [productImportMappingVersion, metadataProductMappingVersion].includes(mappingVersion) && headers?.length === 7 && headers[6] === productDetailsHeader;
   if (!headers || (headers.length !== productCSVHeaders.length && !withDetails) || productCSVHeaders.some((header, i) => header !== headers[i])) importError('CSV_HEADERS', `Use these exact headers in order: ${productCSVHeaders.join(',')}; optionally append ${productDetailsHeader}.`);
   if (!rows.length) importError('CSV_EMPTY', 'Supply at least one product.');
   if (preserveRejected) checkSourceIdentities(rows, headers.length);

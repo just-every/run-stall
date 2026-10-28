@@ -1,3 +1,10 @@
+import type { Bindings } from '../../auth.server';
+import { catalogReview, isCatalog } from './catalog';
+import { checkListing, liveSkus } from '../listing-checks';
+import { collectionValue } from '../collections';
+import { products } from '../store';
+import { pierState } from '../pier';
+import type { ProductValue } from '../model';
 import {
   applyD1ImportBatches, canonicalJson, createD1ImportJob, planD1Import, readD1ImportJob,
   readD1ImportOriginals, readD1ImportUndoReport, resumeD1Import, sha256, undoD1Import,
@@ -10,7 +17,7 @@ import { importError, stableId, validateProductValue } from './validation';
 import { productTargets, orderDependencySQL } from './targets';
 import { stored } from '../../modules/import-kit/src/d1/jobs';
 
-export type ProductImportInput = { csv: string; namespace?: string; fingerprint?: string; excludedRows?: number[] };
+export type ProductImportInput = { csv: string; namespace?: string; fingerprint?: string; excludedRows?: number[]; reviewToken?: string };
 
 function namespaceFor(source: ReturnType<typeof productImportSource>, mapping = productImportMappingVersion) {
   const name = source.records[0].namespace, hash = source.artifacts[0].sha256;
@@ -30,7 +37,23 @@ function reviewedExclusions(input: ProductImportInput, plan: ImportPlan) {
     importError('IMPORT_DIAGNOSTICS', 'Resolve all blocking dry-run errors before applying.');
 }
 
-async function preparePlan(db: D1Database, actor: Actor, input: ProductImportInput) {
+async function checkCatalogProducts(env: Bindings, richProducts: ProductValue[]) {
+  const db = env.DB;
+  const current = await products(db);
+  const after = current.filter(product => !richProducts.some(value => value.sku === product.id)).concat(richProducts.map(value => ({ id: value.sku, value, revision: 'reviewed' })));
+  for (const value of richProducts) await checkListing(db, value, after);
+  const publishing = richProducts.filter(value => value.active);
+  if (publishing.length) {
+    const stock = await pierState(env);
+    for (const value of publishing) {
+      const needed = liveSkus(value);
+      if (!needed.length || needed.some(sku => !stock.items?.some((item: any) => item.sku === sku && !item.archived))) importError('IMPORT_PUBLICATION', 'Every published variant must exist and be active in the connected Pier.');
+    }
+  }
+}
+
+async function preparePlan(env: Bindings, actor: Actor, input: ProductImportInput, at?: string) {
+  const db = env.DB;
   await authorizeProductImport(db, actor);
   const source = productImportSource(input.csv, input.namespace);
   // A source identity names one immutable export. Product target IDs remain the
@@ -38,12 +61,23 @@ async function preparePlan(db: D1Database, actor: Actor, input: ProductImportInp
   const namespace = namespaceFor(source);
   const context = productImportContext(db, actor, namespace);
   const native = await context.storage.targets.list(db, context.destination);
-  const existing = new Map(native.map(row => [row.targetId, row]));
+  const existing = new Map(native.map(row => [`${row.targetKind}:${row.targetId}`, row]));
   for (const record of source.records) {
     record.namespace = namespace;
     if (record.kind === 'shopify-product-rejected') continue;
+    if (isCatalog(record.kind)) {
+      const kind = record.kind.endsWith('-collection') ? 'collection' : 'product';
+      const previous = existing.get(`${kind}:${record.sourceId}`) ?? null;
+      let value = record.payload as any;
+      if (kind === 'product') {
+        if (value.active) value = { ...value, approval: { by: actor.id, version: actor.version, at, revision: sha256(canonicalJson(record.payload)) } };
+      } else value = collectionValue(value, new Set([...native.filter(row => row.targetKind === 'product').map(row => row.targetId), ...source.records.filter(row => row.kind === 'stall-catalog-product').map(row => row.sourceId)]));
+      record.payload = { product: value, previous, targetKind: kind } as unknown as Json;
+      record.payloadHash = sha256(canonicalJson(record.payload));
+      continue;
+    }
     const product = validateProductValue(record.payload, true);
-    const previous = existing.get(record.sourceId);
+    const previous = existing.get(`product:${record.sourceId}`);
     if (previous && (previous.value as Record<string, Json>).active !== false)
       importError('IMPORT_PUBLISHED_PRODUCT', 'Unpublish this product through the native workflow before importing it.');
     const priorValue = previous?.value as Record<string, Json> | undefined;
@@ -54,27 +88,30 @@ async function preparePlan(db: D1Database, actor: Actor, input: ProductImportInp
     if (dependency) importError('IMPORT_ORDER_DEPENDENCY', 'An order refers to this SKU. Preserve its catalog reference.');
     // Bind the complete before-image into the reviewed fingerprint, including
     // edits whose writer failed to change revision. The kit fences it on apply.
-    record.payload = { product, previous: (existing.get(record.sourceId) ?? null) as unknown as Json };
+    record.payload = { product, previous: (existing.get(`product:${record.sourceId}`) ?? null) as unknown as Json };
     record.payloadHash = sha256(canonicalJson(record.payload));
   }
+  await checkCatalogProducts(env, source.records.filter(record => record.kind === 'stall-catalog-product').map(record => (record.payload as any).product));
   const plan = await planD1Import(source, {
     version: productImportMappingVersion,
     map(record) {
       if (record.kind === 'shopify-product-rejected') return { effects: [], rejection: (record.payload as { rejection: string }).rejection };
       const payload = record.payload as { product: Json; previous: { revision: string } | null };
-      return { effects: [{ targetKind: 'product', targetId: record.sourceId, value: payload.product,
+      return { effects: [{ targetKind: (record.payload as any).targetKind ?? 'product', targetId: record.sourceId, value: payload.product,
         ...(payload.previous ? { expectedRevision: payload.previous.revision } : {}) }] };
     },
   }, context);
   return { plan, context };
 }
 
-export async function dryRunProductImport(db: D1Database, actor: Actor, input: ProductImportInput) {
-  const { plan } = await preparePlan(db, actor, input);
-  return { plan, fingerprint: plan.fingerprint, counts: plan.counts, diagnostics: plan.diagnostics };
+export async function dryRunProductImport(env: Bindings, actor: Actor, input: ProductImportInput) {
+  const review = await catalogReview(env, actor, input.csv, input.namespace);
+  const { plan } = await preparePlan(env, actor, input, review.at);
+  return { reviewToken: review.token, plan, fingerprint: plan.fingerprint, counts: plan.counts, diagnostics: plan.diagnostics };
 }
 
-export async function applyProductImport(db: D1Database, actor: Actor, input: ProductImportInput & { fingerprint: string }) {
+export async function applyProductImport(env: Bindings, actor: Actor, input: ProductImportInput & { fingerprint: string }) {
+  const db = env.DB;
   await authorizeProductImport(db, actor, true);
   if (typeof input.fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(input.fingerprint)) importError('IMPORT_APPROVAL', 'Supply the exact fingerprint approved after dry-run.');
   const operationKey = `stall-product-import:${input.fingerprint}`;
@@ -90,17 +127,21 @@ export async function applyProductImport(db: D1Database, actor: Actor, input: Pr
   context.operationKey = operationKey;
   if (prior) {
     const retained = await stored(prior.id, context, 'apply');
+    if (!['completed','undone','undoing','rolled_back'].includes(retained.job.state)) await checkCatalogProducts(env, retained.plan.entries.filter(entry => entry.source.kind === 'stall-catalog-product').map(entry => (entry.source.payload as any).product));
     reviewedExclusions(input, retained.plan);
-    context.storage.targets = productTargets(false, { plan: retained.plan, jobId: prior.id });
+    context.storage.targets = productTargets(false, { plan: retained.plan, jobId: prior.id }, false, mapping === productImportMappingVersion);
     return resumeD1Import(prior.id, context);
   }
-  const prepared = await preparePlan(db, actor, input);
+  const rich = source.records.some(record => isCatalog(record.kind));
+  if (rich && !input.reviewToken) importError('IMPORT_APPROVAL', 'Supply the server-issued catalog review token.');
+  const review = rich ? await catalogReview(env, actor, input.csv, input.namespace, input.reviewToken) : undefined;
+  const prepared = await preparePlan(env, actor, input, review?.at);
   if (prepared.plan.fingerprint !== input.fingerprint) importError('IMPORT_REVIEW_CHANGED', 'The source or product state changed. Dry-run and approve the new fingerprint.');
   reviewedExclusions(input, prepared.plan);
   // Recheck the reviewed before-images immediately before creating custody.
   // Batch publication additionally fences each complete native snapshot.
   const job = await createD1ImportJob(prepared.plan, context);
-  context.storage.targets = productTargets(false, { plan: prepared.plan, jobId: job.id });
+  context.storage.targets = productTargets(false, { plan: prepared.plan, jobId: job.id }, false, true);
   return applyD1ImportBatches(job.id, context);
 }
 

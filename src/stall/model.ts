@@ -10,7 +10,7 @@ export class Problem extends Error {
 }
 export function fail(code:string,message:string,status=409):never { throw new Problem(code,message,status) }
 export type Actor={id:string;email:string;role:string;version:number;sessionId?:string;agent:boolean;grantId?:string;staffRole?:StaffRole;scopeRevision?:string;refundLimitCents?:number;separateApproval?:boolean}
-export type ProductValue={details?:ProductDetails;publishAt?:string;archived?:true;sku:string;name:string;description:string;unitCents:number;active:boolean;draft?:Omit<ProductValue,'draft'>;approval?:Approval}
+export type ProductValue={stockMode?:'pier';details?:ProductDetails;publishAt?:string;archived?:true;sku:string;name:string;description:string;unitCents:number;active:boolean;draft?:Omit<ProductValue,'draft'>;approval?:Approval}
 export type Product={id:string;value:ProductValue;revision:string}
 export type Approval={scopeRevision?:string;by:string;version:number;at:string;revision:string}
 export type Personalized={key:string;label:string;type:'text'|'choice'|'file';value:string;addOnCents:number;fileId?:string;fileName?:string}
