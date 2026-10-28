@@ -31,7 +31,7 @@ function ShopBrowse() {
   const [error, setError] = useState(''), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true)
   const key = useRef(''), lock = useRef(false)
   const browse = useDiscovery()
-  async function load() { setLoading(true); setError(''); try { setCatalogue(await request<Catalogue>('/api/stall/catalogue')); setReview(false); void browse.reload() } catch (error) { setError(errorMessage(error)) } finally { setLoading(false) } }
+  async function load() { setLoading(true); setError(''); try { setCatalogue(await request<Catalogue>('/api/stall/catalogue')); setReview(false); void browse.reload() } catch (error) { setCatalogue(null); setError(errorMessage(error)) } finally { setLoading(false) } }
   useEffect(() => { void load() }, [])
   useEffect(() => {
     const lines = readBasket()
@@ -45,7 +45,7 @@ function ShopBrowse() {
   const shown = browse.result ? browse.result.order.flatMap(sku => catalogue?.products.filter(product => product.sku === sku) ?? []) : catalogue?.products ?? []
   const chosen = items.filter(item => Number(quantities[item.sku]) > 0)
   const subtotal = chosen.reduce((sum, item) => sum + (item.unitCents + (extras[item.sku]?.addOnCents ?? 0)) * Number(quantities[item.sku]), 0)
-  const options = useShippingQuote(chosen.map(item => ({ sku: item.sku, quantity: Number(quantities[item.sku]), ...(extras[item.sku]?.personalization ? { personalization: extras[item.sku].personalization } : {}) })), zip)
+  const options = useShippingQuote(chosen.map(item => ({ sku: item.sku, quantity: Number(quantities[item.sku]), ...(extras[item.sku]?.personalization ? { personalization: extras[item.sku].personalization } : {}) })), zip, catalogue?.observedAt)
   const service = options.chosen, shipping = chosen.length ? service?.cents ?? 0 : 0
   const lines = chosen.map(item => ({ sku: item.sku, quantity: Number(quantities[item.sku]), ...(extras[item.sku]?.personalization ? { personalization: extras[item.sku].personalization } : {}) }))
   const shippingInput = service ? { service: service.code, ...(zipOf(zip) ? { postalCode: zipOf(zip) } : {}), quote: service.quote } : undefined
@@ -76,6 +76,7 @@ function ShopBrowse() {
         {browse.problem && <Notice error>{browse.problem}</Notice>}
         {browse.result && <><ResultsBar result={browse.result} params={browse.params} go={browse.go} /><details className="st-filters" open={typeof matchMedia === 'undefined' ? true : !matchMedia('(max-width: 900px)').matches}><summary>Filters</summary><Facets result={browse.result} params={browse.params} go={browse.go} /></details></>}</div>}
       <p role="status" hidden={!loading}>Checking available products with Pier…</p>
+      {catalogue?.observedAt && !loading && <p className="st-small">Availability checked <time dateTime={catalogue.observedAt}>{new Date(catalogue.observedAt).toLocaleString()}</time>.</p>}
       {error && <Notice error>{error}</Notice>}
       {!loading && !catalogue && <Empty><h3>The shop is not ready for orders</h3><p>Live stock and payment connections need to be available before checkout can open. Please try again later.</p></Empty>}
       {catalogue && !catalogue.checkoutReady && <Notice>Payments are not available yet. The shop owner needs to connect Stripe checkout before orders can be accepted.</Notice>}

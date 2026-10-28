@@ -588,7 +588,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "af8e87615db21586ab7bdf1e1e9fba73e03afa57636502122423445aa765ec8f",
+      "sha256": "306ea42425ff5dc9d7ccda2930dee2bedee8834c39dc6d4bd73e4b607f2b30b6",
       "executable": false
     },
     "packaging.json": {
@@ -596,7 +596,7 @@
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "3b21290a4433ddb2d9b0aca8da58cec49b1eb7c919ce2f2e85a18ca0c60fd64a",
+      "sha256": "a0875363df32c132910d87ffa7d03d08ff76f581737f95c48b3731e4215a7f54",
       "executable": false
     },
     "public/apple-touch-icon.png": {
@@ -808,15 +808,15 @@
       "executable": false
     },
     "public/stall/base.css": {
-      "sha256": "32f473765953c4bf59d2cc597a85e1468fff2a97374a52e5a6ab9448b40db766",
+      "sha256": "0ad09b559dc65d620da2c6244097129403c65cd576a3f99b02700ac6d27e7a1e",
       "executable": false
     },
     "public/stall/desk.css": {
-      "sha256": "a52c3f05e38fc21b98f2a9aff3dc3e4d0718a861d2f10a7a9cc83698b442bde8",
+      "sha256": "ad2364a64a3272830d7bca09855e25b45a540eaacab57b2a34a8e660ee8d3de0",
       "executable": false
     },
     "public/stall/store.css": {
-      "sha256": "36430c661038c91ccaaebc3dcb22910c5959022565bfc01e717f029db0edddf7",
+      "sha256": "32236fe9e83d93ff7cd53a30cf52ba0c754c43dddde0df6c23bfc6d627632f0a",
       "executable": false
     },
     "README.md": {
@@ -3692,7 +3692,7 @@
       "executable": false
     },
     "src/stall/ui/dialog.tsx": {
-      "sha256": "5bba4cd0047e19b7bae0dcc5b9045e06c07e7f6c09c8c3828dc962995dab79c2",
+      "sha256": "be01c9d96a727302b17bb3ba4d5122d96de772bad3ac9b1b401d4444f3bfafb4",
       "executable": false
     },
     "src/stall/ui/discovery-views.tsx": {
@@ -3804,7 +3804,7 @@
       "executable": false
     },
     "src/stall/ui/primitives.tsx": {
-      "sha256": "3468a0e65c4bea678ecc70c0dab846e6fbfab81787d73ff3749a65975d5aaa4d",
+      "sha256": "a52a8697ba0b95b51937dd4653f195ee4972760f7179374806f77f2e81b3fb1a",
       "executable": false
     },
     "src/stall/ui/product-details.tsx": {
@@ -3812,7 +3812,7 @@
       "executable": false
     },
     "src/stall/ui/product-page.tsx": {
-      "sha256": "31ee6c1619ef7c37fcac525319556f6243871649ea9fb2f03ca7ae5c376cbebc",
+      "sha256": "1f023e2caa8865e8483d9fe5f1e2643127079afb7f0c719e643ea3b2c532284c",
       "executable": false
     },
     "src/stall/ui/product-reviews.tsx": {
@@ -3896,7 +3896,7 @@
       "executable": false
     },
     "src/stall/ui/shipping-options.tsx": {
-      "sha256": "b1cfe88b25d55bd275c05c7fbccd5f1255f09a327058b09e131de7ba32b22af2",
+      "sha256": "d753c299b848264614d41a17158addd965b5cb56ae8b0d0583f2972611f5b336",
       "executable": false
     },
     "src/stall/ui/shipping-places.tsx": {
@@ -3912,7 +3912,7 @@
       "executable": false
     },
     "src/stall/ui/shop.tsx": {
-      "sha256": "6843ee708b233ae81d8d60c6e966da541111a0b72cf37a5f5c8276274a6701a2",
+      "sha256": "4b4b5e466bafa9382ecbd57adb265925fdb7fcf7d43fe5320710dbdb0f0722f5",
       "executable": false
     },
     "src/stall/ui/staff-access.tsx": {
@@ -4056,7 +4056,7 @@
       "executable": false
     },
     "tests/api/harness.mjs": {
-      "sha256": "b8bba0ce887626d68d01440aaf518443a0dbbb0bcc257f138fac0423f2b27272",
+      "sha256": "d92badba5395006af6a4e47b1a1b2e672c1c782ece0231f4d3c19b0df2ee0e93",
       "executable": false
     },
     "tests/api/imports.test.mjs": {
@@ -4191,6 +4191,10 @@
       "sha256": "736c050d44a76b04c45d9c71999e936d3f9c4a1d9bbb653e21f5639c6922a8bf",
       "executable": false
     },
+    "tests/ui/mobile-journey.mjs": {
+      "sha256": "cc546ca8e9035b851404013b27d0a2763033ee70ec505920e28524e0696f3dcc",
+      "executable": false
+    },
     "tests/ui/order-desk.mjs": {
       "sha256": "dcc0309d752d59b07c17a76b99d1ea1eb070faa0deff6416fbf39ea092d49fa6",
       "executable": false
@@ -4240,7 +4244,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "78d7cbbbcb71c6ff98ab1bc6005d492fff55b4eee71ea17ff19332a272f05da6",
+      "sha256": "5c1158e9d67693db86f79f7725a1b4218e930bac7091f3f45c4795954bf2cc1d",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

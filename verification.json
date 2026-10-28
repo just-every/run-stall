@@ -61,7 +61,8 @@
       "hosted": false,
       "commands": [
         "pnpm run build",
-        "node tests/ui/real-home.mjs tests/ui/review-import-journey.mjs"
+        "node tests/ui/real-home.mjs tests/ui/review-import-journey.mjs",
+        "node tests/ui/real-home.mjs tests/ui/mobile-journey.mjs"
       ]
     },
     {

@@ -6,9 +6,9 @@ export interface ShippingQuote { postalCode?: string; services: QuoteService[]; 
 type QuoteLine = { sku: string; quantity: number; personalization?: Record<string, string> }
 export const zipOf = (value: string) => /^\d{5}(-\d{4})?$/.test(value.trim()) ? value.trim().slice(0, 5) : undefined
 /** The shop's shipping options for a basket and ZIP code. A single unambiguous service needs no choice. */
-export function useShippingQuote(lines: QuoteLine[], zip: string) {
+export function useShippingQuote(lines: QuoteLine[], zip: string, freshness = '') {
   const [quote, setQuote] = useState<ShippingQuote | null>(null), [picked, setPicked] = useState(''), [problem, setProblem] = useState(''), [loading, setLoading] = useState(false)
-  const key = JSON.stringify(lines) + '|' + (zipOf(zip) ?? '')
+  const key = JSON.stringify(lines) + '|' + (zipOf(zip) ?? '') + '|' + freshness
   useEffect(() => {
     setQuote(null); setProblem('')
     if (!lines.length) return
@@ -25,7 +25,7 @@ export function useShippingQuote(lines: QuoteLine[], zip: string) {
 }
 export function ShippingChoice({ state, zip, setZip, busy }: { state: ReturnType<typeof useShippingQuote>; zip: string; setZip: (value: string) => void; busy: boolean }) {
   const { quote, chosen, setPicked, problem, loading, unasked } = state
-  return <div className="st-stack" aria-label="Shipping options">
+  return <div className="st-stack" role="group" aria-label="Shipping options">
     {(quote?.needsPostalCode || zip) && <label>ZIP code for shipping options<input inputMode="numeric" autoComplete="postal-code" maxLength={10} value={zip} disabled={busy} onChange={event => setZip(event.target.value)} /></label>}
     {zip && !zipOf(zip) && <p className="st-small" role="status">Enter a five-digit US ZIP code.</p>}
     {loading && <p role="status" className="st-small">Checking shipping options…</p>}
