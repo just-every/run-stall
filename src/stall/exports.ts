@@ -117,6 +117,8 @@ export async function businessExport(db: D1Database, kind: string): Promise<Resp
    const { approval, draft, ...value } = product.value
    return ['product', product.id, { ...value, stockMode: 'pier', details: value.details ?? {} }]
   }).concat((await collections(db)).map(entry => ['collection', entry.id, entry.value]))
+  const tax = await db.prepare('SELECT value_json FROM st_tax_configuration WHERE id=1').first<{ value_json: string }>()
+  if (tax) entries.push(['tax-settings', 'shop', JSON.parse(tax.value_json)])
   return new Response(['Record Type,ID,Value', ...entries.map(row => row.map(value => cell(value)).join(','))].join('\r\n') + '\r\n', { headers })
  }
  if (kind === 'records') return new Response(JSON.stringify({ schema: 'stall-business-export-v1', exportedAt: new Date().toISOString(),

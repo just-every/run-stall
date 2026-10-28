@@ -5,16 +5,17 @@ import { promisify } from 'node:util'
 import { mkdtemp, mkdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
+import { pierInstallation } from '../api/pier.mjs'
 import { installation } from '../api/harness.mjs'
 import { startOwnedDev, finishCleanup } from '../owned-dev.mjs'
 
 const exec = promisify(execFile), screenshots = resolve(process.env.STALL_SCREENSHOTS ?? 'test-results/bulk-products')
 const scratch = await mkdtemp(join(tmpdir(), 'stall-bulk-')), checkout = join(scratch, 'run-stall'), rerHome = join(scratch, 'rer-home')
-let browser, dev, h, journeyError, cleaning
+let browser, dev, h, pier, journeyError, cleaning
 await mkdir(screenshots, { recursive: true }); await mkdir(rerHome)
 function cleanup() {
  return cleaning ??= (async () => {
-  const results = await Promise.allSettled([browser?.close(), h?.close(), dev?.stop()].filter(Boolean))
+  const results = await Promise.allSettled([browser?.close(), h?.close(), pier?.close(), dev?.stop()].filter(Boolean))
   const failures = results.filter(result => result.status === 'rejected').map(result => result.reason)
   if (failures.length) throw new AggregateError(failures, 'Owned bulk journey cleanup failed')
   await rm(scratch, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 })
@@ -24,12 +25,14 @@ const interrupted = () => { void cleanup().then(() => process.exit(1), () => pro
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, interrupted)
 try {
  await exec('git', ['clone', '--no-hardlinks', process.cwd(), checkout])
+ await exec('git', ['config', 'user.name', 'Run Edit Run fleet'], { cwd: checkout })
+ await exec('git', ['config', 'user.email', 'fleet@runeditrun.com'], { cwd: checkout })
  dev = await startOwnedDev({ launcher: resolve('node_modules/@runeditrun/rer/global/rer.mjs'), checkout, env: { ...process.env, HOME: rerHome, RER_SERVER_JOURNEY: '1', RER_LOCAL_OPERATION: '' } })
  const ready = await dev.ready
  h = await installation()
  for (const [sku, name, unitCents] of [['MUG-BLUE', 'Blue ceramic mug', 2450], ['TOWEL-NAT', 'Natural linen towel', 1800]])
   await h.command('product.prepare', { sku, name, description: 'Handmade, ready for a personal touch.', unitCents, active: false })
- browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+ browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH, args: ['--no-sandbox', '--use-mock-keychain', '--password-store=basic'] })
  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' }), page = await context.newPage(), errors = []
  page.on('pageerror', error => errors.push(error.message))
  // Test transport to the real migrated commerce Worker; no application fixtures.
@@ -186,6 +189,149 @@ try {
  await page.getByText('Undo finished. Review the journal for preserved records.', { exact: true }).waitFor()
  assert.ok(!(await h.api('/api/stall/state')).products.some(p => p.id.startsWith('META-')))
  await capture('metadata-undone', page.getByLabel('Product undo outcomes', { exact: true }))
+ // The full grid edits the same typed fields as the portable file, including publication.
+ await h.close()
+ pier = await pierInstallation()
+ h = await installation({ bindings: pier.bindings, outboundService: pier.forward })
+ const startingVariants = [{ sku: 'MUG-BLUE', options: { Size: 'Small' }, unitCents: 2450 }, { sku: 'TOWEL-NAT', options: { Size: 'Large' }, unitCents: 1800 }]
+ await h.command('product.prepare', { sku: 'STUDIO-SET', name: 'Studio set', description: 'Before bulk', unitCents: 2450, active: false, details: { options: [{ name: 'Size', values: ['Small', 'Large'] }], variants: startingVariants } })
+ for (let index = 1; index <= 10; index++) await h.command('product.prepare', { sku: `GRID-${index}`, name: `Grid product ${index}`, description: 'Before grid', unitCents: 1234, active: false })
+ await h.command('collection.save', { handle: 'studio', title: 'Original studio', description: 'Original collection', kind: 'manual', skus: ['STUDIO-SET'], published: false })
+ await page.reload()
+ await page.getByRole('link', { name: 'Products', exact: true }).click()
+ await page.getByRole('button', { name: 'Bulk edit staged products', exact: true }).click()
+ await page.getByLabel('Select STUDIO-SET', { exact: true }).check()
+ const gridRow = page.getByLabel('Select STUDIO-SET', { exact: true }).locator('..').locator('..')
+ await page.getByLabel('Product name · STUDIO-SET', { exact: true }).fill('Reviewed studio set')
+ await page.getByLabel('Unit price · USD · STUDIO-SET', { exact: false }).fill('29.25')
+ await page.getByLabel('Publication · STUDIO-SET', { exact: true }).selectOption('published')
+ await gridRow.getByText('Optional product details', { exact: true }).click()
+ await gridRow.getByLabel('Weight · g', { exact: true }).fill('350')
+ for (const [name, value] of [['Length · mm', '120'], ['Width · mm', '90'], ['Height · mm', '100'], ['Tax category', 'ceramics'], ['HS code', '691200'], ['Country of origin', 'AU']]) await gridRow.getByLabel(name, { exact: true }).fill(value)
+ await gridRow.getByRole('button', { name: 'Add custom field', exact: true }).click()
+ await gridRow.getByLabel('Field key 1', { exact: true }).fill('care')
+ await gridRow.getByLabel('Field label 1', { exact: true }).fill('Care')
+ await gridRow.getByLabel('Field value 1', { exact: true }).fill('Hand wash <care>')
+ await gridRow.getByText('Options and variants', { exact: true }).first().click()
+ for (const [name, value] of [['Variant 1 price · USD', '28.75'], ['Variant 2 price · USD', '33.33'], ['Variant 1 weight · g', '260'], ['Variant 1 length · mm', '90'], ['Variant 1 width · mm', '80'], ['Variant 1 height · mm', '100'], ['Variant 1 HS code', '691200'], ['Variant 1 country of origin', 'US']]) await gridRow.getByLabel(name, { exact: true }).fill(value)
+ for (let index = 1; index <= 10; index++) {
+  await page.getByLabel(`Select GRID-${index}`, { exact: true }).check()
+  await page.getByLabel(`Unit price · USD · GRID-${index}`, { exact: false }).fill('15.67')
+ }
+ await page.getByLabel('Select collection studio', { exact: true }).check()
+ await page.getByLabel('Collection title · studio', { exact: true }).fill('Reviewed studio')
+ await page.getByLabel('Product SKUs · studio', { exact: false }).fill('STUDIO-SET, GRID-1')
+ await page.getByLabel('Publish collection studio', { exact: true }).check()
+ const gridBefore = await h.api('/api/stall/state')
+ await page.getByRole('button', { name: 'Review bulk edit (12)', exact: true }).click()
+ await page.getByRole('heading', { name: 'Review exact changes', exact: true }).waitFor()
+ assert.deepEqual((await h.api('/api/stall/state')).products, gridBefore.products)
+ await capture('full-grid-review', page.getByLabel('Reviewed bulk changes', { exact: true }))
+ const collectionBefore = gridBefore.merchandising.collections[0]
+ await h.command('collection.save', { ...collectionBefore.value, revision: collectionBefore.revision, title: 'Concurrent studio title' })
+ await page.getByRole('button', { name: 'Apply reviewed bulk edit', exact: true }).click()
+ await page.getByRole('alert').waitFor()
+ assert.deepEqual((await h.api('/api/stall/state')).products, gridBefore.products)
+ assert.equal(await gridRow.getByLabel('Weight · g', { exact: true }).inputValue(), '350')
+ await page.getByRole('button', { name: 'Review bulk edit (12)', exact: true }).click()
+ await page.getByRole('alert').waitFor({ state: 'hidden' })
+ await page.getByRole('button', { name: 'Apply reviewed bulk edit', exact: true }).click()
+ await page.getByRole('button', { name: 'Resume reviewed bulk edit', exact: true }).waitFor()
+ await page.getByRole('link', { name: 'Move in', exact: true }).click()
+ await page.getByRole('button', { name: 'View', exact: true }).first().click()
+ for (let n = 0; n < 5 && await page.getByRole('button', { name: 'Resume apply from retained source', exact: true }).count(); n++) {
+  await page.getByRole('button', { name: 'Resume apply from retained source', exact: true }).click()
+  await page.getByText('Import completed.', { exact: true }).waitFor()
+ }
+ const gridAfter = await h.api('/api/stall/exports/records'), studio = gridAfter.products.find(row => row.id === 'STUDIO-SET')
+ assert.equal(studio.value.name, 'Reviewed studio set')
+ assert.equal(studio.value.unitCents, 2925)
+ assert.equal(studio.value.active, true)
+ assert.equal(studio.value.stockMode, 'pier')
+ assert.equal(studio.value.details.weightGrams, 350)
+ assert.deepEqual(studio.value.details.dimensionsMm, { length: 120, width: 90, height: 100 })
+ assert.equal(studio.value.details.taxCategory, 'ceramics')
+ assert.equal(studio.value.details.hsCode, '691200')
+ assert.equal(studio.value.details.countryOfOrigin, 'AU')
+ assert.deepEqual(studio.value.details.customFields, [{ key: 'care', label: 'Care', type: 'text', value: 'Hand wash <care>' }])
+ assert.deepEqual(studio.value.details.variants, [{ ...startingVariants[0], unitCents: 2875, weightGrams: 260, dimensionsMm: { length: 90, width: 80, height: 100 }, hsCode: '691200', countryOfOrigin: 'US' }, { ...startingVariants[1], unitCents: 3333 }])
+ assert.deepEqual(gridAfter.collections[0].value.skus, ['STUDIO-SET', 'GRID-1'])
+ assert.equal(gridAfter.collections[0].value.title, 'Reviewed studio')
+ assert.equal(gridAfter.collections[0].value.published, true)
+ for (let index = 1; index <= 10; index++) assert.equal(gridAfter.products.find(row => row.id === `GRID-${index}`).value.unitCents, 1567)
+ const { readCsv } = await import('../api/csv-reader.mjs')
+ const gridFile = readCsv(await (await h.request('/api/stall/exports/catalog')).text())
+ assert.deepEqual(JSON.parse(gridFile.find(row => row.ID === 'STUDIO-SET').Value).details, studio.value.details)
+ await capture('full-grid-resumed', page.getByRole('button', { name: 'Review undo', exact: true }))
+ const keepGrid = (await h.api('/api/stall/state')).products.find(row => row.id === 'GRID-1')
+ await h.command('product.prepare', { ...keepGrid.value, revision: keepGrid.revision, name: 'Keep native grid edit' })
+ await page.getByRole('button', { name: 'Review undo', exact: true }).click()
+ await page.getByRole('button', { name: 'Undo import', exact: true }).click()
+ if (await page.getByRole('button', { name: 'Resume undo', exact: true }).count()) { await page.getByRole('button', { name: 'Resume undo', exact: true }).click(); await page.getByRole('button', { name: 'Undo import', exact: true }).click() }
+ await page.getByText('Undo finished. Review the journal for preserved records.', { exact: true }).waitFor()
+ assert.equal((await h.api('/api/stall/state')).products.find(row => row.id === 'GRID-1').value.draft.name, 'Keep native grid edit')
+ assert.deepEqual((await h.api('/api/stall/state')).products.find(row => row.id === 'STUDIO-SET'), gridBefore.products.find(row => row.id === 'STUDIO-SET'))
+ await capture('full-grid-protected-undo', page.getByLabel('Product undo outcomes', { exact: true }))
+ // Actual SKU tax mappings are reviewed in Settings, without sending provider requests.
+ await page.getByRole('link', { name: 'Settings', exact: true }).click()
+ await page.getByText('Review bulk tax codes', { exact: true }).first().click()
+ const taxGrid = page.getByLabel('Bulk tax code grid', { exact: true })
+ for (const [index, sku, code] of [[1, 'MUG-BLUE', 'txcd_99999999'], [2, 'TOWEL-NAT', 'txcd_00000000']]) {
+  await taxGrid.getByRole('button', { name: 'Add bulk tax row', exact: true }).click()
+  await taxGrid.getByLabel(`Bulk tax SKU ${index}`, { exact: true }).fill(sku)
+  await taxGrid.getByLabel(`Bulk product tax code ${index}`, { exact: true }).fill(code)
+ }
+ await taxGrid.getByRole('button', { name: 'Review bulk tax codes', exact: true }).click()
+ await page.getByRole('button', { name: 'Apply reviewed tax codes', exact: true }).waitFor()
+ assert.deepEqual((await h.api('/api/stall/tax/configuration')).categories, [])
+ await capture('tax-grid-review', taxGrid)
+ await page.getByRole('button', { name: 'Apply reviewed tax codes', exact: true }).click()
+ await page.getByLabel('Bulk tax code grid', { exact: true }).waitFor({ state: 'hidden' })
+ assert.deepEqual((await h.api('/api/stall/tax/configuration')).categories, [{ sku: 'MUG-BLUE', taxCode: 'txcd_99999999' }, { sku: 'TOWEL-NAT', taxCode: 'txcd_00000000' }])
+ // Upload the rich file through the file input, retaining every full-grid field.
+ await page.getByRole('link', { name: 'Move in', exact: true }).click()
+ const fileProduct = { sku: 'STUDIO-SET', name: 'File reviewed studio set', description: 'File values', unitCents: 3000, active: true, stockMode: 'pier', details: studio.value.details }
+ const fileCollections = { handle: 'studio', title: 'File studio collection', description: 'File members', kind: 'manual', skus: ['STUDIO-SET'], published: true }
+ const fileTax = { shipFrom: null, thresholds: [], categories: [{ sku: 'MUG-BLUE', taxCode: 'txcd_00000000' }, { sku: 'TOWEL-NAT', taxCode: 'txcd_99999999' }] }
+ const richRows = [['product', 'STUDIO-SET', fileProduct], ...Array.from({ length: 10 }, (_, index) => ['product', `FILE-${index + 1}`, { ...fileProduct, sku: `FILE-${index + 1}`, name: `File product ${index + 1}`, active: false, details: { ...studio.value.details, options: undefined, variants: undefined } }]), ['collection', 'studio', fileCollections], ['tax-settings', 'shop', fileTax], ['product', 'FILE-BAD', { ...fileProduct, sku: 'FILE-BAD', stockMode: 'unsupported' }]]
+ const richCSV = 'Record Type,ID,Value\n' + richRows.map(row => row.map(value => '"' + String(typeof value === 'object' ? JSON.stringify(value) : value).replaceAll('"', '""') + '"').join(',')).join('\n') + '\n'
+ await page.getByLabel('Choose a CSV file', { exact: true }).setInputFiles({ name: 'synthetic-stall-73.csv', mimeType: 'text/csv', buffer: Buffer.from(richCSV) })
+ await page.getByRole('button', { name: 'Run dry run', exact: true }).click()
+ await page.getByRole('checkbox', { name: /^Exclude the 1 rejected CSV rows/ }).waitFor()
+ const fileBefore = await h.api('/api/stall/state')
+ assert.equal(fileBefore.products.find(row => row.id === 'STUDIO-SET').value.name, 'Studio set')
+ await capture('full-file-review', page.getByRole('button', { name: 'Apply reviewed import', exact: true }))
+ const concurrent = fileBefore.products.find(row => row.id === 'STUDIO-SET')
+ await h.command('product.prepare', { ...concurrent.value, revision: concurrent.revision, name: 'Concurrent file draft' })
+ await page.getByRole('checkbox', { name: /^Exclude the 1 rejected CSV rows/ }).check()
+ await page.getByRole('button', { name: 'Apply reviewed import', exact: true }).click()
+ await page.getByRole('alert').waitFor()
+ assert.ok(!(await h.api('/api/stall/state')).products.some(row => row.id === 'FILE-1'))
+ await page.getByRole('button', { name: 'Run dry run', exact: true }).click()
+ await page.getByRole('alert').waitFor({ state: 'hidden' })
+ await page.getByRole('checkbox', { name: /^Exclude the 1 rejected CSV rows/ }).check()
+ await page.getByRole('button', { name: 'Apply reviewed import', exact: true }).click()
+ await page.getByRole('button', { name: 'Resume apply', exact: true }).waitFor()
+ await page.getByRole('link', { name: 'Products', exact: true }).click()
+ await page.getByRole('link', { name: 'Move in', exact: true }).click()
+ await page.getByRole('button', { name: 'View', exact: true }).first().click()
+ await page.getByRole('button', { name: 'Resume apply from retained source', exact: true }).click()
+ await page.getByText('Import completed.', { exact: true }).waitFor()
+ const fileExport = readCsv(await (await h.request('/api/stall/exports/catalog')).text())
+ assert.deepEqual(JSON.parse(fileExport.find(row => row.ID === 'STUDIO-SET').Value), fileProduct)
+ assert.deepEqual(JSON.parse(fileExport.find(row => row.ID === 'studio').Value), fileCollections)
+ assert.deepEqual(JSON.parse(fileExport.find(row => row['Record Type'] === 'tax-settings').Value), fileTax)
+ assert.equal(fileExport.filter(row => row.ID.startsWith('FILE-')).length, 10)
+ const fileNative = (await h.api('/api/stall/state')).products.find(row => row.id === 'FILE-1')
+ await h.command('product.prepare', { ...fileNative.value, revision: fileNative.revision, name: 'Preserve file native edit' })
+ await page.getByRole('button', { name: 'Review undo', exact: true }).click()
+ await page.getByRole('button', { name: 'Undo import', exact: true }).click()
+ if (await page.getByRole('button', { name: 'Resume undo', exact: true }).count()) { await page.getByRole('button', { name: 'Resume undo', exact: true }).click(); await page.getByRole('button', { name: 'Undo import', exact: true }).click() }
+ await page.getByText('Undo finished. Review the journal for preserved records.', { exact: true }).waitFor()
+ const fileUndone = await h.api('/api/stall/state')
+ assert.equal(fileUndone.products.filter(row => row.id.startsWith('FILE-')).length, 1)
+ assert.equal(fileUndone.products.find(row => row.id === 'FILE-1').value.draft.name, 'Preserve file native edit')
+ await capture('full-file-protected-undo', page.getByLabel('Product undo outcomes', { exact: true }))
  const sitePage = await context.newPage()
  for (const [path, name] of [['/docs/move-in', 'metadata-guide'], ['/docs/products', 'product-guide'], ['/contract', 'contract']]) {
   const response = await sitePage.goto(ready.siteUrl + path)

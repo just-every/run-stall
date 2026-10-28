@@ -29,7 +29,7 @@ function address(value:any):TaxAddress|null {
  if(!/^\d{5}(?:-\d{4})?$/.test(postal_code))fail('INPUT','Enter a full five-digit or ZIP+4 ship-from ZIP code.',400)
  return {line1:text(value.line1,'Ship-from street',200),...(value.line2?{line2:text(value.line2,'Ship-from address line 2',200)}:{}),city:text(value.city,'Ship-from city',100),state:state(value.state),postal_code,country:'US'}
 }
-function configuration(value:any):TaxConfigurationValue {
+export function configuration(value:any):TaxConfigurationValue {
  if(!Array.isArray(value?.categories)||value.categories.length>1000||!Array.isArray(value?.thresholds)||value.thresholds.length>taxStates.length)fail('INPUT','Provide up to 1,000 SKU tax codes and one threshold per US state.',400)
  const skus=new Set<string>(),states=new Set<string>()
  const categories=value.categories.map((entry:any):TaxCategory=>{

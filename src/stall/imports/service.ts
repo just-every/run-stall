@@ -66,12 +66,13 @@ async function preparePlan(env: Bindings, actor: Actor, input: ProductImportInpu
     record.namespace = namespace;
     if (record.kind === 'shopify-product-rejected') continue;
     if (isCatalog(record.kind)) {
-      const kind = record.kind.endsWith('-collection') ? 'collection' : 'product';
+      const kind = record.kind.slice('stall-catalog-'.length);
+      if (kind === 'tax-settings' && (actor.role !== 'owner' || actor.agent)) importError('FORBIDDEN', 'Only the current owner may review or apply catalog tax settings.');
       const previous = existing.get(`${kind}:${record.sourceId}`) ?? null;
       let value = record.payload as any;
       if (kind === 'product') {
         if (value.active) value = { ...value, approval: { by: actor.id, version: actor.version, at, revision: sha256(canonicalJson(record.payload)) } };
-      } else value = collectionValue(value, new Set([...native.filter(row => row.targetKind === 'product').map(row => row.targetId), ...source.records.filter(row => row.kind === 'stall-catalog-product').map(row => row.sourceId)]));
+      } else if (kind === 'collection') value = collectionValue(value, new Set([...native.filter(row => row.targetKind === 'product').map(row => row.targetId), ...source.records.filter(row => row.kind === 'stall-catalog-product').map(row => row.sourceId)]));
       record.payload = { product: value, previous, targetKind: kind } as unknown as Json;
       record.payloadHash = sha256(canonicalJson(record.payload));
       continue;
@@ -128,6 +129,7 @@ export async function applyProductImport(env: Bindings, actor: Actor, input: Pro
   if (prior) {
     const retained = await stored(prior.id, context, 'apply');
     if (!['completed','undone','undoing','rolled_back'].includes(retained.job.state)) await checkCatalogProducts(env, retained.plan.entries.filter(entry => entry.source.kind === 'stall-catalog-product').map(entry => (entry.source.payload as any).product));
+    catalogOwner(actor, retained.plan);
     reviewedExclusions(input, retained.plan);
     context.storage.targets = productTargets(false, { plan: retained.plan, jobId: prior.id }, false, mapping === productImportMappingVersion);
     return resumeD1Import(prior.id, context);
@@ -143,6 +145,10 @@ export async function applyProductImport(env: Bindings, actor: Actor, input: Pro
   const job = await createD1ImportJob(prepared.plan, context);
   context.storage.targets = productTargets(false, { plan: prepared.plan, jobId: job.id }, false, true);
   return applyD1ImportBatches(job.id, context);
+}
+
+function catalogOwner(actor: Actor, plan: ImportPlan) {
+  if (plan.entries.some(entry => entry.effects.some(effect => effect.targetKind === 'tax-settings')) && (actor.role !== 'owner' || actor.agent)) importError('FORBIDDEN', 'Only the current owner may access catalog tax settings.');
 }
 
 async function jobContext(db: D1Database, actor: Actor, id: string, reversing = false) {
@@ -169,8 +175,9 @@ export async function getProductImport(db: D1Database, actor: Actor, id: string)
   const context = await jobContext(db, actor, id);
   const job = await readD1ImportJob(id, context);
   const originals = await readD1ImportOriginals(id, context);
-  const undoReport = await readD1ImportUndoReport(id, context, { limit: 200 });
   const retained = await stored(id, context);
+  catalogOwner(actor, retained.plan);
+  const undoReport = await readD1ImportUndoReport(id, context, { limit: 200 });
   await authorizeProductImport(db, actor);
   return { job, originals, undoReport, rejectedRows: rejectedRows(retained.plan) };
 }
@@ -180,6 +187,7 @@ export async function undoProductImport(db: D1Database, actor: Actor, id: string
   const dependency = await db.prepare(`SELECT 1 AS found FROM ik_provenance p WHERE p.job_id=? AND p.target_kind='product' AND p.reversed=0 AND EXISTS(SELECT 1 FROM st_orders o,json_each(o.value_json,'$.lines') l WHERE json_extract(l.value,'$.sku')=p.target_id) LIMIT 1`)
     .bind(id).first();
   if (dependency && context.mappingVersion === legacyProductMappingVersion) importError('IMPORT_ORDER_DEPENDENCY', 'An order refers to an imported SKU. Preserve that catalog reference and order history.');
+  catalogOwner(actor, (await stored(id, context)).plan);
   return undoD1Import(id, context);
 }
 

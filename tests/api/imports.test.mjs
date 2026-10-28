@@ -478,6 +478,115 @@ test('CATALOG-002: reviewed metadata CSV survives resume and restore, exports ex
   } finally { await receiving?.close(); await h.close(); }
 });
 
+test('CATALOG-002: full catalog files review every field, resume once, export and protect purchased variants and later native work', async () => {
+ const pier = await pierInstallation(), edge = stripeEdge({ forward: pier.forward }), secret = randomBytes(32).toString('hex')
+ let h, receiving
+ try {
+  h = await installation({ bindings: { ...pier.bindings, STRIPE_SECRET_KEY: 'synthetic-stall-71', STRIPE_WEBHOOK_SECRET: secret }, outboundService: edge.handle })
+  await h.command('product.prepare', { sku: 'CATALOG-1', name: 'Original native product', description: 'Keep on undo', unitCents: 1200, active: false })
+  await h.command('collection.save', { handle: 'bulk-collection', title: 'Original collection', description: 'Before import', kind: 'manual', skus: ['CATALOG-1'], published: false })
+  await h.api('/api/stall/tax/configuration', { revision: null, value: { shipFrom: null, categories: [], thresholds: [] } })
+  const quote = value => '"' + String(typeof value === 'object' ? JSON.stringify(value) : value).replaceAll('"', '""') + '"'
+  const file = rows => 'Record Type,ID,Value\n' + rows.map(row => row.map(quote).join(',')).join('\n') + '\n'
+  const facts = { taxCategory: 'ceramics', costCents: 735, weightGrams: 350, dimensionsMm: { length: 120, width: 90, height: 100 }, hsCode: '691200', countryOfOrigin: 'US', customFields: [
+   { key: 'care', label: 'Care', type: 'text', value: 'Hand wash <care>' }, { key: 'capacity', label: 'Capacity', type: 'number', value: 325 }, { key: 'dishwasher', label: 'Dishwasher', type: 'boolean', value: false },
+  ] }
+  const variants = [{ sku: 'MUG-BLUE', options: { Size: 'Small' }, unitCents: 2875, weightGrams: 260, dimensionsMm: { length: 90, width: 80, height: 100 }, hsCode: '691200', countryOfOrigin: 'AU' }, { sku: 'TOWEL-NAT', options: { Size: 'Large' }, unitCents: 3333, weightGrams: 500, dimensionsMm: { length: 120, width: 90, height: 140 }, hsCode: '630260', countryOfOrigin: 'US' }]
+  const expected = Array.from({ length: 12 }, (_, index) => ({ sku: `CATALOG-${index + 1}`, name: `Portable catalog ${index + 1}`, description: `Exact description ${index + 1}`, unitCents: 2345 + index, active: index === 0, stockMode: 'pier', details: { ...facts, handle: `portable-catalog-${index + 1}`, ...(index === 0 ? { options: [{ name: 'Size', values: ['Small', 'Large'] }], variants } : {}) } }))
+  const manual = { handle: 'bulk-collection', title: 'Reviewed collection', description: 'Two selected products', kind: 'manual', skus: ['CATALOG-1', 'CATALOG-2'], published: true }
+  const rule = { handle: 'bulk-rule', title: 'Ceramics', description: 'Rule collection', kind: 'rule', rules: [{ field: 'category', value: 'ceramics' }], match: 'all', published: true }
+  const taxes = { shipFrom: null, categories: [{ sku: 'MUG-BLUE', taxCode: 'txcd_99999999' }, { sku: 'TOWEL-NAT', taxCode: 'txcd_00000000' }], thresholds: [] }
+  const csv = file([...expected.map(value => ['product', value.sku, value]), ['collection', manual.handle, manual], ['collection', rule.handle, rule], ['tax-settings', 'shop', taxes], ['product', 'UNSUPPORTED-MODE', { ...expected[1], sku: 'UNSUPPORTED-MODE', stockMode: 'untracked' }], ['product', 'INVALID-WEIGHT', { ...expected[1], sku: 'INVALID-WEIGHT', details: { weightGrams: 0 } }]])
+  const initial = await h.api('/api/stall/state'), originalTax = await h.api('/api/stall/tax/configuration')
+  let preview = await h.api(`${base}/preview`, { csv })
+  assert.equal(preview.counts.mapped, 15)
+  assert.equal(preview.counts.rejected, 2)
+  assert.deepEqual((await h.api('/api/stall/state')).products, initial.products)
+  assert.deepEqual((await h.api('/api/stall/state')).merchandising.collections, initial.merchandising.collections)
+  assert.deepEqual(await h.api('/api/stall/tax/configuration'), originalTax)
+  assert.deepEqual(preview.plan.entries[0].effects[0].value.details.variants, variants)
+  assert.deepEqual(preview.plan.entries.find(e => e.source.kind === 'stall-catalog-tax-settings').effects[0].value, taxes)
+  const bodyOf = preview => ({ csv, fingerprint: preview.fingerprint, reviewToken: preview.reviewToken, excludedRows: [17, 18] })
+  await h.api(`${base}/apply`, { ...bodyOf(preview), reviewToken: undefined }, { status: 409 })
+  await h.api(`${base}/apply`, { ...bodyOf(preview), reviewToken: preview.reviewToken + 'changed' }, { status: 409 })
+  await h.api(`${base}/apply`, { ...bodyOf(preview), csv: csv.replace('Exact description 1', 'Changed source') }, { status: 409 })
+  const admin = await h.signIn(initial.actor.email.replace('owner', 'synthetic-stall-71'), 'admin')
+  await h.api(`${base}/preview`, { csv }, { as: admin, status: 403 })
+  const oldCollection = initial.merchandising.collections[0]
+  await h.command('collection.save', { ...oldCollection.value, revision: oldCollection.revision, title: 'Concurrent collection' })
+  await h.api(`${base}/apply`, bodyOf(preview), { status: 409 })
+  preview = await h.api(`${base}/preview`, { csv })
+  await h.api('/api/stall/tax/configuration', { revision: originalTax.revision, value: { ...taxes, categories: [] } })
+  await h.api(`${base}/apply`, bodyOf(preview), { status: 409 })
+  preview = await h.api(`${base}/preview`, { csv })
+  const native = (await h.api('/api/stall/state')).products[0]
+  await h.command('product.prepare', { ...native.value, revision: native.revision, name: 'Concurrent product', active: false })
+  await h.api(`${base}/apply`, bodyOf(preview), { status: 409 })
+  preview = await h.api(`${base}/preview`, { csv })
+  assert.equal((await h.api(base)).jobs.length, 0, 'all stale reviews refuse before custody or writes')
+  const body = bodyOf(preview)
+  let job = await h.api(`${base}/apply`, body)
+  assert.equal(job.state, 'applying')
+  receiving = await installation({ bindings: { ...pier.bindings, STRIPE_SECRET_KEY: 'synthetic-stall-72', STRIPE_WEBHOOK_SECRET: secret }, outboundService: edge.handle })
+  await restore(receiving, await archive(h))
+  const retained = (await receiving.api(`${base}/${job.id}`)).originals.find(row => row.original.status === 'retained')
+  assert.equal(Buffer.from(retained.original.base64, 'base64').toString(), csv)
+  for (let n = 0; job.state === 'applying' && n < 20; n++) job = await receiving.api(`${base}/apply`, body)
+  assert.equal(job.state, 'completed')
+  const complete = await receiving.api('/api/stall/exports/records')
+  assert.equal(complete.products.length, 12)
+  for (const value of expected) {
+   const actual = complete.products.find(row => row.id === value.sku).value
+   assert.equal(actual.name, value.name)
+   assert.equal(actual.description, value.description)
+   assert.equal(actual.unitCents, value.unitCents)
+   assert.equal(actual.active, value.active)
+   assert.equal(actual.stockMode, 'pier')
+   assert.equal(actual.details.taxCategory, 'ceramics')
+   assert.equal(actual.details.weightGrams, 350)
+   assert.deepEqual(actual.details.dimensionsMm, { length: 120, width: 90, height: 100 })
+   assert.equal(actual.details.hsCode, '691200')
+   assert.equal(actual.details.countryOfOrigin, 'US')
+   assert.deepEqual(actual.details.customFields, facts.customFields)
+   if (value.active) assert.deepEqual(actual.details.variants, variants)
+  }
+  assert.deepEqual(complete.collections.find(row => row.id === manual.handle).value, manual)
+  assert.deepEqual(complete.collections.find(row => row.id === rule.handle).value, rule)
+  assert.deepEqual((await receiving.api('/api/stall/tax/configuration')).categories, taxes.categories)
+  const { readCsv } = await import('./csv-reader.mjs')
+  const portable = readCsv(await (await receiving.request('/api/stall/exports/catalog')).text())
+  assert.equal(portable.length, 15)
+  assert.deepEqual(JSON.parse(portable.find(row => row.ID === 'CATALOG-1').Value), expected[0])
+  assert.deepEqual(JSON.parse(portable.find(row => row['Record Type'] === 'tax-settings').Value), taxes)
+  assert.deepEqual(JSON.parse(portable.find(row => row.ID === manual.handle).Value), manual)
+  assert.deepEqual(await receiving.api(`${base}/apply`, body), job)
+  assert.deepEqual((await receiving.api('/api/stall/exports/records')).products, complete.products)
+  const publicCatalog = await receiving.api('/api/stall/catalogue', undefined, { as: '' })
+  assert.deepEqual(publicCatalog.items.map(item => item.sku).sort(), ['MUG-BLUE', 'TOWEL-NAT'])
+  const bought = await purchase(receiving, edge, { skus: ['MUG-BLUE'], quantities: [1], expectedTotalCents: 2875 })
+  assert.equal((await deliverWebhook(receiving, secret, edge.pay(bought.session.id))).response.status, 200)
+  const second = (await receiving.api('/api/stall/state')).products.find(row => row.id === 'CATALOG-2')
+  await receiving.command('product.prepare', { ...second.value, revision: second.revision, name: 'Keep native product', active: false })
+  const collection = (await receiving.api('/api/stall/state')).merchandising.collections.find(row => row.id === manual.handle)
+  await receiving.command('collection.save', { ...collection.value, revision: collection.revision, title: 'Keep native collection' })
+  const tax = await receiving.api('/api/stall/tax/configuration')
+  await receiving.api('/api/stall/tax/configuration', { revision: tax.revision, value: { ...taxes, categories: taxes.categories.slice(0, 1) } })
+  const beforeUndo = await receiving.api('/api/stall/state'), taxBeforeUndo = await receiving.api('/api/stall/tax/configuration')
+  const report = await undo(receiving, job, { bounded: true })
+  const afterUndo = await receiving.api('/api/stall/state')
+  assert.deepEqual(afterUndo.products, beforeUndo.products.filter(row => ['CATALOG-1', 'CATALOG-2'].includes(row.id)))
+  assert.deepEqual(afterUndo.orders, beforeUndo.orders)
+  assert.deepEqual(afterUndo.merchandising.collections, beforeUndo.merchandising.collections.filter(row => row.id === manual.handle))
+  assert.deepEqual(await receiving.api('/api/stall/tax/configuration'), taxBeforeUndo)
+  assert.equal(report.dispositions.find(row => row.targetId === 'CATALOG-1').reason, 'dependency')
+  assert.ok(report.dispositions.find(row => row.targetId === 'CATALOG-1').protectedBy.some(edge => edge.cause.recordId === bought.orderId && edge.evidence.sku === 'MUG-BLUE'))
+  assert.equal(report.dispositions.find(row => row.targetId === 'CATALOG-2').reason, 'edited')
+  assert.equal(report.dispositions.find(row => row.targetKind === 'tax-settings').reason, 'edited')
+  assert.equal(report.dispositions.find(row => row.targetId === manual.handle).reason, 'edited')
+  assert.equal(report.dispositions.filter(row => row.disposition === 'reversed').length, 11)
+ } finally { await receiving?.close(); await h?.close(); await pier.close() }
+})
+
 test('Review move-in preserves source provenance, owned photos, exact mapping, replay and selective undo', async () => {
   const { volumeStock } = await import('./volume-stock.mjs');
   const { solidPng } = await import('./network.mjs');

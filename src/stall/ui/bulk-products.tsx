@@ -17,7 +17,7 @@ function BulkDetails({ product, readers, invalidate }: { product: Product; reade
  const initial = (product.value.draft ?? product.value).details
  const facts = useProductDetails(initial), listing = useListing(initial)
  readers.current[product.id] = () => ({ ...facts.read(), ...listing.read() })
- return <div onChangeCapture={invalidate}><ProductDetailsEditor input={facts} busy={false} /><ListingEditor input={listing} sku={product.id} busy={false} /></div>
+ return <div onChangeCapture={invalidate} onClickCapture={event => { if ((event.target as HTMLElement).closest('button')) invalidate() }}><ProductDetailsEditor input={facts} busy={false} /><ListingEditor input={listing} sku={product.id} busy={false} /></div>
 }
 
 /** Bounded bulk edits use the same exact-review, custody and undo engine as CSV. */
@@ -91,6 +91,7 @@ export function BulkProducts({ products, reload, close }: { products: Product[];
             {row.kind === 'manual' ? <label>Product SKUs · {row.id}<input value={row.skus} onChange={event => collectionEdit(index, { skus: event.target.value })} /><small>Separate product SKUs with commas.</small></label> : <><label>Collection rules · {row.id}<textarea value={row.rules} onChange={event => collectionEdit(index, { rules: event.target.value })} /></label><label>Rules match · {row.id}<select value={row.match} onChange={event => collectionEdit(index, { match: event.target.value as 'all' | 'any' })}><option value="all">All</option><option value="any">Any</option></select></label></>}
           </>}
         </div>)}
+
       </fieldset>
       <div className="st-actions"><button disabled={busy || !valid || !!job}>Review bulk edit ({total})</button><button type="button" className="st-secondary" disabled={busy} onClick={close}>Back to products</button></div>
     </form>

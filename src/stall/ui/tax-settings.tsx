@@ -51,6 +51,7 @@ function TaxConfigurationEditor({initial,onSaved}:{initial:TaxConfiguration;onSa
  }
  function remove(kind:'categories'|'thresholds',index:number) {const next={...current.current,[kind]:current.current[kind].filter((_,i)=>i!==index)};update(next);persist(next)}
  return <div className="st-stack">
+  <BulkTaxCodes key={initial.revision} initial={initial} onSaved={result=>{const next=draftOf(result);revision.current=result.revision;current.current=next;saved.current=JSON.stringify(next);setDraft(next);onSaved(result)}} />
   {error&&<Notice error>{error}</Notice>}{status&&<p role="status">{status}</p>}
   <details><summary>Ship-from address</summary><div className="st-stack">
    <p>Use the US address goods ship from. It is stored locally until you explicitly request a provider preview.</p>
@@ -130,5 +131,35 @@ function TaxReadiness() {
   <button type="button" className="st-secondary" disabled={busy} onClick={()=>void inspect()}>{busy?'Checking Stripe Tax…':'Check Stripe Tax readiness'}</button>
   {error&&<Notice error>{error}</Notice>}
   {value&&<><p>Active US registrations: {value.states.join(', ')||'None'}.</p>{account&&<p style={{overflowWrap:'anywhere'}}>Connected account: {account}</p>}{value.observedAt&&<p>Checked {value.observedAt}</p>}</>}
+ </div></details>
+}
+
+/** The Settings grid uses the same reviewed catalog, journal and undo door as files. */
+function BulkTaxCodes({initial,onSaved}:{initial:TaxConfiguration;onSaved:(value:TaxConfiguration)=>void}) {
+ const [rows,setRows]=useState(initial.categories),[preview,setPreview]=useState<any>(),[csv,setCsv]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('')
+ const lock=useRef(false)
+ function edit(index:number,patch:Partial<TaxConfiguration['categories'][number]>) {setRows(current=>current.map((row,at)=>at===index?{...row,...patch}:row));setPreview(undefined)}
+ async function act(apply=false) {
+  if(lock.current)return
+  lock.current=true;setBusy(true);setError('')
+  try {
+   if(apply&&preview) {
+    const job=await request<any>('/api/stall/imports/apply',{csv,fingerprint:preview.fingerprint,reviewToken:preview.reviewToken})
+    if(job.state!=='completed')throw new Error('Resume this reviewed tax edit in the Move in journal.')
+    onSaved(await request<TaxConfiguration>('/api/stall/tax/configuration'))
+   } else {
+    const {revision,...value}=initial
+    const source='Record Type,ID,Value\n"tax-settings","shop","'+JSON.stringify({...value,categories:rows}).replaceAll('"','""')+'"\n'
+    setCsv(source);setPreview(await request<any>('/api/stall/imports/preview',{csv:source}))
+   }
+  }catch(error){setError(errorMessage(error))}finally{lock.current=false;setBusy(false)}
+ }
+ return <details><summary>Review bulk tax codes</summary><div className="st-stack" aria-label="Bulk tax code grid">
+  <p>Replace SKU mappings in one reviewed operation. Ship-from and thresholds are included in the before-image. Resume and protected undo are in the Move in journal.</p>
+  {rows.map((row,index)=><div className="st-editor-grid" key={index}><label>Bulk tax SKU {index+1}<input value={row.sku} disabled={busy} onChange={event=>edit(index,{sku:event.target.value})} /></label><label>Bulk product tax code {index+1}<input value={row.taxCode} disabled={busy} onChange={event=>edit(index,{taxCode:event.target.value})} /></label><button className="st-secondary" disabled={busy} onClick={()=>{setRows(rows.filter((_,at)=>at!==index));setPreview(undefined)}}>Remove bulk tax row {index+1}</button></div>)}
+  <button className="st-secondary" disabled={busy||rows.length>=1000} onClick={()=>{setRows([...rows,{sku:'',taxCode:''}]);setPreview(undefined)}}>Add bulk tax row</button>
+  <button disabled={busy} onClick={()=>void act()}>Review bulk tax codes</button>
+  {error&&<Notice error>{error}</Notice>}
+  {preview&&<div className="st-stack" aria-label="Reviewed tax code changes"><pre style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{JSON.stringify(preview.plan.entries,null,2)}</pre><button disabled={busy} onClick={()=>void act(true)}>Apply reviewed tax codes</button></div>}
  </div></details>
 }

@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer'
 import type { Bindings } from '../../auth.server'
 import { canonicalJson, sha256, type SourceBundle } from '../../modules/import-kit/src/d1/index'
+import { configuration } from '../tax/configuration'
 import { productDetails } from '../product-details'
 import { collectionValue } from '../collections'
 import { strictObject } from '../facts'
@@ -27,14 +28,14 @@ export function catalogSource(csv: string, namespace: string, rows: { cells: str
  const records = rows.map(({ cells, row }) => {
   if (cells.length !== 3) importError('CSV_COLUMNS', `CSV row ${row} must have three columns.`)
   const [kind, id, raw] = cells
-  if (!['product', 'collection'].includes(kind)) importError('CSV_KIND', 'Record Type must be product or collection.')
+  if (!['product', 'collection', 'tax-settings'].includes(kind)) importError('CSV_KIND', 'Record Type must be product, collection or tax-settings.')
   stableId(id)
   if (seen.has(`${kind}:${id}`)) importError('CSV_IDENTITY', 'List each catalog identity once.')
   seen.add(`${kind}:${id}`)
   try {
    const value = JSON.parse(raw)
-   if ((kind === 'product' ? value.sku : value.handle) !== id) importError('PRODUCT_ID', 'The value identity must match ID.')
-   const payload = kind === 'product' ? catalogProduct(value) : value
+   if ((kind === 'product' ? value.sku : kind === 'collection' ? value.handle : 'shop') !== id) importError('PRODUCT_ID', 'The value identity must match ID.')
+   const payload = kind === 'product' ? catalogProduct(value) : kind === 'tax-settings' ? configuration(value) : value
    // Validate collection shape here; reference checks use the complete reviewed catalog.
    if (kind === 'collection') collectionValue(value, new Set(Array.isArray(value.skus) ? value.skus : []))
    return { namespace, kind: `stall-catalog-${kind}`, sourceId: id, payload, payloadHash: sha256(canonicalJson(payload)), artifactHash: hash, location: { artifact, row } }
