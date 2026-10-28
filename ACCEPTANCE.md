@@ -1177,11 +1177,11 @@ Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-007
 
 Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-007
 
-**Requirement.** An agent applies the merchant's versioned return policy to order, delivery and customer-supplied condition evidence, gathers missing facts, prepares eligibility/fee/exchange options and provider labels, and follows scans to staff inspection, accepted restock/quarantine, refund and accounting reconciliation. Staff confirm physical receipt/condition and disputed eligibility; money movement carries money and replacement shipment external, with company policy deciding each against current state. The agent closes a case only when stock and financial/provider references agree and the shopper is informed. Details are in [commerce mechanics](docs/COMMERCE-MECHANICS.md).
+**Requirement.** An agent applies the merchant's versioned return policy to order, delivery and customer-supplied condition evidence, gathers missing facts, prepares eligibility/fee/exchange options and provider labels, and follows scans to staff inspection, accepted restock/quarantine, refund and accounting reconciliation. Staff confirm physical receipt/condition. A binding eligibility or exception decision carries commitment, money movement carries money and replacement shipment external, with company policy deciding each against current state. Under the held company policy, the named staff member decides disputed eligibility; RETURN-001 retains its person-reviewed exception or dispute route. The agent closes a case only when stock and financial/provider references agree and the shopper is informed. Details are in [commerce mechanics](docs/COMMERCE-MECHANICS.md).
 
 **Acceptance.**
-1. Ask for a return in the authenticated customer experience, let the agent prepare policy-grounded options and a label, record a human inspection that changes one item's condition, then apply the company’s money and external policy to resolution.
-2. Lose a restock/refund response and confirm the agent reconciles both once and leaves a refused/disputed case with an assigned human.
+1. Ask for a return in the authenticated customer experience, let the agent prepare policy-grounded options and a label, record a human inspection that changes one item's condition, then apply the company’s commitment, money and external policy to eligibility and resolution.
+2. Lose a restock/refund response and confirm the agent reconciles both once and under the held company policy leaves a refused/disputed case with an assigned human through RETURN-001’s exception or dispute route.
 
 **Evidence.** `src/stall/refunds.ts`; `tests/api/commerce.test.mjs`
 **Gap.** Revision-approved reconciled refunds are a foundation; policy reasoning, labels, return receipt, restock and agent follow-through are absent.
@@ -1253,7 +1253,7 @@ Agent surface · target · **missing** · From new · Cites BASE-AGENT-006 · Ru
 1. An internal reversible catalog draft is standard with an item count; publishing it externally adds external and live, with public counterparty and the running shop named.
 2. A customer send is external with recipient count and known or new counterparty, and a public embed is public regardless of record text claiming it is internal.
 3. Capture, refund, store-credit issue, discount spend, label purchase and posting carry money with exact amount, currency and current counterparty.
-4. A binding return exception, accepted business term, substitution or submitted dispute carries commitment with its bound revision, value and counterparty.
+4. A binding return eligibility or exception decision, accepted business term, substitution or submitted dispute carries commitment with its bound revision, value and counterparty.
 5. Creating an outside identity or paid resource carries accounts with provider and resource; reusing an existing connected account does not invent an account creation.
 6. Hosted card entry, person-bound consent or verification and a provider response requiring a person carry gated with provider and step.
 
