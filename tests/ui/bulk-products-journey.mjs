@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { chromium } from '@playwright/test'
+import { chromium, expect } from '@playwright/test'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { mkdtemp, mkdir, rm, readFile } from 'node:fs/promises'
@@ -311,7 +311,9 @@ try {
  await h.command('product.prepare', { ...last.value, sku: last.id, revision: last.revision, name: 'Later file review edit', active: false })
  await page.getByRole('button', { name: 'Apply reviewed import', exact: true }).click()
  await page.getByRole('alert').waitFor()
+ const staleFileFingerprint = await page.getByLabel('Reviewed fingerprint', { exact: true }).inputValue()
  await page.getByRole('button', { name: 'Run dry run', exact: true }).click()
+ await expect(page.getByLabel('Reviewed fingerprint', { exact: true })).not.toHaveValue(staleFileFingerprint)
  await page.getByRole('checkbox', { name: /^Exclude the 1 rejected CSV rows/ }).check()
  await page.getByRole('button', { name: 'Apply reviewed import', exact: true }).click()
  await page.getByRole('button', { name: 'Resume apply', exact: true }).waitFor()
@@ -339,7 +341,8 @@ try {
   await page.getByRole('button', { name: 'Review undo', exact: true }).click()
   await page.getByRole('button', { name: 'Undo import', exact: true }).click()
   const resumeUndo = page.getByRole('button', { name: 'Resume undo', exact: true })
-  if (await resumeUndo.isVisible()) { await resumeUndo.click(); await page.getByRole('button', { name: 'Undo import', exact: true }).click() }
+  await resumeUndo.waitFor()
+  await resumeUndo.click(); await page.getByRole('button', { name: 'Undo import', exact: true }).click()
   await page.getByText('Undo finished. Review the journal for preserved records.', { exact: true }).waitFor()
   await page.getByLabel('Product undo outcomes', { exact: true }).getByText(`${ids[0]} · Kept`, { exact: true }).waitFor()
   assert.deepEqual((await h.api('/api/stall/state')).products.find(row => row.id === ids[0]), protectedFirst)

@@ -4140,7 +4140,7 @@
       "executable": false
     },
     "tests/ui/bulk-products-journey.mjs": {
-      "sha256": "5f41848dd9ef5e315fe179a0a954ec0e763951bf1d8a2256639b6e3260ec14e4",
+      "sha256": "8a126000b25fcf86f4fef036d39bc6be86609829c9fe1f1b1f1f60cd447ff788",
       "executable": false
     },
     "tests/ui/buy-link-journey.mjs": {
