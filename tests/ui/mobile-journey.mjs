@@ -88,7 +88,7 @@ try {
   await expect(page.getByRole('tooltip', { name: 'Account menu', exact: true })).toBeVisible()
   await page.keyboard.press('Tab')
   // Modal entry, trapping, Escape and return to the invoking control are keyboard operations.
-  await type(page.getByLabel('Customer email', { exact: true }), email)
+  await type(page.locator('form').filter({ has: page.getByRole('button', { name: 'Review customer erasure', exact: true }) }).getByLabel('Customer email', { exact: true }), email)
   const opener = page.getByRole('button', { name: 'Review customer erasure', exact: true })
   await activate(opener)
   const dialog = page.getByRole('dialog', { name: 'Permanently erase customer details?', exact: true })
