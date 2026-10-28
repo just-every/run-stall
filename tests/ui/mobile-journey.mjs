@@ -271,6 +271,12 @@ try {
   await page.getByRole('heading', { name: 'Sign-in settings', exact: true }).waitFor()
   await scan('sign-in-settings')
   await context.clearCookies()
+  // Local development has a handoff page; inspect the production native sign-in response from the migrated Worker.
+  await context.route('**/signin?returnTo=%2Forder', async route => {
+    const response = await h.request('/signin?returnTo=%2Forder', { as: '', headers: { accept: 'text/html' } })
+    assert.equal(response.status, 200)
+    await route.fulfill({ status: response.status, headers: Object.fromEntries([...response.headers].filter(([name]) => ['content-type', 'content-security-policy'].includes(name))), body: Buffer.from(await response.arrayBuffer()) })
+  })
   await page.goto(ready.url + '/signin?returnTo=%2Forder')
   await page.getByRole('heading', { name: /^Sign in to/ }).waitFor()
   await scan('sign-in')
