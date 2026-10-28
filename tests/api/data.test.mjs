@@ -471,6 +471,7 @@ test('staff, customer carts, events and workflow history transfer without restor
   const restored=await destination.api('/api/stall/exports/records')
   assert.deepEqual(restored.headless,commercial.headless);assert.deepEqual(restored.workflows,commercial.workflows);assert.deepEqual(restored.returns,commercial.returns);assert.deepEqual(restored.promotions,commercial.promotions)
   assert.equal((await destination.db.prepare('SELECT COUNT(*) AS n FROM st_promotion_authority').first()).n,0)
+  assert.equal((await destination.api('/api/stall/promotions/quote',{lines:[{sku:'MUG-BLUE',quantity:1}],customerEmail:address,promotionCode:'SYNTHETIC-STALL-807'},{as:''})).reason,'AUTHORITY_REQUIRED')
   assert.equal((await destination.db.prepare('SELECT customer_key FROM st_promotion_allocations WHERE order_id=?').bind(bought.orderId).first()).customer_key,'restored:'+bought.orderId)
   const local=await destination.api('/api/stall/workflows');assert.equal(local.rules[0].localAuthority,false)
   await destination.api('/api/stall/workflows',{type:'workflow.run',payload:{}})
