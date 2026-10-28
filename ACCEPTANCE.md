@@ -104,11 +104,11 @@ CONTRACT.md is the acceptance and status source. The journeys, evidence and gaps
 
   **Acceptance evidence:** Upload a mixed valid and invalid catalog file, inspect a read-only preview, apply the reviewed rows, resume an interrupted batch, export them and undo untouched changes. Edit and purchase an imported SKU first and verify undo reports the protected row rather than overwriting it.
 
-  **Status:** partial.
+  **Status:** done.
 
-  **Current evidence:** `tests/api/imports.test.mjs` — 'CATALOG-002: exact rejected-row acknowledgement applies only valid rows with complete source custody', 'CATALOG-002: bulk catalogue review, bounded resume and undo preserve native edits and custody', 'CATALOG-002: undo preserves a real paid order and its published product while reversing unused imports', and 'CATALOG-002: reviewed metadata CSV survives resume and restore, exports exact facts, and protects later native work on undo' prove mixed previews, exact apply, full native product and collection fields, current authority, bounded resume after transfer, duplicate-safe replay, complete CSV and JSON exports, original source and rejected-row custody, and undo preserving native edits, paid variants, collection references and later shipping assignments. `tests/ui/bulk-products-journey.mjs` exercises the basic and complete grid and file doors.
+  **Current evidence:** `tests/api/imports.test.mjs` — 'CATALOG-002: exact rejected-row acknowledgement applies only valid rows with complete source custody', 'CATALOG-002: bulk catalogue review, bounded resume and undo preserve native edits and custody', 'CATALOG-002: undo preserves a real paid order and its published product while reversing unused imports', and 'CATALOG-002: reviewed metadata CSV survives resume and restore, exports exact facts, and protects later native work on undo' prove mixed previews, exact apply, full native product and collection fields, current authority, bounded resume after transfer, duplicate-safe replay, complete CSV and JSON exports, original source and rejected-row custody, and undo preserving native edits, paid variants, collection references and later shipping assignments. `tests/ui/bulk-products-journey.mjs` proves basic and complete grid and native file edits, full field review, stale-review refusal, bounded retained-source resume, native CSV download, per-row outcomes and protected undo through the merchant desk; its changed screens are captured at 1440 and 390. Push Verify loads this journey in the review-browser shard.
 
-  **Remaining gap:** Final complete grid and native file browser proof is pending. Quantity adjustments remain CATALOG-003; other stock modes remain STOCK-001 and STOCK-003, and tax or customs verification is not catalog metadata proof.
+  **Remaining gap:** None.
 
 - **CATALOG-003 — Bulk quantity adjustments through the stock authority.** Merchants bulk-edit on-hand quantities per location. Quantity changes from the bulk grid or an inventory CSV are written to each variant's stock authority (STOCK-001/003) with Stall and provider references recorded together. This clause inherits STOCK-001 and STOCK-003. The Pier-connected leg requires Pier's future scoped stock-adjustment command: Stall's current Pier key admits only order.create, order.channelPayment and dispatch.create and cannot call an on-hand adjustment command today. The store-managed leg requires STOCK-003's local stock authority.
 
@@ -854,4 +854,4 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Remaining gap:** No implementation found. Target journey not implemented.
 
-Total: 79 clauses; 23 done, 29 partial, 27 missing.
+Total: 79 clauses; 24 done, 28 partial, 27 missing.

@@ -560,6 +560,17 @@ test('CATALOG-002: reviewed metadata CSV survives resume and restore, exports ex
       assert.deepEqual(await restored.api(`${base}/apply`, input), job);
       assert.deepEqual((await restored.api('/api/stall/state')).audit.filter(row => row.action === 'catalog.applied'), activityBeforeReplay);
       assert.deepEqual((await restored.api('/api/stall/exports/records')).products, complete.products, 'native resume never repeats revisions');
+      // Every new journal undo still needs current local human catalog authority.
+      await restored.api(`${base}/${job.id}/undo`, {}, { as: '', status: 401 });
+      await restored.api(`${base}/${job.id}/undo`, {}, { as: native.cookie, status: 401 });
+      const receivingMember = await restored.signIn(['synthetic-stall-1729', 'example.test'].join('@'));
+      await restored.api(`${base}/${job.id}/undo`, {}, { as: receivingMember, status: 403 });
+      const receivingGrant = await restored.api('/api/stall/agent-token', {});
+      const receivingHeaders = { authorization: `Bearer ${receivingGrant.token}` };
+      await restored.api(`${base}/${job.id}/undo`, {}, { as: '', headers: receivingHeaders, status: 403 });
+      await restored.api('/api/stall/agent-token/revoke', {});
+      await restored.api(`${base}/${job.id}/undo`, {}, { as: '', headers: receivingHeaders, status: 401 });
+      assert.deepEqual((await restored.api(`${base}/${job.id}`)).job, job);
       // A second complete file updates existing imported rows and resumes from journal custody alone.
       const updateCSV = file([...values.map(value => ['product', value.sku, { ...value, unitCents: value.unitCents + 100 }]), ['collection', manual.handle, manual], ['collection', automatic.handle, automatic], ['product', 'synthetic-stall-1724', { ...values[1], sku: 'synthetic-stall-1724', publication: 'draft', stockMode: 'untracked', details: { ...facts, handle: 'synthetic-stall-1724' } }]]);
       const pendingBeforeUpdate = (await restored.api('/api/stall/state')).products.find(row => row.id === ids[11]);
