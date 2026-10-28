@@ -33,14 +33,14 @@ export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority,c
   order=await readOrder(env.DB,row.id)
   if(order.requestDigest!==requestDigest||order.erasedAt) fail('IDEMPOTENCY','This checkout key belongs to a different or erased purchase. Start a new checkout.')
  } else {
-  // A promotion checkout holds shared budget before payment, so an unverified client starts only a few a minute.
-  if(code!==undefined&&client!==undefined) await rate(env,'promotion-checkout:'+client,5)
   const shopper=await shopperDetails(env.DB,p.shopper)
   if(shopper?.address&&shopper.address.country!=='US')fail('DESTINATION_UNAVAILABLE','This checkout currently serves US delivery only.',400)
   if(!paymentsReady(env)) fail('STRIPE_UNAVAILABLE','Connect Stripe on Settings before accepting payments.',503)
   const taxEnabled=(await publicTaxCommerce(env)).enabled
   const priced=await priceSelection(env,selection,undefined,p.shipping)
   const qualified=await purchasePromotion(env,{...p,customerEmail,promotionCode:code},priced,verifiedCustomerEmail)
+  // Automatic offers reserve the same shared budget as explicit codes.
+  if(qualified&&client!==undefined)await rate(env,'promotion-checkout:'+client,5)
   if(qualified&&p.expectedTotalCents===undefined)fail('REVIEW_REQUIRED','Review the promotion and exact total before creating checkout.',400)
   const {lines,shipping}=priced,shippingCents=priced.shippingCents-(qualified?.snapshot.shippingDiscountCents??0),netTotalCents=priced.totalCents-(qualified?.discountCents??0)
   const tax=await checkoutTax(env,p,lines,shippingCents,customerEmail,shipping,qualified?.snapshot,verifiedCustomerEmail),totalCents=tax?.totalCents??netTotalCents

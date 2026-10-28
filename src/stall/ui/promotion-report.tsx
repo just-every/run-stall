@@ -4,7 +4,7 @@ import { Notice } from './primitives'
 import { When } from './presentation'
 
 type Entry = { orderId: string; promotionRevision: string; status: 'reserved' | 'used'; discountCents: number; orderTotalCents: number; shippingCents: number; refundedCents: number; pendingRefundCents: number; reservedAt: string; usedAt: string | null; qualificationEventId: string | null; redemptionEventId: string | null }
-type Report = { taxTotals?:{paidTaxCents:number|null;refundedTaxCents:number};promotionId: string; currency: string; totals: { checkouts: number; reservedUses: number; paidUses: number; committedDiscountCents: number; grossPaidCents: number; refundedCents: number; pendingRefundCents: number; netPaidCents: number }; orders: Entry[]; nextAfter: string | null; taxNotice: string; budgetPolicy: string }
+type Report = { taxTotals?:{paidTaxCents:number|null;refundedTaxCents:number;pendingTaxReversalCents:number};promotionId: string; currency: string; totals: { checkouts: number; reservedUses: number; paidUses: number; committedDiscountCents: number; grossPaidCents: number; refundedCents: number; pendingRefundCents: number; netPaidCents: number }; orders: Entry[]; nextAfter: string | null; taxNotice: string; budgetPolicy: string }
 export function PromotionReport({ id }: { id: string }) {
   const [report, setReport] = useState<Report>(), [error, setError] = useState(''), [busy, setBusy] = useState(false)
   const loading = useRef(false)
@@ -32,7 +32,7 @@ export function PromotionReport({ id }: { id: string }) {
         <div><dt>Pending refunds</dt><dd>{money(report.totals.pendingRefundCents)}</dd></div>
         <div><dt>Net paid</dt><dd>{money(report.totals.netPaidCents)}</dd></div>
       </dl>
-      {report.taxTotals?.paidTaxCents!==null&&report.taxTotals&&<p>Recorded tax: {money(report.taxTotals.paidTaxCents)} · Tax reversed: {money(report.taxTotals.refundedTaxCents)}</p>}
+      {report.taxTotals?.paidTaxCents!==null&&report.taxTotals&&<p>Recorded tax: {money(report.taxTotals.paidTaxCents)} · Tax reversed: {money(report.taxTotals.refundedTaxCents)} · Awaiting tax reversal: {money(report.taxTotals.pendingTaxReversalCents)}</p>}
       <p>{report.taxNotice}</p><p>Showing {report.orders.length} of {report.totals.checkouts} checkouts. Totals cover all checkouts for this promotion.</p>
       {report.orders.map(entry => <details key={entry.orderId}>
         <summary>Order {entry.orderId} · {entry.status === 'used' ? 'Paid' : 'Reserved'} · {money(entry.discountCents)} discount</summary>

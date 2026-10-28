@@ -1788,6 +1788,15 @@ test('promotion rules price code and automatic product, variant, collection, ord
   const automatic=await h.api(base,{startsAt:'2000-01-01T00:00:00Z',endsAt:'2100-01-01T00:00:00Z',minimumBasketCents:0,maxUsesPerCustomer:10,maxTotalUses:20,maxShippingDiscountCents:99999,rule:{method:'automatic',type:'product',valueType:'percentage',value:1000,targets:{products:['MUG-BLUE']}}})
   assert.equal((await h.api(base+'/quote',{customerEmail:address,lines,promotionCode:'SYNTHETIC-STALL-4104'},{as:''})).reason,'COMBINATION')
   await h.api(base+'/revoke',automatic);await h.api(base+'/revoke',denied)
+  await h.api(base,{startsAt:'2000-01-01T00:00:00Z',endsAt:'2100-01-01T00:00:00Z',minimumBasketCents:0,maxUsesPerCustomer:10,maxTotalUses:20,maxShippingDiscountCents:99999,rule:{method:'automatic',type:'order',valueType:'amount',value:100}})
+  const attempts=[]
+  for(let n=0;n<6;n++){
+   const quoted=await kit.quote({customerEmail:'synthetic-stall-4110-'+n+'@'+'example.test'}),q=quoted.input
+   const started=await h.request('/api/stall/checkout',{method:'POST',as:'',headers:{'cf-connecting-ip':'198.51.100.81'},body:{idempotencyKey:randomUUID(),customerEmail:q.customerEmail,lines:q.lines,shipping:q.shipping,taxQuoteId:quoted.result.quoteId,expectedTotalCents:quoted.result.totalCents}})
+   attempts.push(started.status)
+  }
+  assert.deepEqual(attempts,[200,200,200,200,200,429],'automatic promotions rate-limit unverified budget reservations independently of claimed mailbox')
+
 
  }finally{await kit.close()}
 })
@@ -1811,7 +1820,7 @@ test('combined discount purchases bind net tax, odd-cent line refunds, single-us
   const second=await kit.refund(o.id),last=second.refunds.at(-1)
   assert.equal(last.amountCents,832);assert.equal(last.taxAllocation.lines[0].amount,769);assert.equal(last.taxAllocation.taxCents,63)
   const report=await h.api(base+'/campaign-report')
-  assert.deepEqual(report.totals,{orders:1,paidOrders:1,subtotalCents:2500,discountCents:533,lineDiscountCents:533,shippingCents:200,taxCents:144,totalCents:2311,refundedCents:1666,refundedTaxCents:127,netPaidCents:645})
+  assert.deepEqual(report.totals,{orders:1,paidOrders:1,subtotalCents:2500,discountCents:533,lineDiscountCents:533,shippingCents:200,taxCents:144,totalCents:2311,refundedCents:1666,refundedTaxCents:127,pendingTaxReversalCents:0,netPaidCents:645})
   assert.deepEqual(report.allocations.map(a=>[a.promotionId,a.uses,a.discountCents]).sort(),[[product.id,1,200],[orderPromo.id,1,333]].sort())
   assert.equal(report.events.filter(e=>e.id.startsWith('promotion.qualified.')).length,2);assert.equal(report.events.filter(e=>e.id.startsWith('promotion.redeemed.')).length,2);assert.equal(report.events.filter(e=>e.id.startsWith('promotion.reversed.')).length,4)
   const repeated=await h.command('refund.approve',{orderId:second.id,revision:second.revision,refundId:last.id});assert.equal(repeated.refunds.length,2)
@@ -1843,6 +1852,18 @@ test('combined discount purchases bind net tax, odd-cent line refunds, single-us
   const shippedReward=await kit.ship(reward.order.id),refundCount=kit.stripe.refunds.size
   const zero=await h.command('refund.prepare',{orderId:shippedReward.id,revision:shippedReward.revision,lines:[{sku:'TOWEL-NAT',quantity:1}],reason:'Return the free reward'},{status:409})
   assert.equal(zero.error.code,'NO_PAID_VALUE');assert.equal(kit.stripe.refunds.size,refundCount)
+  kit.tax.fault='lost-reversal'
+  await assert.rejects(()=>kit.refund(reward.order.id),/Stripe Tax|tax.*unavailable/i)
+  const uncertain=await kit.order(reward.order.id),uncertainRefund=uncertain.refunds.at(-1),pending=await h.api(base+'/campaign-report')
+  assert.equal(uncertainRefund.status,'succeeded');assert.equal(uncertainRefund.taxReversalId,undefined)
+  assert.equal(pending.totals.pendingTaxReversalCents,uncertainRefund.taxAllocation.taxCents);assert.equal(pending.totals.refundedTaxCents,127)
+  const perPromotion=await h.api(base+'/report?promotionId='+reward.order.promotion.id)
+  assert.equal(perPromotion.taxTotals.refundedTaxCents,0);assert.equal(perPromotion.taxTotals.pendingTaxReversalCents,uncertainRefund.taxAllocation.taxCents)
+  const original=[...kit.tax.transactions.values()].find(t=>t.reference==='stall-tax-refund-'+uncertainRefund.id),writes=kit.tax.calls.filter(c=>c.method==='POST').length
+  await h.api('/api/stall/tax/recover',{orderId:reward.order.id,refundId:uncertainRefund.id,transactionId:original.id})
+  const recovered=await h.api(base+'/campaign-report');assert.equal(recovered.totals.pendingTaxReversalCents,0);assert.equal(recovered.totals.refundedTaxCents,127+uncertainRefund.taxAllocation.taxCents)
+  assert.equal(kit.tax.calls.filter(c=>c.method==='POST').length,writes,'uncertain tax reversal recovery observes only its original provider reference')
+
 
 
  }finally{await kit.close()}
