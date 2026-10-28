@@ -52,7 +52,8 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node tests/ui/real-home.mjs tests/ui/buy-link-journey.mjs"
+        "node tests/ui/real-home.mjs tests/ui/buy-link-journey.mjs",
+        "node tests/ui/real-home.mjs tests/ui/mobile-journey.mjs"
       ]
     },
     {

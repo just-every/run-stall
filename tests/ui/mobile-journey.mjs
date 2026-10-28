@@ -258,7 +258,7 @@ try {
   await h.api('/api/stall/returns', captured, { as: member, status: 403 })
   await h.api('/api/stall/returns', undefined, { as: member, status: 403 })
   const credentials = await h.api('/api/stall/agent-token', {})
-  await h.api('/api/stall/agent-token', {}, { method: 'DELETE' })
+  await h.api('/api/stall/agent-token/revoke', {})
   const revoked = await h.request('/api/stall/returns', { as: '', headers: { authorization: 'Bearer ' + credentials.token } })
   assert.equal(revoked.status, 401)
   await h.command('customer.erase', { email, confirm: 'ERASE' })
