@@ -52,7 +52,8 @@
       "browser": true,
       "hosted": false,
       "commands": [
-        "node tests/ui/real-home.mjs tests/ui/buy-link-journey.mjs"
+        "node tests/ui/real-home.mjs tests/ui/buy-link-journey.mjs",
+        "node tests/ui/real-home.mjs tests/ui/promotion-journey.mjs"
       ]
     },
     {
@@ -85,7 +86,6 @@
         "pnpm run build && node tests/ui/merch-seo-journey.mjs",
         "node tests/ui/bulk-products-journey.mjs",
         "node tests/ui/real-home.mjs tests/ui/staff-journey.mjs",
-        "node tests/ui/real-home.mjs tests/ui/promotion-journey.mjs",
         "node tests/ui/real-home.mjs tests/ui/request-journey.mjs"
       ]
     },

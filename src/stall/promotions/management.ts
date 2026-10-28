@@ -25,7 +25,8 @@ export async function savePromotion(env:Bindings,actor:Actor,p:any) {
  const id=previous?.id??crypto.randomUUID(),revision=crypto.randomUUID(),at=new Date().toISOString()
  const priorRule=previous?await env.DB.prepare('SELECT value_json FROM st_promotion_rules WHERE promotion_id=?').bind(previous.id).first<{value_json:string}>():null
  const rule=p.rule===undefined?(priorRule?JSON.parse(priorRule.value_json):null):readRule(p.rule)
- const codeHash=p.code===undefined&&previous?previous.code_hash:await digest(rule?.mode==='automatic'?crypto.randomUUID():promotionCode(p.code))
+ if(priorRule&&JSON.parse(priorRule.value_json).mode==='automatic'&&rule.mode==='code'&&p.code===undefined)fail('INPUT','Supply a new code when changing an automatic offer to a code.',400)
+ const codeHash=rule?.mode==='automatic'?await digest(crypto.randomUUID()):p.code===undefined&&previous?previous.code_hash:await digest(promotionCode(p.code))
  const starts=instant(p.startsAt,'Start time'),ends=instant(p.endsAt,'End time')
  if(ends<=starts) fail('INPUT','The end time must follow the start time.',400)
  const minimum=integer(p.minimumBasketCents,'Minimum basket cents',0,99999999),perCustomer=integer(p.maxUsesPerCustomer,'Maximum uses per customer',1,1000000),total=integer(p.maxTotalUses,'Maximum total uses',1,1000000),budget=integer(p.maxDiscountCents??p.maxShippingDiscountCents,'Maximum discount budget cents',1,99999999)

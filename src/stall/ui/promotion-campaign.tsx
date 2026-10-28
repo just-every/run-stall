@@ -1,0 +1,14 @@
+import { useState } from 'react'
+import { request,errorMessage,money } from './api'
+import { Notice } from './primitives'
+type Report={totals:{uniqueOrders:number;paidOrders:number;canceledOrders:number;consumedDiscountCents:number;merchandiseCents:number;shippingCents:number;grossPaidCents:number;refundedCents:number;netPaidCents:number;taxCents:number|null;refundTaxCents:number|null};boundary:string}
+export function CampaignReport() {
+ const [data,setData]=useState<Report>(),[error,setError]=useState(''),[busy,setBusy]=useState(false)
+ async function load(){setBusy(true);setError('');try{setData(await request<Report>('/api/stall/promotions/report'))}catch(error){setError(errorMessage(error))}finally{setBusy(false)}}
+ return <details className="st-panel"><summary>Combined campaign report</summary><div className="st-stack" aria-label="Combined campaign report"><button className="st-secondary" disabled={busy} onClick={()=>void load()}>{busy?'Loading campaigns…':'Refresh campaign report'}</button>{error&&<Notice error>{error}</Notice>}{data&&<><p>{data.totals.uniqueOrders} unique orders · {data.totals.paidOrders} paid · {data.totals.canceledOrders} fulfillment canceled</p><dl className="st-definition">{([['Consumed discounts',data.totals.consumedDiscountCents],['Net merchandise',data.totals.merchandiseCents],['Paid shipping',data.totals.shippingCents],['Gross paid',data.totals.grossPaidCents],['Completed refunds',data.totals.refundedCents],['Net paid',data.totals.netPaidCents],['Original tax',data.totals.taxCents],['Reversed tax',data.totals.refundTaxCents]] as const).map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value===null?'Not calculated':money(value)}</dd></div>)}</dl><p>{data.boundary}</p></>}</div></details>
+}
+export function PromotionCodes({id,revision}:{id:string;revision:string}) {
+ const [count,setCount]=useState(10),[busy,setBusy]=useState(false),[error,setError]=useState(''),[url,setUrl]=useState('')
+ async function generate(){if(busy)return;setBusy(true);setError('');try{const batch=await request<{csv:string}>('/api/stall/promotions/codes',{id,revision,count});if(url)URL.revokeObjectURL(url);setUrl(URL.createObjectURL(new Blob([batch.csv],{type:'text/csv'})))}catch(error){setError(errorMessage(error))}finally{setBusy(false)}}
+ return <details><summary>Single-use code batch</summary><div className="st-stack"><label>Number of unique codes<input type="number" min="1" max="200" step="1" value={count} disabled={busy} onChange={e=>setCount(Number(e.target.value))} /></label><div><button className="st-secondary" disabled={busy} onClick={()=>void generate()}>Generate single-use codes</button></div>{url&&<><a href={url} download="promotion-codes.csv">Download code CSV</a><p>Download now. Codes are shown only for this generation; each funds one reserved or paid checkout. Reloading closes this download.</p></>}{error&&<Notice error>{error}</Notice>}</div></details>
+}

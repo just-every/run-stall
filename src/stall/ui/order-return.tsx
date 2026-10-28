@@ -5,7 +5,7 @@ import { request, errorMessage, money } from './api'
 import { Chrome, Notice, Section } from './primitives'
 import { CustomerAccount } from './customer-account'
 
-interface Summary { lines: { name: string; quantity: number; unitCents: number; detail: string[] }[]; shippingCents: number; totalCents: number }
+interface Summary { lines: { name: string; quantity: number; unitCents: number; discountCents?:number; detail: string[] }[]; shippingCents: number; totalCents: number }
 type Outcome = { kind: 'checking' | 'paid' | 'waiting' | 'cancelled' | 'none'; summary?: Summary } | { kind: 'error'; message: string }
 
 export function OrderReturn() {
@@ -24,7 +24,7 @@ export function OrderReturn() {
     {outcome.kind === 'checking' && <p role="status">Checking your payment with Stripe…</p>}
     {outcome.kind === 'paid' && <p>Stripe confirmed your payment. The shop is preparing your order and will ship it to the address you gave at checkout.</p>}
     {outcome.kind === 'waiting' && <p>Stripe has not confirmed this payment yet. The shop checks again every minute and prepares your order once Stripe confirms it. You do not need to pay again.</p>}
-    {(outcome.kind === 'paid' || outcome.kind === 'waiting') && outcome.summary && <section aria-label="Your order" className="st-stack"><ul className="st-lines">{outcome.summary.lines.map(line => <li key={line.name}><span>{line.name} × {line.quantity}{line.detail.map(entry => <small key={entry} className="st-line-detail">{entry}</small>)}</span><strong>{money(line.quantity * line.unitCents)}</strong></li>)}</ul><div className="st-row"><span>Shipping</span><strong>{money(outcome.summary.shippingCents)}</strong></div><div className="st-total"><span>Total · USD</span><strong>{money(outcome.summary.totalCents)}</strong></div></section>}
+    {(outcome.kind === 'paid' || outcome.kind === 'waiting') && outcome.summary && <section aria-label="Your order" className="st-stack"><ul className="st-lines">{outcome.summary.lines.map(line => <li key={line.name}><span>{line.name} × {line.quantity}{line.detail.map(entry => <small key={entry} className="st-line-detail">{entry}</small>)}</span><strong>{money(line.quantity * line.unitCents-(line.discountCents??0))}</strong></li>)}</ul><div className="st-row"><span>Shipping</span><strong>{money(outcome.summary.shippingCents)}</strong></div><div className="st-total"><span>Total · USD</span><strong>{money(outcome.summary.totalCents)}</strong></div></section>}
     {outcome.kind === 'cancelled' && <p>No payment was taken. You can return to the shop and try again.</p>}
     {outcome.kind === 'error' && <Notice error>{outcome.message} The shop checks again every minute; you do not need to pay again.</Notice>}
     <a href="/order">Request order help</a>

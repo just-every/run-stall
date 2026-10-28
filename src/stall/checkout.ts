@@ -43,6 +43,7 @@ export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority,c
   const taxEnabled=(await publicTaxCommerce(env)).enabled
   const priced=await priceSelection(env,selection,undefined,p.shipping)
   const qualified=await purchasePromotion(env,code,customerEmail,priced,verifiedCustomerEmail)
+  if(qualified&&code===undefined&&client!==undefined)await rate(env,'promotion-checkout:'+client,5)
   const lines=discountedLines(priced.lines,qualified?.snapshot),{shipping}=priced,shippingCents=priced.shippingCents-shippingDiscount(qualified?.snapshot),netTotalCents=priced.totalCents-(qualified?.discountCents??0)
   const tax=await checkoutTax(env,p,lines,shippingCents,customerEmail,shipping,qualified?.snapshot,verifiedCustomerEmail),totalCents=tax?.totalCents??netTotalCents
   if(!tax&&(code!==undefined||qualified||p.expectedTotalCents!==undefined)&&integer(p.expectedTotalCents,'Reviewed total cents',50,99999999)!==totalCents) fail('PRICE_CHANGED','The promotion or total changed. Review the current quote before paying.')
@@ -54,7 +55,7 @@ export async function checkout(env:Bindings,p:any,authority?:CommerceAuthority,c
   catch(error) {
    const winner=await env.DB.prepare("SELECT id FROM st_orders WHERE json_extract(value_json,'$.checkoutKey')=?").bind(checkoutKey).first<any>()
    if(!winner) {
-    if(qualified&&String(error).includes('ST_PROMOTION_')) fail('PROMOTION_CHANGED','Promotion availability or authority changed. Review a new quote before paying.')
+    if(qualified&&(String(error).includes('ST_PROMOTION_')||String(error).includes('st_promotion_allocations.code_id'))) fail('PROMOTION_CHANGED','Promotion availability or authority changed. Review a new quote before paying.')
     throw error
    }
    order=await readOrder(env.DB,winner.id)

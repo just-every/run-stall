@@ -84,8 +84,35 @@ test('campaign single-use exports refuse reuse and retain per-code redemption af
   await h.command('risk.cancel',{orderId:started.orderId,revision:risk.revision});
   const report=await h.api('/api/stall/promotions/report?promotionId='+promotion.id);assert.equal(report.totals.paidUses,1);assert.equal(report.totals.committedDiscountCents,101);assert.equal(report.campaign.totals.canceledOrders,1);assert.equal(report.campaign.totals.netPaidCents,2099);assert.equal(report.campaign.codes.find(c=>c.id===batch.codes[0].id).status,'used');assert.ok(report.campaign.events.some(e=>e.id==='promotion.reversed.cancel.'+started.orderId+'.'+promotion.id));
   assert.equal((await h.api('/api/stall/promotions/quote',{...input,customerEmail:promoMailbox(4405)},{as:''})).reason,'CODE_USED');
+  const raced=await Promise.all([4406,4407].map(n=>h.request('/api/stall/checkout',{method:'POST',as:'',body:{...input,promotionCode:batch.codes[1].code,customerEmail:promoMailbox(n),idempotencyKey:randomUUID()}})));assert.deepEqual(raced.map(r=>r.status).sort(),[200,409]);assert.equal(edge.sessions.size,2);
   const exported=await archive(h);const text=JSON.stringify(exported);assert.ok(text.includes('st_promotion_rules'));assert.ok(!text.includes(batch.codes[0].code));assert.ok(!JSON.stringify(report).includes(batch.codes[0].code));
  }finally{await h.close();await pier.close()}
+});
+test('campaign eligibility follows current variant, collection, zone and independently verified segment membership',async()=>{
+ const stock=volumeStock(['TEE-S','TEE-M','TOWEL-NAT']),edge=stripeEdge({forward:stock.forward}),h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'synthetic-stall-4500',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'synthetic-stall-4501',STRIPE_WEBHOOK_SECRET:'synthetic-stall-4502'},outboundService:edge.handle});
+ try {
+  const product=await h.command('product.prepare',{sku:'TEE',name:'Tee',description:'Two sizes',unitCents:1001,active:true,details:{handle:'synthetic-stall-tee',options:[{name:'Size',values:['S','M']}],variants:[{sku:'TEE-S',options:{Size:'S'}},{sku:'TEE-M',options:{Size:'M'},unitCents:2001}]}});await h.command('product.approve',{sku:'TEE',revision:product.revision});
+  await publish(h,'TOWEL-NAT','Towel',501);await h.command('shipping.configure',{shippingCents:200});
+  await h.command('collection.save',{handle:'synthetic-stall-tees',title:'Tees',description:'Both sizes',kind:'manual',skus:['TEE']});
+  const lineInput={lines:[{sku:'TEE-S',quantity:1},{sku:'TEE-M',quantity:1}],shipping:{postalCode:'94103'},customerEmail:promoMailbox(4503)},code='SYNTHETIC-STALL-4504',base=campaignInput(code,{mode:'code',type:'product',benefit:{kind:'percentage',value:10},targets:{skus:['TEE-M']}});let saved=await h.api('/api/stall/promotions',base);
+  const quote=(overrides={},as='')=>h.api('/api/stall/promotions/quote',{...lineInput,promotionCode:code,...overrides},{as});
+  const save=async rule=>{saved=await h.api('/api/stall/promotions',{...base,rule,...saved});return saved};
+  assert.deepEqual((await quote()).promotion.lineDiscounts,[{sku:'TEE-M',discountCents:200},{sku:'TEE-S',discountCents:0}]);
+  assert.equal((await quote({lines:[{sku:'TOWEL-NAT',quantity:1}]})).reason,'NO_ELIGIBLE_ITEMS');
+  await save({...base.rule,targets:{products:['TEE']}});assert.equal((await quote()).discountCents,300);
+  await save({...base.rule,targets:{collections:['synthetic-stall-tees']}});assert.equal((await quote()).discountCents,300);
+  await save({...base.rule,minimumQuantity:3});assert.equal((await quote()).reason,'MINIMUM_QUANTITY');
+  const shipping={mode:'code',type:'shipping',countries:['US'],zipPrefixes:['94'],maximumShippingCents:200,minimumQuantity:2};await save(shipping);assert.equal((await quote()).discountCents,200);
+  await save({...shipping,maximumShippingCents:199});assert.equal((await quote()).reason,'MAXIMUM_RATE');
+  await save({...shipping,countries:['CA']});assert.equal((await quote()).reason,'DESTINATION');
+  await save({...shipping,zipPrefixes:['10']});assert.equal((await quote()).reason,'DESTINATION');
+  const address=lineInput.customerEmail,native=await h.signIn(address),rows=[{email:address,name:'Eligible shopper',tags:['vip']}],preview=await h.api('/api/stall/customers/import/preview',{rows}),directory=await h.api('/api/stall/customers/import/apply',{rows,fingerprint:preview.fingerprint}),customer=directory.customers.find(c=>c.emails.includes(address));
+  const segments=await h.api('/api/stall/customers',{type:'segment.save',segment:{name:'VIP',tag:'vip'}}),segment=segments.segments.find(s=>s.value.name==='VIP');
+  await save({...base.rule,customers:[customer.id]});assert.equal((await quote()).reason,'CUSTOMER_ELIGIBILITY');assert.equal((await quote({},native)).discountCents,200);
+  await save({...base.rule,segments:[segment.id]});assert.equal((await quote({},native)).discountCents,200);assert.equal((await quote({customerEmail:promoMailbox(4505)},native)).reason,'CUSTOMER_ELIGIBILITY');
+  await h.api('/api/stall/customers',{type:'profile.save',id:customer.id,revision:customer.revision,name:customer.name,tags:[]});assert.equal((await quote({},native)).reason,'CUSTOMER_ELIGIBILITY');
+  await save({mode:'code',type:'buy_get',targets:{skus:['TEE-S']},benefit:{kind:'percentage',value:50},buy:{targets:{skus:['TEE-S']},quantity:1,getQuantity:1,maxUses:1}});assert.equal((await quote({lines:[{sku:'TEE-S',quantity:5}]})).discountCents,500);
+ }finally{await h.close()}
 });
 test('free shipping promotions reserve real checkout budgets atomically and redeem only verified paid orders',async()=>{
  const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret=randomBytes(32).toString('hex'),received=[];

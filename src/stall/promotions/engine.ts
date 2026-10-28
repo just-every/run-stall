@@ -47,9 +47,8 @@ export async function evaluate(env:Bindings,code:unknown,address:string,priced:P
     const profile=verifiedEmail===address?await env.DB.prepare('SELECT customer_id FROM st_customer_emails WHERE email=?').bind(address).first<{customer_id:string}>():null
     let eligible=!!profile&&rule.customers.includes(profile.customer_id)
     if(profile&&rule.segments.length) {
-     const {directory}=await import('../customers/directory'),owner=await env.DB.prepare("SELECT id,email,role,version FROM oa_operators WHERE role='owner' AND status='active' LIMIT 1").first<any>()
-     const data=await directory(env,{...owner,agent:false})
-     eligible||=data.segments.some(s=>rule.segments.includes(s.id)&&s.members.includes(profile.customer_id))
+     const {inPromotionSegment}=await import('../customers/directory')
+     eligible||=await inPromotionSegment(env,address,rule.segments)
     }
     if(!eligible)no('CUSTOMER_ELIGIBILITY','Sign in with an eligible customer account to use this promotion.')
    }
@@ -99,7 +98,7 @@ export async function evaluate(env:Bindings,code:unknown,address:string,priced:P
   if(rejection) {if(explicit)return rejection;messages.push({id:p.id,...rejection});continue}
   const snapshot:PromotionSnapshot={id:p.id,revision:p.revision,kind:rule?(rule.type==='shipping'?'free_shipping':rule.type):'free_shipping',originalShippingCents:priced.shippingCents,discountCents:amount,...(rule?{rule,shippingDiscountCents:shipping,lineDiscounts:priced.lines.map((l,i)=>({sku:l.sku,discountCents:allocation[i]}))}:{}),...(p.code_id?{codeId:p.code_id}:{})}
   selected.push(snapshot);allocation.forEach((v,i)=>discounts[i]+=v);shippingCents+=shipping
-  messages.push({id:p.id,reason:'QUALIFIED',message:rule?'Promotion applied. Availability is reserved at checkout.':'Free shipping applies. Availability is reserved when you create checkout.'})
+  messages.push({id:p.id,reason:'QUALIFIED',message:rule&&rule.type!=='shipping'?'Promotion applied. Availability is reserved at checkout.':'Free shipping applies. Availability is reserved when you create checkout.'})
  }
  if(!selected.length)return refused('NO_PROMOTION','No automatic promotion applies to this basket.')
  const snapshot=selected.length===1?selected[0]:{...selected[0],kind:'combined' as const,discountCents:selected.reduce((n,s)=>n+s.discountCents,0),shippingDiscountCents:shippingCents,lineDiscounts:priced.lines.map((l,i)=>({sku:l.sku,discountCents:discounts[i]})),components:selected}

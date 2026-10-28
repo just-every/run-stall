@@ -59,13 +59,13 @@ export async function buy(env:Bindings,a:App,c:Customer,request:Request,p:any) {
  // No separate commerce engine: the same Stripe/Pier work ledger, verified
  // payment callbacks and idempotency rules apply to both storefronts.
  await fenced(env,a,c)
- const result=await checkout(env,{customerEmail:email,lines:JSON.parse(found.value_json),idempotencyKey:previous.commerce_key,expectedTotalCents:p.expectedTotalCents,...(code!==undefined?{promotionCode:code}:{}),...(p.shipping!==undefined?{shipping:p.shipping}:{})},{check:()=>fenced(env,a,c),statements:()=>[appGuard(env,a),customerGuard(env,c)]},undefined,undefined,await checkoutAnalytics(request,env))
+ const result=await checkout(env,{customerEmail:email,lines:JSON.parse(found.value_json),idempotencyKey:previous.commerce_key,expectedTotalCents:p.expectedTotalCents,...(code!==undefined?{promotionCode:code}:{}),...(p.shipping!==undefined?{shipping:p.shipping}:{})},{check:()=>fenced(env,a,c),statements:()=>[appGuard(env,a),customerGuard(env,c)]},undefined,c.actor.email.toLowerCase(),await checkoutAnalytics(request,env))
  await fenced(env,a,c)
  return result
 }
 function customerOrder(o:Order) {
  if(o.erasedAt) fail('NOT_FOUND','Order not found.',404)
- return {id:o.id,status:o.status,createdAt:o.createdAt,totalCents:o.totalCents,shippingCents:o.shippingCents??0,...(o.promotion?{promotion:o.promotion}:{}),currency:o.currency,lines:o.lines.map(l=>({sku:l.sku,name:l.name,quantity:l.quantity,unitCents:l.unitCents})),refunds:o.refunds.filter(r=>r.status==='succeeded').map(r=>({id:r.id,amountCents:r.amountCents,status:r.status})),...(o.shipment?.status==='shipped'?{shipment:{status:o.shipment.status,dispatches:o.shipment.dispatches?.map(d=>({id:d.id,shippedAt:d.shippedAt,deliveryStatus:d.deliveryStatus,tracking:d.tracking}))}}:{})}
+ return {id:o.id,status:o.status,createdAt:o.createdAt,totalCents:o.totalCents,shippingCents:o.shippingCents??0,...(o.promotion?{promotion:o.promotion}:{}),currency:o.currency,lines:o.lines.map(l=>({sku:l.sku,name:l.name,quantity:l.quantity,unitCents:l.unitCents,discountCents:l.discountCents??0})),refunds:o.refunds.filter(r=>r.status==='succeeded').map(r=>({id:r.id,amountCents:r.amountCents,status:r.status})),...(o.shipment?.status==='shipped'?{shipment:{status:o.shipment.status,dispatches:o.shipment.dispatches?.map(d=>({id:d.id,shippedAt:d.shippedAt,deliveryStatus:d.deliveryStatus,tracking:d.tracking}))}}:{})}
 }
 export async function ownOrder(env:Bindings,a:App,c:Customer,id:string) {
  if(!await env.DB.prepare('SELECT order_id FROM st_headless_orders WHERE order_id=? AND customer_id=? AND app_id=?').bind(id,c.id,a.id).first()) fail('NOT_FOUND','Order not found.',404)
@@ -81,7 +81,7 @@ export async function ownOrders(env:Bindings,a:App,c:Customer,url:URL) {
 
 export async function cartQuote(env:Bindings,a:App,c:Customer,id:string,p:any) {
  const found=await cart(env,a,c,id),quote=await quoteShipping(env.DB,await priceLines(env,JSON.parse(found.value_json)),postalCodeOf(p.postalCode))
- const promotion=p.promotionCode===undefined?undefined:await promotionQuote(env,{lines:JSON.parse(found.value_json),customerEmail:c.actor.email,promotionCode:p.promotionCode,shipping:p.shipping??{postalCode:p.postalCode}})
+ const promotion=p.promotionCode===undefined?undefined:await promotionQuote(env,{lines:JSON.parse(found.value_json),customerEmail:c.actor.email,promotionCode:p.promotionCode,shipping:p.shipping??{postalCode:p.postalCode}},c.actor.email.toLowerCase())
  await fenced(env,a,c);return {...quote,...(promotion?{promotion}:{})}
 }
 export async function confirmCheckout(env:Bindings,a:App,c:Customer,p:any) {

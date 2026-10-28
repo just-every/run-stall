@@ -111,7 +111,7 @@ export async function confirmReturn(env:Bindings,orderId:string) {
   order=await readOrder(env.DB,orderId)
   if(!order.payment) throw error
  }
- return {status:order.payment?'paid':'awaiting_payment',summary:{lines:order.lines.map(line=>({name:line.name,quantity:line.quantity,unitCents:line.unitCents,detail:lineDetail(line)})),shippingCents:order.shippingCents??0,...(order.tax?{taxCents:order.tax.taxCents}:{}),totalCents:order.totalCents}}
+ return {status:order.payment?'paid':'awaiting_payment',summary:{lines:order.lines.map(line=>({name:line.name,quantity:line.quantity,unitCents:line.unitCents,discountCents:line.discountCents??0,detail:lineDetail(line)})),shippingCents:order.shippingCents??0,...(order.tax?{taxCents:order.tax.taxCents}:{}),totalCents:order.totalCents}}
 }
 /** The scheduled check (every minute, also under rer dev): orders still awaiting
  * payment from the last day, while their Checkout Sessions can still be paid. */
