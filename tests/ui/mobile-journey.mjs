@@ -3,7 +3,7 @@ import { expect } from '@playwright/test'
 import { createRequire } from 'node:module'
 import { startJourney } from './journey-kit.mjs'
 import { volumeStock } from '../api/volume-stock.mjs'
-import { deliverWebhook } from '../api/network.mjs'
+import { deliverWebhook, sendFile, solidPng } from '../api/network.mjs'
 
 // MOBILE-001: one essential keyboard journey, plus every current commerce view at both release widths.
 const require = createRequire(import.meta.url)
@@ -31,8 +31,14 @@ try {
   journey = await startJourney({ name: 'mobile', stock })
   const { h, page, context, ready, edge, secret, capture } = journey
   const email = ['synthetic-stall-1803', 'example.test'].join('@'), member = await h.signIn(email)
+  const media = []
+  for (const [index, color] of [[1, [214, 140, 92]], [2, [84, 126, 168]]]) {
+    const response = await sendFile(h, '/api/stall/media', solidPng(400, 400, color), 'image/png')
+    assert.equal(response.status, 200)
+    media.push({ id: (await response.json()).id, kind: 'image', alt: 'Studio tee view ' + index })
+  }
   const product = await h.command('product.prepare', { sku: 'synthetic-stall-1800', name: 'Studio tee', description: 'Soft cotton tee', unitCents: 2400, active: true,
-    details: { handle: 'studio-tee', options: [{ name: 'Size', values: ['Small', 'Large'] }], variants: [
+    details: { handle: 'studio-tee', media, options: [{ name: 'Size', values: ['Small', 'Large'] }], variants: [
       { sku: 'synthetic-stall-1801', options: { Size: 'Small' }, unitCents: 2400 },
       { sku: 'synthetic-stall-1802', options: { Size: 'Large' }, unitCents: 2800 }
     ] } })
@@ -115,6 +121,10 @@ try {
   await page.getByRole('heading', { name: 'Studio tee', exact: true }).waitFor()
   await activate(page.getByRole('group', { name: 'Size', exact: true }).getByRole('button', { name: 'Large', exact: true }))
   await expect(page.locator('.st-pdp-price')).toContainText('$28.00')
+  const secondImage = page.getByRole('button', { name: 'Show image 2: Studio tee view 2', exact: true })
+  await activate(secondImage)
+  await expect(page.getByRole('tooltip', { name: 'Show image 2', exact: true })).toBeVisible()
+  await expect(page.locator('.st-gallery > img')).toHaveAttribute('alt', 'Studio tee view 2')
   await scan('variant')
   await activate(page.getByRole('button', { name: /^Add to basket/ }))
   await activate(page.getByRole('link', { name: 'Review your basket and check out', exact: true }))
@@ -232,6 +242,30 @@ try {
   await page.goto(ready.url + '/order')
   await page.getByRole('heading', { name: 'Your account', exact: true }).waitFor()
   await scan('signed-out-account')
+  // One phone smoke repeats essential variant and basket controls by keyboard at 390.
+  await page.setViewportSize({ width: 390, height: 1000 })
+  await page.goto(ready.url + '/shop/studio-tee')
+  await activate(page.getByRole('group', { name: 'Size', exact: true }).getByRole('button', { name: 'Small', exact: true }))
+  await activate(page.getByRole('button', { name: /^Add to basket/ }))
+  await activate(page.getByRole('link', { name: 'Review your basket and check out', exact: true }))
+  await expect(page.locator('.st-checkout')).toContainText('Studio tee — Small × 1')
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
+  // Receipt authority, original replay and erasure continue through the existing public doors.
+  const received = (await h.api('/api/stall/returns')).receipts[0]
+  const captured = { requestId: received.request_id, orderRevision: received.source_revision, lines: received.lines }
+  const replay = await h.api('/api/stall/returns', captured)
+  assert.equal(replay.id, received.id)
+  await h.api('/api/stall/returns', captured, { as: member, status: 403 })
+  await h.api('/api/stall/returns', undefined, { as: member, status: 403 })
+  const credentials = await h.api('/api/stall/agent-token', {})
+  await h.api('/api/stall/agent-token', {}, { method: 'DELETE' })
+  const revoked = await h.request('/api/stall/returns', { as: '', headers: { authorization: 'Bearer ' + credentials.token } })
+  assert.equal(revoked.status, 401)
+  await h.command('customer.erase', { email, confirm: 'ERASE' })
+  const erased = await h.api('/api/stall/returns')
+  assert.deepEqual(erased.cases, []); assert.deepEqual(erased.receipts, [])
+  await h.api('/api/stall/returns', captured, { status: 404 })
+  assert.equal(edge.sessions.size, 1); assert.equal(edge.refunds.size, 1)
   assert.deepEqual(journey.errors, [])
   console.log('PASS MOBILE-001 keyboard purchase, validation recovery, receipt, account, dialog and WCAG scans:', JSON.stringify(scans))
 } catch (error) {
