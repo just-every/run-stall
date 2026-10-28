@@ -260,7 +260,7 @@
       "executable": false
     },
     "docs/COMMERCE-MECHANICS.md": {
-      "sha256": "56218b4ab3fca9521079a1ca37da1ca26e0a85792c4bbc779367a7ea1b5060b1",
+      "sha256": "1f0af1bc7ce02837c41deaa16824dcd9626fd77c47ac56e764817ac97c5677f0",
       "executable": false
     },
     "docs/CONNECTIONS.md": {
@@ -868,7 +868,7 @@
       "executable": false
     },
     "RULINGS.md": {
-      "sha256": "c385945db4011281b41f946e292f73c00a3c6beca53e6753e06486274745184e",
+      "sha256": "de02131ff05f2a91a25b7d2981f066f88f8e834decd5a37c281bd9a9432998cf",
       "executable": false
     },
     "RUN-LOCALLY.md": {

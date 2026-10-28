@@ -16,7 +16,7 @@ ct approved these review and cancellation semantics with riders on 23 October 20
 
 ### RL-3 — Internal note erasure and order fallback
 
-Date: 2026-10-22 · Ruled by: ct · Governs: ORDER-001
+Date: 2026-10-22 · Ruled by: ct · Governs: ORDER-008
 
 CT approved this erasure boundary as landed on 22 October: erasing a customer also deletes the notes and tags on their orders; the audit keeps only that notes existed; notes are excluded from customer-facing exports.
 
@@ -182,7 +182,7 @@ Engineering/proof retained: Implement step-up verification, exceptional review a
 
 ### RL-107 — TAX-001: US sales tax and exemptions
 
-Date: 2026-10-28 · Ruled by: ct · Governs: TAX-001
+Date: 2026-10-28 · Ruled by: ct · Governs: TAX-004, TAX-003
 
 Question: May whole-order pro rata jurisdiction allocation and configured nexus metrics be represented as provider tax truth?
 
@@ -198,6 +198,6 @@ Why: Shopify reports line-related refunded tax and separates custom non-line ref
 
 Main evidence: `CONTRACT.md:113` at `9b39a4c87c13cb9bc9f8acadfdaa9e34a31af4d2`.
 
-Placement: TAX-001 owns the derived-attribution and configured-nexus points; ORDER-003 and accounting consumers cite them.
+Placement: TAX-004 owns the derived-attribution points and TAX-003 owns the configured-nexus points; ORDER-003 and accounting consumers cite those parts.
 
 Engineering/proof retained: Keep test-only mode, actual provider/detail gaps and live acceptance explicit. Configured warnings are management indicators, not legal certification; owner legal sign-off/registration/filing remain outside this product ruling.
