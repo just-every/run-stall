@@ -200,7 +200,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "8b7e01a7e88c79c629c2c1a92c2aa8a1c8e8635f95651b08144a07e385aae716",
+      "sha256": "139f26cdaa3b9fddf508410413e8de1761391ddc6a64c8fa30dc57b0844daec4",
       "executable": false
     },
     "AGENTS.md": {
@@ -252,7 +252,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "c6febdd13004893d63fd31eb43ff81c413dfe4a7630c51fffebfcdd5be17b347",
+      "sha256": "464f38f64123968d8f6cef74f43742affef9c5d583a95a001fb75f81e35e338b",
       "executable": false
     },
     "docs/COMMANDS.md": {
@@ -848,7 +848,7 @@
       "executable": false
     },
     "scripts/contract-docs.mjs": {
-      "sha256": "11910121e2636b62d7ea74440be8cdacbed39480cf4da5228f30eff573cd0519",
+      "sha256": "7d31e4407c7ead92102b6fd310829c7d3773cc5d4d4b8d95e74666ca39e81f30",
       "executable": false
     },
     "scripts/delivery/base/artifact.mjs": {
@@ -3260,7 +3260,7 @@
       "executable": false
     },
     "src/stall/imports/native-catalog.ts": {
-      "sha256": "ed61984f6df7a5e013ebcdab7dd3278517a8e2a2ee8526984336762a8b1671f7",
+      "sha256": "95f6cc118aa9f7daa0c07bcf6c14a35da2a89a6bade839f03f4b59691eb2dd5c",
       "executable": false
     },
     "src/stall/imports/native-targets.ts": {
@@ -3752,7 +3752,7 @@
       "executable": false
     },
     "src/stall/ui/move-in.tsx": {
-      "sha256": "7d98287db4178633d335846f822adf2d30c94ee8865af0a63ffbb42bca371341",
+      "sha256": "83249919b0be741ce888298a80e8e9446b1789457474130e4b346d10f73199b2",
       "executable": false
     },
     "src/stall/ui/operations.tsx": {
@@ -4072,7 +4072,7 @@
       "executable": false
     },
     "tests/api/imports.test.mjs": {
-      "sha256": "31c1c375803fb11b305a60b799b702569d8b30304c574475b03cbb6ce00f1462",
+      "sha256": "49195dc2e0e4dc7847d4b670fbaffd7b7750d704143f2482454fce969e515bf2",
       "executable": false
     },
     "tests/api/local-payments.test.mjs": {
@@ -4140,7 +4140,7 @@
       "executable": false
     },
     "tests/ui/bulk-products-journey.mjs": {
-      "sha256": "37a7d0cd3560b66243a5f2ca5a75bf136b4bbd9934f91bb33f5d81ea30001ca3",
+      "sha256": "5f41848dd9ef5e315fe179a0a954ec0e763951bf1d8a2256639b6e3260ec14e4",
       "executable": false
     },
     "tests/ui/buy-link-journey.mjs": {

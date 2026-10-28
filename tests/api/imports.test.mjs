@@ -548,7 +548,9 @@ test('CATALOG-002: reviewed metadata CSV survives resume and restore, exports ex
       const journal = await restored.api(`${base}/${job.id}`);
       assert.equal(Buffer.from(journal.originals.find(item => item.original.status === 'retained').original.base64, 'base64').toString(), csv);
       assert.deepEqual(journal.rejectedRows.map(row => row.row), [16]);
+      const activityBeforeReplay = (await restored.api('/api/stall/state')).audit.filter(row => row.action === 'catalog.applied');
       assert.deepEqual(await restored.api(`${base}/apply`, input), job);
+      assert.deepEqual((await restored.api('/api/stall/state')).audit.filter(row => row.action === 'catalog.applied'), activityBeforeReplay);
       assert.deepEqual((await restored.api('/api/stall/exports/records')).products, complete.products, 'native resume never repeats revisions');
       // Review binds complete current records, including prepared revisions.
       const changedFile = file([['product', ids[11], { ...values[11], unitCents: 4321 }]]);

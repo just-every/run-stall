@@ -32,6 +32,17 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
   }
   const input = { csv, ...(namespace.trim() ? { namespace: namespace.trim() } : {}) }
   function changed() { setPreview(null); setApplied(null); setExcludeRejected(false); setNotice('') }
+  async function downloadCatalog() {
+    const response = await fetch('/api/stall/imports/catalog.csv', { credentials: 'same-origin', cache: 'no-store' })
+    if (!response.ok) {
+      const body = await response.json().catch(() => null) as { error?: { message?: string } } | null
+      throw new Error(body?.error?.message ?? 'The catalog download could not finish. Try again.')
+    }
+    const url = URL.createObjectURL(await response.blob()), anchor = document.createElement('a')
+    anchor.href = url; anchor.download = 'stall-catalog.csv'
+    document.body.appendChild(anchor); anchor.click(); anchor.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
   async function dryRun() { setPreview(await request<Preview>('/api/stall/imports/preview', input)); setApplied(null); setExcludeRejected(false) }
   async function apply() {
     if (!preview) return
@@ -62,7 +73,7 @@ export function MoveIn({ reload }: { reload: () => Promise<void> }) {
   const excludedRows = preview?.plan.entries.filter(entry => entry.rejection).map(entry => entry.source.location.row!) ?? []
   const canApply = preview && preview.counts.mapped > 0 && (!excludedRows.length || excludeRejected) && !preview.diagnostics.some(diagnostic => diagnostic.severity === 'error' && diagnostic.code !== 'REJECTED') && !applied
   return <Section id="move-in" title="Move in from Shopify">
-    <p>Bring Shopify products into Stall as staged revisions, or use a native catalog file for complete product and collection edits. Native catalog publication is approved by the exact reviewed apply after current Pier validation.</p><p><a href="/api/stall/imports/catalog.csv" download>Export native catalog CSV</a> · <a href="/docs/move-in">Catalog file guide</a></p>
+    <p>Bring Shopify products into Stall as staged revisions, or use a native catalog file for complete product and collection edits. Native catalog publication is approved by the exact reviewed apply after current Pier validation.</p><div className="st-actions"><button className="st-secondary" disabled={busy} onClick={() => void act(downloadCatalog)}>Export native catalog CSV</button><a href="/docs/move-in">Catalog file guide</a></div>
     {error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}
     <div className="st-panel st-stack">
       <div className="st-heading-row"><h2><span className="st-step-number">1.</span> Add your CSV</h2></div>

@@ -16,8 +16,8 @@ import { catalogTargets } from './native-targets'
 
 export const catalogMapping = 'stall-catalog-v1'
 export type CatalogInput = { csv: string; namespace?: string; fingerprint?: string; excludedRows?: number[]; reviewedAt?: string }
-export const nativeCatalogFile = (csv: unknown) => typeof csv === 'string' && csv.replace(/^\uFEFF/, '').startsWith('Kind,ID,Value\n') ||
- typeof csv === 'string' && csv.replace(/^\uFEFF/, '').startsWith('Kind,ID,Value\r\n')
+export const nativeCatalogFile = (csv: unknown) => typeof csv === 'string' &&
+ /^(?:\uFEFF)?(?:"Kind"|Kind),(?:"ID"|ID),(?:"Value"|Value)(?:\r\n|\r|\n|$)/.test(csv)
 
 export function catalogContext(db: D1Database, actor: Actor, namespace: string, reversing = false): D1ImportContext {
  return { destination: productImportDestination, namespace, mappingVersion: catalogMapping, reversalPolicy: 'preserve-conflicts',
@@ -124,7 +124,7 @@ export async function applyCatalog(env: Bindings, actor: Actor, input: CatalogIn
  await authorizeProductImport(env.DB, actor, true)
  if (typeof input.fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(input.fingerprint)) importError('IMPORT_APPROVAL', 'Supply the exact reviewed fingerprint.')
  const operationKey = `stall-product-import:${input.fingerprint}`
- const prior = await env.DB.prepare('SELECT id,namespace FROM ik_jobs WHERE destination=? AND principal_id=? AND operation_key=? AND mapping_version=?').bind(productImportDestination, productImportPrincipal, operationKey, catalogMapping).first<{ id: string; namespace: string }>()
+ const prior = await env.DB.prepare('SELECT id,namespace,checkpoint,state FROM ik_jobs WHERE destination=? AND principal_id=? AND operation_key=? AND mapping_version=?').bind(productImportDestination, productImportPrincipal, operationKey, catalogMapping).first<{ id: string; namespace: string; checkpoint: number; state: string }>()
  const bundle = source(input), namespace = `${catalogMapping}:${bundle.records[0].namespace}:${bundle.artifacts[0].sha256}`
  const context = catalogContext(env.DB, actor, namespace)
  context.operationKey = operationKey
@@ -150,7 +150,7 @@ export async function applyCatalog(env: Bindings, actor: Actor, input: CatalogIn
   context.storage.targets = catalogTargets(false, { plan, jobId: job.id })
   job = await applyD1ImportBatches(job.id, context)
  }
- await commit(env.DB, actor, [audit(env.DB, actor, job.id, 'catalog.applied')])
+ if (!prior || prior.checkpoint !== job.checkpoint || prior.state !== job.state) await commit(env.DB, actor, [audit(env.DB, actor, job.id, 'catalog.applied')])
  return job
 }
 export async function exportCatalog(db: D1Database) {

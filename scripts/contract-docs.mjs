@@ -29,8 +29,11 @@ for (const clause of parsed.clauses) {
 acceptance += `Total: ${parsed.counts.total} clauses; ${parsed.counts.done} done, ${parsed.counts.partial} partial, ${parsed.counts.missing} missing.\n`
 const claims = `# Current contract claims\n\n${note}\n\n| Clause | Capability | Status | Implemented evidence | Remaining boundary |\n| --- | --- | --- | --- | --- |\n` +
  rows.map(row => `| ${row[0]} | ${row[1]} | ${row[3]} | ${row[4]} | ${row[5]} |`).join('\n') + '\n'
+// Preserve code paths and URLs while spelling out prose alternatives.
+const prose = text => text.split(/(`[^`]*`|https?:\/\/[^\s)]+)/g).map((part, index) => index % 2 ? part : part.replace(/\b([A-Za-z][A-Za-z0-9_-]*)\/(?=[A-Za-z])/g, '$1 and ')).join('')
+acceptance = prose(acceptance)
 let stale = false
-for (const [path, content] of [['CONTRACT.md', contract], ['ACCEPTANCE.md', acceptance], ['docs/CLAIMS.md', claims]]) {
+for (const [path, content] of [['CONTRACT.md', contract], ['ACCEPTANCE.md', acceptance], ['docs/CLAIMS.md', prose(claims)]]) {
  if (await readFile(path, 'utf8') === content) continue
  if (mode === 'write') await writeFile(path, content)
  else { console.error(`Stale generated contract document: ${path}`); stale = true }
