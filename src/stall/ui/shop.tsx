@@ -28,10 +28,11 @@ function ShopBrowse() {
   const [catalogue, setCatalogue] = useState<Catalogue | null>(null)
   const [quantities, setQuantities] = useState<Record<string, string>>({}), [extras, setExtras] = useState<Extras>({}), [stored, setStored] = useState(false)
   const [email, setEmail] = useState(''), [review, setReview] = useState(false), [zip, setZip] = useState('')
+  const [fresh, setFresh] = useState(false)
   const [error, setError] = useState(''), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true)
   const key = useRef(''), lock = useRef(false)
   const browse = useDiscovery()
-  async function load() { setLoading(true); setError(''); try { setCatalogue(await request<Catalogue>('/api/stall/catalogue')); setReview(false); void browse.reload() } catch (error) { setError(errorMessage(error)) } finally { setLoading(false) } }
+  async function load() { setLoading(true); setFresh(false); setError(''); try { setCatalogue(await request<Catalogue>('/api/stall/catalogue')); setFresh(true); setReview(false); void browse.reload() } catch (error) { setError(errorMessage(error)) } finally { setLoading(false) } }
   useEffect(() => { void load() }, [])
   useEffect(() => {
     const lines = readBasket()
@@ -58,7 +59,7 @@ function ShopBrowse() {
   function changed() { setReview(false); key.current = ''; setError('') }
   async function checkout(event: FormEvent) {
     event.preventDefault()
-    if (lock.current || !chosen.length || invalid || !service || promotion.blocked || tax.blocked) return
+    if (lock.current || !fresh || !chosen.length || invalid || !service || promotion.blocked || tax.blocked) return
     if (!review) { setReview(true); return }
     lock.current = true; setBusy(true); setError('')
     key.current ||= crypto.randomUUID()
@@ -77,6 +78,8 @@ function ShopBrowse() {
         {browse.result && <><ResultsBar result={browse.result} params={browse.params} go={browse.go} /><details className="st-filters" open={typeof matchMedia === 'undefined' ? true : !matchMedia('(max-width: 900px)').matches}><summary>Filters</summary><Facets result={browse.result} params={browse.params} go={browse.go} /></details></>}</div>}
       <p role="status" hidden={!loading}>Checking available products with Pier…</p>
       {error && <Notice error>{error}</Notice>}
+      {catalogue?.observedAt && <p className="st-small">Stock last checked <time dateTime={catalogue.observedAt}>{new Date(catalogue.observedAt).toLocaleString()}</time>.</p>}
+      {catalogue && !fresh && !loading && <Notice>Stock is unavailable. These are the last observed quantities. Refresh availability before reviewing or paying.</Notice>}
       {!loading && !catalogue && <Empty><h3>The shop is not ready for orders</h3><p>Live stock and payment connections need to be available before checkout can open. Please try again later.</p></Empty>}
       {catalogue && !catalogue.checkoutReady && <Notice>Payments are not available yet. The shop owner needs to connect Stripe checkout before orders can be accepted.</Notice>}
       {catalogue && browse.result && browse.result.total === 0 && items.length > 0 && <NoResults result={browse.result} go={browse.go} />}
@@ -104,7 +107,7 @@ function ShopBrowse() {
           <TaxCheckout state={tax} disabled={busy||!service||!chosen.length||promotion.blocked} />
           <div className="st-total"><span>Total · USD</span><strong>{money(total)}</strong></div><p className="st-small">This total includes the products and the shipping option you chose. Payment opens on Stripe’s secure hosted checkout. Your order is confirmed after payment is verified.</p>
           {review && <Notice>Check these quantities, your email and the exact total before continuing.</Notice>}
-          <div className="st-actions"><button disabled={busy || loading || options.loading || promotion.blocked || tax.blocked || !service || !catalogue?.checkoutReady || !chosen.length || invalid}>{busy ? 'Opening Stripe…' : review ? `Pay ${money(total)} with Stripe` : 'Review order'}</button>{review && <button type="button" className="st-secondary" disabled={busy} onClick={() => setReview(false)}>Edit order</button>}</div>
+          <div className="st-actions"><button disabled={busy || loading || !fresh || options.loading || promotion.blocked || tax.blocked || !service || !catalogue?.checkoutReady || !chosen.length || invalid}>{busy ? 'Opening Stripe…' : review ? `Pay ${money(total)} with Stripe` : 'Review order'}</button>{review && <button type="button" className="st-secondary" disabled={busy} onClick={() => setReview(false)}>Edit order</button>}</div>
         </div>
       </form>}
     </Section>

@@ -37,3 +37,5 @@
 .st-report-lines li > span { display: block; font-size: 13px; color: var(--body); }
 .st-report-table-wrap details > .st-stack { margin-top: 12px; }
 .st-report-table-wrap td { max-width: 260px; overflow-wrap: anywhere; }
+
+.st-analytics .st-report-metric dd.st-report-metric-note { font: 400 13px/1.5 var(--font-body); letter-spacing: normal; color: var(--muted); }

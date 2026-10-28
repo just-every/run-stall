@@ -11,8 +11,10 @@ let journey, journeyError
 try {
   const stock = volumeStock(['synthetic-stall-1801', 'synthetic-stall-1802'])
   // Simulate only stock-provider dispatches, preserving the provider's original order-line identities.
+  let stockUnavailable = false
   const shipments = [], forward = stock.forward
   stock.forward = async request => {
+    if (stockUnavailable) return new Response('Stock unavailable', { status: 503 })
     if (request.method === 'POST') {
       const { type, payload, commandId } = await request.clone().json()
       if (type === 'dispatch.create') {
@@ -35,11 +37,13 @@ try {
       { sku: 'synthetic-stall-1802', options: { Size: 'Large' }, unitCents: 2800 }
     ] } })
   await h.command('product.approve', { sku: product.id, revision: product.revision })
-  let as = h.cookie
+  let as = h.cookie, releaseCheckout
+  let checkoutCalls = 0, holdCheckout = false
   await context.unroute('**/api/stall/**')
   await context.route('**/api/stall/**', async route => {
     const req = route.request(), url = new URL(req.url())
     const response = await h.request(url.pathname + url.search, { method: req.method(), as, ...(req.postData() ? { body: JSON.parse(req.postData()) } : {}) })
+    if (url.pathname === '/api/stall/checkout') { checkoutCalls++; if (holdCheckout && response.ok) await new Promise(resolve => { releaseCheckout = resolve }) }
     await route.fulfill({ status: response.status, headers: { 'content-type': response.headers.get('content-type') ?? 'application/json' }, body: Buffer.from(await response.arrayBuffer()) })
   })
   async function keyboardTo(target) {
@@ -57,6 +61,7 @@ try {
   async function type(target, value) { await keyboardTo(target); await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.insertText(value) }
   const scans = []
   async function scan(name) {
+    await page.waitForLoadState('networkidle')
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 1000 })
       await page.evaluate(() => document.fonts.ready)
@@ -78,6 +83,10 @@ try {
     await expect(page.getByText('Loading your shop…', { exact: true })).toHaveCount(0)
     await scan('desk-' + view)
   }
+  const accountMenu = page.getByRole('button', { name: /^Account menu for/ })
+  await keyboardTo(accountMenu)
+  await expect(page.getByRole('tooltip', { name: 'Account menu', exact: true })).toBeVisible()
+  await page.keyboard.press('Tab')
   // Modal entry, trapping, Escape and return to the invoking control are keyboard operations.
   await type(page.getByLabel('Customer email', { exact: true }), email)
   const opener = page.getByRole('button', { name: 'Review customer erasure', exact: true })
@@ -93,6 +102,15 @@ try {
   await page.goto(ready.url + '/shop')
   await page.getByRole('link', { name: 'Choose options for Studio tee', exact: true }).waitFor()
   await scan('storefront')
+  stockUnavailable = true
+  await activate(page.getByRole('button', { name: 'Refresh availability', exact: true }))
+  await page.getByText('Stock is unavailable. These are the last observed quantities. Refresh availability before reviewing or paying.', { exact: true }).waitFor()
+  await expect(page.getByRole('button', { name: 'Review order', exact: true })).toBeDisabled()
+  await expect(page.locator('time[datetime]')).toHaveCount(1)
+  await scan('stock-unavailable')
+  stockUnavailable = false
+  await activate(page.getByRole('button', { name: 'Refresh availability', exact: true }))
+  await expect(page.getByText('Stock is unavailable.', { exact: false })).toHaveCount(0)
   await activate(page.getByRole('link', { name: 'Choose options for Studio tee', exact: true }))
   await page.getByRole('heading', { name: 'Studio tee', exact: true }).waitFor()
   await activate(page.getByRole('group', { name: 'Size', exact: true }).getByRole('button', { name: 'Large', exact: true }))
@@ -116,7 +134,14 @@ try {
   await activate(page.getByRole('button', { name: 'Refresh availability', exact: true }))
   await activate(page.getByRole('button', { name: 'Review order', exact: true }))
   await context.route('https://checkout.stripe.com/**', route => route.fulfill({ status: 200, body: 'Payment provider network edge' }))
+  holdCheckout = true
   await activate(page.getByRole('button', { name: 'Pay $28.00 with Stripe', exact: true }))
+  await expect(page.getByRole('button', { name: 'Opening Stripe…', exact: true })).toBeDisabled()
+  await page.keyboard.press('Enter')
+  await page.keyboard.press('Enter')
+  await expect.poll(() => typeof releaseCheckout).toBe('function')
+  assert.equal(checkoutCalls, 2, 'One failed stock validation and one payment attempt; duplicate submission is disabled')
+  releaseCheckout()
   await page.waitForURL(url => url.hostname === 'checkout.stripe.com')
   assert.equal(edge.sessions.size, 1)
   const session = [...edge.sessions.values()][0]
@@ -175,6 +200,38 @@ try {
   await page.goto(ready.url + '/order')
   await card.getByText('Goods received', { exact: false }).waitFor()
   await scan('customer-return-progress')
+  // The same return's reviewed refund completes the merchant workflow without asserting restock.
+  as = h.cookie
+  await page.goto(ready.url + '/app#orders/' + session.client_reference_id)
+  await activate(page.locator('.st-order-panel summary').filter({ hasText: /^More actions$/ }))
+  await activate(page.locator('.st-order-panel summary').filter({ hasText: /^Prepare a refund$/ }))
+  await type(page.getByLabel('Reason', { exact: true }), 'Returned tee received and inspected; no restock')
+  await activate(page.getByRole('button', { name: 'Prepare refund', exact: true }))
+  await scan('refund-review')
+  await activate(page.getByRole('button', { name: /^Approve [$]28[.]00 refund/ }))
+  await expect.poll(() => edge.refunds.size).toBe(1)
+  assert.equal([...edge.refunds.values()][0].amount, 2800)
+  await scan('refund-complete')
+  as = member
+  await page.goto(ready.url + '/order')
+  await activate(card.locator('summary').filter({ hasText: /^Delivery, refunds and requests$/ }))
+  await expect(card).toContainText('$28.00 · succeeded')
+  await scan('account-refunded')
+  await activate(card.getByRole('button', { name: /^Reorder/ }))
+  await page.getByRole('heading', { name: 'Review your reorder', exact: true }).waitFor()
+  await scan('reorder-checkout')
+  as = h.cookie
+  const buy = await h.api('/api/stall/buy-links', { label: 'Studio tee checkout', lines: [{ sku: 'synthetic-stall-1801', quantity: 1 }] })
+  as = ''
+  await page.goto(ready.url + '/shop?buy=' + buy.id)
+  await page.getByRole('heading', { name: 'Studio tee checkout', exact: true }).waitFor()
+  await scan('checkout-link')
+  await activate(page.getByRole('button', { name: 'Continue to native cart', exact: true }))
+  await page.getByRole('heading', { name: 'Review checkout link', exact: true }).waitFor()
+  await scan('checkout-link-cart')
+  await page.goto(ready.url + '/order')
+  await page.getByRole('heading', { name: 'Your account', exact: true }).waitFor()
+  await scan('signed-out-account')
   assert.deepEqual(journey.errors, [])
   console.log('PASS MOBILE-001 keyboard purchase, validation recovery, receipt, account, dialog and WCAG scans:', JSON.stringify(scans))
 } catch (error) {
