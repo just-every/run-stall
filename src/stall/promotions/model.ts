@@ -1,10 +1,12 @@
 import { fail,text } from '../model'
 
-export type PromotionSnapshot={id:string;revision:string;kind:'free_shipping';originalShippingCents:number;discountCents:number}
-export type Promotion={id:string;revision:string;code_hash:string;starts_at:string;ends_at:string;minimum_cents:number;max_customer_uses:number;max_total_uses:number;max_discount_cents:number;revoked_at:string|null;created_at:string;updated_at:string}
+export type PromotionSnapshot={id:string;revision:string;kind:'free_shipping'|'discounts';originalShippingCents:number;discountCents:number;shippingDiscountCents?:number;lineDiscounts?:{sku:string;discountCents:number}[];components?:PromotionComponent[]}
+export type PromotionComponent={id:string;revision:string;kind:'product'|'order'|'buy_get'|'free_shipping';discountCents:number;shippingDiscountCents:number;lineDiscounts:{sku:string;discountCents:number}[];codeHash?:string}
+export type Promotion={rule_json?:string|null;id:string;revision:string;code_hash:string;starts_at:string;ends_at:string;minimum_cents:number;max_customer_uses:number;max_total_uses:number;max_discount_cents:number;revoked_at:string|null;created_at:string;updated_at:string}
 export function promotionCode(value:unknown) {
- const code=text(value,'Promotion code',64).toUpperCase()
- if(!/^[A-Z0-9][A-Z0-9_-]{2,63}$/.test(code)) fail('INPUT','Use a promotion code of 3 to 64 letters, numbers, underscores or hyphens.',400)
+ const code=text(value,'Promotion code',320).toUpperCase().split(',').map(c=>c.trim()).sort().join(',')
+ const parts=code.split(',')
+ if(parts.length>5||new Set(parts).size!==parts.length||parts.some(part=>!/^[A-Z0-9][A-Z0-9_-]{2,63}$/.test(part)))fail('INPUT','Use up to five distinct codes of 3 to 64 letters, numbers, underscores or hyphens, separated by commas.',400)
  return code
 }
 export function instant(value:unknown,name:string) {

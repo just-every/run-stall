@@ -9,7 +9,7 @@ import { selectLines,priceSelection,type Selected } from '../order-selection'
 import { taxDestinationHash } from '../tax/commerce-provider'
 import { checkoutTax } from '../tax/commerce-quote'
 import { checkout } from '../checkout'
-import { qualification,requireQualified } from '../promotions/eligibility'
+import { purchasePromotion } from '../promotions/eligibility'
 import { promotionCode } from '../promotions/model'
 import { customerCommit,requireProvenEmail } from './account'
 import { reorder } from './reorder'
@@ -70,8 +70,8 @@ export async function cartQuote(env:Bindings,ctx:CartContext,row:NativeCart) {
  if(!details?.address)fail('ADDRESS_REQUIRED','Choose a native delivery address before checkout review.',400)
  if(details.address.country!=='US')fail('DESTINATION_UNAVAILABLE','This shop’s current checkout serves US delivery only. Your Canadian address and basket are preserved.',400)
  const shipping={...(value.shipping??{}),postalCode:details.address.postal_code},priced=await priceSelection(env,selected,undefined,shipping)
- const promotion=value.promotionCode?requireQualified(await qualification(env,value.promotionCode,customerEmail,priced.totalCents-priced.shippingCents,priced.shippingCents,priced.shipping.service.kind)):null
- const tax=await checkoutTax(env,{taxQuoteId:value.taxQuoteId,expectedTotalCents:value.taxTotalCents},priced.lines,priced.shippingCents-(promotion?.discountCents??0),customerEmail,priced.shipping,promotion?.snapshot,ctx.actor?.email.toLowerCase())
+ const promotion=await purchasePromotion(env,{...value,customerEmail},priced,ctx.actor?.email.toLowerCase())
+ const tax=await checkoutTax(env,{taxQuoteId:value.taxQuoteId,expectedTotalCents:value.taxTotalCents},priced.lines,priced.shippingCents-(promotion?.snapshot.shippingDiscountCents??0),customerEmail,priced.shipping,promotion?.snapshot,ctx.actor?.email.toLowerCase())
  if(tax&&tax.destinationHash!==await taxDestinationHash(env,details.address))fail('TAX_ADDRESS','Calculate tax for this exact delivery address before reviewing checkout.')
  const totalCents=tax?.totalCents??(priced.totalCents-(promotion?.discountCents??0)),shopper={...value.shopper,fieldsRevision:details.fieldsRevision},review={cartId:row.id,revision:row.revision,customerEmail,lines:priced.lines,shipping:priced.shipping,subtotalCents:priced.totalCents-priced.shippingCents,discountCents:promotion?.discountCents??0,giftCardCents:0,giftCardsStatus:'not_available',shippingCents:priced.shippingCents,taxStatus:tax?'calculated':'no_tax_recorded',taxCents:tax?.taxCents??0,totalCents,payableCents:totalCents,shopper:details,promotion:promotion?.snapshot??null}
  return {review,digest:await digest(JSON.stringify(review)),intent:{...(tax?{taxQuoteId:tax.quoteId}:{}),customerEmail,lines:selected,shipping:{service:priced.shipping.service.code,postalCode:details.address.postal_code,quote:priced.shipping.quote},shopper,...(value.promotionCode?{promotionCode:value.promotionCode}:{})}}

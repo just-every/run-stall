@@ -1,3 +1,4 @@
+import { refundedLineCents } from './promotions/paid-values'
 import { refundTaxAllocation } from './tax/transactions-refunds'
 import { fail, integer, text, type Order, type Refund, type RefundKind } from './model'
 
@@ -20,7 +21,7 @@ export function refundValue(order: Order, input: any): Pick<Refund, 'kind'|'line
    if (refunded + quantity > source.quantity) fail('REFUND_LIMIT', 'The requested quantity exceeds the unrefunded purchase.')
    return { sku, quantity }
   })
-  amountCents = lines.reduce((sum, line) => sum + line.quantity * order.lines.find(item => item.sku === line.sku)!.unitCents, 0)
+  amountCents = lines.reduce((sum, line) => sum + refundedLineCents(order,line.sku,line.quantity), 0)
  } else if (kind === 'address_change') {
   if ((input.lines !== undefined && (!Array.isArray(input.lines) || input.lines.length)) || input.amountCents !== undefined) fail('INPUT', 'Refunding a payment to a different address returns the whole payment.', 400)
   if (!order.tax || !order.payment || order.tax.transactionId || order.reservation || committed.length) fail('REFUND_KIND', 'Only an unfulfilled, unrefunded taxed payment with no recorded tax transaction can be refunded for a different address.', 409)
