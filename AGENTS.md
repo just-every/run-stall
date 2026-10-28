@@ -1,5 +1,15 @@
 # Agent instructions
 
+## Contract projections
+
+`CONTRACT.md` supplies acceptance text, evidence, gaps and status counts. After
+changing a clause, run `node scripts/contract-docs.mjs write CLAUSE-ID`, followed
+by `node scripts/contract-docs.mjs check`. The generator updates that clause's
+managed blocks in `ACCEPTANCE.md` and `docs/CLAIMS.md`, preserving other clauses'
+existing projections. With no clause arguments it refreshes all managed blocks.
+Run `node scripts/edition-authoring/cli.mjs lock` last, then the same command with
+`check` to verify source integrity. Commit the source and its projections together.
+
 ## Launch for review
 
 When asked to launch, run or review this app, run this from the checkout root

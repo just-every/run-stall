@@ -6,7 +6,8 @@
       "hosted": false,
       "commands": [
         "pnpm run check --profile first-party",
-        "pnpm run typecheck"
+        "pnpm run typecheck",
+        "node scripts/contract-docs.mjs check"
       ]
     },
     {

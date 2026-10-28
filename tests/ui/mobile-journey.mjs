@@ -82,7 +82,7 @@ try {
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 1000 })
       await page.evaluate(() => document.fonts.ready)
-      await page.addScriptTag({ content: axe.source })
+      await page.evaluate(axe.source)
       const result = await page.evaluate(async () => window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }, rules: { 'color-contrast': { enabled: true } } }))
       const violations = result.violations.map(row => ({ id: row.id, nodes: row.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))
       scans.push({ page: label, width, violations })
@@ -237,9 +237,10 @@ try {
   await audit('account-request')
   await visit('/signin?returnTo=%2Forder', page.locator('main'))
   await audit('account-signin')
-  as = customer
+  as = h.cookie
   await visit('/auth/settings/identity', page.locator('main'))
-  await audit('account-identity')
+  await audit('desk-identity')
+  as = customer
   const buy = await h.api('/api/stall/buy-links', { label: 'Studio shirt link', lines: [{ sku: large, quantity: 1 }] })
   await visit('/shop?buy=' + buy.id, page.getByRole('heading', { name: 'Studio shirt link', exact: true }))
   await audit('checkout-link')

@@ -32,9 +32,13 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
   Current evidence: no implementation found. Target journey not implemented, including the contact form and newsletter signup.
 
+<!-- contract-docs:MOBILE-001 -->
 - **MOBILE-001 — Accessible mobile shopping and merchant work.** **partial** — Use the built storefront and desk at both widths to buy variants, recover a validation failure, read order status, request a return and process it. Complete the same essential controls by keyboard and inspect accessible names and focus after dialogs/errors. Run an automated WCAG 2.2 AA scan, including its color-contrast rule, on each storefront, checkout, account and desk page at both widths and verify no violations.
 
-  Current evidence: `src/stall/ui/shop.tsx`; `src/stall/ui/app.tsx`; `tests/ui/journey.mjs`. The existing narrow shop/desk journey covers both widths; expanded flows and full accessibility conformance are unimplemented or unverified.
+  Current evidence: `src/stall/ui/shop.tsx`; `src/stall/ui/app.tsx`; `tests/ui/journey.mjs`
+
+  Remaining: The existing narrow shop/desk journey covers both widths; expanded flows and full accessibility conformance are unimplemented or unverified.
+<!-- /contract-docs:MOBILE-001 -->
 
 - **MOBILE-002 — Native merchant apps and timely order attention.** **missing** — On each platform receive a new-order notification, scan a purchased SKU, prepare fulfillment offline, change the order elsewhere, and reconnect. Verify the conflict requires fresh approval. Edit a product's title and price and add a photo taken with the device camera, and verify the change goes through the same revision approval and appears on the storefront with the photo served from owned storage. Mark a pickup order ready and picked up from the app (SHIP-007) and verify one notice and one dispatch. Revoke the device and confirm private reads and actions fail.
 
@@ -369,4 +373,4 @@ Exercise these journeys through the built shop, merchant/customer/native app or 
 
 Provider credentials, approvals and original idempotency references must stay local and private. No current proof claims live provider acceptance, inbox receipt, physical delivery, WCAG conformance, load capacity or operating cost. The target requires those measurements as applicable rather than excluding their features. No test or contract check may be weakened to make these documents pass.
 
-All clause totals: **23 done / 29 partial / 27 missing** (79 total).
+All clause totals: **23 done, 29 partial, 27 missing** (79 total).
