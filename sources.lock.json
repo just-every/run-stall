@@ -200,7 +200,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "0a79f1bca5f8b269b8fd14c3282250f1f16f160d0e3b87a85ce4fe28569895e4",
+      "sha256": "e8b84e951c36777a11755454792b0ed38e09f25a6ecb05a4d1c96e9cf7c20deb",
       "executable": false
     },
     "AGENTS.md": {
@@ -212,11 +212,11 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "6f56e73ba37ffc910a5b9894e07e46836f910e4e2e8feabd83b5ac892a6f13f6",
+      "sha256": "85e63ecf4ce8892bf20ba28c9833a5eb0ff0d1c90b1e3f76efb85be6adb8b7f9",
       "executable": false
     },
     "CHANGELOG.md": {
-      "sha256": "29c3cce3f79848985fe2305d5b7ce5a1397bf4089e1e958db3437501f386963a",
+      "sha256": "0d385eab9e0c7e9434a92e922de108b6ba10cd240af4cb78a822532786d133c5",
       "executable": false
     },
     "composition.lock.json": {
@@ -224,7 +224,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "2557c19dc0b65ec6aa9b0863f517dc70b429884133fb45f4fb727efe81d48fbf",
+      "sha256": "c263912e4b27dd6d57e89eddaeeb29da7a9bd7a2f0234ddbb83d527cac66f143",
       "executable": false
     },
     "deploy-demo.json": {
@@ -252,7 +252,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "126e8955324f68cd405e71453f63bab3066a93cd046aa601921623ac3b7d6223",
+      "sha256": "4d1abc1c526c80d9047917d0820b61990f6f2676e2e8471e49507ab5c3c289ee",
       "executable": false
     },
     "docs/COMMANDS.md": {
@@ -261,6 +261,14 @@
     },
     "docs/CONNECTIONS.md": {
       "sha256": "77eaa5d9ce5e83e619f6acf5d0f385c5156cfa3259e4bd4d200d2be37dbde877",
+      "executable": false
+    },
+    "docs/contract/COVERAGE.json": {
+      "sha256": "228c6803c0d104db4631ed774ef70941fa01ea9d0d5c4f435e3983d69c318aca",
+      "executable": false
+    },
+    "docs/contract/ID-MAP.json": {
+      "sha256": "48fc889ac1594cc1d5897c275bac52f2c37156fb68d6e4885e4f76804839de71",
       "executable": false
     },
     "docs/CUSTOMERS.md": {
@@ -329,6 +337,10 @@
     },
     "docs/TAX-PREVIEWS.md": {
       "sha256": "fbe3ace0f10ba69fc70faa15fe59cfb6613640ca94d25443b6b1cc6ee30b12cf",
+      "executable": false
+    },
+    "docs/verify.md": {
+      "sha256": "0a79f1bca5f8b269b8fd14c3282250f1f16f160d0e3b87a85ce4fe28569895e4",
       "executable": false
     },
     "docs/WORKFLOWS.md": {
@@ -1029,6 +1041,10 @@
     },
     "src/auth.server.ts": {
       "sha256": "9e749dad4d0f027f5ec62bd8d870f97d12be973cbed4af21ffdb81ca2697f2d7",
+      "executable": false
+    },
+    "src/base/contract-docs.mjs": {
+      "sha256": "d98e14f489c57f60446c2cc68310db09f298f7974d77026dbaa2c62868cc4838",
       "executable": false
     },
     "src/base/contract-filter.ts": {
