@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { publish,purchase,deliverWebhook } from '../api/network.mjs'
 
-/** ORDER-001a's current-order desk, through its built page and real HTTP/provider doors. */
+/** ORDER-001, ORDER-007, ORDER-008 and ORDER-009 current-order desk, through its built page and real HTTP/provider doors. */
 export async function orderDeskJourney({page,h,edge,secret,origin,evidence}) {
  const label='Payment recorded by staff, not confirmed by a payment provider'
  async function capture(name,locator=page.locator('#orders')) {

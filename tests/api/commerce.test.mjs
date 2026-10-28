@@ -430,7 +430,7 @@ test('shop purchase, signed paid reservation, shipment and partial refund reconc
    assert.equal(net.netRecordedCents,0);
    assert.equal(net.succeededRefundCents,4875);
   });
-  await t.test('manual paid sales reserve once, preserve commercial truth and record reviewed refunds without moving money',async()=>{
+  await t.test('ORDER-009: manual paid sales reserve once, preserve commercial truth and record reviewed refunds without moving money',async()=>{
    const owner=(await state(h)).actor,member=await h.signIn('synthetic-stall-201@example.test'),admin=await h.signIn('synthetic-stall-202@example.test','admin');
    const grant=await h.api('/api/stall/agent-token',{}),agent={as:'',headers:{authorization:'Bearer '+grant.token}};
    await reviseProduct(h,'MUG-BLUE','Current mug for paid sales',2450);
@@ -637,8 +637,8 @@ test('AGENT-001: agents prepare exact product, shipment and refund drafts; only 
  }finally {await h.close();await pier.close();}
 });
 
-// ORDER-001 adds responsibility and local presentation without changing commercial facts.
-test('ORDER-001: time zones and revision-checked staff assignments survive transfer without granting authority',async()=>{
+// ORDER-001 and ORDER-007 add responsibility and local presentation without changing commercial facts.
+test('ORDER-007 / ORDER-001: time zones and revision-checked staff assignments survive transfer without granting authority',async()=>{
  const stock=volumeStock(),edge=stripeEdge({forward:stock.forward}),secret=randomBytes(32).toString('hex');
  const h=await installation({bindings:{PIER_ORIGIN:'https://stock.example.test',PIER_SESSION:'test-stock-network-edge',PIER_CUSTOMER_ID:'shop',STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret},outboundService:edge.handle});
  let destination;

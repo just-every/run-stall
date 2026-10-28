@@ -85,7 +85,7 @@ Orders retain their original `shippingCents` (zero for historical orders without
 
 ORDER-001: orders include attributable staff assignment history (operator IDs,
 actor and UTC time). Assignment carries no access authority, including after
-transfer. The complete JSON also names the saved IANA business time zone;
+transfer. ORDER-007: the complete JSON also names the saved IANA business time zone;
 timestamp fields remain UTC. Full archives preserve the preference and
 assignments while the receiving installation keeps its own staff and permissions.
 
@@ -95,7 +95,7 @@ fields. JSON records carry the same object under each current/prepared value.
 These are merchant facts with the editor's validation, not provider verification.
 Purchased descriptions are retained for new checkouts; older orders may omit them.
 
-ORDER-001: orders include internal notes with their authors/UTC times and redaction evidence, tags, channel, manual-payment facts and explicit `no_tax_recorded`. CSV nested cells and complete JSON retain them. Staff payments and refunds carry their unverified/recorded labels; a succeeded recorded refund is a staff record, not processor settlement. Customer erasure retains note ID/author/time with “Erased with customer contact”, drops redaction text/reasons and tags, and removes manual payment references. Archives preserve the same result.
+ORDER-008 / ORDER-009: orders include internal notes with their authors/UTC times and redaction evidence, tags, channel, manual-payment facts and explicit `no_tax_recorded`. CSV nested cells and complete JSON retain them. Staff payments and refunds carry their unverified/recorded labels; a succeeded recorded refund is a staff record, not processor settlement. Customer erasure retains note ID/author/time with “Erased with customer contact”, drops redaction text/reasons and tags, and removes manual payment references. Archives preserve the same result.
 
 The complete JSON also carries risk rules/observations/reviewer decisions and alerts; headless customer/cart and minimal event/delivery history; and workflow rules, requests, tasks and alerts. It excludes native identity bindings, app credentials, endpoint consent/signing keys, checkout fingerprints and local scheduling grants. The archive retains those business records with inert restored customer/checkout links and no app or workflow activation authority. Customer erasure removes attributable carts/requests and stops open follow-up, including after restore. See [staff permissions](STAFF-PERMISSIONS.md), [risk review](RISK-REVIEW.md), [headless API](HEADLESS-API.md) and [workflows](WORKFLOWS.md).
 

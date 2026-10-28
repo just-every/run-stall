@@ -117,9 +117,12 @@
       ]
     },
     "TAX-001": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "TAX-001"
+        "TAX-001",
+        "TAX-002",
+        "TAX-003",
+        "TAX-004"
       ]
     },
     "RISK-001": {
@@ -171,9 +174,12 @@
       ]
     },
     "ORDER-001": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "ORDER-001"
+        "ORDER-001",
+        "ORDER-007",
+        "ORDER-008",
+        "ORDER-009"
       ]
     },
     "ORDER-006": {

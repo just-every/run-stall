@@ -200,11 +200,11 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "c534e77ae83e26e000e00e5e096786fb4e4a60423871f8fdb7284324651f9059",
+      "sha256": "e46426d505568a54b87f0ab88f2a6710e8a9984c59032b0d93139d1fd6399f25",
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "abb7f03d6186ccb6bda5e40cad66a917e12be7bda09d4e3814975a13204d86cd",
+      "sha256": "52cde872d8dd5643020b0876c41941f5bbacbdefd6afaff0ee741b412a3488a0",
       "executable": false
     },
     "ANALYTICS.md": {
@@ -216,7 +216,7 @@
       "executable": false
     },
     "CHANGELOG.md": {
-      "sha256": "0d385eab9e0c7e9434a92e922de108b6ba10cd240af4cb78a822532786d133c5",
+      "sha256": "a17088f01a78beb57996d8030bc60e176d07e64a9f3388fea08813b2c4ed938d",
       "executable": false
     },
     "composition.lock.json": {
@@ -224,7 +224,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "4633f1e65c6c1217c4fc0b62b5b6f112d004108c4e56051d855cdad0e8585bb9",
+      "sha256": "60a795ff325cd7c55b58a181e40fe8e33ac44ff5d4ac80eafcff48dab07781ff",
       "executable": false
     },
     "deploy-demo.json": {
@@ -244,7 +244,7 @@
       "executable": false
     },
     "docs/BUSINESS-EXPORTS.md": {
-      "sha256": "918897229f499d093be0c61bcb562d256adf34c48a16486f27353962bbad379a",
+      "sha256": "8e898f7e49e4dfb1cab6914cbfb63f8d3461554f285677e15ca5d05471fbb23b",
       "executable": false
     },
     "docs/BUY-LINKS.md": {
@@ -252,11 +252,15 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "4d1abc1c526c80d9047917d0820b61990f6f2676e2e8471e49507ab5c3c289ee",
+      "sha256": "fa3d9e3b71a8706c1ad105ad8b84f8b70da5632000b5715730da57512022ae61",
       "executable": false
     },
     "docs/COMMANDS.md": {
       "sha256": "dd3752b0abcd254e4b4eaf2a04d3aa7e2a9d27ac9f0af5a9fee814a7adf89aa1",
+      "executable": false
+    },
+    "docs/COMMERCE-MECHANICS.md": {
+      "sha256": "40e7975b4ff3286c493e86d4e514a1e7c2c963fcd9bfa13735e8d5eb716e9931",
       "executable": false
     },
     "docs/CONNECTIONS.md": {
@@ -264,11 +268,15 @@
       "executable": false
     },
     "docs/contract/COVERAGE.json": {
-      "sha256": "d7638d726572adc8f2906f0ae7b67be26ffdacf94d3234cd1dcdf4c2fc98b999",
+      "sha256": "107d4f644718520d64c79667e379a1c62358eb26f32e3eae351fb5fa3c5d8d68",
+      "executable": false
+    },
+    "docs/contract/DONE-AUDIT.md": {
+      "sha256": "6b2c97249461c2120983fefedca06c33141344cb73ca7b3e58dfbe86f6da63f5",
       "executable": false
     },
     "docs/contract/ID-MAP.json": {
-      "sha256": "a214727d5a43beced401a801ce2c7eacc730a929155bab448408324764cab180",
+      "sha256": "5bff8f7cf6e2fd8d4cb63fa4cc5396113492d61b6ba9c6ec8d90b21583871b8f",
       "executable": false
     },
     "docs/CUSTOMERS.md": {
@@ -340,7 +348,7 @@
       "executable": false
     },
     "docs/verify.md": {
-      "sha256": "0a79f1bca5f8b269b8fd14c3282250f1f16f160d0e3b87a85ce4fe28569895e4",
+      "sha256": "a6a4567114b5695f5152fb7f0be5281dfe368bdd146653d522a8e6267c83c6a7",
       "executable": false
     },
     "docs/WORKFLOWS.md": {
@@ -855,6 +863,10 @@
       "sha256": "3be374402223111532371d44a1afa8d70a7bccb3f38eed30658c5e2d805ab003",
       "executable": false
     },
+    "RULINGS.md": {
+      "sha256": "c385945db4011281b41f946e292f73c00a3c6beca53e6753e06486274745184e",
+      "executable": false
+    },
     "RUN-LOCALLY.md": {
       "sha256": "58b20c1b29db0d373c1b6653b71a0cee3314f235c4015fc8c9d135a00f678b82",
       "executable": false
@@ -864,7 +876,7 @@
       "executable": false
     },
     "scripts/contract-docs.mjs": {
-      "sha256": "7d31e4407c7ead92102b6fd310829c7d3773cc5d4d4b8d95e74666ca39e81f30",
+      "sha256": "eaff0e52feb4907df528b86f7c5b4c711bb64c22114171027b0613d6aed55e8b",
       "executable": false
     },
     "scripts/delivery/base/artifact.mjs": {
@@ -2992,7 +3004,7 @@
       "executable": false
     },
     "src/site/shell/links.ts": {
-      "sha256": "9003569552208ceb542a289f76aa4e5c00c8e0719da061daa7858edcdd3478e8",
+      "sha256": "ea6882a7aae2d93cf9b4f75d78538b386f2a22c638843be61997ae9108d46c85",
       "executable": false
     },
     "src/site/shell/Lockup.tsx": {
@@ -4052,7 +4064,7 @@
       "executable": false
     },
     "tests/api/commerce.test.mjs": {
-      "sha256": "8b7524cde6ad0805a3ec0bfd84b8a145c5f696560d062cd917b4ae21fd3cd8f6",
+      "sha256": "2dc0546fe1799f4580dfd009d7eeba2272076d348052bc20b4395d2a5c89df1f",
       "executable": false
     },
     "tests/api/csv-reader.mjs": {
@@ -4072,7 +4084,7 @@
       "executable": false
     },
     "tests/api/data.test.mjs": {
-      "sha256": "b08b70f1f62ee19075dd132ca6b72a16935f2ab51dc7dac5135554a0692dc6c6",
+      "sha256": "d4368cfee4332f2552ee71a16b67eac7c3d0818c4fb45187ea88b35401e5e336",
       "executable": false
     },
     "tests/api/demo-worker.ts": {
@@ -4112,7 +4124,7 @@
       "executable": false
     },
     "tests/api/operations.test.mjs": {
-      "sha256": "3e68ec9650dd782f49bac447b79f7f956b2c884cef8345aab8d8f139308c8f7b",
+      "sha256": "58ef558b43a04abd8560e16d6d351d1fc186db1d04bc3974d259672b86e102d4",
       "executable": false
     },
     "tests/api/pier-work.test.mjs": {
@@ -4216,7 +4228,7 @@
       "executable": false
     },
     "tests/ui/journey.mjs": {
-      "sha256": "e5afa9d92566a24ba7ee9abb5dab42796ebd0cf08af907f10d9f3a8a5d90ec73",
+      "sha256": "896b9f6105d3694b6bb50d6422fe30aa92d49c78a772e5479ab88856e72b8773",
       "executable": false
     },
     "tests/ui/merch-proposals-journey.mjs": {
@@ -4228,7 +4240,7 @@
       "executable": false
     },
     "tests/ui/order-desk.mjs": {
-      "sha256": "dcc0309d752d59b07c17a76b99d1ea1eb070faa0deff6416fbf39ea092d49fa6",
+      "sha256": "1bde446d5957559ab692138ff447181a5eb0064c31c9b0b82bace7ed23d0111b",
       "executable": false
     },
     "tests/ui/promotion-journey.mjs": {
@@ -4276,7 +4288,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "e289b758d5ab74c81a01d1ec9766196c299d29e865457788daf2143198acea0f",
+      "sha256": "01c6c5a85688160c83573ec5629029115bc642e69173b43dd67957f7c528fa30",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

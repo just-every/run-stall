@@ -141,11 +141,14 @@ Native-session/runtime evidence: https://github.com/runeditrun/base/tree/ada9f57
 CONTRACT.md is the acceptance and status source. After an intentional contract
 edit run the seed's Lander-Regenerate command:
 
-    node scripts/contract-docs.mjs write
-    node scripts/contract-docs.mjs check
+    node src/base/contract-docs.mjs write
+    node src/base/contract-docs.mjs check
 
 Commit CONTRACT.md with both generated documents, ACCEPTANCE.md and
 docs/CLAIMS.md. The generator also updates the Status summary from its complete
 per-clause rows. Stage source changes before regenerating the edition lock
 with node scripts/edition-authoring/cli.mjs lock, then run the same command
 with check. Keep the existing Base and rer pins.
+
+Lander-Regenerate: node src/base/contract-docs.mjs write
+Lander-Regenerate: node scripts/edition-authoring/cli.mjs lock

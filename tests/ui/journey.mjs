@@ -118,7 +118,7 @@ try {
  assert.equal(await page.getByRole('link',{name:'Stripe pricing',exact:true}).getAttribute('href'),'https://stripe.com/pricing')
  assert.ok(await page.getByRole('form',{name:'Connect Pier'}).getByRole('link',{name:'Cloudflare hosting pricing'}).count())
  await capture('OPEN-001-provider-costs','#connections')
- // ORDER-001: invalid settings retain the input; saved zones drive the whole desk.
+ // ORDER-007: invalid settings retain the input; saved zones drive the whole desk.
  await page.getByLabel('Time zone',{exact:true}).fill('Mars/Crater')
  await page.getByRole('button',{name:'Save time zone',exact:true}).click()
  await page.getByText('Choose a supported IANA time zone, such as America/Chicago.',{exact:true}).waitFor()
@@ -127,7 +127,7 @@ try {
  await page.getByRole('button',{name:'Save time zone',exact:true}).click()
  await page.waitForFunction(()=>!document.querySelector('form[aria-label="Shop time zone"] button:disabled'))
  assert.equal((await h.api('/api/stall/state')).timeZone,'Pacific/Auckland')
- await capture('ORDER-001-time-zone',page.getByRole('form',{name:'Shop time zone'}))
+ await capture('ORDER-007-time-zone',page.getByRole('form',{name:'Shop time zone'}))
  await page.getByLabel('Domestic shipping · USD',{exact:true}).fill('6.25')
  await page.getByRole('button',{name:'Save shipping charge',exact:true}).click()
  await page.waitForFunction(()=>!document.querySelector('form[aria-label="Shipping charge"] button:disabled'))

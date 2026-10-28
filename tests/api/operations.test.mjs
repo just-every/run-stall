@@ -786,7 +786,7 @@ test('tax exemptions require current evidence and an independently proven custom
  }finally{await kit.close()}
 })
 
-test('tax refunds post in their own shop-zone filing period and liability CSVs and nexus reconcile to original orders',async()=>{
+test('TAX-004 / TAX-002 / TAX-003: refunds post in their own shop-zone filing period and liability CSVs and nexus reconcile to original orders',async()=>{
  const {taxCommerceInstallation,taxAddress}=await import('./tax-commerce.mjs'),kit=await taxCommerceInstallation(),{h,tax}=kit
  try {
   await h.command('shop.configure',{timeZone:'America/Chicago'})
@@ -846,7 +846,7 @@ test('tax refunds post in their own shop-zone filing period and liability CSVs a
  }finally{await kit.close()}
 })
 
-test('taxed goodwill needs explicit confirmation, leaves recorded tax unchanged and posts a zero-tax adjustment',async()=>{
+test('TAX-004: taxed goodwill needs explicit confirmation, leaves recorded tax unchanged and posts a zero-tax adjustment',async()=>{
  const {taxCommerceInstallation}=await import('./tax-commerce.mjs'),kit=await taxCommerceInstallation(),{h,tax}=kit
  try {
   const sale=await kit.buy(await kit.quote());await kit.ship(sale.order.id)
@@ -863,7 +863,7 @@ test('taxed goodwill needs explicit confirmation, leaves recorded tax unchanged 
  }finally{await kit.close()}
 })
 
-test('a payment to a different address than the reviewed tax address is refunded in full with no tax recorded and never fulfilled',async()=>{
+test('TAX-004: a payment to a different address than the reviewed tax address is refunded in full with no tax recorded and never fulfilled',async()=>{
  const {taxCommerceInstallation,taxAddress}=await import('./tax-commerce.mjs'),{deliverWebhook}=await import('./network.mjs'),kit=await taxCommerceInstallation(),{h,stripe,tax}=kit
  try {
   const reviewed=await kit.buy(await kit.quote())
@@ -883,7 +883,7 @@ test('a payment to a different address than the reviewed tax address is refunded
  }finally{await kit.close()}
 })
 
-test('marketplace-facilitated sales are recorded as separate reporting evidence that counts toward nexus and never replaces existing evidence',async()=>{
+test('TAX-003: marketplace-facilitated sales are recorded as separate reporting evidence that counts toward nexus and never replaces existing evidence',async()=>{
  const h=await installation({outboundService:()=>{assert.fail('Marketplace evidence must not call a provider')}})
  try {
   const path='/api/stall/tax/marketplace',state=await h.api(path),sale={kind:'sale',marketplace:'Synthetic Marketplace',reference:'synthetic-stall-m-1',occurredOn:'2026-01-15',state:'WA',goodsCents:8000,nonTaxableCents:1000,shippingCents:500,taxCents:700}

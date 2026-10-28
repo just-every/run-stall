@@ -38,7 +38,7 @@ test('BASE-001 / INTEGRATION-001: native owner data doors preserve commerce and 
   await h.command('shipment.approve',{orderId:order.id,revision:order.revision})
   const grant=await h.api('/api/stall/agent-token',{})
   let annotated
-  await t.test('ORDER-001a: internal notes and tags require human staff, exact revisions and owner redaction',async()=>{
+  await t.test('ORDER-008: internal notes and tags require human staff, exact revisions and owner redaction',async()=>{
    const admin=await h.signIn('synthetic-stall-101@example.test','admin')
    const member=await h.signIn('synthetic-stall-102@example.test')
    const owner=(await state(h)).actor.id
@@ -222,7 +222,7 @@ test('BASE-001 / INTEGRATION-001: native owner data doors preserve commerce and 
    await destination.api(`/api/stall/portability/imports/${id}/parts/${part.index}`,part,{method:'PUT',status:400})
    assert.equal((await state(destination)).orders.length,0)
   })
-  await t.test('ORDER-001a: erasure removes a recorded payment reference and manual annotations through archive restore',async()=>{
+  await t.test('ORDER-008: erasure removes a recorded payment reference and manual annotations through archive restore',async()=>{
    const current=await state(h)
    const total=current.products.find(value=>value.id==='MUG-BLUE').value.unitCents+current.shippingCents
    let manual=await h.command('order.manual',{idempotencyKey:randomUUID(),customerEmail:'synthetic-stall-501@example.test',name:'synthetic-stall-502',address:{line1:'synthetic-stall-503',line2:'',city:'synthetic-stall-504',state:'TX',postal_code:'78702',country:'US'},lines:[{sku:'MUG-BLUE',quantity:1}],expectedTotalCents:total,amountCents:total,method:'check',receivedOn:'2026-10-20',reference:'synthetic-stall-505'})
