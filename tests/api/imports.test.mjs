@@ -475,6 +475,112 @@ test('CATALOG-002: reviewed metadata CSV survives resume and restore, exports ex
     assert.deepEqual(remaining.find(item => item.id === later.id), protectedRow);
     assert.equal(report.dispositions.find(item => item.targetId === later.id).disposition, 'retained');
     assert.equal(report.dispositions.find(item => item.targetId === later.id).reason, 'edited');
+
+    {
+    // The native format uses the same public review, custody and protected undo doors
+    // for complete records rather than the legacy draft-only Shopify mapping.
+    const { volumeStock } = await import('./volume-stock.mjs');
+    const ids = Array.from({ length: 12 }, (_, index) => `synthetic-stall-${1701 + index}`);
+    const stock = volumeStock([ids[0] + '-S', ids[0] + '-M', ...ids.slice(1)]);
+    const edge = stripeEdge(), secret = 'synthetic-stall-1700';
+    const options = { bindings: { PIER_ORIGIN: 'https://stock.example.test', PIER_SESSION: 'synthetic-stall-1720', PIER_CUSTOMER_ID: 'shop', STRIPE_SECRET_KEY: 'synthetic-stall-1721', STRIPE_WEBHOOK_SECRET: secret },
+      outboundService: request => new URL(request.url).hostname === 'stock.example.test' ? stock.forward(request) : edge.handle(request) };
+    let native = await installation(options), restored;
+    try {
+      const variants = [{ sku: ids[0] + '-S', options: { Size: 'S' }, unitCents: 2137, weightGrams: 125, dimensionsMm: { length: 10, width: 20, height: 30 }, hsCode: '610910', countryOfOrigin: 'CA' },
+        { sku: ids[0] + '-M', options: { Size: 'M' }, unitCents: 2359 }];
+      const values = ids.map((sku, index) => ({ sku, name: `Native catalog ${index + 1}`, description: 'Complete reviewed record', unitCents: 1234 + index, stockMode: 'pier',
+        publication: index < 2 ? 'published' : index === 2 ? 'archived' : index === 3 ? 'scheduled' : 'draft', ...(index === 3 ? { publishAt: '2099-01-01T12:00:00.000Z' } : {}),
+        details: { ...facts, handle: sku, categories: ['Catalog proof'], ...(index === 0 ? { options: [{ name: 'Size', values: ['S', 'M'] }], variants } : {}) } }));
+      const manual = { handle: 'synthetic-stall-1722', title: 'Hand-picked catalog', description: 'Reviewed membership', kind: 'manual', published: true, skus: [ids[0], ids[1]], sort: 'manual' };
+      const automatic = { handle: 'synthetic-stall-1723', title: 'Matching catalog', description: 'Reviewed rule', kind: 'rule', published: true, match: 'all', rules: [{ field: 'category', value: 'Catalog proof' }] };
+      const file = rows => 'Kind,ID,Value\n' + rows.map(([kind, id, value]) => [kind, id, JSON.stringify(value)].map(quote).join(',')).join('\n') + '\n';
+      const nativeRows = [...values.map(value => ['product', value.sku, value]), ['collection', manual.handle, manual], ['collection', automatic.handle, automatic],
+        ['product', 'synthetic-stall-1724', { ...values[1], sku: 'synthetic-stall-1724', stockMode: 'untracked' }]];
+      const csv = file(nativeRows), preview = await native.api(`${base}/preview`, { csv });
+      assert.equal(preview.counts.mapped, 14);
+      assert.equal(preview.counts.rejected, 1);
+      assert.equal((await native.api('/api/stall/exports/records')).products.length, 0, 'native dry run is read-only');
+      assert.equal(preview.plan.entries[0].source.payload.previous, null);
+      assert.deepEqual(preview.plan.entries[0].effects[0].value.details.variants, variants);
+      assert.equal(preview.plan.entries[0].effects[0].value.active, true);
+      const input = { csv, fingerprint: preview.fingerprint, reviewedAt: preview.reviewedAt, excludedRows: [16] };
+      await native.api(`${base}/apply`, { ...input, csv: csv.replace('Complete reviewed record', 'Unreviewed') }, { status: 409 });
+      await native.api(`${base}/apply`, { ...input, excludedRows: [] }, { status: 409 });
+      await native.api(`${base}/apply`, input, { as: '', status: 401 });
+      const member = await native.signIn(['synthetic-stall-1725', 'example.test'].join('@'));
+      await native.api(`${base}/apply`, input, { as: member, status: 403 });
+      const grant = await native.api('/api/stall/agent-token', {});
+      const headers = { authorization: `Bearer ${grant.token}` };
+      await native.api(`${base}/apply`, input, { as: '', headers, status: 403 });
+      await native.api('/api/stall/agent-token/revoke', {});
+      await native.api(`${base}/preview`, { csv }, { as: '', headers, status: 401 });
+      let job = await native.api(`${base}/apply`, input);
+      assert.equal(job.state, 'applying');
+      assert.ok(job.checkpoint > 0 && job.checkpoint < job.total);
+      restored = await installation(options);
+      await restore(restored, await archive(native));
+      await restored.api(`${base}/apply`, input, { as: native.cookie, status: 401 });
+      for (let n = 0; job.state === 'applying' && n < 4; n++) job = await restored.api(`${base}/apply`, input);
+      assert.equal(job.state, 'completed');
+      const complete = await restored.api('/api/stall/exports/records');
+      assert.equal(complete.products.length, 12);
+      for (const value of values) {
+        const actual = complete.products.find(row => row.id === value.sku).value;
+        assert.equal(actual.name, value.name);
+        assert.equal(actual.unitCents, value.unitCents);
+        assert.deepEqual(actual.details, value.details);
+        assert.equal(actual.active, ['published', 'scheduled'].includes(value.publication));
+        assert.equal(actual.archived === true, value.publication === 'archived');
+        assert.equal(actual.publishAt, value.publishAt);
+      }
+      assert.deepEqual(complete.collections.map(row => row.value), [manual, automatic]);
+      const catalogue = await restored.api('/api/stall/catalogue', undefined, { as: '' });
+      assert.deepEqual(catalogue.items.map(row => row.sku).sort(), [ids[0] + '-M', ids[0] + '-S', ids[1]].sort());
+      const exportedResponse = await restored.request(`${base}/catalog.csv`);
+      assert.equal(exportedResponse.status, 200);
+      const exportedCSV = await exportedResponse.text(), { readCsv } = await import('./csv-reader.mjs');
+      const exported = readCsv(exportedCSV);
+      assert.equal(exported.length, 14);
+      for (const value of values) assert.deepEqual(JSON.parse(exported.find(row => row.ID === value.sku).Value), value);
+      assert.deepEqual(JSON.parse(exported.find(row => row.ID === manual.handle).Value), manual);
+      assert.deepEqual(JSON.parse(exported.find(row => row.ID === automatic.handle).Value), automatic);
+      const journal = await restored.api(`${base}/${job.id}`);
+      assert.equal(Buffer.from(journal.originals.find(item => item.original.status === 'retained').original.base64, 'base64').toString(), csv);
+      assert.deepEqual(journal.rejectedRows.map(row => row.row), [16]);
+      assert.deepEqual(await restored.api(`${base}/apply`, input), job);
+      assert.deepEqual((await restored.api('/api/stall/exports/records')).products, complete.products, 'native resume never repeats revisions');
+      // Review binds complete current records, including prepared revisions.
+      const changedFile = file([['product', ids[11], { ...values[11], unitCents: 4321 }]]);
+      const stale = await restored.api(`${base}/preview`, { csv: changedFile });
+      const current = (await restored.api('/api/stall/state')).products.find(row => row.id === ids[11]);
+      await restored.command('product.prepare', { ...current.value, revision: current.revision, name: 'Keep the native revision', active: false });
+      await restored.api(`${base}/apply`, { csv: changedFile, fingerprint: stale.fingerprint, reviewedAt: stale.reviewedAt }, { status: 409 });
+      const protectedProduct = (await restored.api('/api/stall/state')).products.find(row => row.id === ids[11]);
+      const bought = await purchase(restored, edge, { skus: [ids[0] + '-S'], quantities: [1], expectedTotalCents: 2137 });
+      const delivered = await deliverWebhook(restored, secret, edge.pay(bought.session.id));
+      assert.equal(delivered.response.status, 200);
+      const purchasedBefore = (await restored.api('/api/stall/state')).orders;
+      const paidProduct = (await restored.api('/api/stall/state')).products.find(row => row.id === ids[0]);
+      const stockBefore = structuredClone([...stock.orders]);
+      const outcomes = await undo(restored, job, { bounded: true });
+      const after = await restored.api('/api/stall/state');
+      assert.deepEqual(after.orders, purchasedBefore);
+      assert.deepEqual([...stock.orders], stockBefore);
+      assert.deepEqual(after.products.find(row => row.id === ids[0]), paidProduct, 'variant purchase protects the whole original product');
+      assert.deepEqual(after.products.find(row => row.id === ids[11]), protectedProduct);
+      assert.equal(outcomes.dispositions.find(row => row.targetId === ids[0]).disposition, 'retained');
+      assert.equal(outcomes.dispositions.find(row => row.targetId === ids[11]).disposition, 'retained');
+      assert.equal(outcomes.dispositions.find(row => row.targetId === ids[4]).disposition, 'reversed');
+      assert.ok(!after.products.some(row => row.id === ids[4]));
+      assert.deepEqual((await restored.api('/api/stall/exports/records')).collections, []);
+      // Native validation also rejects unknown publication stock and conflicting listing identities.
+      const unavailable = file([['product', 'synthetic-stall-1726', { ...values[1], sku: 'synthetic-stall-1726', details: {}, publication: 'published' }]]);
+      await restored.api(`${base}/preview`, { csv: unavailable }, { status: 409 });
+      const conflict = file([['product', 'synthetic-stall-1727', { ...values[1], sku: 'synthetic-stall-1727', publication: 'draft', details: { handle: ids[0] } }]]);
+      await restored.api(`${base}/preview`, { csv: conflict }, { status: 409 });
+    } finally { await restored?.close(); await native.close(); }
+    }
   } finally { await receiving?.close(); await h.close(); }
 });
 

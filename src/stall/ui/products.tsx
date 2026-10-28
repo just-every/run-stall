@@ -74,7 +74,7 @@ function ProductPanel({ product, preparedBy, busy, run, canApprove, onEdit, ship
 }
 
 /** `focus` is a SKU from a link (#products/<sku>). */
-export function ProductsView({ products, audit, focus, query, busy, run, canApprove, reload, shipping }: { shipping?: ShippingState; products: Product[]; audit: State['audit']; focus?: string; query: string; busy: boolean; run: Run; canApprove: boolean; reload: () => Promise<void> }) {
+export function ProductsView({ products, audit, focus, query, busy, run, canApprove, reload, shipping, collections }: { collections?: import('./types').Merchandising['collections']; shipping?: ShippingState; products: Product[]; audit: State['audit']; focus?: string; query: string; busy: boolean; run: Run; canApprove: boolean; reload: () => Promise<void> }) {
   const { businessTime, shortDate } = useBusinessTime()
   const [bulk, setBulk] = useState(false)
   const [tab, setTab] = useState<typeof productTabs[number][0]>('all'), [selectedId, setSelectedId] = useState(focus ?? ''), [editing, setEditing] = useState<Product | 'new' | null>(null)
@@ -86,7 +86,7 @@ export function ProductsView({ products, audit, focus, query, busy, run, canAppr
   const selected = products.find(product => product.id === selectedId) ?? shown[0]
   function reveal() { if (matchMedia('(max-width: 1180px)').matches) requestAnimationFrame(() => panel.current?.scrollIntoView({ block: 'start' })) }
   const draftCount = products.filter(product => product.value.draft).length
-  if (bulk) return <BulkProducts products={products} reload={reload} close={() => setBulk(false)} />
+  if (bulk) return <BulkProducts products={products} collections={collections} reload={reload} close={() => setBulk(false)} />
   return <div className={`st-orders-layout${editing || selected ? '' : ' is-single'}`} id="products">
     <HydrationUnit><section className="st-orders" aria-labelledby="products-title">
       <div className="st-view-head"><h1 id="products-title">Products</h1><div className="st-actions">{canApprove && <button className="st-secondary" disabled={busy} onClick={() => setBulk(true)}>Bulk edit staged products</button>}<button disabled={busy} onClick={() => { setEditing('new'); reveal() }}>Prepare a product</button></div></div>

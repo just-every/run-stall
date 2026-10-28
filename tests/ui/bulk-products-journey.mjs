@@ -2,9 +2,11 @@ import assert from 'node:assert/strict'
 import { chromium } from '@playwright/test'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { mkdtemp, mkdir, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
+import { volumeStock } from '../api/volume-stock.mjs'
+import { readCsv } from '../api/csv-reader.mjs'
 import { installation } from '../api/harness.mjs'
 import { startOwnedDev, finishCleanup } from '../owned-dev.mjs'
 
@@ -24,19 +26,22 @@ const interrupted = () => { void cleanup().then(() => process.exit(1), () => pro
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, interrupted)
 try {
  await exec('git', ['clone', '--no-hardlinks', process.cwd(), checkout])
+ await exec('git', ['-C', checkout, 'config', 'user.name', 'Run Edit Run fleet'])
+ await exec('git', ['-C', checkout, 'config', 'user.email', ['fleet', 'runeditrun.com'].join('@')])
  dev = await startOwnedDev({ launcher: resolve('node_modules/@runeditrun/rer/global/rer.mjs'), checkout, env: { ...process.env, HOME: rerHome, RER_SERVER_JOURNEY: '1', RER_LOCAL_OPERATION: '' } })
  const ready = await dev.ready
- h = await installation()
+ const stock = volumeStock(['synthetic-stall-1801-S', 'synthetic-stall-1801-M', ...Array.from({ length: 11 }, (_, index) => `synthetic-stall-${1802 + index}`)])
+ h = await installation({ bindings: { PIER_ORIGIN: 'https://stock.example.test', PIER_SESSION: 'synthetic-stall-1800', PIER_CUSTOMER_ID: 'shop' }, outboundService: stock.forward })
  for (const [sku, name, unitCents] of [['MUG-BLUE', 'Blue ceramic mug', 2450], ['TOWEL-NAT', 'Natural linen towel', 1800]])
   await h.command('product.prepare', { sku, name, description: 'Handmade, ready for a personal touch.', unitCents, active: false })
- browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+ browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}), args: ['--no-sandbox', '--use-mock-keychain', '--password-store=basic'] })
  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' }), page = await context.newPage(), errors = []
  page.on('pageerror', error => errors.push(error.message))
  // Test transport to the real migrated commerce Worker; no application fixtures.
  await page.route('**/api/stall/**', async route => {
   const req = route.request(), url = new URL(req.url())
   const response = await h.request(url.pathname + url.search, { method: req.method(), ...(req.postData() ? { body: JSON.parse(req.postData()) } : {}) })
-  await route.fulfill({ status: response.status, headers: { 'content-type': response.headers.get('content-type') ?? 'application/json' }, body: Buffer.from(await response.arrayBuffer()) })
+  await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) })
  })
  await page.goto(ready.openUrl)
  await page.waitForURL(url => ['/setup', '/app'].includes(url.pathname))
@@ -186,6 +191,157 @@ try {
  await page.getByText('Undo finished. Review the journal for preserved records.', { exact: true }).waitFor()
  assert.ok(!(await h.api('/api/stall/state')).products.some(p => p.id.startsWith('META-')))
  await capture('metadata-undone', page.getByLabel('Product undo outcomes', { exact: true }))
+
+ // Complete catalog grid: retain the existing editor components and review every field.
+ const ids = Array.from({ length: 12 }, (_, index) => `synthetic-stall-${1801 + index}`)
+ const richDetails = { ...details, customFields: [{ key: 'care', label: 'Care', type: 'text', value: 'Original care' }] }
+ for (const [index, sku] of ids.entries()) await h.command('product.prepare', { sku, name: `Complete catalog ${index + 1}`, description: 'Grid before-image', unitCents: 1500 + index, active: false,
+  details: { ...richDetails, ...(index === 0 ? { options: [{ name: 'Size', values: ['S', 'M'] }], variants: [{ sku: sku + '-S', options: { Size: 'S' }, unitCents: 1731 }, { sku: sku + '-M', options: { Size: 'M' }, unitCents: 1943 }] } : {}) } })
+ const collectionId = 'synthetic-stall-1820'
+ await h.command('collection.save', { handle: collectionId, title: 'Original collection', description: 'Before bulk', kind: 'manual', published: false, skus: [ids[0]] })
+ await page.reload()
+ await page.getByRole('link', { name: 'Products', exact: true }).click()
+ await page.getByRole('button', { name: 'Bulk edit staged products', exact: true }).click()
+ await page.getByRole('checkbox', { name: 'Edit complete catalog fields', exact: true }).check()
+ for (const sku of ids) await page.getByLabel(`Select ${sku}`, { exact: true }).check()
+ const first = page.getByLabel(`Bulk product ${ids[0]}`, { exact: true })
+ await first.getByLabel(`Product name · ${ids[0]}`, { exact: true }).fill('Reviewed variant product')
+ await first.getByLabel(`Unit price · USD · ${ids[0]}`, { exact: true }).fill('23.41')
+ await first.getByLabel(`Publication · ${ids[0]}`, { exact: true }).selectOption('published')
+ await first.getByText('Optional product details', { exact: true }).click()
+ await first.getByLabel('Weight · g', { exact: true }).fill('425')
+ await first.getByLabel('Length · mm', { exact: true }).fill('130')
+ await first.getByLabel('Width · mm', { exact: true }).fill('95')
+ await first.getByLabel('Height · mm', { exact: true }).fill('110')
+ await first.getByLabel('Tax category', { exact: true }).fill('apparel')
+ await first.getByLabel('HS code', { exact: true }).fill('610910')
+ await first.getByLabel('Country of origin', { exact: true }).fill('CA')
+ await first.getByLabel('Field value 1', { exact: true }).fill('Reviewed care instructions')
+ await first.getByText('Options and variants', { exact: true }).first().click()
+ await first.getByLabel('Variant 1 price · USD', { exact: true }).fill('21.37')
+ await first.getByLabel('Variant 1 weight · g', { exact: true }).fill('125')
+ await first.getByLabel('Variant 1 length · mm', { exact: true }).fill('10')
+ await first.getByLabel('Variant 1 width · mm', { exact: true }).fill('20')
+ await first.getByLabel('Variant 1 height · mm', { exact: true }).fill('30')
+ await first.getByLabel('Variant 1 HS code', { exact: true }).fill('610910')
+ await first.getByLabel('Variant 1 country of origin', { exact: true }).fill('CA')
+ assert.equal(await first.getByLabel(`Stock mode · ${ids[0]}`, { exact: true }).inputValue(), 'pier')
+ await page.getByLabel(`Publication · ${ids[1]}`, { exact: true }).selectOption('archived')
+ await page.getByLabel(`Select collection ${collectionId}`, { exact: true }).check()
+ await page.getByLabel(`Collection title · ${collectionId}`, { exact: true }).fill('Reviewed collection')
+ await page.getByLabel(`Collection products · ${collectionId}`, { exact: true }).fill(ids.slice(0, 2).join(', '))
+ await page.getByLabel(`Published collection · ${collectionId}`, { exact: true }).check()
+ const beforeNative = await h.api('/api/stall/exports/records')
+ await page.getByRole('button', { name: 'Review bulk edit (13)', exact: true }).click()
+ await page.getByRole('heading', { name: 'Review exact changes', exact: true }).waitFor()
+ assert.deepEqual((await h.api('/api/stall/exports/records')).products, beforeNative.products)
+ await capture('complete-grid-review', page.getByLabel('Reviewed bulk changes', { exact: true }))
+ const later = (await h.api('/api/stall/state')).products.find(row => row.id === ids[11])
+ await h.command('product.prepare', { ...later.value, sku: later.id, revision: later.revision, name: 'Concurrent native work', active: false })
+ await page.getByRole('button', { name: 'Apply reviewed bulk edit', exact: true }).click()
+ await page.getByRole('alert').waitFor()
+ assert.equal(await first.getByLabel('Tax category', { exact: true }).inputValue(), 'apparel')
+ assert.equal((await h.api('/api/stall/state')).products.find(row => row.id === ids[0]).value.name, 'Complete catalog 1')
+ await page.getByRole('button', { name: 'Review bulk edit (13)', exact: true }).click()
+ await page.getByRole('button', { name: 'Apply reviewed bulk edit', exact: true }).click()
+ await page.getByRole('button', { name: 'Resume reviewed bulk edit', exact: true }).waitFor()
+ await page.getByRole('button', { name: 'Resume reviewed bulk edit', exact: true }).click()
+ await page.getByRole('button', { name: 'Bulk edit completed', exact: true }).waitFor()
+ let native = await h.api('/api/stall/exports/records')
+ const appliedProduct = native.products.find(row => row.id === ids[0]).value
+ assert.equal(appliedProduct.name, 'Reviewed variant product')
+ assert.equal(appliedProduct.unitCents, 2341)
+ assert.equal(appliedProduct.active, true)
+ assert.equal(appliedProduct.details.weightGrams, 425)
+ assert.deepEqual(appliedProduct.details.dimensionsMm, { length: 130, width: 95, height: 110 })
+ assert.equal(appliedProduct.details.taxCategory, 'apparel')
+ assert.equal(appliedProduct.details.hsCode, '610910')
+ assert.equal(appliedProduct.details.countryOfOrigin, 'CA')
+ assert.equal(appliedProduct.details.customFields[0].value, 'Reviewed care instructions')
+ assert.equal(appliedProduct.details.variants[0].unitCents, 2137)
+ assert.equal(appliedProduct.details.variants[0].weightGrams, 125)
+ assert.deepEqual(appliedProduct.details.variants[0].dimensionsMm, { length: 10, width: 20, height: 30 })
+ assert.equal(appliedProduct.details.variants[0].hsCode, '610910')
+ assert.equal(appliedProduct.details.variants[0].countryOfOrigin, 'CA')
+ assert.equal(native.products.find(row => row.id === ids[1]).value.archived, true)
+ assert.equal(native.collections.find(row => row.id === collectionId).value.title, 'Reviewed collection')
+ assert.deepEqual(native.collections.find(row => row.id === collectionId).value.skus, ids.slice(0, 2))
+ const publicVariants = (await h.api('/api/stall/catalogue', undefined, { as: '' })).items.map(row => row.sku)
+ assert.deepEqual(publicVariants.sort(), [ids[0] + '-M', ids[0] + '-S'].sort())
+ await capture('complete-grid-applied', page.getByLabel('Reviewed bulk changes', { exact: true }))
+ await page.getByRole('link', { name: 'Move in', exact: true }).click()
+ // Download the native file through the visible export door and upload edited complete records.
+ const downloadPromise = page.waitForEvent('download')
+ await page.getByRole('link', { name: 'Export native catalog CSV', exact: true }).click()
+ const download = await downloadPromise
+ const exportedCSV = await readFile(await download.path(), 'utf8'), exported = readCsv(exportedCSV)
+ const exportedFirst = JSON.parse(exported.find(row => row.ID === ids[0]).Value)
+ assert.deepEqual(exportedFirst.details, appliedProduct.details)
+ assert.equal(exportedFirst.publication, 'published')
+ assert.equal(exportedFirst.stockMode, 'pier')
+ const fileRows = exported.filter(row => ids.includes(row.ID) || row.ID === collectionId).map(row => {
+  const value = JSON.parse(row.Value)
+  if (row.Kind === 'product') {
+   value.unitCents += 100
+   value.details.taxCategory = 'housewares'
+   value.details.weightGrams = 510
+   value.details.dimensionsMm = { length: 140, width: 100, height: 120 }
+   value.details.hsCode = '691200'
+   value.details.countryOfOrigin = 'US'
+   value.details.customFields[0].value = 'File care instructions'
+   if (value.details.variants) value.details.variants[0].unitCents = 2279
+  } else { value.title = 'File collection'; value.skus = [ids[0], ids[2]] }
+  return [row.Kind, row.ID, value]
+ })
+ fileRows.push(['product', 'synthetic-stall-1821', { ...exportedFirst, sku: 'synthetic-stall-1821', stockMode: 'untracked' }])
+ const catalogCell = value => '"' + String(value).replaceAll('"', '""') + '"'
+ const nativeCSV = 'Kind,ID,Value\n' + fileRows.map(([kind, id, value]) => [kind, id, JSON.stringify(value)].map(catalogCell).join(',')).join('\n') + '\n'
+ await page.getByLabel('Choose a CSV file', { exact: true }).setInputFiles({ name: 'synthetic-stall-catalog.csv', mimeType: 'text/csv', buffer: Buffer.from(nativeCSV) })
+ await page.getByRole('button', { name: 'Run dry run', exact: true }).click()
+ await page.getByRole('checkbox', { name: /^Exclude the 1 rejected CSV rows/ }).waitFor()
+ assert.deepEqual((await h.api('/api/stall/exports/records')).products, native.products)
+ await capture('complete-file-review', page.getByText('Review planned product changes', { exact: true }))
+ await page.getByRole('checkbox', { name: /^Exclude the 1 rejected CSV rows/ }).check()
+ // A changed source review is also refused through the file form.
+ const last = (await h.api('/api/stall/state')).products.find(row => row.id === ids[11])
+ await h.command('product.prepare', { ...last.value, sku: last.id, revision: last.revision, name: 'Later file review edit', active: false })
+ await page.getByRole('button', { name: 'Apply reviewed import', exact: true }).click()
+ await page.getByRole('alert').waitFor()
+ await page.getByRole('button', { name: 'Run dry run', exact: true }).click()
+ await page.getByRole('checkbox', { name: /^Exclude the 1 rejected CSV rows/ }).check()
+ await page.getByRole('button', { name: 'Apply reviewed import', exact: true }).click()
+ await page.getByRole('button', { name: 'Resume apply', exact: true }).waitFor()
+ await page.getByRole('link', { name: 'Products', exact: true }).click()
+ await page.getByRole('link', { name: 'Move in', exact: true }).click()
+ await page.getByRole('button', { name: 'View', exact: true }).first().click()
+ await page.getByRole('button', { name: 'Resume apply from retained source', exact: true }).click()
+ await page.getByText('Import completed.', { exact: true }).waitFor()
+ native = await h.api('/api/stall/exports/records')
+ for (const [kind, id, value] of fileRows.slice(0, -1)) {
+  if (kind === 'product') {
+   const actual = native.products.find(row => row.id === id).value
+   assert.equal(actual.unitCents, value.unitCents)
+   assert.deepEqual(actual.details, value.details)
+  } else assert.deepEqual(native.collections.find(row => row.id === id).value, value)
+ }
+ assert.ok(!native.products.some(row => row.id === 'synthetic-stall-1821'))
+ await capture('complete-file-resumed', page.getByText('Import completed.', { exact: true }))
+ // Both jobs protect a subsequent native edit while untouched changes reverse.
+ let firstCurrent = (await h.api('/api/stall/state')).products.find(row => row.id === ids[0])
+ await h.command('product.prepare', { ...firstCurrent.value, sku: firstCurrent.id, revision: firstCurrent.revision, name: 'Keep complete native edit', active: true })
+ const protectedFirst = (await h.api('/api/stall/state')).products.find(row => row.id === ids[0])
+ for (let jobIndex = 0; jobIndex < 2; jobIndex++) {
+  await page.getByRole('button', { name: 'View', exact: true }).nth(jobIndex).click()
+  await page.getByRole('button', { name: 'Review undo', exact: true }).click()
+  await page.getByRole('button', { name: 'Undo import', exact: true }).click()
+  const resumeUndo = page.getByRole('button', { name: 'Resume undo', exact: true })
+  if (await resumeUndo.isVisible()) { await resumeUndo.click(); await page.getByRole('button', { name: 'Undo import', exact: true }).click() }
+  await page.getByText('Undo finished. Review the journal for preserved records.', { exact: true }).waitFor()
+  await page.getByLabel('Product undo outcomes', { exact: true }).getByText(`${ids[0]} · Kept`, { exact: true }).waitFor()
+  assert.deepEqual((await h.api('/api/stall/state')).products.find(row => row.id === ids[0]), protectedFirst)
+ }
+ assert.equal((await h.api('/api/stall/exports/records')).collections.find(row => row.id === collectionId).value.title, 'Original collection')
+ await capture('complete-protected-undo', page.getByLabel('Product undo outcomes', { exact: true }))
  const sitePage = await context.newPage()
  for (const [path, name] of [['/docs/move-in', 'metadata-guide'], ['/docs/products', 'product-guide'], ['/contract', 'contract']]) {
   const response = await sitePage.goto(ready.siteUrl + path)

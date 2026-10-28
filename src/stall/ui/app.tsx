@@ -53,7 +53,7 @@ export function ShopDesk() {
     {state ? <TimeZone.Provider value={state.timeZone ?? defaultTimeZone}><People.Provider value={state.people}><Authority.Provider value={permissionActor}>
       {!allowed&&<Section title="Staff workspace"><p>Choose a workspace permitted by your current shop role.</p></Section>}
       {allowed&&view === 'orders' && <OrdersView state={state} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} refresh={() => { setError(''); void reload().catch(error => setError(errorMessage(error))) }} />}
-      {allowed&&view === 'products' && <ProductsView products={state.products} audit={state.audit} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} reload={reload} shipping={state.shipping} />}
+      {allowed&&view === 'products' && <ProductsView collections={state.merchandising?.collections} products={state.products} audit={state.audit} focus={recordOf(section)} query={query} busy={busy} run={run} canApprove={canApprove} reload={reload} shipping={state.shipping} />}
       {allowed&&view === 'shopfront' && state.merchandising && <MerchandisingView data={state.merchandising} products={state.products} busy={busy} run={run} canApprove={canApprove} />}
       {allowed&&view === 'shipping' && state.shipping && (canApprove ? <ShippingView data={state.shipping} busy={busy} run={run} reload={reload} /> : <Section title="Shipping"><p>Only an owner or administrator can change shipping profiles.</p></Section>)}
       {allowed&&view === 'customers' && <CustomerDirectory canReviewRegistration={!state.actor.agent&&role==='owner'} canManage={!state.actor.agent&&['owner','admin'].includes(role)} query={query} />}

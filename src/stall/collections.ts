@@ -26,6 +26,17 @@ export async function collectionCommand(env: Bindings, actor: Actor, type: strin
   return { removed: handle }
  }
  if (prior ? p.revision !== prior.revision : p.revision !== undefined) fail('CHANGED', 'Refresh this collection before saving it.')
+ const known = new Set((await env.DB.prepare('SELECT id FROM st_products').all<{ id: string }>()).results.map(row => row.id))
+ const value = collectionValue(p, known)
+ const revision = crypto.randomUUID()
+ const write = prior ? env.DB.prepare('UPDATE st_collections SET value_json=?,revision=? WHERE id=? AND revision=?').bind(JSON.stringify(value), revision, handle, prior.revision) : env.DB.prepare('INSERT INTO st_collections VALUES(?,?,?)').bind(handle, JSON.stringify(value), revision)
+ await commit(env.DB, actor, [write, ...(prior ? [changed(env.DB)] : []), audit(env.DB, actor, handle, prior ? 'collection.saved' : 'collection.created')])
+ return { id: handle, value, revision }
+}
+
+/** Shared native validation for the editor and reviewed catalog files. */
+export function collectionValue(p: any, known: Set<string>): Collection {
+ const handle = handleName(p.handle)
  const kind = p.kind === 'manual' || p.kind === 'rule' ? p.kind : fail('INPUT', 'A collection is manual or rule-based.', 400)
  const value: Collection = { handle, title: text(p.title, 'Title', 120), description: typeof p.description === 'string' && p.description.length <= 1000 ? p.description.trim() : fail('INPUT', 'The description may be at most 1000 characters.', 400), kind, published: p.published !== false }
  if (['manual', 'name', 'price-asc', 'price-desc', 'newest'].includes(p.sort)) value.sort = p.sort
@@ -33,7 +44,6 @@ export async function collectionCommand(env: Bindings, actor: Actor, type: strin
   if (!Array.isArray(p.skus) || p.skus.length > 500) fail('INPUT', 'A manual collection lists at most 500 products.', 400)
   const skus = p.skus.map((sku: unknown) => text(sku, 'Product SKU', 100))
   if (new Set(skus).size !== skus.length) fail('INPUT', 'List each product once.', 400)
-  const known = new Set((await env.DB.prepare('SELECT id FROM st_products').all<{ id: string }>()).results.map(row => row.id))
   const missing = skus.find((sku: string) => !known.has(sku))
   if (missing) fail('COLLECTION_PRODUCT', `${missing} is not a product in this shop.`, 400)
   value.skus = skus
@@ -42,8 +52,5 @@ export async function collectionCommand(env: Bindings, actor: Actor, type: strin
   value.rules = p.rules.map(rule)
   value.match = p.match === 'any' ? 'any' : 'all'
  }
- const revision = crypto.randomUUID()
- const write = prior ? env.DB.prepare('UPDATE st_collections SET value_json=?,revision=? WHERE id=? AND revision=?').bind(JSON.stringify(value), revision, handle, prior.revision) : env.DB.prepare('INSERT INTO st_collections VALUES(?,?,?)').bind(handle, JSON.stringify(value), revision)
- await commit(env.DB, actor, [write, ...(prior ? [changed(env.DB)] : []), audit(env.DB, actor, handle, prior ? 'collection.saved' : 'collection.created')])
- return { id: handle, value, revision }
+ return value
 }
