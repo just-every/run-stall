@@ -204,7 +204,7 @@
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "aab119cf25713ae70fd9fc1314d1d956a2d469ab6074725607491ac55256fbeb",
+      "sha256": "c17c1003a51c00128f9a0815b3af6ab95de4d35ec98e6f5f1e6a4a5da3ee9dfb",
       "executable": false
     },
     "ANALYTICS.md": {
@@ -845,6 +845,10 @@
     },
     "scripts/build-deployment-spec.mjs": {
       "sha256": "ee78dcc055dc0047455656e8f84007e8451159c33632d1c7124a1fed963d3b9c",
+      "executable": false
+    },
+    "scripts/contract-docs.mjs": {
+      "sha256": "0c58390733945b90390c956e9b97011a6a2bde6afb4746bfdb451587bd40e39e",
       "executable": false
     },
     "scripts/delivery/base/artifact.mjs": {
@@ -3648,7 +3652,7 @@
       "executable": false
     },
     "src/stall/ui/bulk-products.tsx": {
-      "sha256": "90131f261186b70f10b3df4da451f657fd59fac63ae51453b217d44e2acd5935",
+      "sha256": "1e318a365d0bd7505290f94be5339a8b00a9a24599e276185fdb60a5a00c5394",
       "executable": false
     },
     "src/stall/ui/business-exports.tsx": {
@@ -4248,7 +4252,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "4be49afeec39f47cab269e50315162f336529097056e8a5a90b418604397f7f9",
+      "sha256": "2c9ca4ae09835a8e83993d4bbb35aaaed861bba6b4a817377617ed7ec2b9e414",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

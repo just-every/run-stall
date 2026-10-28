@@ -75,9 +75,9 @@ export function BulkProducts({ products, reload, close }: { products: Product[];
             <label>Product name · {row.sku}<input required maxLength={160} value={row.name} onChange={event => edit(index, { name: event.target.value })} /></label>
             <label>Description · {row.sku}<textarea rows={3} maxLength={4000} value={row.description} onChange={event => edit(index, { description: event.target.value })} /></label>
             <label>Unit price · USD · {row.sku}<input required inputMode="decimal" value={row.price} onChange={event => edit(index, { price: event.target.value })} /><small>Positive dollars and cents, at most two decimal places.</small></label>
-            <label>Publication · {row.sku}<select value={row.publication} onChange={event => edit(index, { publication: event.target.value })}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label>
+            <label>Publication · {row.sku}<select aria-label={`Publication · ${row.sku}`} value={row.publication} onChange={event => edit(index, { publication: event.target.value })}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label>
             {row.publication === 'published' && <label>Publish at · {row.sku}<input value={row.publishAt} placeholder="Now, or an ISO date and time" onChange={event => edit(index, { publishAt: event.target.value })} /></label>}
-            <label>Stock mode · {row.sku}<select value="pier" onChange={() => {}}><option value="pier">Pier-tracked</option></select></label>
+            <label>Stock mode · {row.sku}<select aria-label={`Stock mode · ${row.sku}`} value="pier" onChange={() => {}}><option value="pier">Pier-tracked</option></select></label>
             <BulkDetails product={products.find(product => product.id === row.sku)!} readers={readers} invalidate={invalidate} />
           </>}
         </div>)}

@@ -134,3 +134,12 @@ their maintenance.
 
 Pinned reference: https://github.com/runeditrun/base/blob/ada9f574d8a7247edc3a1180b593ad182b1fbb37/TANSTACK-START-MIGRATION.md
 Native-session/runtime evidence: https://github.com/runeditrun/base/tree/ada9f574d8a7247edc3a1180b593ad182b1fbb37/default-seed
+
+## Contract documentation
+
+CONTRACT.md owns acceptance text, evidence and status. Preserve unrelated clause rows.
+Lander-Regenerate: `node scripts/contract-docs.mjs write CATALOG-002`, followed by
+`node scripts/contract-docs.mjs check CATALOG-002`. Pass additional clause IDs when
+those rows change. This seed-owned synchronizer preserves the established document
+sections and updates their selected status and evidence plus overall counts.
+Regenerate the edition source lock last, after staging all intended source files.
