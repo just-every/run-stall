@@ -43,6 +43,7 @@ try {
       { sku: 'synthetic-stall-1802', options: { Size: 'Large' }, unitCents: 2800 }
     ] } })
   await h.command('product.approve', { sku: product.id, revision: product.revision })
+  await h.command('return.policy.save', { revision: null, windowDays: 30, condition: 'Unworn', feeCents: 0, returnShipping: 'Contact the shop', finalSaleSkus: [], exchanges: true })
   let as = h.cookie, releaseCheckout
   let checkoutCalls = 0, holdCheckout = false
   await context.unroute('**/api/stall/**')
@@ -177,7 +178,6 @@ try {
   await scan('account')
   // Current return policy and independently verified customer custody, never a bearer-only write.
   as = h.cookie
-  await h.command('return.policy.save', { revision: null, windowDays: 30, condition: 'Unworn', feeCents: 0, returnShipping: 'Contact the shop', finalSaleSkus: [], exchanges: true })
   as = member
   await activate(card.locator('summary', { hasText: 'Returns, exchanges and cancellation' }))
   const form = card.getByRole('form', { name: 'Request help with this order', exact: true })
