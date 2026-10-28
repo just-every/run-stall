@@ -1583,7 +1583,7 @@
     {
       "file": "CONTRACT.md",
       "line": 303,
-      "text": " API-001 supplies separately revocable scoped integration credentials; future CUSTOMER-001/002 and all new private doors inherit these checks.",
+      "text": " API-001 supplies separately revocable scoped integration credentials; ",
       "to": "clause",
       "ids": [
         "ROLE-001"
@@ -1593,6 +1593,15 @@
           "to": "docs",
           "path": "docs/COMMERCE-MECHANICS.md"
         }
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 303,
+      "text": "future CUSTOMER-001/002 and all new private doors inherit these checks.",
+      "to": "base",
+      "ids": [
+        "BASE-ROLE-001"
       ]
     },
     {
@@ -5643,7 +5652,25 @@
     {
       "file": "ACCEPTANCE.md",
       "line": 631,
-      "text": "**ROLE-001 — Staff and app least privilege.** Owners invite and revoke staff with distinct catalog, fulfillment, customer-support, marketing, finance and administrator permissions, plus customer self-access and scoped app credentials. Server-side checks guard every private read, mutation, bulk job and export; role changes and revocation invalidate stale authority. Refund limits and approval separation are configurable, and staff never acquire provider credentials from the UI. Current functional grants are installation-local, owner-managed and transaction-fenced by revision. Fulfillment and customer support inherit ORDER-001 internal notes, tags and search; finance inherits paid manual orders and ORDER-003 refund preparation and approval. Owner-only redaction, erasure, connection custody and whole-business exports remain restricted. New functional grants start with a zero refund ceiling and another-person approval; native administrators retain their prior behavior until configured. Customer self-access uses the independently verified native email and returns minimal own-order summaries, never staff annotations or payment authority. ct approved these defaults with riders on 23 October 2026: single-role grants managed only by the owner, a zero refund ceiling and another-person approval unless the owner changes them, refunds needing separate approval, customer custody through the independently verified native email, scoped apps issued only by the owner, ",
+      "text": "**ROLE-001 — Staff and app least privilege.** Owners invite and revoke staff with distinct catalog, fulfillment, customer-support, marketing, finance and administrator permissions, plus customer self-access and scoped app credentials. ",
+      "to": "clause",
+      "ids": [
+        "ROLE-001"
+      ]
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 631,
+      "text": "Server-side checks guard every private read, mutation, bulk job and export; role changes and revocation invalidate stale authority.",
+      "to": "base",
+      "ids": [
+        "BASE-ROLE-001"
+      ]
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 631,
+      "text": " Refund limits and approval separation are configurable, and staff never acquire provider credentials from the UI. Current functional grants are installation-local, owner-managed and transaction-fenced by revision. Fulfillment and customer support inherit ORDER-001 internal notes, tags and search; finance inherits paid manual orders and ORDER-003 refund preparation and approval. Owner-only redaction, erasure, connection custody and whole-business exports remain restricted. New functional grants start with a zero refund ceiling and another-person approval; native administrators retain their prior behavior until configured. Customer self-access uses the independently verified native email and returns minimal own-order summaries, never staff annotations or payment authority. ct approved these defaults with riders on 23 October 2026: single-role grants managed only by the owner, a zero refund ceiling and another-person approval unless the owner changes them, refunds needing separate approval, customer custody through the independently verified native email, scoped apps issued only by the owner, ",
       "to": "clause",
       "ids": [
         "ROLE-001"
@@ -5661,10 +5688,19 @@
     {
       "file": "ACCEPTANCE.md",
       "line": 631,
-      "text": " API-001 supplies separately revocable scoped integration credentials; future CUSTOMER-001/002 and all new private doors inherit these checks.",
+      "text": " API-001 supplies separately revocable scoped integration credentials; ",
       "to": "clause",
       "ids": [
         "ROLE-001"
+      ]
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 631,
+      "text": "future CUSTOMER-001/002 and all new private doors inherit these checks.",
+      "to": "base",
+      "ids": [
+        "BASE-ROLE-001"
       ]
     },
     {
