@@ -8,10 +8,10 @@ The primary journey: Move an existing store in, publish its catalog, convert a s
 
 | Tier | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Core | 8 | 50 | 27 | 85 |
+| Core | 7 | 51 | 27 | 85 |
 | Agent surface | 0 | 0 | 4 | 4 |
 | Later | 0 | 0 | 0 | 0 |
-| Full target | 8 | 50 | 31 | 89 |
+| Full target | 7 | 51 | 31 | 89 |
 
 Judged from the code and tests at commit `66ce5e9be39baa833aa221018ba6a044e758dfb6` (28 October 2026). Field proof register: 10 rows; 0 passed, 0 failed, 10 not run.
 
@@ -353,7 +353,7 @@ Core · target · **partial** · From TAX-001 · Register R-6
 
 #### RISK-001 — Fraud indicators and human review
 
-Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001
+Core · target · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001
 
 **Requirement.** Processor risk signals and payment/address mismatches appear with their provenance in a restricted merchant queue. Configured rules hold fulfillment and notify authorized staff once per order and signal set. Release or fulfillment-only cancellation records its decision maker; money and reserved stock remain separately accountable, and a new provider flag reopens review. Scores never certify fraud or decide refund entitlement. An agent’s release or cancellation carries live and commitment; the company’s policy decides execution. The merchant-role and fulfillment-only boundaries follow RL-2. Details are in [commerce mechanics](docs/COMMERCE-MECHANICS.md).
 
@@ -362,7 +362,7 @@ Core · target · **done** · Cites BASE-ROLE-001, BASE-AUDIT-001
 2. Repeated risk callbacks must not duplicate holds or messages.
 
 **Evidence.** `tests/api/operations.test.mjs`; `tests/ui/risk-journey.mjs`; `tests/ui/staff-journey.mjs`
-**Gap.** None.
+**Gap.** Audit gap: Repeated callbacks leave exactly one hold, beyond reading one matching revision. Other carried outcomes are asserted in docs/contract/DONE-AUDIT.md.
 
 ### Fulfillment, orders and returns
 
