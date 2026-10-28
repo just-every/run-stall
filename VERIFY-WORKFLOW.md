@@ -16,7 +16,7 @@ The two workflows use the same declared shards:
 
 Release tags use Nightly journeys' full coverage. The nightly workflow calls Verify with the full tier. Verify plans its matrix
 from `verification.json`, then runs the shards in parallel on Ubuntu 24.04.
-Push shards have a 30-minute timeout; the nightly workflow allows longer for the
+Push shards have a 12-minute timeout; the nightly workflow allows longer for the
 full installation journeys. The final `verify` aggregate remains the stable
 required check as shard names change. It succeeds only when planning and every
 selected shard succeed; a failed or cancelled shard cannot produce a green

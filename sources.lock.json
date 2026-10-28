@@ -184,7 +184,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "85e69e77fb03374464b4046dbb592941f7554a677808883d714af62b9eb2d4a5",
+      "sha256": "d764095eab5aee985a16c3aef0bb9a86e461f44acac4882aa755ac24b586e899",
       "executable": false
     },
     ".gitignore": {
@@ -4256,7 +4256,7 @@
       "executable": false
     },
     "tests/ui/review-import-journey.mjs": {
-      "sha256": "fb2c259084756c85c50bddc165441010e50fd049eaa19bb9c78a187983466fc7",
+      "sha256": "1653a0e71219ff530ed7d3bc10513c059b3fa12f6dd6a7539bbbf74141f1cc26",
       "executable": false
     },
     "tests/ui/risk-journey.mjs": {
@@ -4292,7 +4292,7 @@
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
-      "sha256": "b0d5fc67770e86c68cd6aca26f2f631ae1e85ea55aab85155998b17c8b0a0f26",
+      "sha256": "97d25a60dabe02ab4c30efbe226c8967b8fbac25b39f61467c2ef5a26186261d",
       "executable": false
     },
     "vite.config.ts": {

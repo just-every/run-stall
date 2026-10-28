@@ -12,7 +12,7 @@ on:
         default: push
       timeout:
         type: number
-        default: 30
+        default: 12
 
 permissions:
   contents: read
@@ -39,7 +39,7 @@ jobs:
   shards:
     needs: plan
     runs-on: ubuntu-24.04
-    timeout-minutes: ${{ inputs.timeout || 30 }}
+    timeout-minutes: ${{ inputs.timeout || 12 }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
