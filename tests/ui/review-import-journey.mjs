@@ -45,7 +45,8 @@ try {
   assert.equal((await fetch(origin + '/health')).status, 200, 'The emitted Worker is healthy')
   let cookie = ''
   async function request(path, { body, method = body === undefined ? 'GET' : 'POST', bytes, mime } = {}) {
-    return fetch(origin + path, { method, redirect: 'manual', headers: { origin, ...(cookie ? { cookie } : {}), 'content-type': mime ?? 'application/json' }, ...(bytes ? { body: bytes } : body === undefined ? {} : { body: JSON.stringify(body) }) })
+    // Route fixture HTTP requests through the harness; browser calls keep the HTTP listener.
+    return worker.fetch(origin + path, { method, redirect: 'manual', headers: { origin, host: new URL(origin).host, ...(cookie ? { cookie } : {}), 'content-type': mime ?? 'application/json' }, ...(bytes ? { body: bytes } : body === undefined ? {} : { body: JSON.stringify(body) }) })
   }
   async function api(path, body, options) {
     const response = await request(path, { body, ...options }), value = await response.json()
