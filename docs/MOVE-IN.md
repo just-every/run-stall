@@ -1,10 +1,11 @@
 # Move products into Stall
 
-The first move-in kit imports listing metadata from a deliberately small Shopify
+The Shopify draft format imports listing metadata from a deliberately small Shopify
 product CSV subset. It uses Base import-kit for a read-only dry-run, exact reviewed
 fingerprint, retained source bytes, resumable journal and protected partial undo. It never
 imports inventory, customers, cards, orders, images, options, tax calculations or
-fulfillment settings, and never writes to Pier.
+fulfillment settings, and never writes to Pier. For full native catalog records,
+use the separate [portable Stall catalog](#portable-stall-catalog) format below.
 
 ## Move in from the Shop desk
 
@@ -121,6 +122,52 @@ New jobs use mapping v4. Older v1/v2/v3 jobs keep their retained mapping, source
 fingerprint and resume/undo semantics. Original source, row outcomes, business
 CSV/JSON exports and installation archives preserve the supported facts.
 
+## Portable Stall catalog
+
+**Settings → Business exports → Portable catalog** downloads a native catalog CSV.
+It contains current products, collections and saved tax configuration. Pending
+product revisions remain in the complete business records and installation
+archive, rather than becoming approved current products in this file.
+
+Use exactly these three headers: `Record Type,ID,Value`. Each row has a unique
+record type and identity; Value is a complete JSON object in a quoted CSV cell.
+Double every quote inside that cell. A file holds up to 200 records and 256 KiB.
+The existing file input and dry-run screen accept this format too.
+
+| Record Type | ID | Value |
+| --- | --- | --- |
+| `product` | Product SKU | `sku`, `name`, `description`, positive integer `unitCents`, boolean `active`, `stockMode` set to `pier`, and complete `details`; optionally `archived` and an ISO `publishAt`. Details include variants, options, tax category, weight in grams, dimensions in millimeters, HS code, origin and typed custom fields. |
+| `collection` | Collection handle | The native handle, title, description, kind and publication flag, plus manual product SKUs or matching rules. Manual references can include products in this same reviewed file. |
+| `tax-settings` | `shop` | The native tax configuration: ship-from address or null, SKU tax-code mappings and thresholds. Only the current owner may review, apply, inspect its retained source or undo it. |
+
+A product description is plain text here. Publication is explicit: the reviewed
+apply can publish, unpublish, schedule or archive a listing, after current listing
+validation and active Pier SKU checks. All other stock modes and quantity writes
+are refused. Product facts do not calculate or verify tax or customs; tax settings
+reuse the existing owner-only configuration boundary and send no provider request.
+Tax configuration does not grant tax sale authority.
+
+A dry run shows creations and complete before-images for changes. Invalid value
+rows remain named and excluded only by the same explicit rejected-row decision as
+the draft format. Duplicate identities and malformed CSV refuse the file. An
+existing SKU or handle conflict requires correction. Source or native-state
+changes require a new review, before any custody or product write.
+
+For an initial apply, send the preview's `reviewToken` with its fingerprint. This
+server-issued token binds source, installation, reviewer and review time; it
+cannot replace current native authority. Resume uses the original source and
+fingerprint, including from the retained journal after an independently authorized
+restore. Original source bytes, rejected rows, checkpoints and row outcomes remain
+inspectable. Replays keep the existing job and effects.
+
+Untouched changes can reverse, including publication performed by this import.
+Later product, collection or configuration edits remain intact. A purchased
+variant protects its parent product, and retained manual collections protect their
+product references. Orders and their original snapshots are never overwritten.
+An archive restores data and custody without transferring credentials; publishing
+remaining rows still needs fresh authority and the receiving installation's
+current Pier connection.
+
 ## API reference: review, apply and publish
 
 1. A signed-in owner or admin, or their current Stall agent credential, submits
@@ -155,7 +202,7 @@ agent grant expiry are checked within Base's reads and writes.
 `checkpoint`, `total`, `fingerprint` and `error`. `GET /api/stall/imports/:id`
 returns `{job,originals,undoReport,rejectedRows}` with the exact retained CSV bytes.
 Each rejected row has its physical `row`, source identity and `reason`. Preview
-returns `{plan,fingerprint,counts,diagnostics}`; plan entries expose mapped effects
+returns `{plan,fingerprint,reviewToken,counts,diagnostics}`; plan entries expose mapped effects
 and before-images. Keep source files free of personal data: this kit is only for
 public product metadata and has no customer-erasure custody.
 

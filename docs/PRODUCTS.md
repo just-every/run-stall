@@ -70,19 +70,32 @@ An agent credential can prepare a draft. A signed-in owner or administrator must
 
 ## Bulk edit staged products
 
-Select **Bulk edit staged products**, choose unpublished SKUs and edit their
-names, plain-text descriptions and exact USD prices. Select **Review bulk edit**
-and compare the server's reviewed before/after values before applying. Description
-whitespace at the start/end is trimmed; literal markup remains plain text.
+Select **Bulk edit staged products** to edit products and collections together,
+including published listings. Choose the rows and change names, plain-text
+descriptions, exact USD prices, publication, variants, weight, dimensions, tax
+categories, customs facts and typed custom fields with the existing editors.
+Description whitespace at the beginning and end is trimmed; markup stays literal.
+A product currently uses Pier-tracked stock only. Unsupported stock modes and
+quantity adjustments are refused; this editor never changes Pier quantities.
 
-Each edit accepts up to 200 products within 256 KiB of generated CSV. Existing
-prepared revisions are replaced by the reviewed staged values. Published products, products with current/prepared optional details
-and products referenced by orders are refused; publication remains a separate
-prepare/approve decision. Changed source or native records require a fresh review
-and preserve your entered grid values.
+The owner manages actual SKU tax-code mappings under **Settings → Tax settings →
+Review bulk tax codes**. Edit the mapping rows, review the complete configuration
+and apply the exact review. This changes configuration without requesting a tax
+calculation or enabling taxed sales. A tax category is not a provider tax code.
+
+Each edit accepts up to 200 catalog records within 256 KiB of generated CSV.
+Select **Review bulk edit** and inspect the complete before-images and replacement
+values, including any pending native revision. Applying replaces that pending
+revision. Publication is part of the reviewed decision and requires every
+nonarchived variant to exist and be active in the connected Pier. A changed
+product, collection or tax configuration invalidates the review and preserves
+entered values. Purchased orders keep their original description and price.
 
 Resume a bounded apply in the editor or from its retained source in **Move in →
-History**. That journal also exposes original rows and undo. New jobs reverse
-untouched rows while keeping and naming later edits, publication and order
-dependencies; older strict jobs retain their original behavior. See the
-[move-in guide](MOVE-IN.md) for CSV exclusions, custody and undo details.
+History**. The journal exposes original rows, rejected rows and undo. Undo
+reverses untouched catalog changes, including their own publication, while
+keeping and naming later native edits, referenced products and purchased
+variants. It restores complete prior native drafts; it never rewrites orders.
+Older strict jobs keep their original behavior. See the
+[move-in guide](MOVE-IN.md#portable-stall-catalog) for the portable format,
+explicit exclusions, custody and protected undo.

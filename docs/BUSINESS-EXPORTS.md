@@ -12,6 +12,7 @@ Supported kinds:
 
 | Kind | Contents |
 | --- | --- |
+| `catalog` | Portable native CSV with `Record Type,ID,Value`: complete current products, collections and owner-only saved tax configuration; re-import through exact catalog review. |
 | `products` | Every product, including inactive products, with separate `current` and pending `draft` rows and their shared revision. |
 | `customers` | Contact email and order history derived from locally retained, unerased orders; order IDs, first/last order time and recorded paid/refunded totals. |
 | `orders` | Every order, including incomplete checkouts, with retained delivery details and nested local payment, reservation, shipment and refund records. |

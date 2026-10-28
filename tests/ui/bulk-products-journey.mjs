@@ -239,6 +239,7 @@ try {
  await page.getByRole('button', { name: 'Resume reviewed bulk edit', exact: true }).waitFor()
  await page.getByRole('link', { name: 'Move in', exact: true }).click()
  await page.getByRole('button', { name: 'View', exact: true }).first().click()
+ await page.getByRole('button', { name: 'Resume apply from retained source', exact: true }).waitFor()
  for (let n = 0; n < 5 && await page.getByRole('button', { name: 'Resume apply from retained source', exact: true }).count(); n++) {
   await page.getByRole('button', { name: 'Resume apply from retained source', exact: true }).click()
   await page.getByText('Import completed.', { exact: true }).waitFor()
@@ -267,6 +268,7 @@ try {
  await h.command('product.prepare', { ...keepGrid.value, revision: keepGrid.revision, name: 'Keep native grid edit' })
  await page.getByRole('button', { name: 'Review undo', exact: true }).click()
  await page.getByRole('button', { name: 'Undo import', exact: true }).click()
+ await page.getByRole('button', { name: 'Resume undo', exact: true }).waitFor()
  if (await page.getByRole('button', { name: 'Resume undo', exact: true }).count()) { await page.getByRole('button', { name: 'Resume undo', exact: true }).click(); await page.getByRole('button', { name: 'Undo import', exact: true }).click() }
  await page.getByText('Undo finished. Review the journal for preserved records.', { exact: true }).waitFor()
  assert.equal((await h.api('/api/stall/state')).products.find(row => row.id === 'GRID-1').value.draft.name, 'Keep native grid edit')
@@ -326,6 +328,7 @@ try {
  await h.command('product.prepare', { ...fileNative.value, revision: fileNative.revision, name: 'Preserve file native edit' })
  await page.getByRole('button', { name: 'Review undo', exact: true }).click()
  await page.getByRole('button', { name: 'Undo import', exact: true }).click()
+ await page.getByRole('button', { name: 'Resume undo', exact: true }).waitFor()
  if (await page.getByRole('button', { name: 'Resume undo', exact: true }).count()) { await page.getByRole('button', { name: 'Resume undo', exact: true }).click(); await page.getByRole('button', { name: 'Undo import', exact: true }).click() }
  await page.getByText('Undo finished. Review the journal for preserved records.', { exact: true }).waitFor()
  const fileUndone = await h.api('/api/stall/state')

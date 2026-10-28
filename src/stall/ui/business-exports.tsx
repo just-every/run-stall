@@ -25,7 +25,7 @@ export function BusinessExports() {
   }
   return <Section id="business-exports" title="Business exports">
     <p>Download every locally retained record, including drafts and outstanding orders. CSV files use exact integer cents, each record’s currency and UTC dates. Nested details are JSON cells. Spreadsheet text is escaped to prevent formulas; JSON keeps original text.</p>
-    <p>Customer rows come from unerased order contacts; marketing consent is unknown. Variants, media, returns, gift cards, discounts, redirects and saved reports are not implemented. Provider fees, payouts and live stock history are held by providers. Credentials are excluded. Use the installation archive below for a restorable backup.</p>
+    <p>Customer rows come from unerased order contacts; marketing consent is unknown. Portable catalog includes current product and variant facts, collections and saved tax configuration. Pending revisions and owned media bytes travel in the complete archive. Provider fees, payouts and live stock history are held by providers. Credentials are excluded. Use the installation archive below for a restorable backup.</p>
     <p>Downloads read the current local data; concurrent changes can occur between catalog and order reads. Large exports must fit the server’s memory and response limits; a failure is shown instead of a shortened file.</p>
     {error && <Notice error>{error}</Notice>}{notice && <p role="status">{notice}</p>}
     <div className="st-actions">{Object.entries(downloads).map(([kind, label]) => <button key={kind} className="st-secondary" disabled={busy} onClick={() => void download(kind)}>{label}</button>)}</div>
