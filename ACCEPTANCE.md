@@ -935,7 +935,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
 
-  **Remaining gap:** Integrated conformance pending; multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
+  **Remaining gap:** Only CORE is declared. Multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
 
 #### BASE-AGENT-005 — An agent acts as a person in a role, never more
 
@@ -954,7 +954,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
 
-  **Remaining gap:** Integrated conformance pending; multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
+  **Remaining gap:** Only CORE is declared. Multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
 
 #### BASE-AGENT-006 — Every action declares its risk class
 
@@ -974,7 +974,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
 
-  **Remaining gap:** Integrated conformance pending; multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
+  **Remaining gap:** Only CORE is declared. Multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
 
 #### BASE-AGENT-007 — The company's policy decides, at one chokepoint
 
@@ -996,7 +996,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
 
-  **Remaining gap:** Integrated conformance pending; multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
+  **Remaining gap:** Only CORE is declared. Multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
 
 #### BASE-AGENT-008 — Truthful attribution
 
@@ -1017,7 +1017,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
 
-  **Remaining gap:** Integrated conformance pending; multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
+  **Remaining gap:** Only CORE is declared. Multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
 
 #### BASE-AGENT-009 — Every agent action is audited with its class and decision
 
@@ -1038,7 +1038,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
 
-  **Remaining gap:** Integrated conformance pending; multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
+  **Remaining gap:** Only CORE is declared. Multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
 
 #### BASE-AGENT-010 — Agents can follow changes
 
@@ -1079,7 +1079,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
 
-  **Remaining gap:** Integrated conformance pending; multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
+  **Remaining gap:** Only CORE is declared. Multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
 
 #### BASE-AGENT-012 — Writes are idempotent and conflict-safe
 
@@ -1098,7 +1098,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
 
-  **Remaining gap:** Integrated conformance pending; multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
+  **Remaining gap:** Only CORE is declared. Multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
 
 #### BASE-AGENT-013 — Manifest, docs and the conformance journey
 
