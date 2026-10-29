@@ -1,3 +1,4 @@
+import { stripeKey } from './stripe-key-binding.mjs';
 import { uploadFixtureMedia, mismatchedPaidOrder } from './native-extras.mjs';
 import { stripeOrigin } from './stripe-config.mjs';
 import { origin as pierOrigin } from './provider-config.mjs';
@@ -36,7 +37,7 @@ export default async function fixtures(context) {
  const skus = { catalog: `door-draft-${suffix}`, merch: `door-merch-${suffix}`, stock: `door-stock-${suffix}` };
  requireValue(typeof context.fixtures?.set === 'function', 'The declared Pier network fixture control is required.');
  context.fixtures.set(pierOrigin, { skus: [skus.stock] });
- context.fixtures.set(stripeOrigin, { appOrigin: context.origin, sku: skus.stock });
+ context.fixtures.set(stripeOrigin, { authorization: stripeKey, appOrigin: context.origin, sku: skus.stock });
  await command(owner, 'shipping.configure', { shippingCents: 200 });
  const media = await uploadFixtureMedia(context);
 

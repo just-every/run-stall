@@ -17,6 +17,9 @@ network listener is used. The fixture package replaces only these network edges:
   checkout creation and original paid-session evidence.
 
 The descriptor binds disposable Pier and Stripe credentials from test modules.
+Stripe credentials are generated in the verifier process on each CLI run; the
+matching value reaches only the isolated Stripe receiver through fixture control.
+No provider-shaped credential literal is committed or logged.
 Both edges validate authentication, exact payloads and idempotent identity;
 unrecognized requests are refused. Worker-side edge modules use Web APIs only.
 Stripe's checkout starts through the public native shipping, tax and checkout

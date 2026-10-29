@@ -1,4 +1,4 @@
-import { stripeOrigin, stripeKey, taxAddress, paidAddress, shipFrom } from './stripe-config.mjs';
+import { stripeOrigin, taxAddress, paidAddress, shipFrom } from './stripe-config.mjs';
 import { ProviderRefusal } from './provider-state.mjs';
 
 const check = (condition, code = 'INPUT') => { if (!condition) throw new ProviderRefusal(code, 400); };
@@ -11,8 +11,8 @@ const uuid = '[a-f0-9-]{36}';
 export async function stripeFetch(request, fixture) {
  const url = new URL(request.url);
  check(url.origin === stripeOrigin && !url.hash, 'ORIGIN');
- check(request.headers.get('authorization') === `Bearer ${stripeKey}` && !request.headers.has('cookie') && request.headers.get('stripe-version') === '2025-06-30.basil', 'AUTH');
  check(fixture && typeof fixture.appOrigin === 'string' && /^https?:\/\//.test(fixture.appOrigin) && typeof fixture.sku === 'string', 'FIXTURE');
+ check(typeof fixture.authorization === 'string' && /^sk_test_[a-f0-9]{48}$/.test(fixture.authorization) && request.headers.get('authorization') === `Bearer ${fixture.authorization}` && !request.headers.has('cookie') && request.headers.get('stripe-version') === '2025-06-30.basil', 'AUTH');
  const path = url.pathname;
  if (request.method === 'GET') {
   check(!request.headers.has('idempotency-key') && !request.body, 'METHOD');
