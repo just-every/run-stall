@@ -872,7 +872,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Status:** partial.
 
-  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
+  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`; `tests/agent-door/journey.mjs` — SEED_VERIFY_SHARD=runtime npx -y @runeditrun and rer@0.2.91 verify: 1457/1457 declared CORE points passed on the real production build; includes changed-email refusal, replay, review and exact audit agreement.
 
   **Remaining gap:** Resources, prompts and subscriptions families undeclared; broader transport acceptance remains partial.
 
@@ -892,7 +892,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Status:** partial.
 
-  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
+  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`; `tests/agent-door/journey.mjs` — SEED_VERIFY_SHARD=runtime npx -y @runeditrun and rer@0.2.91 verify: 1457/1457 declared CORE points passed on the real production build; includes changed-email refusal, replay, review and exact audit agreement.
 
   **Remaining gap:** Eleven tools cover the four admitted native draft verbs, complete product and refund draft options, scoped records, media, merchandising preview and shipment observation; the wider ct job table remains partial.
 
@@ -912,7 +912,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Status:** partial.
 
-  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
+  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`; `tests/agent-door/journey.mjs` — SEED_VERIFY_SHARD=runtime npx -y @runeditrun and rer@0.2.91 verify: 1457/1457 declared CORE points passed on the real production build; includes changed-email refusal, replay, review and exact audit agreement.
 
   **Remaining gap:** Resources family undeclared. Current native context is exposed through scoped read tools.
 
@@ -933,7 +933,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Status:** partial.
 
-  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
+  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`; `tests/agent-door/journey.mjs` — SEED_VERIFY_SHARD=runtime npx -y @runeditrun and rer@0.2.91 verify: 1457/1457 declared CORE points passed on the real production build; includes changed-email refusal, replay, review and exact audit agreement.
 
   **Remaining gap:** Only CORE is declared. Multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
 
@@ -952,7 +952,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Status:** partial.
 
-  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
+  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`; `tests/agent-door/journey.mjs` — SEED_VERIFY_SHARD=runtime npx -y @runeditrun and rer@0.2.91 verify: 1457/1457 declared CORE points passed on the real production build; includes changed-email refusal, replay, review and exact audit agreement.
 
   **Remaining gap:** Only CORE is declared. Multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
 
@@ -972,7 +972,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Status:** partial.
 
-  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
+  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`; `tests/agent-door/journey.mjs` — SEED_VERIFY_SHARD=runtime npx -y @runeditrun and rer@0.2.91 verify: 1457/1457 declared CORE points passed on the real production build; includes changed-email refusal, replay, review and exact audit agreement.
 
   **Remaining gap:** Only CORE is declared. Multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
 
@@ -994,7 +994,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Status:** partial.
 
-  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
+  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`; `tests/agent-door/journey.mjs` — SEED_VERIFY_SHARD=runtime npx -y @runeditrun and rer@0.2.91 verify: 1457/1457 declared CORE points passed on the real production build; includes changed-email refusal, replay, review and exact audit agreement.
 
   **Remaining gap:** Only CORE is declared. Multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
 
@@ -1015,7 +1015,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Status:** partial.
 
-  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
+  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`; `tests/agent-door/journey.mjs` — SEED_VERIFY_SHARD=runtime npx -y @runeditrun and rer@0.2.91 verify: 1457/1457 declared CORE points passed on the real production build; includes changed-email refusal, replay, review and exact audit agreement.
 
   **Remaining gap:** Only CORE is declared. Multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
 
@@ -1036,7 +1036,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Status:** partial.
 
-  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
+  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`; `tests/agent-door/journey.mjs` — SEED_VERIFY_SHARD=runtime npx -y @runeditrun and rer@0.2.91 verify: 1457/1457 declared CORE points passed on the real production build; includes changed-email refusal, replay, review and exact audit agreement.
 
   **Remaining gap:** Only CORE is declared. Multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
 
@@ -1056,7 +1056,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Status:** partial.
 
-  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
+  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`; `tests/agent-door/journey.mjs` — SEED_VERIFY_SHARD=runtime npx -y @runeditrun and rer@0.2.91 verify: 1457/1457 declared CORE points passed on the real production build; includes changed-email refusal, replay, review and exact audit agreement.
 
   **Remaining gap:** Events and subscriptions families undeclared. No public change feed is claimed.
 
@@ -1077,7 +1077,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Status:** partial.
 
-  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
+  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`; `tests/agent-door/journey.mjs` — SEED_VERIFY_SHARD=runtime npx -y @runeditrun and rer@0.2.91 verify: 1457/1457 declared CORE points passed on the real production build; includes changed-email refusal, replay, review and exact audit agreement.
 
   **Remaining gap:** Only CORE is declared. Multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
 
@@ -1096,7 +1096,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Status:** partial.
 
-  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
+  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`; `tests/agent-door/journey.mjs` — SEED_VERIFY_SHARD=runtime npx -y @runeditrun and rer@0.2.91 verify: 1457/1457 declared CORE points passed on the real production build; includes changed-email refusal, replay, review and exact audit agreement.
 
   **Remaining gap:** Only CORE is declared. Multi-sponsor, mail edges, resource refresh, queued lifecycle and broader ct commerce jobs remain unproved.
 
@@ -1115,7 +1115,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Status:** partial.
 
-  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
+  **Current evidence:** `src/stall/agent-door`; `agent-surface.json`; `tests/agent-door/journey.mjs` — SEED_VERIFY_SHARD=runtime npx -y @runeditrun and rer@0.2.91 verify: 1457/1457 declared CORE points passed on the real production build; includes changed-email refusal, replay, review and exact audit agreement.
 
   **Remaining gap:** Resources, prompts and subscriptions families undeclared; the wider seeded commerce week and embedded agent parity remain unproved.
 

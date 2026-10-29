@@ -43,3 +43,24 @@ additional journey.
 
 The parent runs final conformance after integrating the native adapter. Syntax
 checks alone do not establish runtime conformance or real-provider acceptance.
+
+Runtime adoption uses Base `2135c394939f4a737adabdc8003b0e667b31ac5a` and the
+released `@runeditrun/rer` 0.2.91 CLI. The copied auth runtime and schema sources
+share that runtime pin; numbered applied migrations retain their original pins
+and bytes. The eleven tools and the CORE capability declaration are unchanged.
+
+Run the normal verifier with this seed's hosted runtime shard for focused door
+acceptance:
+
+```sh
+SEED_VERIFY_SHARD=runtime npx -y @runeditrun/rer@0.2.91 verify
+```
+
+The normal failure exit is retained. This runs the production build, runtime
+HTTP checks, hydration and the complete declared door journey, including
+changed-email admission, consent revocation, current-policy mutation replay,
+review and audit checks. It is not evidence for undeclared resources, events,
+prompts or subscriptions, or for a native queued continuation this seed does
+not expose. Inactive and allow-list-excluded Business sponsor fixture states
+are not declared; native personal-grant expiry/revocation remains covered by
+the existing commerce journey. Wider Base clause statuses remain partial.
