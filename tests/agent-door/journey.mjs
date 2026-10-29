@@ -7,23 +7,38 @@ const redactedOrder = order => Object.fromEntries(orderKeys.map(key => [key, ord
 /** Prove each door result is the committed native draft, with approval separate. */
 export async function afterStep(context) {
  const { step, result, args } = context, owner = nativeOwner(context);
+ const injected = context.phase === 'autonomous' && step.inject;
+ const readCurrent = async (name, input) => {
+  const answer = await context.tool(name, input, step.client === undefined ? {} : { client: step.client });
+  requireValue(answer.status === 200 && !answer.result?.isError && answer.result?.structuredContent !== undefined, 'Post-injection scoped read did not complete.');
+  return answer.result.structuredContent;
+ };
  if (['stall.catalog1.read', 'stall.catalog1.edit'].includes(step.tool)) {
+  const current = injected && step.tool === 'stall.catalog1.edit' ? await readCurrent('stall.catalog1.read', { sku: args.sku }) : result;
   const state = await owner('/api/stall/state'), product = state.products.find(entry => entry.id === args.sku);
-  requireValue(isDeepStrictEqual(result, product), 'Catalog tool result differs from the native product.');
+  requireValue(isDeepStrictEqual(current, product), 'Catalog scoped read differs from the native product.');
   if (step.tool === 'stall.catalog1.edit') {
-   const draft = product.value.draft;
-   requireValue(draft && ['name', 'description', 'unitCents', 'active'].every(key => draft[key] === args[key]), 'Catalog edit did not retain its exact native draft.');
-   requireValue(!product.value.approval && product.value.active === false, 'Catalog preparation crossed the owner approval boundary.');
+   for (const prepared of [result, current]) {
+    requireValue(prepared.id === args.sku && typeof prepared.revision === 'string' && prepared.revision.length > 0 && prepared.revision !== args.revision, 'Catalog preparation lost its product identity or new revision.');
+    const draft = prepared.value.draft;
+    requireValue(draft && ['name', 'description', 'unitCents', 'active'].every(key => draft[key] === args[key]), 'Catalog edit did not retain its exact native draft.');
+    requireValue(!prepared.value.approval && prepared.value.active === false, 'Catalog preparation crossed the owner approval boundary.');
+   }
   }
  }
  if (['stall.order1.manage', 'stall.order2.manage', 'stall.order3.manage'].includes(step.tool)) {
-  requireValue(isDeepStrictEqual(Object.keys(result).sort(), [...orderKeys].sort()), 'Order tool exposed fields outside the redacted contract.');
+  const mutation = step.tool !== 'stall.order1.manage';
+  const current = injected && mutation ? await readCurrent('stall.order1.manage', { id: args.orderId }) : result;
   const state = await owner('/api/stall/state'), order = state.orders.find(entry => entry.id === (args.orderId ?? args.id));
-  requireValue(order && isDeepStrictEqual(result, redactedOrder(order)), 'Order tool result differs from its committed native order.');
-  if (step.tool === 'stall.order2.manage') requireValue(order.status === 'reserved' && order.shipment?.status === 'draft' && order.shipment.reference === args.reference && !order.shipment.approval, 'Shipment tool must prepare a draft while retaining reserved stock.');
-  if (step.tool === 'stall.order3.manage') {
-   const refund = order.refunds.at(-1);
-   requireValue(order.status === 'shipped' && refund?.status === 'draft' && refund.reason === args.reason && isDeepStrictEqual(refund.lines, args.lines) && !refund.approval, 'Refund tool must retain a draft against the purchased shipped lines.');
+  requireValue(order && isDeepStrictEqual(current, redactedOrder(order)), 'Order scoped read differs from its committed native order.');
+  for (const prepared of [result, current]) {
+   requireValue(isDeepStrictEqual(Object.keys(prepared).sort(), [...orderKeys].sort()), 'Order tool exposed fields outside the redacted contract.');
+   requireValue(prepared.id === (args.orderId ?? args.id) && typeof prepared.revision === 'string' && prepared.revision.length > 0 && (!mutation || prepared.revision !== args.revision), 'Order preparation lost its order identity or new revision.');
+   if (step.tool === 'stall.order2.manage') requireValue(prepared.status === 'reserved' && prepared.shipment?.id === result.shipment?.id && typeof prepared.shipment?.id === 'string' && prepared.shipment.status === 'draft' && prepared.shipment.reference === args.reference && !prepared.shipment.approval, 'Shipment tool must prepare a draft while retaining reserved stock.');
+   if (step.tool === 'stall.order3.manage') {
+    const refund = prepared.refunds.at(-1);
+    requireValue(prepared.status === 'shipped' && typeof refund?.id === 'string' && refund.id.length > 0 && refund.status === 'draft' && refund.reason === args.reason && isDeepStrictEqual(refund.lines, args.lines) && !refund.approval, 'Refund tool must retain a draft against the purchased shipped lines.');
+   }
   }
  }
  if (['stall.ai5.read', 'stall.ai5.operate'].includes(step.tool)) {

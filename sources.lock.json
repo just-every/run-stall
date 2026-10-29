@@ -4560,7 +4560,7 @@
       "executable": false
     },
     "tests/agent-door/journey.mjs": {
-      "sha256": "479429e333ff3ae22544cfa5e7b99074ea8c9a2eb882eadc5758a3a71fb8a5eb",
+      "sha256": "fa391aed192bc560c9daf91f59fd185f0db67cbb1998ec02dd4e55f8ae7a22be",
       "executable": false
     },
     "tests/agent-door/native.mjs": {
