@@ -5092,7 +5092,7 @@
       "executable": false
     },
     "tests/agent-door/native-extras.mjs": {
-      "sha256": "c8157824e99733829d8d6c22027268d97d837f93525b27db99bda88c617e906a",
+      "sha256": "820cb1045efb38eec4daf348d1b75812b924be05a930b311ef9d5f6d88844bec",
       "executable": false
     },
     "tests/agent-door/native.mjs": {

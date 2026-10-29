@@ -16,6 +16,7 @@ export async function uploadFixtureMedia(context) {
 
 /** Native owner tax configuration followed by public quote/checkout/payment observation. */
 export async function mismatchedPaidOrder(context, sku) {
+ context.fixtures.set(stripeOrigin, { appOrigin: context.origin, sku });
  const owner = nativeOwner(context);
  const configuration = await owner('/api/stall/tax/configuration');
  const categories = [...configuration.categories.filter(entry => entry.sku !== sku), { sku, taxCode: 'txcd_99999999' }];
