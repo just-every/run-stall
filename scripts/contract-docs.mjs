@@ -21,7 +21,7 @@ for (const clause of parsed.clauses) {
  if (clause.area !== area) { area = clause.area; acceptance += `## ${area}\n\n` }
  const start = clause.line - 1
  let end = start + 1
- while (end < lines.length && !/^(?:- \*\*[A-Z][A-Z0-9-]*\d|#{1,3} )/.test(lines[end])) end++
+ while (end < lines.length && !/^(?:- \*\*[A-Z][A-Z0-9-]*\d|#{1,4} )/.test(lines[end])) end++
  const definition = lines.slice(start, end).join('\n').trim()
  const row = rows.find(row => row[0] === '`' + clause.id + '`')
  acceptance += `${definition}\n\n  **Status:** ${clause.status}.\n\n  **Current evidence:** ${row[4] || 'None recorded.'}\n\n  **Remaining gap:** ${row[5] || 'None.'}\n\n`
