@@ -25,6 +25,14 @@ export async function checkExtraStep(context, { owner, readCurrent, redactedOrde
   requireValue(isDeepStrictEqual(result.products, state.products) && isDeepStrictEqual(result.orders, state.orders.map(redactedOrder)) && isDeepStrictEqual(result.proposals, witness.proposals) && isDeepStrictEqual(result.audit, state.audit), 'Refresh tool differs from current committed native commerce state.');
   const ids = state.orders.filter(order => order.payment && order.reservation).map(order => order.id);
   requireValue(isDeepStrictEqual(result.refreshed, { orderIds: ids, count: ids.length }) && !result.shipmentSync.error && Number.isFinite(Date.parse(result.shipmentSync.checkedAt)), 'Refresh did not retain successful native shipment observation and candidate counts.');
+  let after = '0', latest;
+  for (;;) {
+   const page = await owner(`/agents/api/audit?after=${after}`);
+   for (const row of page.rows) if (row.tool === step.tool && row.outcome === 'done') latest = row;
+   if (!page.cursor || page.cursor === after) break;
+   after = page.cursor;
+  }
+  requireValue(latest?.classes.find(entry => entry.class === 'standard')?.facts.measure === ids.length, 'Refresh policy facts must count the current native candidate orders.');
   requireValue(Object.keys(result).sort().join(',') === ['products','orders','proposals','audit','shipmentSync','refreshed'].sort().join(','), 'Refresh exposed fields outside its sanitized native contract.');
  }
 }

@@ -844,9 +844,7 @@
       "expect": [
         {
           "class": "standard",
-          "facts": {
-            "measure": 1
-          }
+          "facts": {}
         }
       ],
       "inject": {

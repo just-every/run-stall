@@ -204,7 +204,7 @@
       "executable": false
     },
     "agent-surface.json": {
-      "sha256": "935edd14182f43ca3d41553c151164dff16c8cb7389506c3505c766f98a16910",
+      "sha256": "4921170746d760d10f979b6f973641435f41b8854bf594ca30d9c7154065f4d3",
       "executable": false
     },
     "AGENTS.md": {
@@ -4052,7 +4052,7 @@
       "executable": false
     },
     "src/stall/agent-door/read-tools.ts": {
-      "sha256": "a037a1268db55bfc23aa776205551ecc3b5252df2f43f0074e5c33c902ad276e",
+      "sha256": "f81f989227d47daf2ca373b35bf8d534f424f7b03d7f401b814e9cb9b96ac1e0",
       "executable": false
     },
     "src/stall/agent-door/records.ts": {
@@ -5084,7 +5084,7 @@
       "executable": false
     },
     "tests/agent-door/journey-extras.mjs": {
-      "sha256": "3b0cc6f874c89d784a9ab6b1442d2f569814a40a2efd6b9f76b36c745324170c",
+      "sha256": "c99f9d11cc85bb3711600a5653b4206e19461cc29908733109244721ce437e5a",
       "executable": false
     },
     "tests/agent-door/journey.mjs": {
