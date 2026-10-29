@@ -23,15 +23,28 @@ function trust(env: Bindings): Trust | null {
 
 export async function stallAgentDoor(original: Bindings) {
  const env=await withConnections(runtimeBindings(original)), auth=operatorAuth(env)
+ const pairing=trust(env)
  const people=operatorAuthPeople({db:env.DB,allowList:authConfig(env).allowList,session:request=>auth.getSession(request)})
+ // The synchronous page-role hook uses this request's signed roster snapshot.
+ // Native promotion alone must never turn into a Business editor role.
+ const roles=new Map<string,'owner'|'editor'>()
+ if (pairing) {
+  const owner=await env.DB.prepare(`SELECT o.id FROM oa_operators o LEFT JOIN oa_bootstrap b ON b.claim_id=o.id
+   WHERE o.role='owner' ORDER BY b.claim_id IS NULL,o.created_at,o.id LIMIT 1`).first<{id:string}>()
+  const settings=await env.DB.prepare('SELECT owner_id FROM bs_settings WHERE singleton=1 AND stopped=0').first<{owner_id:string|null}>()
+  if (owner && settings?.owner_id) roles.set(owner.id,'owner')
+  const team=await env.DB.prepare("SELECT operator_id,business_role FROM bs_team WHERE business_id IS NOT NULL AND state<>'conflict'").all<{operator_id:string;business_role:string}>()
+  for (const row of team.results) if (row.business_role==='admin') roles.set(row.operator_id,'editor')
+ }
  const eligible = async (id: string) => {
   const person=await people.person(id)
   return person?.active && ['owner','admin'].includes(person.role) ? person : null
  }
  return createAgentDoor({
-  seed:'stall',name:'Stall',specialist:'shop operator',db:env.DB,origin:env.AUTH_ORIGIN,trust:trust(env),capabilities,
+  seed:'stall',name:'Stall',specialist:'shop operator',db:env.DB,origin:env.AUTH_ORIGIN,trust:pairing,capabilities,
   tools:[...draftTools(env),...readTools(env)],resources:[],notTools:notTools.map(item=>({...item,clauses:[...item.clauses]})),
-  people:{...people,person:eligible,async sponsor(claims){const person=await people.sponsor(claims);return person?eligible(person.id):null}},
+  people:{...people,person:eligible,businessRole:person=>pairing?roles.get(person.id)??null:person.role==='owner'?'owner':person.role==='admin'?'editor':null,
+   async sponsor(claims){const person=await people.sponsor(claims);return person?eligible(person.id):null}},
   async localCredentials(request) {
    const token=request.headers.get('authorization')?.match(/^Bearer ([^\s]+)$/)?.[1]
    if (!token) return null

@@ -3524,7 +3524,7 @@
       "executable": false
     },
     "src/stall/agent-door/index.ts": {
-      "sha256": "e7a2927d3805ebb7f75ae10b246950a9306dddaa54c4d533349d406a64150692",
+      "sha256": "d4298770547c65a8a18706801d89756f0d5a05756a511d9293becac7e72818cd",
       "executable": false
     },
     "src/stall/agent-door/principal.ts": {
