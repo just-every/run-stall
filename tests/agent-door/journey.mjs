@@ -1,3 +1,4 @@
+import { checkExtraStep } from './journey-extras.mjs';
 import { isDeepStrictEqual } from 'node:util';
 import { command, nativeOwner, requireValue } from './native.mjs';
 
@@ -21,7 +22,10 @@ export async function afterStep(context) {
    for (const prepared of [result, current]) {
     requireValue(prepared.id === args.sku && typeof prepared.revision === 'string' && prepared.revision.length > 0 && prepared.revision !== args.revision, 'Catalog preparation lost its product identity or new revision.');
     const draft = prepared.value.draft;
-    requireValue(draft && ['name', 'description', 'unitCents', 'active'].every(key => draft[key] === args[key]), 'Catalog edit did not retain its exact native draft.');
+    requireValue(draft && ['name', 'description', 'unitCents'].every(key => draft[key] === args[key]) && draft.active === (args.archived ? false : args.active === true), 'Catalog edit did not retain its exact native draft.');
+    if (args.details !== undefined) requireValue(isDeepStrictEqual(draft.details, args.details), 'Catalog edit changed requested native details or media.');
+    if (args.archived !== undefined) requireValue(Boolean(draft.archived) === args.archived, 'Catalog edit changed requested archive status.');
+    if (args.publishAt !== undefined) requireValue(draft.publishAt === (args.archived || args.publishAt === null ? undefined : args.publishAt), 'Catalog edit changed requested publication schedule.');
     requireValue(!prepared.value.approval && prepared.value.active === false, 'Catalog preparation crossed the owner approval boundary.');
    }
   }
@@ -37,7 +41,11 @@ export async function afterStep(context) {
    if (step.tool === 'stall.order2.manage') requireValue(prepared.status === 'reserved' && prepared.shipment?.id === result.shipment?.id && typeof prepared.shipment?.id === 'string' && prepared.shipment.status === 'draft' && prepared.shipment.reference === args.reference && !prepared.shipment.approval, 'Shipment tool must prepare a draft while retaining reserved stock.');
    if (step.tool === 'stall.order3.manage') {
     const refund = prepared.refunds.at(-1);
-    requireValue(prepared.status === 'shipped' && typeof refund?.id === 'string' && refund.id.length > 0 && refund.status === 'draft' && refund.reason === args.reason && isDeepStrictEqual(refund.lines, args.lines) && !refund.approval, 'Refund tool must retain a draft against the purchased shipped lines.');
+    const kind = args.kind ?? 'lines';
+    requireValue(prepared.status === (kind === 'address_change' ? 'paid' : 'shipped') && typeof refund?.id === 'string' && refund.id === result.refunds.at(-1).id && refund.status === 'draft' && refund.kind === kind && refund.reason === args.reason && isDeepStrictEqual(refund.lines, args.lines ?? []) && !refund.approval, 'Refund tool must retain the exact native draft and its payment boundary.');
+    if (kind === 'lines') requireValue(refund.amountCents === args.lines.reduce((sum, line) => sum + prepared.lines.find(item => item.sku === line.sku).unitCents * line.quantity, 0), 'Line refund lost its original paid merchandise amount.');
+    if (['shipping', 'goodwill'].includes(kind)) requireValue(refund.amountCents === args.amountCents && refund.accountingCategory === kind, 'Amount refund changed its requested cents or accounting kind.');
+    if (kind === 'address_change') requireValue(refund.amountCents === prepared.totalCents && refund.taxTreatment === 'sale_never_recorded' && !order.reservation && !order.tax.transactionId && order.payment?.intentId && order.shippingDetails.address.line1 === '9 Different Street', 'Address remedy lost its verified unreserved payment or full original amount.');
    }
   }
  }
@@ -55,6 +63,7 @@ export async function afterStep(context) {
    }), 'Proposal changed the requested cited merchant facts.');
   }
  }
+ await checkExtraStep(context, { owner, readCurrent, redactedOrder });
 }
 
 /** Existing native personal grants must reach scoped tools and retain revocation. */

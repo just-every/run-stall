@@ -894,7 +894,7 @@ CHANNEL-004 supplies the distinct `buy_button` and `checkout_link` values in cur
 
   **Current evidence:** `src/stall/agent-door`; `agent-surface.json`
 
-  **Remaining gap:** Only the four currently admitted native agent draft verbs and their native read context are tools; the wider ct job table remains partial.
+  **Remaining gap:** Eleven tools cover the four admitted native draft verbs, complete product and refund draft options, scoped records, media, merchandising preview and shipment observation; the wider ct job table remains partial.
 
 #### BASE-AGENT-003 — Records are resources
 

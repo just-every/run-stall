@@ -5,3 +5,10 @@ export const record = { type:'object',additionalProperties:true }
 export const product = { ...record,properties:{id:string,revision:string,value:record},required:['id','revision','value'] }
 export const order = { ...record,properties:{id:string,revision:string,status:string,lines:{type:'array',items:record},totalCents:{type:'integer'},currency:string,refunds:{type:'array',items:record}},required:['id','revision','status','lines','totalCents','currency','refunds'] }
 export const proposal = { ...record,properties:{id:string,revision:string,sku:string,status:string,preparedBy:string,changes:{type:'array',items:record}},required:['id','revision','sku','status','preparedBy','changes'] }
+export const preview = object({ product: record, collections: { type:'array',items:string }, feed: record })
+export const media = object({ id: string, mime: string, base64: { type:'string',description:'Native media bytes encoded as base64.' } })
+export const commerce = object({
+ products: { type:'array',items:product }, orders: { type:'array',items:order },
+ proposals: { type:'array',items:proposal }, audit: { type:'array',items:record }, shipmentSync: record,
+ refreshed: object({ orderIds: { type:'array',items:string }, count: { type:'integer',minimum:0 } }),
+})

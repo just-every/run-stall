@@ -1,3 +1,5 @@
+import { stripeOrigin } from './stripe-config.mjs';
+import { stripeFetch } from './stripe-edge.mjs';
 import { origin, session } from './provider-config.mjs';
 import { addFixture, execute, ProviderRefusal, snapshot } from './provider-state.mjs';
 
@@ -7,6 +9,9 @@ const refuse = (code, status) => Response.json({ ok: false, error: { code, messa
 export default {
  async fetch(request, { fixture }) {
   const url = new URL(request.url);
+  if (url.origin === stripeOrigin) {
+   try { return await stripeFetch(request, fixture); } catch (error) { if (error instanceof ProviderRefusal) return refuse(error.code, error.status); throw error; }
+  }
   if (url.origin !== origin || url.search || url.hash) return refuse('ORIGIN', 403);
   if (request.headers.get('cookie') !== session || request.headers.get('origin') !== origin || request.headers.has('authorization')) return refuse('AUTH', 401);
   try {

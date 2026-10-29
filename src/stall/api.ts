@@ -1,4 +1,4 @@
-import { analyticsLabels } from './analytics/model'
+import { stallState, privateOrder } from './native-state'
 import { analyticsCaptureResponse } from './analytics/capture-api'
 import { checkoutAnalytics,analyticsRetentionStatements } from './analytics/capture'
 import { analyticsReportResponse } from './analytics/report-api'
@@ -6,7 +6,7 @@ import { buyLinkResponse } from './buy-links'
 import { reviewResponse } from './reviews/api'
 import { registrationResponse,expireCustomerRegistrations } from './customers/registration'
 import { balanceResponse } from './customers/balances'
-import { proposalBundle, previewProposal, proposalCommand } from './proposals'
+import { authorizeMerchandising, proposalBundle, previewProposal, proposalCommand } from './proposals'
 import { recoverTaxTransaction } from './tax/transactions'
 import { taxCommerceState,ownerTaxCommerceState,publicTaxCommerce,ownerTaxCommerce } from './tax/commerce'
 import { quoteTax } from './tax/commerce-quote'
@@ -28,17 +28,16 @@ import { promotionRoutes } from './promotions'
 import { headlessResponse,observeStock } from './headless'
 import { riskCommand,riskSnapshot } from './risk'
 import { refreshRisk } from './payments'
-import { authorize,authorizeCommand,permits } from './permissions'
+import { authorize,authorizeCommand } from './permissions'
 import { staffCommand,staffSnapshot } from './staff'
 import { operatorAuth,runtimeBindings,type Bindings } from '../auth.server'
 import { audit,clientKey,commit,current,digest,live } from './access'
 import { releaseExpiredHolds } from './promotions/holds'
 import { fail,Problem,requirePerson,requireSupplier,text } from './model'
-import { catalogue,pierConfigured } from './pier'
-import { products,orders } from './store'
+import { catalogue } from './pier'
+import { orders } from './store'
 import { productCommand } from './products'
 import { shipmentCommand } from './fulfilment'
-import { refreshShipments } from './shipment-sync'
 import { refundCommand } from './refunds'
 import { reconcileOrder } from './orders'
 import { checkout } from './checkout'
@@ -52,27 +51,18 @@ import { discover,readFilters,suggest,type Source } from './discover'
 import { recordSearch,searchReport } from './search-report'
 import { menuLinks } from './menu-links'
 import { checkAwaitingPayments,confirmReturn,webhook } from './payments'
-import { localShop,rawBody } from './stripe'
+import { rawBody } from './stripe'
 import { operationsSnapshot,probeProviders } from './operations'
-import { configureShipping,generalFlatCents } from './shipping-charge'
-import { assignCommand,assignableSkus,placeCommand,profileCommand,shippingAssignments,shippingPlaces,shippingProfiles } from './shipping-profiles'
+import { configureShipping } from './shipping-charge'
+import { assignCommand,placeCommand,profileCommand } from './shipping-profiles'
 import { postalCodeOf,quoteShipping } from './shipping-quote'
-import { businessTimeZone,configureShop } from './preferences'
+import { configureShop } from './preferences'
 import { orderNoteCommand } from './order-notes'
 import { createManualOrder } from './manual-orders'
 import { assignOrder } from './order-assignment'
 import { orderHistory,searchOrders } from './order-search'
 import { eraseCustomer } from './erasure'
-import { connectionCommand,connectionDetails,withConnections } from './connections'
-// Agent/connector readers retain commerce draft context, without staff annotations or staff-as-provider payment evidence.
-function agentRecord({notes,tags,manualPayment,...record}:any) { return {...record,...(manualPayment?{manualPayment:{...manualPayment,reference:undefined},payment:undefined}:{})} }
-function privateOrder(actor:import('./model').Actor,{requestDigest,checkoutKey,checkout,analytics,...rest}:any) {
- const record={...rest,...(analytics&&!actor.agent&&!actor.staffRole?{analytics:analyticsLabels(analytics)}:{})}
- if(actor.agent)return agentRecord(record)
- if(permits(actor,'support'))return record
- const {notes,tags,manualPayment,...visible}=record
- return {...visible,...(manualPayment?{manualPayment:{...manualPayment,reference:undefined}}:{})}
-}
+import { connectionCommand,withConnections } from './connections'
 async function verifiedTaxCustomer(request:Request,env:Bindings) {
  if(!request.headers.get('cookie')||request.headers.has('authorization'))return undefined
  // A native guest cart has its own cookie and grants no verified customer identity.
@@ -84,10 +74,6 @@ async function verifiedTaxCustomer(request:Request,env:Bindings) {
 async function discoverySource(env:Bindings):Promise<Source> {
  const [stock,saved,config]=await Promise.all([catalogue(env),collections(env.DB),merchandising(env.DB)])
  return {products:stock.products,items:stock.items,collections:saved,config:config.value}
-}
-async function shippingState(db:D1Database) {
- const [profiles,places,assignments,known]=await Promise.all([shippingProfiles(db),shippingPlaces(db),shippingAssignments(db),assignableSkus(db)])
- return {profiles,places,assignments,skus:[...known].map(([sku,item])=>({sku,...item}))}
 }
 /** The shopper's shipping options for a basket and ZIP code, priced from current published lines. */
 async function shippingQuote(env:Bindings,p:any) {
@@ -179,7 +165,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
   if(path==='/api/stall/staff'&&request.method==='GET') return json(await staffSnapshot(env,actor))
 
   if(path.startsWith('/api/stall/merchandising')) {
-   if(!['owner','admin'].includes(actor.role)||actor.staffRole) fail('FORBIDDEN','Only the owner or administrator may read merchandising proposals.',403)
+   authorizeMerchandising(actor)
    await live(env,actor)
    if(path==='/api/stall/merchandising'&&request.method==='GET')return json(await proposalBundle(env.DB,text(new URL(request.url).searchParams.get('sku'),'Product SKU',100)))
    if(path==='/api/stall/merchandising/preview'&&request.method==='POST')return json(await previewProposal(env,await body(request)))
@@ -197,17 +183,7 @@ export async function stallResponse(request:Request,original:Bindings):Promise<R
    return json(await operationsSnapshot(env))
   }
   if(path==='/api/stall/state'&&request.method==='GET') {
-   if(!['owner','admin'].includes(actor.role)) {
-    await live(env,actor)
-    const records=permits(actor,'orders')?await orders(env.DB):[]
-    const clean=records.map(record=>privateOrder(actor,record))
-    return json({actor,timeZone:await businessTimeZone(env.DB),people:{[actor.id]:actor.email},staff:{},products:permits(actor,'catalog')?await products(env.DB):permits(actor,'marketing')?(await products(env.DB)).filter(p=>p.value.active&&!p.value.archived&&(!p.value.publishAt||Date.parse(p.value.publishAt)<=Date.now())).map(({id,revision,value:{draft,approval,...value}})=>({id,revision,value})):[],orders:clean,audit:[],...((permits(actor,'marketing')||permits(actor,'catalog'))?{merchandising:{collections:await collections(env.DB),config:await merchandising(env.DB)}}:{}),...(permits(actor,'admin')?{shipping:await shippingState(env.DB)}:{}),connections:{pier:false,stripe:false,webhook:false}})
-   }
-   const [selected,history,logs,people]=await Promise.all([products(env.DB),orders(env.DB),env.DB.prepare('SELECT * FROM st_audit ORDER BY rowid DESC LIMIT 200').all(),env.DB.prepare('SELECT id,display_name AS name,email,status FROM oa_operators').all<{id:string;name:string;email:string;status:string}>()])
-   const shipping=await refreshShipments(env,actor,history)
-   const historyChanged=shipping.orders.some((order,index)=>order.revision!==history[index].revision)
-   const events=historyChanged?(await env.DB.prepare('SELECT * FROM st_audit ORDER BY rowid DESC LIMIT 200').all()).results:logs.results
-   return json({timeZone:await businessTimeZone(env.DB),staff:Object.fromEntries(people.results.filter(person=>person.status==='active').map(person=>[person.id,person.name||person.email])),people:Object.fromEntries(people.results.map(person=>[person.id,person.name||person.email])),actor,products:selected,merchandising:{collections:await collections(env.DB),config:await merchandising(env.DB)},shippingCents:await generalFlatCents(env.DB),shipping:await shippingState(env.DB),...shipping,orders:actor.agent?shipping.orders.map(agentRecord):shipping.orders,audit:events,connections:{pier:pierConfigured(env),stripe:Boolean(env.STRIPE_SECRET_KEY),webhook:Boolean(env.STRIPE_WEBHOOK_SECRET)||(localShop(env)&&Boolean(env.STRIPE_SECRET_KEY))},connectionDetails:await connectionDetails(base,env)})
+   return json(await stallState(env,actor,base))
   }
   if(path==='/api/stall/orders'&&request.method==='GET') { authorize(actor,'orders');requirePerson(actor);const found=await searchOrders(env.DB,new URL(request.url).searchParams);return json({...found,orders:found.orders.map(record=>privateOrder(actor,record))}) }
   if(path==='/api/stall/orders/history'&&request.method==='GET') { authorize(actor,'orders');requirePerson(actor);return json(await orderHistory(env.DB,text(new URL(request.url).searchParams.get('orderId'),'Order'))) }

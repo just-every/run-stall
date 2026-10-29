@@ -11,8 +11,9 @@ export const capabilities = ['tools','policy','pause','audit','idempotency'] as 
 const scopes = ['catalog:read','catalog:write','orders:read','orders:write','audit:read']
 const notTools = [
  {clauses:['MOBILE-001'],reason:'screen'}, {clauses:['MOBILE-002'],reason:'device'},
- {clauses:['BOUNDARY-001'],reason:'connector'}, {clauses:['MIGRATE-001'],reason:'import-door'},
- {clauses:['OPS-001','OPS-002'],reason:'installation'},
+ {clauses:['BOUNDARY-001'],reason:'connector'},
+ {clauses:['MIGRATE-001','MIGRATE-002','MIGRATE-003','MIGRATE-004','MIGRATE-005','MIGRATE-006','MIGRATE-007'],reason:'import-door'},
+ {clauses:['HTTP-001','DEMO-001','OPS-001','OPS-002','BASE-001','OPEN-001'],reason:'installation'},
 ] as const
 function trust(env: Bindings): Trust | null {
  const issuer=env.RER_OWNER_CLAIM_ISSUER, installationId=env.RER_OWNER_CLAIM_INSTALLATION_ID, publicKeys=env.RER_OWNER_CLAIM_PUBLIC_KEYS
@@ -66,7 +67,7 @@ export async function agentResponse(request: Request, env: Bindings) {
 export function stallBusinessSettings(original: Bindings) {
  const env=runtimeBindings(original)
  return createBusinessSettings({db:env.DB,trust:env.RER_BUSINESS_TRUST,
-  business:{settings:1,values:[],team:{roles:{admin:'admin',member:'member'}}},team:operatorAuth(env).businessTeam})
+  business:{settings:1,values:['display_name'],team:{roles:{admin:'admin',member:'member'}}},team:operatorAuth(env).businessTeam})
 }
 
 export async function businessResponse(request: Request, env: Bindings) {

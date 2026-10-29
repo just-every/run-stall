@@ -1,3 +1,5 @@
+import { uploadFixtureMedia, mismatchedPaidOrder } from './native-extras.mjs';
+import { stripeOrigin } from './stripe-config.mjs';
 import { origin as pierOrigin } from './provider-config.mjs';
 import { command, nativeOwner, requireValue } from './native.mjs';
 
@@ -34,6 +36,9 @@ export default async function fixtures(context) {
  const skus = { catalog: `door-draft-${suffix}`, merch: `door-merch-${suffix}`, stock: `door-stock-${suffix}` };
  requireValue(typeof context.fixtures?.set === 'function', 'The declared Pier network fixture control is required.');
  context.fixtures.set(pierOrigin, { skus: [skus.stock] });
+ context.fixtures.set(stripeOrigin, { appOrigin: context.origin, sku: skus.stock });
+ await command(owner, 'shipping.configure', { shippingCents: 200 });
+ const media = await uploadFixtureMedia(context);
 
  const catalog = await command(owner, 'product.prepare', product(skus.catalog, 'Catalog pouch', false));
  requireValue(catalog.value?.draft && !catalog.value.approval, 'Catalog fixture requires an unapproved product draft.');
@@ -51,5 +56,6 @@ export default async function fixtures(context) {
  // Settle Pier's first shipment observation before any no-effect witness runs.
  const settled = await owner('/api/stall/state');
  requireValue(!settled.shipmentSync?.error && settled.orders?.find(order => order.id === refund.id)?.shipment?.dispatches?.length === 1, 'Native shipment observation did not retain the provider dispatch.');
- return { values: { catalog: { sku: skus.catalog }, merch: { sku: skus.merch }, shipment: { id: shipment.id }, refund: { id: refund.id } }, clients: {} };
+ const addressRefund = await mismatchedPaidOrder(context, skus.stock);
+ return { values: { catalog: { sku: skus.catalog }, merch: { sku: skus.merch }, shipment: { id: shipment.id }, refund: { id: refund.id }, addressRefund: { id: addressRefund.id }, media: { id: media.id } }, clients: {} };
 }
