@@ -149,3 +149,5 @@ docs/CLAIMS.md. The generator also updates the Status summary from its complete
 per-clause rows. Stage source changes before regenerating the edition lock
 with node scripts/edition-authoring/cli.mjs lock, then run the same command
 with check. Keep the existing Base and rer pins.
+
+Lander-Regenerate: node scripts/contract-docs.mjs write

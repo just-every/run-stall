@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { chromium, expect } from '@playwright/test'
-import { execFile, spawn } from 'node:child_process'
+import { execFile } from 'node:child_process'
+import { unstable_dev } from 'wrangler'
 import { randomBytes } from 'node:crypto'
 import { createServer } from 'node:http'
 import { mkdtemp, mkdir, readFile, rm } from 'node:fs/promises'
@@ -16,22 +17,12 @@ import { finishCleanup } from '../owned-dev.mjs'
 const exec = promisify(execFile), persist = await mkdtemp(join(tmpdir(), 'stall-review-import-'))
 const screenshots = resolve(process.env.STALL_SCREENSHOTS ?? './test-results/reviews'), stock = volumeStock(['synthetic-stall-1511'])
 stock.setAvailable('synthetic-stall-1511', '12')
-let worker, browser, edge, page, journeyError, cleaning, workerError
+let worker, browser, edge, page, journeyError, cleaning
 const pause = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
 function cleanup() {
   return cleaning ??= (async () => {
     await browser?.close()
-    if (worker?.pid && worker.exitCode === null && worker.signalCode === null) {
-      const exited = new Promise(resolve => worker.once('exit', resolve))
-      worker.kill('SIGTERM')
-      let timer
-      try {
-        if (!await Promise.race([exited.then(() => true), new Promise(resolve => { timer = setTimeout(() => resolve(false), 10000) })])) {
-          worker.kill('SIGKILL')
-          await exited
-        }
-      } finally { clearTimeout(timer) }
-    }
+    await worker?.stop()
     if (edge?.listening) { edge.closeAllConnections(); await new Promise((resolve, reject) => edge.close(error => error ? reject(error) : resolve())) }
     await rm(persist, { recursive: true, force: true })
   })()
@@ -57,13 +48,20 @@ try {
   const env = { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' }, config = 'dist/server/wrangler.json'
   await exec(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'd1', 'migrations', 'apply', 'foundation', '--local', '--persist-to', persist, '--config', config], { env })
   const bindings = { AUTH_ORIGIN: origin, AUTH_LOCAL: 'true', RER_DEMO: '0', RER_DEV_ORIGIN: '', OWNER_EMAIL: 'synthetic-stall-1512@example.test', SESSION_SECRET: randomBytes(32).toString('hex'), SETUP_TOKEN: setup, MAIL_PROVIDER: 'development', PIER_ORIGIN: edgeOrigin, PIER_SESSION: 'synthetic-stall-1513', PIER_CUSTOMER_ID: 'shop' }
-  const args = ['node_modules/wrangler/bin/wrangler.js', 'dev', '--inspector-port', '0', '--local', '--persist-to', persist, '--ip', '127.0.0.1', '--config', config, '--port', String(port), ...Object.entries(bindings).flatMap(([key, value]) => ['--var', `${key}:${value}`])]
-  worker = spawn(process.execPath, args, { env, stdio: ['ignore', 'pipe', 'pipe'] })
-  // Runtime output may contain synthetic credentials; consume it without logging it.
-  worker.stdout.resume(); worker.stderr.resume(); worker.once('error', error => { workerError = error.code ?? 'spawn' })
+  // Exercise one immutable production build. The CLI's default file/asset
+  // watchers can replace its workerd while a native request is in flight,
+  // surfacing a transport-only "Network connection lost" instead of a result.
+  // Keep Wrangler's real bindings, assets and persisted D1, without HMR.
+  worker = await unstable_dev('dist/server/index.js', {
+    config, local: true, ip: '127.0.0.1', port, persistTo: persist,
+    inspectorPort: 0, inspect: false, vars: bindings, logLevel: 'none',
+    experimental: { watch: false, liveReload: false, disableExperimentalWarning: true },
+  })
+  let stopped = false
+  void worker.waitUntilExit().then(() => { stopped = true })
   let ready = false
   for (let attempt = 0; attempt < 160; attempt++) {
-    assert.ok(!workerError && worker.exitCode === null && worker.signalCode === null, 'The owned emitted Worker stopped before readiness')
+    assert.ok(!stopped, 'The owned emitted Worker stopped before readiness')
     try { ready = (await fetch(origin + '/health')).ok } catch {}
     if (ready) break
     await pause(250)

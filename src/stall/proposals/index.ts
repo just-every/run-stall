@@ -8,6 +8,11 @@ import { proposalChanges, proposalPreview } from './changes'
 import { validateFeedInventory } from './feed'
 import type { Proposal } from './model'
 
+/** Native merchandising visibility is narrower than general catalogue access. */
+export function authorizeMerchandising(actor: Actor) {
+ if (!['owner', 'admin'].includes(actor.role) || actor.staffRole) fail('FORBIDDEN', 'Only the owner or administrator may manage merchandising proposals.', 403)
+}
+
 export async function merchandisingProposals(db: D1Database, sku?: string): Promise<Proposal[]> {
  const rows = sku ? await db.prepare('SELECT value_json FROM st_merch_proposals WHERE sku=? ORDER BY rowid DESC').bind(sku).all<{ value_json: string }>() : await db.prepare('SELECT value_json FROM st_merch_proposals ORDER BY rowid').all<{ value_json: string }>()
  return rows.results.map(row => JSON.parse(row.value_json))
@@ -16,7 +21,7 @@ export async function proposalBundle(db: D1Database, sku: string) {
  const source = await proposalSources(db, sku)
  return { sku, revision: source.product.revision, sources: source.sources, questions: source.questions, proposals: await merchandisingProposals(db, sku) }
 }
-async function currentProposal(db: D1Database, p: any) {
+export async function currentProposal(db: D1Database, p: any) {
  const row = await db.prepare('SELECT value_json FROM st_merch_proposals WHERE id=?').bind(text(p.id, 'Proposal ID')).first<{ value_json: string }>()
  const proposal: Proposal = row ? JSON.parse(row.value_json) : fail('NOT_FOUND', 'No such proposal.', 404)
  if (p.revision !== proposal.revision || proposal.status !== 'draft') fail('CHANGED', 'Review the exact current proposal. Restored proposals require fresh agent preparation.')
@@ -31,7 +36,7 @@ export async function previewProposal(env: Bindings, p: any) {
  return preview
 }
 export async function proposalCommand(env: Bindings, actor: Actor, type: string, p: any) {
- if (!['owner', 'admin'].includes(actor.role) || actor.staffRole) fail('FORBIDDEN', 'Only the owner or administrator may manage merchandising proposals.', 403)
+ authorizeMerchandising(actor)
  if (type === 'merch.prepare') {
   if (!actor.agent) fail('AGENT_REQUIRED', 'Prepare this proposal through a personal agent credential.', 403)
   const sku = text(p.sku, 'Product SKU', 100), source = await proposalSources(env.DB, sku)

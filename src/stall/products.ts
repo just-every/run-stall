@@ -4,20 +4,25 @@ import { products } from './store'
 import { productDetails } from './product-details'
 import { pierState } from './pier'
 import { checkListing,liveSkus } from './listing-checks'
-import { approval,fail,integer,requirePerson,text,type Actor,type ProductValue } from './model'
+import { approval,fail,integer,requirePerson,text,type Actor,type Product,type ProductValue } from './model'
+/** The exact native proposed value, also used by the door's person summary. */
+export function productDraft(prior:Product|undefined,p:any):Omit<ProductValue,'draft'> {
+ const sku=text(p.sku,'SKU',100)
+ const details=p.details===undefined?(prior?.value.draft??prior?.value)?.details:productDetails(p.details)
+ const before=prior?.value.draft??prior?.value
+ const archived=p.archived===undefined?before?.archived===true:p.archived===true
+ let publishAt=p.publishAt===undefined?before?.publishAt:undefined
+ if(p.publishAt!==undefined&&p.publishAt!==null) { const time=Date.parse(typeof p.publishAt==='string'?p.publishAt:''); if(!Number.isFinite(time)) fail('INPUT','Scheduled publication needs a valid date and time.',400);publishAt=new Date(time).toISOString() }
+ if(archived) publishAt=undefined
+ return {...(details&&Object.keys(details).length?{details}:{}),...(publishAt?{publishAt}:{}),...(archived?{archived:true as const}:{}),sku,name:text(p.name,'Product name'),description:typeof p.description==='string'&&p.description.length<=4000?p.description:fail('INPUT','Description must be at most 4000 characters.',400),unitCents:integer(p.unitCents,'Unit cents',1),active:archived?false:p.active===true}
+}
 export async function productCommand(env:Bindings,actor:Actor,type:string,p:any) {
  const sku=text(p.sku,'SKU',100)
  const prior=(await products(env.DB)).find(p=>p.id===sku)
  let value:ProductValue
  if(type==='product.prepare') {
   if(prior&&p.revision!==prior.revision) fail('CHANGED','Refresh this product before preparing a new version.')
-  const details=p.details===undefined?(prior?.value.draft??prior?.value)?.details:productDetails(p.details)
-  const before=prior?.value.draft??prior?.value
-  const archived=p.archived===undefined?before?.archived===true:p.archived===true
-  let publishAt=p.publishAt===undefined?before?.publishAt:undefined
-  if(p.publishAt!==undefined&&p.publishAt!==null) { const time=Date.parse(typeof p.publishAt==='string'?p.publishAt:''); if(!Number.isFinite(time)) fail('INPUT','Scheduled publication needs a valid date and time.',400);publishAt=new Date(time).toISOString() }
-  if(archived) publishAt=undefined
-  const draft:Omit<ProductValue,'draft'>={...(details&&Object.keys(details).length?{details}:{}),...(publishAt?{publishAt}:{}),...(archived?{archived:true as const}:{}),sku,name:text(p.name,'Product name'),description:typeof p.description==='string'&&p.description.length<=4000?p.description:fail('INPUT','Description must be at most 4000 characters.',400),unitCents:integer(p.unitCents,'Unit cents',1),active:archived?false:p.active===true}
+  const draft=productDraft(prior,p)
   await checkListing(env.DB,draft,await products(env.DB))
   const {publishAt:_when,archived:_gone,...unlisted}=draft
   value=prior?{...prior.value,draft}:{...unlisted,active:false,draft}
