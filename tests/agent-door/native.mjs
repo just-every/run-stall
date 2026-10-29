@@ -1,5 +1,8 @@
+// Only assertions authored in this fixture package qualify for safe diagnostics.
+export class NativeAssertionError extends Error {}
+
 export function requireValue(condition, message) {
- if (!condition) throw new Error(message);
+ if (!condition) throw new NativeAssertionError(message);
 }
 
 /** The harness's request function refuses every origin except the actual app. */

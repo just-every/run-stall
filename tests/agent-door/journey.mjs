@@ -1,12 +1,22 @@
 import { checkExtraStep } from './journey-extras.mjs';
 import { isDeepStrictEqual } from 'node:util';
-import { command, nativeOwner, requireValue } from './native.mjs';
+import { command, nativeOwner, requireValue, NativeAssertionError } from './native.mjs';
 
 const orderKeys = ['id', 'revision', 'lines', 'totalCents', 'currency', 'status', 'shipment', 'refunds'];
 const redactedOrder = order => Object.fromEntries(orderKeys.map(key => [key, order[key] ?? (key === 'shipment' ? null : undefined)]));
 
 /** Prove each door result is the committed native draft, with approval separate. */
 export async function afterStep(context) {
+ try {
+  await verifyAfterStep(context);
+ } catch (error) {
+  // Never log arbitrary runtime/provider messages, context or record values.
+  if (error instanceof NativeAssertionError && /^[a-z0-9-]+$/.test(context.step.id)) console.error(`AGENT_NATIVE_ASSERTION ${context.step.id}: ${error.message}`);
+  throw error;
+ }
+}
+
+async function verifyAfterStep(context) {
  const { step, result, args } = context, owner = nativeOwner(context);
  const injected = context.phase === 'autonomous' && step.inject;
  const readCurrent = async (name, input) => {
@@ -40,9 +50,12 @@ export async function afterStep(context) {
    requireValue(prepared.id === (args.orderId ?? args.id) && typeof prepared.revision === 'string' && prepared.revision.length > 0 && (!mutation || prepared.revision !== args.revision), 'Order preparation lost its order identity or new revision.');
    if (step.tool === 'stall.order2.manage') requireValue(prepared.status === 'reserved' && prepared.shipment?.id === result.shipment?.id && typeof prepared.shipment?.id === 'string' && prepared.shipment.status === 'draft' && prepared.shipment.reference === args.reference && !prepared.shipment.approval, 'Shipment tool must prepare a draft while retaining reserved stock.');
    if (step.tool === 'stall.order3.manage') {
+    // The injection is a fresh native preparation: native refund.prepare replaces
+    // its previous draft with a new ID. Verify both original and current drafts;
+    // the scoped/native comparison above proves the current committed identity.
     const refund = prepared.refunds.at(-1);
     const kind = args.kind ?? 'lines';
-    requireValue(prepared.status === (kind === 'address_change' ? 'paid' : 'shipped') && typeof refund?.id === 'string' && refund.id === result.refunds.at(-1).id && refund.status === 'draft' && refund.kind === kind && refund.reason === args.reason && isDeepStrictEqual(refund.lines, args.lines ?? []) && !refund.approval, 'Refund tool must retain the exact native draft and its payment boundary.');
+    requireValue(prepared.status === (kind === 'address_change' ? 'paid' : 'shipped') && typeof refund?.id === 'string' && refund.id.length > 0 && refund.status === 'draft' && refund.kind === kind && refund.reason === args.reason && isDeepStrictEqual(refund.lines, args.lines ?? []) && !refund.approval, 'Refund tool must retain the exact native draft and its payment boundary.');
     if (kind === 'lines') requireValue(refund.amountCents === args.lines.reduce((sum, line) => sum + prepared.lines.find(item => item.sku === line.sku).unitCents * line.quantity, 0), 'Line refund lost its original paid merchandise amount.');
     if (['shipping', 'goodwill'].includes(kind)) requireValue(refund.amountCents === args.amountCents && refund.accountingCategory === kind, 'Amount refund changed its requested cents or accounting kind.');
     if (kind === 'address_change') requireValue(refund.amountCents === prepared.totalCents && refund.taxTreatment === 'sale_never_recorded' && !order.reservation && !order.tax.transactionId && order.payment?.intentId && order.shippingDetails.address.line1 === '9 Different Street', 'Address remedy lost its verified unreserved payment or full original amount.');

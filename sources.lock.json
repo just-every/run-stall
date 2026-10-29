@@ -204,7 +204,7 @@
       "executable": false
     },
     "agent-surface.json": {
-      "sha256": "4921170746d760d10f979b6f973641435f41b8854bf594ca30d9c7154065f4d3",
+      "sha256": "a008d265fe49b662e15180765a19374295db46237e5898efef253d8c2dcfc7de",
       "executable": false
     },
     "AGENTS.md": {
@@ -4035,8 +4035,12 @@
       "sha256": "e04a281e1bd513d8e3092211cf9292a74db9c45de8f576c538f95d64729848b4",
       "executable": false
     },
+    "src/stall/agent-door/draft-summaries.ts": {
+      "sha256": "8b09946636458721e83bcdf07a619e124a0f76a696d73f2e5a2d895ec825b5d9",
+      "executable": false
+    },
     "src/stall/agent-door/draft-tools.ts": {
-      "sha256": "c002e7fa9fb08b6fd306319ff9f03837a2e8965a14981a52f4b622d6f3754107",
+      "sha256": "4b7dc0e85113939897d62cbe7443aa10b861d54f58c553ce66607c5117c96c6f",
       "executable": false
     },
     "src/stall/agent-door/index.ts": {
@@ -4432,7 +4436,7 @@
       "executable": false
     },
     "src/stall/products.ts": {
-      "sha256": "33a2ae9cc1de6e6cffeaa4c348733d468ccaa9cc306bb2eb75ade15da6c31991",
+      "sha256": "b0db13a6e14b977d6510b979fe813a09edd190c1c4768e52b8652ec6d7b7a0d4",
       "executable": false
     },
     "src/stall/promotions/calculation.ts": {
@@ -5088,7 +5092,7 @@
       "executable": false
     },
     "tests/agent-door/journey.mjs": {
-      "sha256": "a67a6d363c7fa55a78479edb5f262d0b74f8be2792cf2d15f2fee76654772bac",
+      "sha256": "903714572f3e42127b92ac8e5a8c1eee8cfdb1e53fbdf54c25ba7f1405b00bdc",
       "executable": false
     },
     "tests/agent-door/native-extras.mjs": {
@@ -5096,7 +5100,7 @@
       "executable": false
     },
     "tests/agent-door/native.mjs": {
-      "sha256": "1ae0462b0f7ac965abc3b9e36a877a07ab49e63b370873723efd4b38c6790111",
+      "sha256": "ba2463007bbab99ae724f3a859d4442042a9951396c8ad777dd925529e518280",
       "executable": false
     },
     "tests/agent-door/pier-customer-binding.mjs": {
