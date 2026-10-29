@@ -17,14 +17,19 @@ export async function uploadMedia(env: Bindings, actor: Actor, request: Request)
  await commit(env.DB, actor, [env.DB.prepare('INSERT INTO st_media VALUES(?,?,?,?,?,?)').bind(id, types[mime], mime, bytes.length, encode(bytes), new Date().toISOString()), audit(env.DB, actor, id, 'media.uploaded')])
  return { id, kind: types[mime], mime, size: bytes.length }
 }
-/** Public only while an approved, published listing shows the file; staff may preview any. */
-export async function mediaResponse(env: Bindings, request: Request, id: string): Promise<Response> {
+/** The same visibility decision serves native bytes and admitted agent reads. */
+export async function readMedia(env: Bindings, id: string, resolveActor: () => Promise<Actor | null>) {
  const row = await env.DB.prepare('SELECT mime,data FROM st_media WHERE id=?').bind(id).first<{ mime: string; data: string }>()
  if (!row) fail('NOT_FOUND', 'No such file.', 404)
  const shown = (await products(env.DB)).some(product => listingState(product.value) === 'published' && product.value.details?.media?.some(media => media.id === id))
  if (!shown) {
-  const actor = await current(request, env).catch(() => null)
+  const actor = await resolveActor()
   if (!actor || !permits(actor,'catalog')) fail('NOT_FOUND', 'No such file.', 404)
  }
- return new Response(decode(row.data), { headers: fileHeaders(row.mime, { 'cache-control': shown ? 'public, max-age=300' : 'private, no-store' }) })
+ return { id, mime: row.mime, base64: row.data, shown }
+}
+/** Public only while an approved, published listing shows the file; staff may preview any. */
+export async function mediaResponse(env: Bindings, request: Request, id: string): Promise<Response> {
+ const { mime, base64, shown } = await readMedia(env, id, () => current(request, env).catch(() => null))
+ return new Response(decode(base64), { headers: fileHeaders(mime, { 'cache-control': shown ? 'public, max-age=300' : 'private, no-store' }) })
 }
