@@ -3,9 +3,9 @@ import { stripeFetch } from './stripe-edge.mjs';
 import { origin, session } from './provider-config.mjs';
 import { addFixture, execute, ProviderRefusal, snapshot } from './provider-state.mjs';
 
-const refuse = (code, status) => Response.json({ ok: false, error: { code, message: 'The isolated Pier fixture refused the request.' } }, { status });
+const refuse = (code, status) => Response.json({ ok: false, error: { code, message: 'The isolated provider fixture refused the request.' } }, { status });
 
-/** Only Pier's paid/network boundary is replaced; egress stays denied by Base. */
+/** Only declared paid/network boundaries are replaced; egress stays denied by Base. */
 export default {
  async fetch(request, { fixture }) {
   const url = new URL(request.url);
