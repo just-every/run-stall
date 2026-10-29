@@ -68,3 +68,8 @@ export function stallBusinessSettings(original: Bindings) {
  return createBusinessSettings({db:env.DB,trust:env.RER_BUSINESS_TRUST,
   business:{settings:1,values:[],team:{roles:{admin:'admin',member:'member'}}},team:operatorAuth(env).businessTeam})
 }
+
+export async function businessResponse(request: Request, env: Bindings) {
+ if (!['/api/rer/business-settings','/rer-business-logo','/rer-business.css'].includes(new URL(request.url).pathname)) return null
+ return stallBusinessSettings(env).handle(request)
+}

@@ -3352,7 +3352,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "ed63563b190a1efa7450b1bc5e1a7162cc223ca1fe1c1190e3bc9fb069d0bbd3",
+      "sha256": "b0817f0749630e147c271e61345eda1f4aa865c75e7d92df441eb13e58e57c80",
       "executable": false
     },
     "src/site/docs/DocsArticle.tsx": {
@@ -3524,7 +3524,7 @@
       "executable": false
     },
     "src/stall/agent-door/index.ts": {
-      "sha256": "d4298770547c65a8a18706801d89756f0d5a05756a511d9293becac7e72818cd",
+      "sha256": "ffa32f9b3d867e2346a3174bc03ad4eeedc99a037494c21dc69c12bc27f68eae",
       "executable": false
     },
     "src/stall/agent-door/principal.ts": {
