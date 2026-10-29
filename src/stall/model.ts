@@ -9,7 +9,7 @@ export class Problem extends Error {
  constructor(public code:string, message:string, public status=409) { super(message) }
 }
 export function fail(code:string,message:string,status=409):never { throw new Problem(code,message,status) }
-export type Actor={id:string;email:string;role:string;version:number;sessionId?:string;agent:boolean;grantId?:string;staffRole?:StaffRole;scopeRevision?:string;refundLimitCents?:number;separateApproval?:boolean}
+export type Actor={id:string;email:string;role:string;version:number;sessionId?:string;agent:boolean;grantId?:string;staffRole?:StaffRole;scopeRevision?:string;refundLimitCents?:number;separateApproval?:boolean;door?:{agentId:string;label:string;consent:string|null;envelope:string|null;localDocument:string|null;localRevision:number}}
 export type ProductValue={details?:ProductDetails;publishAt?:string;archived?:true;sku:string;name:string;description:string;unitCents:number;active:boolean;draft?:Omit<ProductValue,'draft'>;approval?:Approval}
 export type Product={id:string;value:ProductValue;revision:string}
 export type Approval={scopeRevision?:string;by:string;version:number;at:string;revision:string}
@@ -33,6 +33,6 @@ export const integer=(v:unknown,name:string,min=0,max=100000000):number=>typeof 
 export const supplier=(a:Actor)=>['owner','admin'].includes(a.role)||!!a.staffRole
 export function requireSupplier(a:Actor) { if(!supplier(a)) fail('FORBIDDEN','Only an owner or administrator may manage the shop.',403) }
 export function requirePerson(a:Actor) { if(a.agent) fail('PERSON_REQUIRED','Agents prepare drafts; a person must approve this exact revision.',403) }
-export const actorLabel=(a:Actor)=>a.agent?`agent:${a.grantId}`:a.id
+export const actorLabel=(a:Actor)=>a.door?.label??(a.agent?`agent:${a.grantId}`:a.id)
 export const approval=(a:Actor,revision:string):Approval=>({by:a.id,version:a.version,...(a.scopeRevision?{scopeRevision:a.scopeRevision}:{}),at:new Date().toISOString(),revision})
 export function email(value:unknown) { const e=text(value,'Customer email',254).toLowerCase(); if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) fail('INPUT','Enter a valid customer email.',400); return e }

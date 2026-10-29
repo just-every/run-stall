@@ -14,6 +14,7 @@ import { toolsResponse } from './stall/tools'
 import { databaseReadiness } from './stall/operations'
 import { seedDemo } from './demo'
 import { unknownProductPage } from './stall/shop-pages'
+import { agentResponse, stallBusinessSettings } from './stall/agent-door'
 
 const api = new Hono<{ Bindings: Bindings }>()
 api.get('/health', async (context) => {
@@ -34,6 +35,10 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
+    const business = await stallBusinessSettings(env).handle(request)
+    if (business) return business
+    const door = await agentResponse(request,env)
+    if (door) return door
     const tools = await toolsResponse(request, env)
     if (tools) return tools
     const stall = await stallResponse(request, env)
