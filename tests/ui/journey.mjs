@@ -155,8 +155,13 @@ try {
  await page.getByRole('button',{name:'Run dry run',exact:true}).click()
  await page.getByLabel('Reviewed fingerprint').waitFor()
  await capture('move-in-preview','#move-in')
+ const stagedProducts=page.waitForResponse(async response=>{
+  if(new URL(response.url()).pathname!=='/api/stall/state'||!response.ok())return false
+  const {products}=await response.json()
+  return ['MUG-BLUE','TOWEL-NAT'].every(sku=>products.some(product=>product.id===sku&&product.value.active===false&&!product.value.approval))
+ })
  await page.getByRole('button',{name:'Apply reviewed import',exact:true}).click()
- await page.getByText('Import completed. Products are staged for review.',{exact:true}).waitFor()
+ await stagedProducts
  await page.getByRole('button',{name:'View',exact:true}).first().click()
  await page.getByText('Source custody',{exact:true}).waitFor()
  await capture('import-journal',page.getByRole('heading',{name:'Import journal',exact:true}))

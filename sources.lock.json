@@ -4228,7 +4228,7 @@
       "executable": false
     },
     "tests/ui/journey.mjs": {
-      "sha256": "e5afa9d92566a24ba7ee9abb5dab42796ebd0cf08af907f10d9f3a8a5d90ec73",
+      "sha256": "095831888d34d01fed5ea7c9bc8f15cffbba41766fb437ce844ebb720a0a6fb9",
       "executable": false
     },
     "tests/ui/merch-proposals-journey.mjs": {
