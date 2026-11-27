@@ -4256,7 +4256,7 @@
       "executable": false
     },
     "tests/ui/review-import-journey.mjs": {
-      "sha256": "1653a0e71219ff530ed7d3bc10513c059b3fa12f6dd6a7539bbbf74141f1cc26",
+      "sha256": "c6c6453a209906953b0c187b031c644aa29ef4a5a0a85367c7329b44b95c907f",
       "executable": false
     },
     "tests/ui/risk-journey.mjs": {
@@ -4288,7 +4288,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "721e8f36e3151c94e9e6a27c962ea265b225d61d4de29c4a4361baf6e99d9f01",
+      "sha256": "9cf4564ea06bf98f533dcb86c9bf393c6ca8d605287c786fcfe3ea3833fd5425",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

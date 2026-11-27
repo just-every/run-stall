@@ -40,11 +40,12 @@ const interrupted = () => { void cleanup().then(() => process.exit(1), () => pro
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, interrupted)
 try {
   await mkdir(screenshots, { recursive: true })
+  // Each answer closes its socket: the Worker must never reuse one this server already timed out (keep-alive race).
   edge = createServer(async (incoming, outgoing) => {
     try {
       assert.equal(incoming.method, 'GET'); assert.equal(incoming.url, '/api/pier/state')
       const response = await stock.forward(new Request('https://stock.example.test' + incoming.url))
-      outgoing.writeHead(response.status, { 'content-type': 'application/json' }); outgoing.end(await response.text())
+      outgoing.writeHead(response.status, { 'content-type': 'application/json', connection: 'close' }); outgoing.end(await response.text())
     } catch { outgoing.writeHead(502); outgoing.end('Stock edge request refused') }
   })
   await new Promise(resolve => edge.listen(0, '127.0.0.1', resolve))
