@@ -1868,3 +1868,17 @@ test('combined discount purchases bind net tax, odd-cent line refunds, single-us
 
  }finally{await kit.close()}
 })
+
+test('a shop with mail off (MAIL_PROVIDER=none) takes a paid order, records its confirmation as mail_off and refuses invitations without contacting a provider',async()=>{
+ const pier=await pierInstallation(),edge=stripeEdge({forward:pier.forward}),secret='whsec_'+randomBytes(32).toString('hex');
+ const h=await installation({bindings:{...pier.bindings,STRIPE_SECRET_KEY:'test-network-edge',STRIPE_WEBHOOK_SECRET:secret,MAIL_PROVIDER:'none',MAIL_FROM:'',MAIL_API_KEY:''},outboundService:edge.handle});
+ try {
+  await publish(h,'MUG-BLUE','Blue ceramic mug',2450);
+  const bought=await purchase(h,edge,{skus:['MUG-BLUE'],quantities:[1]});
+  assert.equal((await deliverWebhook(h,secret,edge.pay(bought.session.id))).response.status,200);
+  const order=(await state(h)).orders.find(o=>o.id===bought.orderId);
+  assert.deepEqual([order.status,order.confirmation.status,order.confirmation.code],['reserved','failed','mail_off']);
+  assert.equal((await h.request('/auth/invite',{method:'POST',body:{email:'buyer@example.test',displayName:'Trade buyer',role:'member',returnTo:'/app'}})).status,503);
+  assert.deepEqual(h.messages,[]);
+ } finally { await h.close(); await pier.close() }
+});

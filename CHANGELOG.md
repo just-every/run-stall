@@ -1,6 +1,19 @@
 # Changes
 
-## Unreleased
+## 0.1.0 — 2026-11-27
+
+The first release. Stall is an online shop for US makers and small shops whose stock lives in Pier, and it runs in your own Cloudflare account.
+
+- **Runs on rer 0.2.143.** The pinned platform moves from 0.2.79.
+- **Mail optional.** `MAIL_PROVIDER=none` deploys with no sender or mail key: the owner signs in with `rer signin`, paid orders still go through, and the order shows its confirmation email was not sent (`mail_off`) without a provider being contacted. Email sign-in and invitations need a configured provider.
+- **Demo follows releases.** The run-demo workflow redeploys the demo at each published release's tag (Base fc087acf), instead of on pushes to main.
+- **Deployment spec current.** The managed deployment spec now lists migrations 0052–0054, and OWNER_EMAIL is no longer a public variable.
+
+### Not in this release
+
+CONTRACT.md tracks the Shopify-replacement contract: 32 clauses done, 56 partial and 33 missing at this release.
+
+### Earlier work
 
 - Shipping profiles: group products into profiles with their own zones, services, rates, pickup and local delivery. A mixed basket is quoted per service from each profile's rate for its own items, refused before payment when a line's profile does not serve the ZIP code, and bound to the profile revisions it was quoted under; assign products by grid, product editor or catalog CSV. The flat shipping charge is now the General profile.
 

@@ -13,15 +13,16 @@ export function confirmationText(order: Order) {
 }
 export async function sendConfirmation(env: Bindings, order: Order): Promise<Order> {
  if (order.confirmation?.status === 'sent' || order.erasedAt || !order.customerEmail) return order
- let status: 'sent' | 'failed' = 'failed'
+ let status: 'sent' | 'failed' = 'failed', off = false
  try {
   const sender = operatorMail(env)
+  if (!sender && env.MAIL_PROVIDER === 'none') off = true
   if (sender && env.MAIL_FROM) {
    const text = confirmationText(order), html = `<pre style="font:inherit;white-space:pre-wrap">${text.replace(/[&<>"']/g, char => `&#${char.charCodeAt(0)};`)}</pre>`
    const result = await sender.send({ deliveryId: `stall-confirmation-${order.id}`, from: env.MAIL_FROM, to: [order.customerEmail], subject: 'Your order is confirmed', text, html, headers: { 'Auto-Submitted': 'auto-generated' } })
    if (result.status === 'accepted' || result.status === 'development') status = 'sent'
   }
  } catch { /* The order stays paid; the recorded status shows the notice did not go out. */ }
- try { return await saveOrder(env, { ...order, confirmation: { status, at: new Date().toISOString() } }, status === 'sent' ? 'confirmation.sent' : 'confirmation.failed') }
+ try { return await saveOrder(env, { ...order, confirmation: { status, at: new Date().toISOString(), ...(off ? { code: 'mail_off' as const } : {}) } }, status === 'sent' ? 'confirmation.sent' : 'confirmation.failed') }
  catch { return readOrder(env.DB, order.id) }
 }
